@@ -1404,14 +1404,14 @@
     // ═══════════════════════════════════════
     const CITIES = [
       { id: 'tokyo', name: '東京', icon: '🗼', hp: 60, isCoastal: false, isMountain: false, abilityType: 'resist_quake_fire', abilityValue: 20, abilityDesc: '地震・大火災 −20', concept: '首都への集中投資。対策が進んだ都市の強さと限界。' },
-      { id: 'osaka', name: '大阪', icon: '🏯', hp: 60, isCoastal: true, isMountain: false, abilityType: 'regen', abilityValue: 10, abilityDesc: 'ターン終了時 HP +10', concept: 'レジリエンス。やられても回復する力。' },
+      { id: 'osaka', name: '大阪', icon: '🏯', hp: 60, isCoastal: true, isMountain: false, abilityType: 'regen', abilityValue: 5, abilityDesc: 'ターン終了時 HP +5', concept: 'レジリエンス。やられても回復する力。' },
       { id: 'kobe', name: '神戸', icon: '⚓', hp: 60, isCoastal: true, isMountain: false, abilityType: 'extra_budget', abilityValue: 1, abilityDesc: '毎ターン予算 +1（計4）', concept: '阪神大震災からの復興。港湾都市の経済力が防災投資を支える。' },
       { id: 'hiroshima', name: '広島', icon: '🕊️', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_landslide', abilityValue: 20, abilityDesc: '土砂崩れ −20', concept: '山に囲まれた地形が土砂リスクを生む。' },
-      { id: 'nagoya', name: '名古屋', icon: '🌊', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 10, abilityDesc: '洪水・津波 −10', concept: '伊勢湾台風の歴史が今の対策を作った。' },
+      { id: 'nagoya', name: '名古屋', icon: '🌊', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_draw', abilityValue: 1, abilityDesc: '洪水・津波時 1枚ドロー', concept: '伊勢湾台風の歴史が今の対策を作った。' },
       { id: 'new_orleans', name: 'N.オーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。' },
       { id: 'sendai', name: '仙台', icon: '🌸', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 15, abilityDesc: '洪水・津波 −15', concept: '仙台防災枠組。日本の経験が国際防災政策を変えた。' },
       { id: 'kumamoto', name: '熊本', icon: '🌸', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。' },
-      { id: 'niigata', name: '新潟', icon: '❄️', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 15, abilityDesc: '地震を受けたターン終了時 +15', concept: '1964年新潟地震。液状化研究の原点。' },
+      { id: 'niigata', name: '新潟', icon: '❄️', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10', concept: '1964年新潟地震。液状化研究の原点。' },
       { id: 'kagoshima', name: '鹿児島', icon: '🌋', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。' },
       { id: 'rotterdam', name: 'ロッテルダム', icon: '🌷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 1, abilityDesc: '洪水・津波後、次ターン予算+1', concept: '水と共存するオランダ型防災哲学。' },
       { id: 'istanbul', name: 'イスタンブール', icon: '🕌', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_draw', abilityValue: 1, abilityDesc: '地震を受けたとき1枚ドロー', concept: '北アナトリア断層直上。事後学習型防災。' },
@@ -1419,13 +1419,13 @@
 
     const POLICY_CARDS = [
       { id: 'quake_wall', name: '耐震補強', icon: '🏗️', cost: 2, type: 'policy', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30' },
-      { id: 'dam', name: '堤防建設', icon: '🌊', cost: 2, type: 'policy', effectType: 'shield_flood', value: 20, desc: '次の洪水・津波 −20' },
-      { id: 'drill', name: '避難訓練', icon: '🏃', cost: 1, type: 'policy', effectType: 'heal', value: 20, desc: 'HP +20 回復' },
+      { id: 'dam', name: '堤防建設', icon: '🌊', cost: 2, type: 'policy', effectType: 'shield_flood', value: 25, desc: '次の洪水・津波 −25' },
+      { id: 'drill', name: '避難訓練', icon: '🏃', cost: 1, type: 'policy', effectType: 'heal', value: 20, desc: 'HP +20（対応時+10）' },
       { id: 'hazard_map', name: 'ハザードマップ', icon: '🗺️', cost: 1, type: 'policy', effectType: 'draw', value: 2, desc: '山札から2枚ドロー' },
-      { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', effectType: 'heal', value: 30, desc: 'HP +30 回復' },
-      { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', effectType: 'negate_special', value: 0, desc: '次の災害の特殊効果を無効' },
-      { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', effectType: 'damage_reduce_2t', value: 20, desc: '全ダメージ −20（2回）' },
-      { id: 'pact', name: '防災協定', icon: '📋', cost: 1, type: 'policy', effectType: 'peek', value: 1, desc: '相手の手札1枚を確認' },
+      { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）' },
+      { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', effectType: 'negate_special', value: 10, desc: '特殊効果を無効＋ダメージ−10' },
+      { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回）' },
+      { id: 'pact', name: '防災協定', icon: '📋', cost: 2, type: 'policy', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開' },
     ];
 
     const DISASTER_CARDS = [
@@ -1530,8 +1530,8 @@
       const fromHp = def.cityHps[def.activeCityIdx]; let dmg = attackCard.baseDamage; const log = [];
       // 特殊効果キャンセル
       let specialNegated = false;
-      if (def.effects.negateSpecial) { specialNegated = true; def.effects.negateSpecial = false; log.push('→ 広域避難指示（事前）で特殊効果を無効化'); }
-      if (!specialNegated && responseCard && responseCard.effectType === 'negate_special') { specialNegated = true; log.push('→ 広域避難指示（対応）で特殊効果を無効化'); }
+      if (def.effects.negateSpecial) { specialNegated = true; def.effects.negateSpecial = false; dmg -= 10; log.push('→ 広域避難指示（事前）で特殊効果を無効化＋ダメージ−10'); }
+      if (!specialNegated && responseCard && responseCard.effectType === 'negate_special') { specialNegated = true; dmg -= 10; log.push('→ 広域避難指示（対応）で特殊効果を無効化＋ダメージ−10'); }
       // 特殊効果適用
       if (!specialNegated && attackCard.specialType) {
         if (attackCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) { dmg += 10; log.push('→ 海岸都市ボーナス +10'); }
@@ -1545,27 +1545,29 @@
         }
       }
       // 都市能力
+      // 鹿児島の resist_compound は複合災害の能力無効化を無視して発動
+      if (defCity && defCity.abilityType === 'resist_compound' && attackCard.id === 'compound') { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}（能力無効化を無視）`); }
       if (!abilityDisabled && defCity) {
         if (defCity.abilityType === 'resist_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}`); }
         if (defCity.abilityType === 'resist_landslide' && attackCard.id === 'landslide') { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}`); }
         if (defCity.abilityType === 'resist_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}`); }
-        if (defCity.abilityType === 'resist_compound' && attackCard.id === 'compound') { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}`); }
         if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力（連続災害）−${defCity.abilityValue}`); }
         if (defCity.abilityType === 'quake_regen' && attackCard.id === 'earthquake') def.effects.quakeHitThisTurn = true;
         if (defCity.abilityType === 'flood_budget' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { def.effects.floodBonusTurns = 1; log.push(`→ ${defCity.name}の能力：次ターン予算+1`); }
+        if (defCity.abilityType === 'flood_draw' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); log.push(`→ ${defCity.name}の能力：${defCity.abilityValue}枚ドロー`); }
         if (defCity.abilityType === 'quake_draw' && attackCard.id === 'earthquake') { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); log.push(`→ ${defCity.name}の能力：${defCity.abilityValue}枚ドロー`); }
       }
       def.effects.disastersReceivedThisTurn++;
       // 防災庁
-      if (def.effects.damageReduceHits > 0) { dmg -= 20; def.effects.damageReduceHits--; log.push(`→ 防災庁設置で −20（残${def.effects.damageReduceHits}回）`); G._nextTurnEvents[defIdx].push({ type: 'disaster_agency_remaining', remaining: def.effects.damageReduceHits }); }
+      if (def.effects.damageReduceHits > 0) { dmg -= 15; def.effects.damageReduceHits--; log.push(`→ 防災庁設置で −15（残${def.effects.damageReduceHits}回）`); G._nextTurnEvents[defIdx].push({ type: 'disaster_agency_remaining', remaining: def.effects.damageReduceHits }); }
       // シールド（事前）
       if (def.effects.shieldQuakeFire && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= 30; def.effects.shieldQuakeFire = false; log.push('→ 耐震補強で −30（シールド消費）'); }
-      if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 20; def.effects.shieldFlood = false; log.push('→ 堤防建設で −20（シールド消費）'); }
+      if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 25; def.effects.shieldFlood = false; log.push('→ 堤防建設で −25（シールド消費）'); }
       // 対応カード
       if (responseCard && responseCard.effectType !== 'negate_special' && responseCard.effectType !== 'heal') {
         applyPolicyEffect(responseCard, defIdx, true);
         if (responseCard.effectType === 'shield_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= 30; def.effects.shieldQuakeFire = false; log.push('→ 耐震補強（対応）−30'); }
-        if (responseCard.effectType === 'shield_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 20; def.effects.shieldFlood = false; log.push('→ 堤防建設（対応）−20'); }
+        if (responseCard.effectType === 'shield_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 25; def.effects.shieldFlood = false; log.push('→ 堤防建設（対応）−25'); }
       }
       // N.オーリンズ
       if (!abilityDisabled && defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) {
@@ -1578,7 +1580,8 @@
       // 回復（対応カード）
       let healLog = null; let healAmt = 0; let healName = null;
       if (responseCard && responseCard.effectType === 'heal') {
-        if (finalHp > 0) { const mxHp = getActiveMaxHp(defIdx); const bh = finalHp; finalHp = Math.min(finalHp + responseCard.value, mxHp); def.cityHps[def.activeCityIdx] = finalHp; healAmt = finalHp - bh; healName = responseCard.name; healLog = { type: 'heal', msg: `💚 ${def.name}「${responseCard.name}」→ HP +${healAmt}（${bh} → ${finalHp}）` }; }
+        const healVal = Math.floor(responseCard.value / 2); // 対応フェーズでは回復半減
+        if (finalHp > 0) { const mxHp = getActiveMaxHp(defIdx); const bh = finalHp; finalHp = Math.min(finalHp + healVal, mxHp); def.cityHps[def.activeCityIdx] = finalHp; healAmt = finalHp - bh; healName = responseCard.name; healLog = { type: 'heal', msg: `💚 ${def.name}「${responseCard.name}」→ HP +${healAmt}（${bh} → ${finalHp}）【対応時半減】` }; }
         else healLog = { type: 'sys', msg: `💔 ${def.name}：都市壊滅のため「${responseCard.name}」の回復は無効` };
       }
       if (fromHp !== finalHp) queueHpAnim(defIdx, fromHp, finalHp);
@@ -1599,9 +1602,9 @@
         case 'shield_flood': p.effects.shieldFlood = true; if (!asResponse) addLog(`🔵 ${p.name}「${card.name}」→ 洪水・津波シールド`, 'policy'); break;
         case 'heal': { const mxHp = getActiveMaxHp(pi); const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + card.value, mxHp); queueHpAnim(pi, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${p.name}「${card.name}」→ HP +${card.value}（現在:${p.cityHps[p.activeCityIdx]}）`, 'heal'); break; }
         case 'draw': G.turnDrawState = { pi, drawn: 0, target: card.value, revealed: null, isHazardMap: true }; G.screen = 'turnDraw'; addLog(`🗺️ ${p.name}「${card.name}」→ ${card.value}枚ドロー中…`, 'policy'); break;
-        case 'negate_special': p.effects.negateSpecial = true; addLog(`🔵 ${p.name}「${card.name}」→ 次の特殊効果を無効化`, 'policy'); break;
-        case 'damage_reduce_2t': p.effects.damageReduceHits = 2; addLog(`🔵 ${p.name}「${card.name}」→ 全ダメージ −20（次2回）`, 'policy'); break;
-        case 'peek': { const opp = G.players[pi === 0 ? 1 : 0]; if (opp.hand.length > 0) { G.peekCard = opp.hand[Math.random() * opp.hand.length | 0]; addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札を1枚確認`, 'policy'); G.screen = 'peek'; } else addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札なし`, 'policy'); break; }
+        case 'negate_special': p.effects.negateSpecial = true; addLog(`🔵 ${p.name}「${card.name}」→ 次の特殊効果を無効化＋ダメージ−10`, 'policy'); break;
+        case 'damage_reduce_2t': p.effects.damageReduceHits = 2; addLog(`🔵 ${p.name}「${card.name}」→ 全ダメージ −15（次2回）`, 'policy'); break;
+        case 'peek_all': { const opp = G.players[pi === 0 ? 1 : 0]; if (opp.hand.length > 0) { G.peekCards = opp.hand.slice(); addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札を全公開`, 'policy'); G.screen = 'peek'; } else addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札なし`, 'policy'); break; }
       }
     }
 
@@ -2138,11 +2141,18 @@
     <div class="gacha-stage">${ca}</div></div>`;
     }
 
-    // ─── 防災協定 ───
+    // ─── 防災協定（全公開） ───
     function renderPeek() {
-      const c = G.peekCard;
-      return `<div class="screen active"><div style="text-align:center;padding:12px;color:var(--t2);font-size:.85rem">🔒 相手に見せないように確認してください</div>
-    <div class="peek-card-display"><div class="peek-card-big"><div class="pk-icon">${c.icon}</div><div class="pk-name">${c.name}</div><div class="pk-cost">コスト: ${c.cost}</div><div class="pk-desc">${c.desc}</div></div></div>
+      const cards = G.peekCards || (G.peekCard ? [G.peekCard] : []);
+      const cardsHtml = cards.map(c => {
+        const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)';
+        return `<div class="peek-card-big" style="display:inline-flex;margin:6px">
+          <div class="pk-icon">${c.icon}</div><div class="pk-name">${c.name}</div>
+          <div class="pk-cost" style="color:${tc}">コスト: ${c.cost}</div>
+          <div class="pk-desc">${c.desc}</div></div>`;
+      }).join('');
+      return `<div class="screen active"><div style="text-align:center;padding:12px;color:var(--t2);font-size:.85rem">🔒 相手の手札（${cards.length}枚）</div>
+    <div class="peek-card-display" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px">${cardsHtml}</div>
     <div style="text-align:center;margin-top:16px"><button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">確認した（閉じる）</button></div></div>`;
     }
 
@@ -2156,7 +2166,7 @@
           let hl = ''; if (ev.healAmount > 0) hl = `<div class="ts-ev-subline" style="color:var(--green)">💚 「${ev.healCardName}」で +${ev.healAmount} 回復（HP ${ev.hpAfterDamage} → ${ev.hpAfter}）</div>`;
           return `<div class="ts-ev damage"><div class="ts-ev-title">💥 ${ev.cardIcon} ${ev.cardName} — ${ev.damage} ダメージ</div><div class="ts-ev-subline" style="color:var(--t2)">基礎ダメージ：${ev.baseDamage || '?'}</div>${dl}<div class="ts-ev-detail">最終ダメージ ${ev.damage}（HP ${ev.hpBefore} → ${ev.hpAfterDamage}）</div>${hl}</div>`;
         }
-        if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −20 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −20</div></div>`; }
+        if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −15 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −15</div></div>`; }
         if (ev.type === 'ability_disabled_set') return `<div class="ts-ev warn" style="border-color:var(--red)"><div class="ts-ev-title">⚡ 複合災害：都市能力が無効化されました</div><div class="ts-ev-detail">次の被攻撃1回、${ev.cityName ? `「${ev.cityName}」` : 'あなたの都市'}の能力が発動しません</div></div>`;
         if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">💚 ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
         if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">💧 ${ev.cityIcon} ${ev.cityName}：今ターン予算 +1</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
@@ -2232,7 +2242,7 @@
       pushState(); render();
     }
 
-    function closePeek() { G.peekCard = null; G.screen = 'main'; pushState(); render(); }
+    function closePeek() { G.peekCard = null; G.peekCards = null; G.screen = 'main'; pushState(); render(); }
 
     function restartGame() {
       if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
