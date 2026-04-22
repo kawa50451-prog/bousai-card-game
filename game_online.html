@@ -1,0 +1,2258 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>都市防災カードバトル オンライン版</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg0: #0d1117;
+      --bg1: #161b22;
+      --bg2: #21262d;
+      --bg3: #30363d;
+      --t1: #e6edf3;
+      --t2: #8b949e;
+      --t3: #484f58;
+      --blue: #388bfd;
+      --red: #f85149;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --purple: #a371f7;
+      --card-h: 140px;
+      --card-w: 100px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+      background: var(--bg0);
+      color: var(--t1);
+      min-height: 100vh;
+      overflow-x: hidden
+    }
+
+    #app {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 12px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column
+    }
+
+    .screen {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1
+    }
+
+    .screen.active {
+      display: flex
+    }
+
+    /* LOBBY */
+    .lobby-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px
+    }
+
+    .lobby-box {
+      background: var(--bg1);
+      border: 1px solid var(--bg3);
+      border-radius: 20px;
+      padding: 28px 24px;
+      max-width: 440px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .5)
+    }
+
+    .lobby-hero {
+      text-align: center
+    }
+
+    .lobby-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #f0c040, #e06020);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 8px 0 4px
+    }
+
+    .lobby-label {
+      display: block;
+      font-size: .8rem;
+      color: var(--t2);
+      margin-bottom: 5px;
+      font-weight: 600;
+      letter-spacing: .04em
+    }
+
+    .lobby-input {
+      width: 100%;
+      background: var(--bg2);
+      border: 1.5px solid var(--bg3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--t1);
+      font-size: 1rem;
+      outline: none;
+      transition: .2s
+    }
+
+    .lobby-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(56, 139, 253, .2)
+    }
+
+    .lobby-input.code-input {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-align: center;
+      text-transform: uppercase
+    }
+
+    .lobby-mode-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px
+    }
+
+    .lobby-btn {
+      background: var(--bg2);
+      border: 1.5px solid var(--bg3);
+      border-radius: 12px;
+      padding: 16px 12px;
+      color: var(--t1);
+      cursor: pointer;
+      transition: .2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      font-size: .9rem
+    }
+
+    .lobby-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, .4)
+    }
+
+    .lobby-btn.host {
+      border-color: rgba(56, 139, 253, .5);
+      background: rgba(56, 139, 253, .08)
+    }
+
+    .lobby-btn.host:hover {
+      background: rgba(56, 139, 253, .18);
+      border-color: var(--blue)
+    }
+
+    .lobby-btn.join {
+      border-color: rgba(63, 185, 80, .5);
+      background: rgba(63, 185, 80, .08)
+    }
+
+    .lobby-btn.join:hover {
+      background: rgba(63, 185, 80, .18);
+      border-color: var(--green)
+    }
+
+    .lobby-btn-single {
+      width: 100%;
+      background: linear-gradient(135deg, #1f6feb, #388bfd);
+      border: none;
+      border-radius: 12px;
+      padding: 13px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s
+    }
+
+    .lobby-btn-single:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(56, 139, 253, .4)
+    }
+
+    .lobby-btn-back {
+      width: 100%;
+      background: var(--bg3);
+      border: none;
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--t2);
+      font-size: .9rem;
+      cursor: pointer;
+      transition: .2s;
+      margin-top: 4px
+    }
+
+    .lobby-btn-back:hover {
+      background: var(--bg2);
+      color: var(--t1)
+    }
+
+    .lobby-error {
+      background: rgba(248, 81, 73, .1);
+      border: 1px solid rgba(248, 81, 73, .4);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: .82rem;
+      color: var(--red)
+    }
+
+    /* WAITING / CONNECTION */
+    .wait-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 16px;
+      padding: 30px 20px
+    }
+
+    .wait-icon {
+      font-size: 3.5rem
+    }
+
+    .wait-title {
+      font-size: 1.3rem;
+      font-weight: 700
+    }
+
+    .wait-sub {
+      color: var(--t2);
+      font-size: .88rem
+    }
+
+    .room-code-display {
+      background: var(--bg2);
+      border: 2px solid var(--yellow);
+      border-radius: 14px;
+      padding: 16px 24px;
+      text-align: center
+    }
+
+    .room-code-label {
+      font-size: .72rem;
+      color: var(--t2);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 6px
+    }
+
+    .room-code-value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: .25em;
+      color: var(--yellow)
+    }
+
+    .pulse-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse-anim 1.2s ease-in-out infinite
+    }
+
+    .waiting-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(56, 139, 253, .08);
+      border: 1px solid rgba(56, 139, 253, .3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: .83rem;
+      color: var(--blue)
+    }
+
+    .waiting-banner.red {
+      background: rgba(248, 81, 73, .08);
+      border-color: rgba(248, 81, 73, .3);
+      color: var(--red)
+    }
+
+    @keyframes pulse-anim {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1)
+      }
+
+      50% {
+        opacity: .5;
+        transform: scale(.85)
+      }
+    }
+
+    /* SETUP REQUIRED */
+    .setup-box {
+      max-width: 520px;
+      margin: auto;
+      padding: 24px;
+      background: var(--bg1);
+      border-radius: 16px;
+      border: 1px solid var(--bg3)
+    }
+
+    .setup-step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+      font-size: .85rem;
+      color: var(--t2);
+      line-height: 1.6
+    }
+
+    .setup-num {
+      min-width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--yellow);
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      font-weight: 700;
+      flex-shrink: 0
+    }
+
+    .setup-box code {
+      background: var(--bg3);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: .82rem;
+      color: var(--t1)
+    }
+
+    /* TITLE / GACHA / DRAFT (from game.html) */
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--t2);
+      padding: 4px 0
+    }
+
+    .gacha-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px 0
+    }
+
+    .gacha-mystery {
+      background: var(--bg2);
+      border: 3px dashed var(--bg3);
+      border-radius: 20px;
+      padding: 48px 40px;
+      text-align: center;
+      width: 240px;
+      cursor: pointer;
+      transition: .2s
+    }
+
+    .gacha-mystery:hover {
+      border-color: var(--yellow);
+      transform: scale(1.03)
+    }
+
+    .gacha-card-box {
+      background: linear-gradient(145deg, #1a2540, #0d1a2d);
+      border: 3px solid var(--yellow);
+      border-radius: 20px;
+      padding: 28px 32px;
+      text-align: center;
+      width: 260px;
+      box-shadow: 0 0 32px rgba(210, 153, 34, .35)
+    }
+
+    .gacha-first-pick {
+      background: var(--bg2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: .85rem;
+      color: var(--t2);
+      border-left: 3px solid var(--green)
+    }
+
+    @keyframes gacha-reveal {
+      0% {
+        transform: scale(0.2) rotateY(90deg);
+        opacity: 0
+      }
+
+      55% {
+        transform: scale(1.08) rotateY(-6deg);
+        opacity: 1
+      }
+
+      100% {
+        transform: scale(1) rotateY(0deg);
+        opacity: 1
+      }
+    }
+
+    .gacha-reveal {
+      animation: gacha-reveal .5s cubic-bezier(.22, .68, 0, 1.2) forwards
+    }
+
+    .btn-gacha {
+      padding: 16px 52px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #b45309, #d29922);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      cursor: pointer;
+      transition: .2s;
+      letter-spacing: .04em
+    }
+
+    .btn-gacha:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 28px rgba(210, 153, 34, .5)
+    }
+
+    .btn-accept {
+      padding: 13px 44px;
+      font-size: 1rem;
+      font-weight: 700;
+      background: var(--bg2);
+      border: 2px solid var(--green);
+      border-radius: 10px;
+      color: var(--green);
+      cursor: pointer;
+      transition: .2s
+    }
+
+    .btn-accept:hover {
+      background: var(--green);
+      color: #000
+    }
+
+    .draft-progress {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--bg3)
+    }
+
+    .draft-pips {
+      display: flex;
+      gap: 5px
+    }
+
+    .draft-pip {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--bg3)
+    }
+
+    .draft-pip.done {
+      background: var(--green)
+    }
+
+    .draft-pip.current {
+      background: var(--yellow);
+      box-shadow: 0 0 6px rgba(210, 153, 34, .6)
+    }
+
+    .draft-hand-preview {
+      background: var(--bg1);
+      border-radius: 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--bg3)
+    }
+
+    .draft-hand-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg2);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: .75rem;
+      border: 1px solid var(--bg3)
+    }
+
+    /* MAIN GAME */
+    .battle-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1
+    }
+
+    .opponent-zone,
+    .player-zone {
+      background: var(--bg1);
+      border-radius: 12px;
+      padding: 12px
+    }
+
+    .opponent-zone {
+      border: 1px solid var(--bg3)
+    }
+
+    .player-zone {
+      border: 2px solid var(--blue)
+    }
+
+    .zone-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap
+    }
+
+    .zone-label {
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--t2);
+      text-transform: uppercase;
+      letter-spacing: .05em
+    }
+
+    .city-name-display {
+      font-size: 1rem;
+      font-weight: 700
+    }
+
+    .city-icon-sm {
+      font-size: 1.4rem
+    }
+
+    .hp-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px
+    }
+
+    .hp-bar-wrap {
+      flex: 1;
+      height: 14px;
+      background: var(--bg3);
+      border-radius: 7px;
+      overflow: hidden
+    }
+
+    .hp-bar-fill {
+      height: 100%;
+      border-radius: 7px;
+      transition: width .4s
+    }
+
+    .hp-text {
+      font-size: .85rem;
+      font-weight: 700;
+      min-width: 56px;
+      text-align: right
+    }
+
+    .backup-city-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      padding: 3px 0;
+      border-top: 1px solid var(--bg3);
+      opacity: .75
+    }
+
+    .backup-label {
+      font-size: .7rem;
+      color: var(--t2);
+      white-space: nowrap
+    }
+
+    .hp-bar-mini {
+      flex: 1;
+      max-width: 80px;
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden
+    }
+
+    .hp-bar-mini-fill {
+      height: 100%;
+      border-radius: 3px
+    }
+
+    .backup-hp-text {
+      font-size: .7rem;
+      min-width: 36px;
+      text-align: right
+    }
+
+    .effects-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 22px;
+      margin-bottom: 4px
+    }
+
+    .eff-badge {
+      font-size: .68rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600
+    }
+
+    .eff-blue {
+      background: rgba(56, 139, 253, .2);
+      color: var(--blue);
+      border: 1px solid rgba(56, 139, 253, .3)
+    }
+
+    .eff-red {
+      background: rgba(248, 81, 73, .2);
+      color: var(--red);
+      border: 1px solid rgba(248, 81, 73, .3)
+    }
+
+    .eff-yellow {
+      background: rgba(210, 153, 34, .2);
+      color: var(--yellow);
+      border: 1px solid rgba(210, 153, 34, .3)
+    }
+
+    .eff-gray {
+      background: rgba(139, 148, 158, .15);
+      color: var(--t2);
+      border: 1px solid var(--bg3)
+    }
+
+    .hand-cards-area {
+      margin-top: 6px
+    }
+
+    .hand-back-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap
+    }
+
+    .card-back {
+      width: var(--card-w);
+      height: var(--card-h);
+      background: repeating-linear-gradient(45deg, var(--bg2) 0, var(--bg2) 8px, var(--bg3) 8px, var(--bg3) 16px);
+      border-radius: 8px;
+      border: 1px solid var(--bg3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: var(--t3)
+    }
+
+    .hand-count {
+      font-size: .8rem;
+      color: var(--t2);
+      margin-top: 4px
+    }
+
+    .hand-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .hand-groups {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap
+    }
+
+    .hand-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px
+    }
+
+    .hand-group-label {
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase
+    }
+
+    .hand-group-label.policy-label {
+      color: var(--blue)
+    }
+
+    .hand-group-label.disaster-label {
+      color: var(--red)
+    }
+
+    .hand-group-cards {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    /* CARD */
+    .card {
+      width: var(--card-w);
+      height: var(--card-h);
+      border-radius: 10px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: .2s;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative
+    }
+
+    .card:hover:not(.card-disabled) {
+      transform: translateY(-8px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .6)
+    }
+
+    .card-disabled {
+      opacity: .4;
+      cursor: not-allowed
+    }
+
+    .card.disaster {
+      background: linear-gradient(160deg, #2d0d0d, #1a0a0a);
+      border-color: #f85149
+    }
+
+    .card.policy {
+      background: linear-gradient(160deg, #0d1a2d, #0a1020);
+      border-color: #388bfd
+    }
+
+    .card-header {
+      padding: 5px 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px
+    }
+
+    .card.disaster .card-header {
+      background: rgba(248, 81, 73, .2)
+    }
+
+    .card.policy .card-header {
+      background: rgba(56, 139, 253, .2)
+    }
+
+    .card-icon {
+      font-size: 1rem
+    }
+
+    .card-cost {
+      margin-left: auto;
+      font-size: .75rem;
+      font-weight: 700;
+      background: var(--bg0);
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .card.disaster .card-cost {
+      color: var(--red)
+    }
+
+    .card.policy .card-cost {
+      color: var(--blue)
+    }
+
+    .card-name {
+      padding: 4px 6px;
+      font-size: .75rem;
+      font-weight: 700;
+      line-height: 1.2
+    }
+
+    .card-desc {
+      padding: 0 6px 6px;
+      font-size: .62rem;
+      color: var(--t2);
+      line-height: 1.35;
+      flex: 1
+    }
+
+    .card-type-badge {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      font-size: .55rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 600
+    }
+
+    .card.disaster .card-type-badge {
+      background: rgba(248, 81, 73, .2);
+      color: var(--red)
+    }
+
+    .card.policy .card-type-badge {
+      background: rgba(56, 139, 253, .2);
+      color: var(--blue)
+    }
+
+    .card-disabled-reason {
+      font-size: .65rem;
+      color: var(--t3);
+      text-align: center;
+      margin-top: 4px
+    }
+
+    /* STATUS BAR */
+    .status-bar {
+      background: var(--bg2);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--bg3)
+    }
+
+    .turn-badge {
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--t2)
+    }
+
+    .budget-display {
+      display: flex;
+      align-items: center;
+      gap: 4px
+    }
+
+    .budget-label {
+      font-size: .75rem;
+      color: var(--t2)
+    }
+
+    .budget-pips {
+      display: flex;
+      gap: 3px
+    }
+
+    .pip {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg3)
+    }
+
+    .pip.used {
+      background: var(--bg0)
+    }
+
+    .pip.avail {
+      background: var(--green)
+    }
+
+    .status-bar .spacer {
+      flex: 1
+    }
+
+    .btn-end {
+      padding: 7px 20px;
+      font-size: .85rem;
+      font-weight: 700;
+      background: var(--bg3);
+      border: none;
+      border-radius: 8px;
+      color: var(--t1);
+      cursor: pointer;
+      transition: .2s
+    }
+
+    .btn-end:hover {
+      background: var(--blue);
+      color: #fff
+    }
+
+    /* LOG */
+    .log-area {
+      background: var(--bg1);
+      border-radius: 10px;
+      padding: 10px 12px;
+      max-height: 100px;
+      overflow-y: auto;
+      border: 1px solid var(--bg3)
+    }
+
+    .log-entry {
+      font-size: .75rem;
+      color: var(--t2);
+      padding: 2px 0;
+      border-bottom: 1px solid var(--bg3)
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+      color: var(--t1)
+    }
+
+    .log-entry.dmg {
+      color: var(--red)
+    }
+
+    .log-entry.heal {
+      color: var(--green)
+    }
+
+    .log-entry.policy {
+      color: var(--blue)
+    }
+
+    .log-entry.sys {
+      color: var(--yellow);
+      font-weight: 600
+    }
+
+    /* RESPONSE */
+    .response-pending-bar {
+      background: rgba(248, 81, 73, .1);
+      border: 1px solid var(--red);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .rpb-icon {
+      font-size: 1.4rem
+    }
+
+    .rpb-text {
+      flex: 1;
+      font-size: .85rem;
+      color: var(--t1);
+      line-height: 1.4;
+      min-width: 160px
+    }
+
+    .btn-respond {
+      padding: 6px 16px;
+      background: var(--red);
+      border: none;
+      border-radius: 7px;
+      color: #fff;
+      font-size: .82rem;
+      font-weight: 700;
+      cursor: pointer
+    }
+
+    .btn-skip-resp {
+      padding: 6px 16px;
+      background: var(--bg3);
+      border: none;
+      border-radius: 7px;
+      color: var(--t1);
+      font-size: .82rem;
+      cursor: pointer
+    }
+
+    /* CONFIRM MODAL */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999
+    }
+
+    .confirm-box {
+      background: var(--bg2);
+      border: 1px solid var(--bg3);
+      border-radius: 14px;
+      padding: 28px 32px;
+      max-width: 320px;
+      width: 90%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .6)
+    }
+
+    .confirm-box .confirm-card-preview {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 700
+    }
+
+    .confirm-box .confirm-card-preview .ci {
+      font-size: 2rem
+    }
+
+    .confirm-box p {
+      color: var(--t2);
+      font-size: .9rem;
+      margin: 0
+    }
+
+    .confirm-btns {
+      display: flex;
+      gap: 12px;
+      justify-content: center
+    }
+
+    .confirm-btns .btn-ok {
+      flex: 1;
+      padding: 10px;
+      background: var(--blue);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .15s
+    }
+
+    .confirm-btns .btn-ok:hover {
+      background: #4da3ff
+    }
+
+    .confirm-btns .btn-ok.danger {
+      background: var(--red)
+    }
+
+    .confirm-btns .btn-ok.danger:hover {
+      background: #ff6b6b
+    }
+
+    .confirm-btns .btn-cancel {
+      flex: 1;
+      padding: 10px;
+      background: transparent;
+      border: 1px solid var(--bg3);
+      border-radius: 8px;
+      color: var(--t2);
+      font-size: .95rem;
+      cursor: pointer;
+      transition: .15s
+    }
+
+    .confirm-btns .btn-cancel:hover {
+      background: var(--bg3)
+    }
+
+    /* PEEK */
+    .peek-card-display {
+      text-align: center;
+      padding: 20px
+    }
+
+    .peek-card-big {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg2);
+      border: 2px solid var(--blue);
+      border-radius: 12px;
+      padding: 20px 28px
+    }
+
+    .peek-card-big .pk-icon {
+      font-size: 2.4rem
+    }
+
+    .peek-card-big .pk-name {
+      font-size: 1.1rem;
+      font-weight: 700
+    }
+
+    .peek-card-big .pk-cost {
+      font-size: .85rem;
+      color: var(--blue)
+    }
+
+    .peek-card-big .pk-desc {
+      font-size: .78rem;
+      color: var(--t2);
+      max-width: 180px;
+      text-align: center;
+      line-height: 1.4
+    }
+
+    /* DISCARD */
+    .discard-info {
+      background: rgba(248, 81, 73, .08);
+      border: 1px solid rgba(248, 81, 73, .4);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .88rem
+    }
+
+    .discard-cards {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 8px 0
+    }
+
+    .discard-cards .card {
+      width: 110px;
+      height: 155px
+    }
+
+    .discard-cards .card:hover:not(.card-disabled) {
+      border-color: var(--red) !important;
+      box-shadow: 0 8px 20px rgba(248, 81, 73, .45);
+      transform: translateY(-8px)
+    }
+
+    /* GAME OVER */
+    .gameover-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 20px;
+      padding: 40px
+    }
+
+    .gameover-box .go-icon {
+      font-size: 5rem
+    }
+
+    .gameover-box h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--yellow)
+    }
+
+    .gameover-box p {
+      color: var(--t2);
+      font-size: 1rem
+    }
+
+    .btn-replay {
+      padding: 12px 36px;
+      font-size: 1rem;
+      font-weight: 700;
+      background: var(--bg2);
+      border: 2px solid var(--blue);
+      border-radius: 10px;
+      color: var(--blue);
+      cursor: pointer;
+      transition: .2s
+    }
+
+    .btn-replay:hover {
+      background: var(--blue);
+      color: #fff
+    }
+
+    .btn-ho {
+      padding: 14px 40px;
+      font-size: 1rem;
+      font-weight: 700;
+      background: var(--bg2);
+      border: 2px solid var(--green);
+      border-radius: 10px;
+      color: var(--green);
+      cursor: pointer;
+      transition: .2s
+    }
+
+    .btn-ho:hover {
+      background: var(--green);
+      color: #000
+    }
+
+    /* TURN SUMMARY */
+    .turn-summary-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px
+    }
+
+    .ts-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--t1);
+      padding: 4px 0
+    }
+
+    .ts-events {
+      display: flex;
+      flex-direction: column;
+      gap: 7px
+    }
+
+    .ts-ev {
+      background: var(--bg2);
+      border-radius: 8px;
+      padding: 9px 13px;
+      font-size: .83rem;
+      border-left: 3px solid var(--bg3)
+    }
+
+    .ts-ev.damage {
+      border-color: var(--red)
+    }
+
+    .ts-ev.heal {
+      border-color: var(--green)
+    }
+
+    .ts-ev.budget {
+      border-color: var(--blue)
+    }
+
+    .ts-ev.typhoon {
+      border-color: var(--yellow)
+    }
+
+    .ts-ev.warn {
+      border-color: var(--yellow)
+    }
+
+    .ts-ev-title {
+      font-weight: 700;
+      margin-bottom: 2px
+    }
+
+    .ts-ev-detail {
+      color: var(--t2);
+      font-size: .77rem
+    }
+
+    .ts-ev-subline {
+      color: var(--t2);
+      font-size: .77rem;
+      padding-left: 8px;
+      border-left: 2px solid var(--bg3);
+      margin: 2px 0
+    }
+
+    /* BUDGET TOAST */
+    @keyframes toast-in-out {
+      0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px) scale(.9)
+      }
+
+      15% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1)
+      }
+
+      75% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1)
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px) scale(.95)
+      }
+    }
+
+    .budget-toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg2);
+      border: 1px solid var(--bg3);
+      border-radius: 10px;
+      padding: 8px 20px;
+      font-size: .9rem;
+      font-weight: 600;
+      white-space: nowrap;
+      animation: toast-in-out 1.8s ease forwards;
+      z-index: 1000;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .5)
+    }
+
+    /* MOBILE */
+    @media(max-width:600px) {
+      #app {
+        padding: 8px
+      }
+
+      :root {
+        --card-h: 120px;
+        --card-w: 86px
+      }
+
+      .card-name {
+        font-size: .68rem
+      }
+
+      .card-desc {
+        font-size: .58rem
+      }
+
+      .lobby-box {
+        padding: 20px 16px
+      }
+
+      .lobby-title {
+        font-size: 1.5rem
+      }
+
+      .room-code-value {
+        font-size: 1.6rem;
+        letter-spacing: .18em
+      }
+
+      .hand-groups {
+        gap: 10px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <!-- Firebase Realtime Database SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- QRCode.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    // ╔══════════════════════════════════════════════════════════════╗
+    // ║  FIREBASE CONFIG                                             ║
+    // ║  以下を自分のプロジェクト設定値に書き換えてください              ║
+    // ║  https://console.firebase.google.com でプロジェクト作成後、    ║
+    // ║  「プロジェクトの設定」→「マイアプリ」→ firebaseConfig をコピー ║
+    // ╚══════════════════════════════════════════════════════════════╝
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDfiRIvRjGA4mgeXExQ071cf5_4REv0AcI",
+      authDomain: "toshibousai-cardgame.firebaseapp.com",
+      databaseURL: "https://toshibousai-cardgame-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "toshibousai-cardgame",
+      storageBucket: "toshibousai-cardgame.firebasestorage.app",
+      messagingSenderId: "144265392889",
+      appId: "1:144265392889:web:869be684c5a16c81d62828"
+    };
+
+    // ══ ONLINE STATE (local, not synced) ══
+    let myRole = null;   // 'p1' | 'p2'
+    let myPlayerIdx = 0;      // 0 | 1
+    let roomId = null;
+    let db = null;
+    let myLastPush = null;   // 自分のpushが返ってきたとき無視する用
+
+    // ══ LOBBY UI STATE ══
+    let lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '' };
+
+    // ═══════════════════════════════════════
+    // DATA
+    // ═══════════════════════════════════════
+    const CITIES = [
+      { id: 'tokyo', name: '東京', icon: '🗼', hp: 60, isCoastal: false, isMountain: false, abilityType: 'resist_quake_fire', abilityValue: 20, abilityDesc: '地震・大火災 −20', concept: '首都への集中投資。対策が進んだ都市の強さと限界。' },
+      { id: 'osaka', name: '大阪', icon: '🏯', hp: 60, isCoastal: true, isMountain: false, abilityType: 'regen', abilityValue: 10, abilityDesc: 'ターン終了時 HP +10', concept: 'レジリエンス。やられても回復する力。' },
+      { id: 'kobe', name: '神戸', icon: '⚓', hp: 60, isCoastal: true, isMountain: false, abilityType: 'extra_budget', abilityValue: 1, abilityDesc: '毎ターン予算 +1（計4）', concept: '阪神大震災からの復興。港湾都市の経済力が防災投資を支える。' },
+      { id: 'hiroshima', name: '広島', icon: '🕊️', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_landslide', abilityValue: 20, abilityDesc: '土砂崩れ −20', concept: '山に囲まれた地形が土砂リスクを生む。' },
+      { id: 'nagoya', name: '名古屋', icon: '🌊', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 10, abilityDesc: '洪水・津波 −10', concept: '伊勢湾台風の歴史が今の対策を作った。' },
+      { id: 'new_orleans', name: 'N.オーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。' },
+      { id: 'sendai', name: '仙台', icon: '🌸', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 15, abilityDesc: '洪水・津波 −15', concept: '仙台防災枠組。日本の経験が国際防災政策を変えた。' },
+      { id: 'kumamoto', name: '熊本', icon: '🌸', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。' },
+      { id: 'niigata', name: '新潟', icon: '❄️', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 15, abilityDesc: '地震を受けたターン終了時 +15', concept: '1964年新潟地震。液状化研究の原点。' },
+      { id: 'kagoshima', name: '鹿児島', icon: '🌋', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。' },
+      { id: 'rotterdam', name: 'ロッテルダム', icon: '🌷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 1, abilityDesc: '洪水・津波後、次ターン予算+1', concept: '水と共存するオランダ型防災哲学。' },
+      { id: 'istanbul', name: 'イスタンブール', icon: '🕌', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_draw', abilityValue: 1, abilityDesc: '地震を受けたとき1枚ドロー', concept: '北アナトリア断層直上。事後学習型防災。' },
+    ];
+
+    const POLICY_CARDS = [
+      { id: 'quake_wall', name: '耐震補強', icon: '🏗️', cost: 2, type: 'policy', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30' },
+      { id: 'dam', name: '堤防建設', icon: '🌊', cost: 2, type: 'policy', effectType: 'shield_flood', value: 20, desc: '次の洪水・津波 −20' },
+      { id: 'drill', name: '避難訓練', icon: '🏃', cost: 1, type: 'policy', effectType: 'heal', value: 20, desc: 'HP +20 回復' },
+      { id: 'hazard_map', name: 'ハザードマップ', icon: '🗺️', cost: 1, type: 'policy', effectType: 'draw', value: 2, desc: '山札から2枚ドロー' },
+      { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', effectType: 'heal', value: 30, desc: 'HP +30 回復' },
+      { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', effectType: 'negate_special', value: 0, desc: '次の災害の特殊効果を無効' },
+      { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', effectType: 'damage_reduce_2t', value: 20, desc: '全ダメージ −20（2回）' },
+      { id: 'pact', name: '防災協定', icon: '📋', cost: 1, type: 'policy', effectType: 'peek', value: 1, desc: '相手の手札1枚を確認' },
+    ];
+
+    const DISASTER_CARDS = [
+      { id: 'earthquake', name: '地震', icon: '🌍', cost: 2, type: 'disaster', baseDamage: 30, specialType: 'inland_bonus', desc: '30（内陸都市 +10）' },
+      { id: 'flood', name: '洪水', icon: '🌧️', cost: 2, type: 'disaster', baseDamage: 30, specialType: 'coastal_bonus', desc: '30（海岸都市 +10）' },
+      { id: 'typhoon', name: '台風', icon: '🌀', cost: 2, type: 'disaster', baseDamage: 20, specialType: 'discard_policy', desc: '20+相手の政策1枚を捨てる' },
+      { id: 'tsunami', name: '津波', icon: '🌊', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'coastal_bonus', desc: '40（海岸都市 +10）' },
+      { id: 'landslide', name: '土砂崩れ', icon: '⛰️', cost: 1, type: 'disaster', baseDamage: 20, specialType: 'mountain_bonus', desc: '20（山間部 +10）' },
+      { id: 'wildfire', name: '大火災', icon: '🔥', cost: 3, type: 'disaster', baseDamage: 50, specialType: null, desc: 'ダメージ 50' },
+      { id: 'compound', name: '複合災害', icon: '⚡', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'disable_ability', desc: '40+次T相手能力を無効化' },
+    ];
+    const ALL_CARDS = [...POLICY_CARDS, ...DISASTER_CARDS];
+
+    // ═══════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════
+    const mkEffects = () => ({
+      shieldQuakeFire: false, shieldFlood: false, negateSpecial: false,
+      damageReduceHits: 0, abilityDisabledHits: 0,
+      disastersReceivedThisTurn: 0, quakeHitThisTurn: false, floodBonusTurns: 0,
+    });
+
+    let G = {
+      screen: 'lobby', activePlayer: 0, turnsEach: [0, 0],
+      players: [
+        { name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
+        { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
+      ],
+      deck: [], discard: [], log: [],
+      pendingAttack: null, peekCard: null, winner: null,
+      gachaPickedIds: [], gachaCurrent: null, draftState: null,
+      discardNeeded: null, confirm: null, turnDrawState: null,
+      _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null,
+    };
+
+    // ═══════════════════════════════════════
+    // HELPERS
+    // ═══════════════════════════════════════
+    function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0;[arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+    function createDeck() { const d = []; for (const c of ALL_CARDS) for (let i = 0; i < 3; i++)d.push({ ...c, uid: c.id + '_' + i }); return shuffle(d); }
+    function getActiveCity(pi) { const p = G.players[pi]; return p.cities[p.activeCityIdx]; }
+    function getActiveCityHp(pi) { const p = G.players[pi]; return p.cityHps[p.activeCityIdx]; }
+    function getActiveMaxHp(pi) { return G.players[pi].cities[G.players[pi].activeCityIdx].hp; }
+    function getBudget(pi) { const p = G.players[pi]; const c = getActiveCity(pi); let b = 3; if (c && c.abilityType === 'extra_budget') b += c.abilityValue; if (c && c.abilityType === 'flood_budget' && p.effects.floodBonusTurns > 0) b += 1; return b; }
+    function getBudgetLeft(pi) { return getBudget(pi) - G.players[pi].budgetUsed; }
+    function addLog(msg, cls = '') { G.log.unshift({ msg, cls }); if (G.log.length > 30) G.log.pop(); }
+    function hpColor(hp, max) { const r = hp / max; if (r > 0.6) return '#3fb950'; if (r > 0.3) return '#d29922'; return '#f85149'; }
+
+    function drawCards(pi, n) {
+      const p = G.players[pi];
+      for (let i = 0; i < n; i++) {
+        if (G.deck.length === 0) { if (G.discard.length === 0) break; G.deck = shuffle([...G.discard]); G.discard = []; addLog('山札をシャッフルしました', 'sys'); }
+        p.hand.push(G.deck.shift());
+      }
+    }
+    function autoDiscard(pi) { const p = G.players[pi]; while (p.hand.length > 5) { const d = p.hand.pop(); G.discard.push(d); addLog(`📤 ${p.name}の手札超過：自動で1枚捨てた`, 'sys'); } }
+    function handleDiscardIfNeeded(pi, returnTo) {
+      if (G.players[pi].hand.length > 5) { G.discardNeeded = { pi, returnTo }; G.screen = 'discard'; pushState(); render(); return true; }
+      return false;
+    }
+    function computeEstDmg(card, defIdx) {
+      const d = getActiveCity(defIdx); let e = card.baseDamage;
+      if (card.specialType === 'coastal_bonus' && d && d.isCoastal) e += 10;
+      else if (card.specialType === 'mountain_bonus' && d && d.isMountain) e += 10;
+      else if (card.specialType === 'inland_bonus' && d && !d.isCoastal && !d.isMountain) e += 10;
+      return e;
+    }
+    function canPlayAny(pi) {
+      const p = G.players[pi]; const left = getBudgetLeft(pi); const ft = (pi === 0 && G.turnsEach[0] === 0);
+      return p.hand.some(c => { if (left < c.cost) return false; if (ft && c.type === 'disaster') return false; return true; });
+    }
+    function goMain() {
+      G.screen = 'main'; const ap = G.activePlayer; const p = G.players[ap];
+      if (!G.pendingAttack && p.hand.length > 0 && !canPlayAny(ap)) { addLog(`${p.name}：使用可能なカードがないためターン自動終了`, 'sys'); endTurn(); return; }
+      pushState(); render();
+    }
+
+    // ─── online版checkWin: 即時都市切り替え ───
+    function checkWin() {
+      for (let i = 0; i < 2; i++) {
+        const p = G.players[i];
+        if (p.cityHps[p.activeCityIdx] <= 0) {
+          const nxt = p.activeCityIdx + 1;
+          if (nxt < p.cities.length && p.cityHps[nxt] > 0) {
+            const old = p.cities[p.activeCityIdx];
+            p.cityHps[p.activeCityIdx] = 0; p.activeCityIdx = nxt; p.effects = mkEffects();
+            addLog(`💥 ${p.name}の「${old.name}」壊滅！→「${p.cities[nxt].name}」に切り替え！`, 'sys');
+            return false;
+          } else { G.winner = i === 0 ? 1 : 0; G.screen = 'gameover'; pushState(); render(); return true; }
+        }
+      }
+      return false;
+    }
+
+    // ═══════════════════════════════════════
+    // DAMAGE RESOLUTION
+    // ═══════════════════════════════════════
+    function resolveDamage(attackCard, defIdx, responseCard) {
+      const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
+      const abilityDisabled = def.effects.abilityDisabledHits > 0;
+      if (abilityDisabled) def.effects.abilityDisabledHits--;
+      const fromHp = def.cityHps[def.activeCityIdx]; let dmg = attackCard.baseDamage; const log = [];
+      // 特殊効果キャンセル
+      let specialNegated = false;
+      if (def.effects.negateSpecial) { specialNegated = true; def.effects.negateSpecial = false; log.push('→ 広域避難指示（事前）で特殊効果を無効化'); }
+      if (!specialNegated && responseCard && responseCard.effectType === 'negate_special') { specialNegated = true; log.push('→ 広域避難指示（対応）で特殊効果を無効化'); }
+      // 特殊効果適用
+      if (!specialNegated && attackCard.specialType) {
+        if (attackCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) { dmg += 10; log.push('→ 海岸都市ボーナス +10'); }
+        if (attackCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) { dmg += 10; log.push('→ 山間部ボーナス +10'); }
+        if (attackCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) { dmg += 10; log.push('→ 内陸都市ボーナス +10'); }
+        if (attackCard.specialType === 'disable_ability') { def.effects.abilityDisabledHits = 1; log.push('→ 複合災害：次の被攻撃1回で都市能力を無効化'); G._nextTurnEvents[defIdx].push({ type: 'ability_disabled_set', cityName: defCity ? defCity.name : '' }); }
+        if (attackCard.specialType === 'discard_policy') {
+          const pols = def.hand.filter(c => c.type === 'policy');
+          if (pols.length > 0) { const d = pols[Math.random() * pols.length | 0]; def.hand.splice(def.hand.indexOf(d), 1); G.discard.push(d); log.push(`→ 台風：${def.name}の政策カード1枚が捨てられた`); G._nextTurnEvents[defIdx].push({ type: 'typhoon_discard', cardIcon: d.icon, cardName: d.name }); }
+          else log.push('→ 台風：政策カードなし（効果なし）');
+        }
+      }
+      // 都市能力
+      if (!abilityDisabled && defCity) {
+        if (defCity.abilityType === 'resist_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}`); }
+        if (defCity.abilityType === 'resist_landslide' && attackCard.id === 'landslide') { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}`); }
+        if (defCity.abilityType === 'resist_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}`); }
+        if (defCity.abilityType === 'resist_compound' && attackCard.id === 'compound') { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力 −${defCity.abilityValue}`); }
+        if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { dmg -= defCity.abilityValue; log.push(`→ ${defCity.name}の能力（連続災害）−${defCity.abilityValue}`); }
+        if (defCity.abilityType === 'quake_regen' && attackCard.id === 'earthquake') def.effects.quakeHitThisTurn = true;
+        if (defCity.abilityType === 'flood_budget' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { def.effects.floodBonusTurns = 1; log.push(`→ ${defCity.name}の能力：次ターン予算+1`); }
+        if (defCity.abilityType === 'quake_draw' && attackCard.id === 'earthquake') { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); log.push(`→ ${defCity.name}の能力：${defCity.abilityValue}枚ドロー`); }
+      }
+      def.effects.disastersReceivedThisTurn++;
+      // 防災庁
+      if (def.effects.damageReduceHits > 0) { dmg -= 20; def.effects.damageReduceHits--; log.push(`→ 防災庁設置で −20（残${def.effects.damageReduceHits}回）`); G._nextTurnEvents[defIdx].push({ type: 'disaster_agency_remaining', remaining: def.effects.damageReduceHits }); }
+      // シールド（事前）
+      if (def.effects.shieldQuakeFire && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= 30; def.effects.shieldQuakeFire = false; log.push('→ 耐震補強で −30（シールド消費）'); }
+      if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 20; def.effects.shieldFlood = false; log.push('→ 堤防建設で −20（シールド消費）'); }
+      // 対応カード
+      if (responseCard && responseCard.effectType !== 'negate_special' && responseCard.effectType !== 'heal') {
+        applyPolicyEffect(responseCard, defIdx, true);
+        if (responseCard.effectType === 'shield_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= 30; def.effects.shieldQuakeFire = false; log.push('→ 耐震補強（対応）−30'); }
+        if (responseCard.effectType === 'shield_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 20; def.effects.shieldFlood = false; log.push('→ 堤防建設（対応）−20'); }
+      }
+      // N.オーリンズ
+      if (!abilityDisabled && defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) {
+        dmg += defCity.abilityValue; log.push(`→ 脆弱性：手札${def.hand.length}枚 +${defCity.abilityValue}`);
+        drawCards(defIdx, 1); autoDiscard(defIdx); log.push('→ N.オーリンズ底力：1枚ドロー');
+      }
+      // ダメージ確定
+      dmg = Math.max(0, dmg); def.cityHps[def.activeCityIdx] -= dmg;
+      let finalHp = def.cityHps[def.activeCityIdx]; const hpAD = finalHp;
+      // 回復（対応カード）
+      let healLog = null; let healAmt = 0; let healName = null;
+      if (responseCard && responseCard.effectType === 'heal') {
+        if (finalHp > 0) { const mxHp = getActiveMaxHp(defIdx); const bh = finalHp; finalHp = Math.min(finalHp + responseCard.value, mxHp); def.cityHps[def.activeCityIdx] = finalHp; healAmt = finalHp - bh; healName = responseCard.name; healLog = { type: 'heal', msg: `💚 ${def.name}「${responseCard.name}」→ HP +${healAmt}（${bh} → ${finalHp}）` }; }
+        else healLog = { type: 'sys', msg: `💔 ${def.name}：都市壊滅のため「${responseCard.name}」の回復は無効` };
+      }
+      if (fromHp !== finalHp) queueHpAnim(defIdx, fromHp, finalHp);
+      const aN = G.players[G.pendingAttack.attackerIdx].name;
+      addLog(`💥 ${aN}が「${attackCard.name}」→ ${dmg}ダメージ（${def.name}残HP:${Math.max(0, finalHp)}）`, 'dmg');
+      for (const l of log) addLog(l);
+      if (healLog) addLog(healLog.msg, healLog.type);
+      G._nextTurnEvents[defIdx].push({ type: 'damage', cardIcon: attackCard.icon, cardName: attackCard.name, baseDamage: attackCard.baseDamage, details: [...log], damage: dmg, hpBefore: fromHp, hpAfterDamage: Math.max(0, hpAD), hpAfter: Math.max(0, finalHp), healAmount: healAmt, healCardName: healName });
+    }
+
+    // ═══════════════════════════════════════
+    // POLICY EFFECTS
+    // ═══════════════════════════════════════
+    function applyPolicyEffect(card, pi, asResponse) {
+      const p = G.players[pi];
+      switch (card.effectType) {
+        case 'shield_quake_fire': p.effects.shieldQuakeFire = true; if (!asResponse) addLog(`🔵 ${p.name}「${card.name}」→ 地震・大火災シールド`, 'policy'); break;
+        case 'shield_flood': p.effects.shieldFlood = true; if (!asResponse) addLog(`🔵 ${p.name}「${card.name}」→ 洪水・津波シールド`, 'policy'); break;
+        case 'heal': { const mxHp = getActiveMaxHp(pi); const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + card.value, mxHp); queueHpAnim(pi, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${p.name}「${card.name}」→ HP +${card.value}（現在:${p.cityHps[p.activeCityIdx]}）`, 'heal'); break; }
+        case 'draw': G.turnDrawState = { pi, drawn: 0, target: card.value, revealed: null, isHazardMap: true }; G.screen = 'turnDraw'; addLog(`🗺️ ${p.name}「${card.name}」→ ${card.value}枚ドロー中…`, 'policy'); break;
+        case 'negate_special': p.effects.negateSpecial = true; addLog(`🔵 ${p.name}「${card.name}」→ 次の特殊効果を無効化`, 'policy'); break;
+        case 'damage_reduce_2t': p.effects.damageReduceHits = 2; addLog(`🔵 ${p.name}「${card.name}」→ 全ダメージ −20（次2回）`, 'policy'); break;
+        case 'peek': { const opp = G.players[pi === 0 ? 1 : 0]; if (opp.hand.length > 0) { G.peekCard = opp.hand[Math.random() * opp.hand.length | 0]; addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札を1枚確認`, 'policy'); G.screen = 'peek'; } else addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札なし`, 'policy'); break; }
+      }
+    }
+
+    // ═══════════════════════════════════════
+    // TURN MANAGEMENT (online: handoverなし)
+    // ═══════════════════════════════════════
+    function setupTurnDraw(pi) {
+      const p = G.players[pi]; p.budgetUsed = 0; p.effects.disastersReceivedThisTurn = 0;
+      if (p.effects.floodBonusTurns > 0) p.effects.floodBonusTurns--;
+      const target = Math.min(2, Math.max(0, 5 - p.hand.length));
+      if (target === 0) { addLog(`─── ${p.name}のターン開始（予算${getBudget(pi)}・手札満杯のためドローなし）`, 'sys'); G.screen = 'main'; }
+      else { G.turnDrawState = { pi, drawn: 0, target, revealed: null }; G.screen = 'turnDraw'; }
+    }
+
+    function endTurn() {
+      const p = G.players[G.activePlayer]; const city = getActiveCity(G.activePlayer);
+      if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: city.icon, cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
+      if (city && city.abilityType === 'quake_regen' && p.effects.quakeHitThisTurn) { const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, city.hp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の能力（地震後回復）+${city.abilityValue}`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: city.icon, cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
+      p.effects.quakeHitThisTurn = false;
+      G.turnsEach[G.activePlayer]++; const next = G.activePlayer === 0 ? 1 : 0; G.activePlayer = next;
+      const evts = G._nextTurnEvents[next];
+      if (evts.length > 0) { G._turnSummary = [...evts]; G._nextTurnEvents[next] = []; G.screen = 'turnSummary'; }
+      else setupTurnDraw(next);
+      pushState(); render();
+    }
+
+    // ═══════════════════════════════════════
+    // GACHA / DRAFT
+    // ═══════════════════════════════════════
+    function pullGacha() { const rem = CITIES.filter(c => !G.gachaPickedIds.includes(c.id)); G.gachaCurrent.revealed = rem[Math.random() * rem.length | 0]; pushState(); render(); }
+
+    function acceptGachaCity() {
+      const gc = G.gachaCurrent; const city = gc.revealed; const p = G.players[gc.playerIdx];
+      p.cities.push(city); p.cityHps.push(city.hp); G.gachaPickedIds.push(city.id);
+      if (gc.pickNum === 0) { gc.pickNum = 1; gc.revealed = null; pushState(); render(); }
+      else if (gc.playerIdx === 0) { G.gachaCurrent = { playerIdx: 1, pickNum: 0, revealed: null }; G.screen = 'gacha'; pushState(); render(); }
+      else { G.deck = createDeck(); G.discard = []; G.log = []; G.turnsEach = [0, 0]; G.activePlayer = 0; G.players.forEach(p => { p.hand = []; p.budgetUsed = 0; p.effects = mkEffects(); }); startDraft(0); pushState(); render(); }
+    }
+
+    function startDraft(pi) { G.draftState = { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, needPolicy: 2, needDisaster: 2 }; G.screen = 'draft'; }
+
+    function pullDraftCard() {
+      const ds = G.draftState; const needP = ds.needPolicy, needD = ds.needDisaster; let pool;
+      if (needP > 0 && needD > 0) pool = G.deck.filter(c => c.type === 'policy' || c.type === 'disaster');
+      else if (needP > 0) pool = G.deck.filter(c => c.type === 'policy');
+      else if (needD > 0) pool = G.deck.filter(c => c.type === 'disaster');
+      else pool = [...G.deck];
+      if (pool.length === 0) { if (G.discard.length === 0) return; G.deck = shuffle([...G.discard, ...G.deck]); G.discard = []; pullDraftCard(); return; }
+      const card = pool[Math.random() * pool.length | 0]; G.deck.splice(G.deck.indexOf(card), 1); ds.revealed = card; pushState(); render();
+    }
+
+    function acceptDraftCard() {
+      const ds = G.draftState; if (!ds.revealed) return;
+      if (ds.revealed.type === 'policy' && ds.needPolicy > 0) ds.needPolicy--;
+      else if (ds.revealed.type === 'disaster' && ds.needDisaster > 0) ds.needDisaster--;
+      G.players[ds.playerIdx].hand.push(ds.revealed); ds.revealed = null; ds.picksDone++;
+      if (ds.picksDone >= ds.picksTarget) {
+        if (ds.playerIdx === 0) { startDraft(1); pushState(); render(); }
+        else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; pushState(); render(); }
+      } else { G.screen = 'draft'; pushState(); render(); }
+    }
+
+    function pullTurnCard() {
+      const ts = G.turnDrawState; if (ts.revealed) return;
+      if (G.deck.length === 0) { if (G.discard.length === 0) return; G.deck = shuffle([...G.discard]); G.discard = []; addLog('山札をシャッフルしました', 'sys'); }
+      ts.revealed = G.deck.shift(); pushState(); render();
+    }
+
+    function acceptTurnCard() {
+      const ts = G.turnDrawState; if (!ts.revealed) return;
+      const pi = ts.pi ?? ts.playerIdx;
+      G.players[pi].hand.push(ts.revealed); ts.drawn++; ts.revealed = null;
+      if (ts.drawn >= ts.target) {
+        G.turnDrawState = null;
+        if (ts.isHazardMap) addLog(`🗺️ ${G.players[pi].name}：ハザードマップで${ts.target}枚ドロー完了`, 'policy');
+        else addLog(`─── ${G.players[pi].name}のターン開始（予算${getBudget(pi)}・${ts.target}枚ドロー）`, 'sys');
+        if (!handleDiscardIfNeeded(pi, 'main')) goMain();
+      } else { pushState(); render(); }
+    }
+
+    // ═══════════════════════════════════════
+    // HP ANIMATION & BUDGET TOAST
+    // ═══════════════════════════════════════
+    let _hpQ = [];
+    function queueHpAnim(pi, fh, th) { _hpQ.push({ pi, fh, th }); }
+    function processHpAnims() {
+      if (G.screen !== 'main' && G.screen !== 'response') return; if (G._turnSummary) return;
+      const q = _hpQ.splice(0); for (const a of q) _animateHp(a.pi, a.fh, a.th);
+    }
+    function _animateHp(pi, fh, th) {
+      const mxHp = getActiveMaxHp(pi); const fill = document.getElementById('hp-fill-' + pi); const text = document.getElementById('hp-text-' + pi);
+      if (!fill || !text) return;
+      fill.style.transition = 'none'; fill.style.width = Math.max(0, fh / mxHp * 100) + '%'; fill.style.background = hpColor(fh, mxHp); fill.offsetWidth;
+      fill.style.transition = 'width .6s ease, background .6s ease'; fill.style.width = Math.max(0, th / mxHp * 100) + '%'; fill.style.background = hpColor(th, mxHp);
+      text.style.color = hpColor(th, mxHp); text.textContent = Math.max(0, th) + '/' + mxHp;
+    }
+    function showBudgetToast(cost, rem, tot) {
+      setTimeout(() => { const t = document.createElement('div'); t.className = 'budget-toast'; t.innerHTML = `<span style="color:var(--yellow)">−${cost}pt</span> 使用　残り <strong style="color:var(--green)">${rem}</strong><span style="color:var(--t2)">/${tot}</span>`; const a = document.getElementById('app'); if (a) a.appendChild(t); setTimeout(() => t.remove(), 1800); }, 0);
+    }
+
+    // ═══════════════════════════════════════
+    // FIREBASE
+    // ═══════════════════════════════════════
+    function isFirebaseConfigured() { return FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY'; }
+    function initFirebase() { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); }
+
+    function generateRoomCode() { const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++)c += chars[Math.random() * chars.length | 0]; return c; }
+
+    function pushState() {
+      if (!db || !roomId) return;
+      const s = JSON.stringify({ ...G, confirm: null }); myLastPush = s;
+      db.ref(`rooms/${roomId}/state`).set(s);
+    }
+
+    function listenToState() {
+      db.ref(`rooms/${roomId}/state`).on('value', snap => {
+        const data = snap.val(); if (!data || data === myLastPush) return;
+        G = { ...JSON.parse(data), confirm: null }; render(); processHpAnims();
+      });
+    }
+
+    async function createRoom() {
+      const name = lobbyState.nameInput.trim();
+      if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
+      myRole = 'p1'; myPlayerIdx = 0; roomId = generateRoomCode(); G.players[0].name = name;
+      try {
+        await db.ref(`rooms/${roomId}`).set({ p1Name: name, p2Name: '', p2Joined: false, state: null });
+        db.ref(`rooms/${roomId}/p2Joined`).on('value', snap => {
+          if (snap.val() === true) {
+            db.ref(`rooms/${roomId}/p2Joined`).off();
+            db.ref(`rooms/${roomId}/p2Name`).get().then(s2 => {
+              G.players[1].name = s2.val() || 'プレイヤー2';
+              listenToState();
+              G.gachaPickedIds = []; G.gachaCurrent = { playerIdx: 0, pickNum: 0, revealed: null }; G.screen = 'gacha';
+              pushState(); render();
+            });
+          }
+        });
+        G.screen = 'waiting_connection'; render();
+      } catch (e) { lobbyState.error = 'ルーム作成に失敗: ' + e.message; render(); }
+    }
+
+    async function joinRoom() {
+      const name = lobbyState.nameInput.trim(); const code = lobbyState.joinCodeInput.trim().toUpperCase();
+      if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
+      if (code.length !== 6) { lobbyState.error = 'ルームコードは6文字です'; render(); return; }
+      try {
+        const snap = await db.ref(`rooms/${code}`).get();
+        if (!snap.val()) { lobbyState.error = 'ルームが見つかりません'; render(); return; }
+        if (snap.val().p2Joined) { lobbyState.error = 'このルームはすでに満員です'; render(); return; }
+        myRole = 'p2'; myPlayerIdx = 1; roomId = code; G.players[1].name = name;
+        await db.ref(`rooms/${roomId}/p2Name`).set(name);
+        await db.ref(`rooms/${roomId}/p2Joined`).set(true);
+        listenToState(); G.screen = 'waiting_connection'; render();
+      } catch (e) { lobbyState.error = '参加に失敗: ' + e.message; render(); }
+    }
+
+    function generateQR() {
+      const el = document.getElementById('qr-container'); if (!el || el.dataset.generated) return; el.dataset.generated = 'true';
+      const base = window.location.href.split('?')[0];
+      const url = `${base}?room=${roomId}`;
+      try { new QRCode(el, { text: url, width: 150, height: 150, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
+      catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>`; }
+    }
+
+    // ═══════════════════════════════════════
+    // VIEW DISPATCH
+    // ═══════════════════════════════════════
+    function myView() {
+      if (!isFirebaseConfigured()) return 'setup_required';
+      if (G.screen === 'lobby' || G.screen === 'waiting_connection') return G.screen;
+      const mi = myPlayerIdx;
+      switch (G.screen) {
+        case 'gacha': return G.gachaCurrent?.playerIdx === mi ? 'gacha' : 'waiting';
+        case 'draft': return G.draftState?.playerIdx === mi ? 'draft' : 'waiting';
+        case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx; return pi === mi ? 'turnDraw' : 'waiting'; }
+        case 'turnSummary': return G.activePlayer === mi ? 'turnSummary' : 'waiting';
+        case 'main':
+          if (G.pendingAttack) { if (G.pendingAttack.attackerIdx === mi) return 'main'; if (G.pendingAttack.defenderIdx === mi) return 'waiting_response'; }
+          return G.activePlayer === mi ? 'main' : 'waiting';
+        case 'response': return G.pendingAttack?.defenderIdx === mi ? 'response' : 'waiting';
+        case 'discard': { const pi = G.discardNeeded?.pi ?? G.discardNeeded?.playerIdx; return pi === mi ? 'discard' : 'waiting'; }
+        case 'peek': return G.activePlayer === mi ? 'peek' : 'waiting';
+        case 'gameover': return 'gameover';
+        default: return 'waiting';
+      }
+    }
+
+    // ═══════════════════════════════════════
+    // RENDER
+    // ═══════════════════════════════════════
+    function render() {
+      const app = document.getElementById('app'); const view = myView(); let html = '';
+      switch (view) {
+        case 'setup_required': html = renderSetupRequired(); break;
+        case 'lobby': html = renderLobby(); break;
+        case 'waiting_connection': html = renderWaitingConnection(); break;
+        case 'gacha': html = renderGacha(); break;
+        case 'draft': html = renderDraft(); break;
+        case 'turnDraw': html = renderTurnDraw(); break;
+        case 'turnSummary': html = renderTurnSummary(); break;
+        case 'main': html = renderMain(false); break;
+        case 'response': html = renderMain(true); break;
+        case 'waiting_response': html = renderWaitingResponse(); break;
+        case 'discard': html = renderDiscard(); break;
+        case 'peek': html = renderPeek(); break;
+        case 'gameover': html = renderGameOver(); break;
+        case 'waiting': html = renderWaiting(); break;
+      }
+      if (G.confirm && (view === 'main' || view === 'response' || view === 'discard')) html += renderConfirmModal();
+      app.innerHTML = html; processHpAnims();
+      if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
+    }
+
+    // ─── セットアップ必須 ───
+    function renderSetupRequired() {
+      return `<div class="screen active"><div class="setup-box">
+    <div style="text-align:center;margin-bottom:20px"><div style="font-size:2.5rem">🔧</div><h2 style="color:var(--yellow);margin:8px 0">Firebase 設定が必要です</h2><p style="color:var(--t2);font-size:.85rem">このページを使うには Firebase Realtime Database の設定が必要です。</p></div>
+    <div class="setup-step"><span class="setup-num">1</span><div><strong>Firebaseプロジェクト作成</strong><br><a href="https://console.firebase.google.com" target="_blank" style="color:var(--blue)">console.firebase.google.com</a> で無料プロジェクトを作成（Googleアカウント必要）</div></div>
+    <div class="setup-step"><span class="setup-num">2</span><div><strong>Realtime Database を有効化</strong><br>「構築」→「Realtime Database」→「データベースを作成」→テストモードで開始</div></div>
+    <div class="setup-step"><span class="setup-num">3</span><div><strong>設定情報をコピー</strong><br>「プロジェクトの設定」→「マイアプリ」→ Webアプリを登録 →「<code>firebaseConfig</code>」をコピー</div></div>
+    <div class="setup-step"><span class="setup-num">4</span><div><strong>このファイルを編集</strong><br><code>game_online.html</code> 冒頭の <code>FIREBASE_CONFIG</code> に値を貼り付けて上書き保存</div></div>
+  </div></div>`;
+    }
+
+    // ─── ロビー ───
+    function renderLobby() {
+      const nv = lobbyState.nameInput.replace(/"/g, '&quot;'); const jv = lobbyState.joinCodeInput.replace(/"/g, '&quot;');
+      const err = lobbyState.error ? `<div class="lobby-error">⚠️ ${lobbyState.error}</div>` : '';
+      let body = '';
+      if (lobbyState.mode === 'select') {
+        body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
+    ${err}
+    <div class="lobby-mode-btns">
+      <button class="lobby-btn host" onclick="handleHostClick()"><span style="font-size:1.5rem">🏠</span><strong>ルームを作成</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ホスト（先攻）</span></button>
+      <button class="lobby-btn join" onclick="lobbyState.mode='join';lobbyState.error='';render()"><span style="font-size:1.5rem">🔗</span><strong>ルームに参加</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ゲスト（後攻）</span></button>
+    </div>`;
+      } else {
+        body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 鈴木" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
+    <div><label class="lobby-label">ルームコード（6文字）</label><input id="lobby-code" class="lobby-input code-input" type="text" placeholder="AB3K7X" maxlength="6" value="${jv}" oninput="lobbyState.joinCodeInput=this.value.toUpperCase();this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')handleJoinClick()"></div>
+    ${err}
+    <button class="lobby-btn-single" onclick="handleJoinClick()">参加する</button>
+    <button class="lobby-btn-back" onclick="lobbyState.mode='select';lobbyState.error='';render()">← 戻る</button>`;
+      }
+      return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
+    <div class="lobby-hero"><div style="font-size:2.2rem">🌊⚡🔥</div><h1 class="lobby-title">都市防災カードバトル</h1><p style="color:var(--t2);font-size:.8rem">オンライン版 — 1人1デバイス</p></div>
+    ${body}
+    <div style="text-align:center;color:var(--t3);font-size:.7rem;margin-top:4px">簡易版 v3 ／ 2人用 ／ 各2都市 ／ 15〜20分</div>
+  </div></div></div>`;
+    }
+
+    // ─── 接続待ち ───
+    function renderWaitingConnection() {
+      if (myRole === 'p1') {
+        return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
+      <div style="text-align:center"><div style="font-size:2rem;margin-bottom:6px">🏠 ホスト待機中</div><p style="color:var(--t2);font-size:.88rem">相手にルームコードまたはQRコードを共有してください</p></div>
+      <div class="room-code-display"><div class="room-code-label">ルームコード</div><div class="room-code-value">${roomId || '------'}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div id="qr-container" style="background:var(--bg2);padding:10px;border-radius:10px;border:1px solid var(--bg3);min-height:52px;display:flex;align-items:center;justify-content:center"></div>
+        <div style="font-size:.7rem;color:var(--t3)">QRコードを読み取るか、上のコードを口頭で伝えてください</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(56,139,253,.08);border:1px solid rgba(56,139,253,.3);border-radius:8px;padding:10px 14px">
+        <span class="pulse-dot" style="background:var(--blue);min-width:12px"></span>
+        <span style="font-size:.85rem;color:var(--blue)">相手の接続を待っています...</span>
+      </div>
+      <div style="color:var(--t3);font-size:.75rem;text-align:center">${G.players[0].name} としてホスト中</div>
+    </div></div></div>`;
+      } else {
+        return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
+      <div style="text-align:center"><div style="font-size:2rem;margin-bottom:6px">🔗 参加完了</div><p style="color:var(--t2);font-size:.88rem">ホストがゲームを開始するまでお待ちください</p></div>
+      <div class="room-code-display"><div class="room-code-label">接続中のルーム</div><div class="room-code-value">${roomId || '------'}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:8px;padding:10px 14px;margin-top:8px">
+        <span class="pulse-dot" style="background:var(--green);min-width:12px"></span>
+        <span style="font-size:.85rem;color:var(--green)">ホストの開始を待っています...</span>
+      </div>
+      <div style="color:var(--t3);font-size:.75rem;text-align:center">${G.players[1].name} として参加中</div>
+    </div></div></div>`;
+      }
+    }
+
+    // ─── 待機画面 ───
+    function renderWaiting() {
+      let msg = '';
+      switch (G.screen) {
+        case 'gacha': msg = `${G.players[G.gachaCurrent?.playerIdx ?? 0].name} が都市を選んでいます`; break;
+        case 'draft': msg = `${G.players[G.draftState?.playerIdx ?? 0].name} が手札を引いています`; break;
+        case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? 0; msg = `${G.players[pi].name} がカードを引いています`; } break;
+        case 'turnSummary': msg = `${G.players[G.activePlayer].name} がターンサマリーを確認しています`; break;
+        case 'response': msg = `${G.players[G.pendingAttack?.defenderIdx ?? 0].name} が対応カードを選んでいます`; break;
+        case 'discard': { const pi = G.discardNeeded?.pi ?? G.discardNeeded?.playerIdx ?? 0; msg = `${G.players[pi].name} が捨て札を選んでいます`; } break;
+        default: msg = `${G.players[G.activePlayer].name} のターンです`;
+      }
+      const showBoard = ['main', 'response'].includes(G.screen) && G.players[0].cities.length > 0;
+      if (showBoard) {
+        const mi = myPlayerIdx, oi = mi === 0 ? 1 : 0;
+        return `<div class="screen active">
+      <div class="waiting-banner"><span class="pulse-dot" style="background:var(--blue);min-width:10px;height:10px"></span><span>⏳ ${msg}</span></div>
+      ${renderZoneReadOnly(oi, 'opponent')}
+      <div class="log-area">${G.log.slice(0, 4).map(l => `<div class="log-entry ${l.cls}">${l.msg}</div>`).join('') || '<div class="log-entry sys">待機中</div>'}</div>
+      ${renderZoneReadOnly(mi, 'player')}
+    </div>`;
+      }
+      return `<div class="screen active"><div class="wait-screen">
+    <div class="wait-icon">⏳</div><div class="wait-title">${msg}</div>
+    <div class="wait-sub">相手の操作をお待ちください</div>
+  </div></div>`;
+    }
+
+    // ─── 対応待ち（守備側が攻撃宣言後に相手の選択を待つ） ───
+    function renderWaitingResponse() {
+      const atk = G.pendingAttack; if (!atk) return renderWaiting();
+      const mi = myPlayerIdx, oi = mi === 0 ? 1 : 0;
+      return `<div class="screen active">
+    <div class="waiting-banner red">⚔️ ${G.players[atk.attackerIdx].name}が「${atk.card.icon} ${atk.card.name}」を宣言！対応フェーズの確認を待っています...</div>
+    ${renderZoneReadOnly(oi, 'opponent')}
+    <div class="response-pending-bar">
+      <div class="rpb-icon">⚠️</div>
+      <div class="rpb-text"><strong>${G.players[atk.attackerIdx].name}が「${atk.card.icon} ${atk.card.name}」を使用！</strong><br>相手が「対応を確認」か「対応しない」を選んでいます...</div>
+    </div>
+    <div class="log-area">${G.log.slice(0, 4).map(l => `<div class="log-entry ${l.cls}">${l.msg}</div>`).join('')}</div>
+    ${renderZoneReadOnly(mi, 'player')}
+  </div>`;
+    }
+
+    // ─── 読み取り専用ゾーン ───
+    function renderZoneReadOnly(idx, position) {
+      const p = G.players[idx]; if (!p || !p.cities || p.cities.length === 0) return '';
+      const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
+      const isMe = (idx === myPlayerIdx);
+      return `<div class="${position}-zone">
+    <div class="zone-header"><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><span class="city-name-display">${p.name}の都市：${c ? c.name : '?'}</span></div>
+    <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div></div>
+    ${renderBackupCity(idx)}
+    <div class="effects-row">${renderEffectBadges(p.effects)}</div>
+    <div class="hand-cards-area">
+      ${isMe ? renderPlayerHandReadOnly(p) : `<div class="hand-back-row">${Array(p.hand.length).fill('<div class="card-back">🂠</div>').join('')}</div>`}
+      <div class="hand-count">手札 ${p.hand.length} 枚</div>
+    </div>
+  </div>`;
+    }
+
+    // ─── ガチャ ───
+    function renderGacha() {
+      const gc = G.gachaCurrent; const p = G.players[gc.playerIdx];
+      let firstPickInfo = '';
+      if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">✅ 1枚目：${fc.icon} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
+      let ca = '';
+      if (!gc.revealed) { ca = `<div class="gacha-mystery" onclick="pullGacha()"><div style="font-size:5rem;margin-bottom:12px">🎴</div><div style="font-size:.95rem;color:var(--t2)">どの都市が出るか…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullGacha()">🎲 ガチャを引く！</button>`; }
+      else { const c = gc.revealed; ca = `<div class="gacha-card-box gacha-reveal"><div style="font-size:4rem;margin-bottom:10px">${c.icon}</div><div style="font-size:1.5rem;font-weight:700;margin-bottom:6px">${c.name}</div><div style="font-size:.85rem;color:var(--green);margin-bottom:8px">HP: ${c.hp}</div><div style="font-size:.9rem;color:var(--blue);font-weight:700;margin-bottom:10px">${c.abilityDesc}</div><div style="font-size:.7rem;color:var(--t3);line-height:1.5">${c.concept}</div></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`; }
+      return `<div class="screen active"><div class="section-title">🎲 ${p.name} — ${gc.pickNum === 0 ? '1枚目' : '2枚目'}の都市ガチャ</div>${firstPickInfo}<div class="gacha-stage">${ca}</div></div>`;
+    }
+
+    // ─── 予備都市 ───
+    function renderBackupCity(pi) {
+      const p = G.players[pi]; if (p.activeCityIdx !== 0) return `<div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">予備都市なし</div>`; if (p.cities.length < 2) return '';
+      const bc = p.cities[1]; const bHp = p.cityHps[1]; const pct = Math.max(0, bHp / bc.hp * 100);
+      return `<div class="backup-city-row"><span class="backup-label">予備: ${bc.icon} ${bc.name}</span><div class="hp-bar-mini"><div class="hp-bar-mini-fill" style="width:${pct}%;background:${hpColor(bHp, bc.hp)}"></div></div><span class="backup-hp-text" style="color:${hpColor(bHp, bc.hp)}">${bHp}/${bc.hp}</span></div>`;
+    }
+
+    // ─── 効果バッジ ───
+    function renderEffectBadges(eff) {
+      const b = [];
+      if (eff.shieldQuakeFire) b.push(`<span class="eff-badge eff-blue">🏗️ 耐震シールド</span>`);
+      if (eff.shieldFlood) b.push(`<span class="eff-badge eff-blue">🌊 堤防シールド</span>`);
+      if (eff.negateSpecial) b.push(`<span class="eff-badge eff-blue">📢 特殊効果無効</span>`);
+      if (eff.damageReduceHits > 0) b.push(`<span class="eff-badge eff-yellow">🏛️ 全ダメ−20（残${eff.damageReduceHits}回）</span>`);
+      if (eff.abilityDisabledHits > 0) b.push(`<span class="eff-badge eff-red">⚡ 能力無効化（残${eff.abilityDisabledHits}回）</span>`);
+      if (eff.floodBonusTurns > 0) b.push(`<span class="eff-badge eff-blue">💧 予算+1</span>`);
+      return b.join('') || `<span class="eff-badge eff-gray">効果なし</span>`;
+    }
+
+    // ─── 手札描画（操作可能） ───
+    function renderPlayerHand(p, pi) {
+      const isFirstTurn = (pi === 0 && G.turnsEach[0] === 0); const left = getBudgetLeft(pi);
+      function mkCard(card) {
+        const cantAfford = left < card.cost; const ftBlk = isFirstTurn && card.type === 'disaster'; const dis = cantAfford || ftBlk;
+        let reason = ''; if (cantAfford) reason = '予算不足'; else if (ftBlk) reason = '先攻1ターン目は使用不可';
+        const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : ''}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-name">${card.name}</div><div class="card-desc">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span>${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
+      }
+      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
+      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
+      const s = [];
+      if (pols.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label policy-label">政策</div><div class="hand-group-cards">${pols.map(mkCard).join('')}</div></div>`);
+      if (dis.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label disaster-label">災害</div><div class="hand-group-cards">${dis.map(mkCard).join('')}</div></div>`);
+      return `<div class="hand-groups">${s.join('')}</div>`;
+    }
+
+    // ─── 手札描画（読み取り専用：自分のターン外） ───
+    function renderPlayerHandReadOnly(p) {
+      function mkCard(card) { return `<div class="card ${card.type} card-disabled" style="cursor:default"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-name">${card.name}</div><div class="card-desc">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span></div>`; }
+      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
+      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
+      const s = [];
+      if (pols.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label policy-label">政策</div><div class="hand-group-cards">${pols.map(mkCard).join('')}</div></div>`);
+      if (dis.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label disaster-label">災害</div><div class="hand-group-cards">${dis.map(mkCard).join('')}</div></div>`);
+      return `<div class="hand-groups">${s.join('')}</div>`;
+    }
+
+    // ─── 手札描画（対応フェーズ） ───
+    function renderResponseHand(p) {
+      if (p.hand.length === 0) return `<div style="color:var(--t3);font-size:.85rem;padding:10px">手札なし</div>`;
+      function mkCard(card) { const dis = card.type !== 'policy'; const oc = dis ? '' : `requestConfirm('playResponseCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','対応に使用')`; return `<div class="card ${card.type} ${dis ? 'card-disabled' : ''}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-name">${card.name}</div><div class="card-desc">${card.desc}</div><span class="card-type-badge">${dis ? '災害（使用不可）' : '対応'}</span>${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`; }
+      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
+      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
+      const s = [];
+      if (pols.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label policy-label">政策（対応可）</div><div class="hand-group-cards">${pols.map(mkCard).join('')}</div></div>`);
+      if (dis.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label disaster-label">災害（使用不可）</div><div class="hand-group-cards">${dis.map(mkCard).join('')}</div></div>`);
+      return `<div class="hand-groups">${s.join('')}</div>`;
+    }
+
+    // ─── メインゲーム（自分が常に下ゾーン） ───
+    function renderMain(isResponsePhase) {
+      const mi = myPlayerIdx, oi = mi === 0 ? 1 : 0; const ap = G.activePlayer;
+      const deviceHolder = isResponsePhase ? G.pendingAttack.defenderIdx : ap;
+      const amIHolder = (deviceHolder === mi);
+      const budget = getBudget(ap), left = getBudgetLeft(ap);
+      const hasPending = !!G.pendingAttack; const isMyAttack = hasPending && G.pendingAttack.attackerIdx === mi;
+
+      function zoneHand(idx) {
+        const isMe = (idx === mi);
+        if (!isMe) return Array(G.players[idx].hand.length).fill('<div class="card-back">🂠</div>').join('');
+        if (amIHolder) return isResponsePhase ? renderResponseHand(G.players[idx]) : renderPlayerHand(G.players[idx], idx);
+        return renderPlayerHandReadOnly(G.players[idx]);
+      }
+
+      let pendingBar = '';
+      if (hasPending) {
+        if (isResponsePhase) {
+          pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>${G.players[G.pendingAttack.attackerIdx].name}が「${G.pendingAttack.card.icon} ${G.pendingAttack.card.name}」を使用！</strong><br>政策カードを1枚選んで対応、または「対応しない」を押してください。</div><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
+        } else if (isMyAttack) {
+          pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚔️</div><div class="rpb-text"><strong>「${G.pendingAttack.card.icon} ${G.pendingAttack.card.name}」を宣言！</strong><br>${G.players[G.pendingAttack.defenderIdx].name}に対応を確認しますか？</div><button class="btn-respond" onclick="goResponseHandover()">対応を確認</button><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
+        }
+      }
+
+      const logHtml = G.log.slice(0, 6).map(l => `<div class="log-entry ${l.cls}">${l.msg}</div>`).join('');
+      let statusBar = '';
+      if (ap === mi && !hasPending && !isResponsePhase) {
+        statusBar = `<div class="status-bar"><span class="turn-badge">ターン ${G.turnsEach[ap] + 1} | ${G.players[ap].name}</span>
+      <div class="budget-display"><span class="budget-label">予算</span><div class="budget-pips">${Array(budget).fill(0).map((_, i) => `<div class="pip ${i < (budget - left) ? 'used' : 'avail'}"></div>`).join('')}</div><span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t3);font-weight:400">/${budget}</span></span></div>
+      <span class="spacer"></span><button class="btn-end" onclick="endTurn()">ターン終了 →</button></div>`;
+      }
+
+      function renderZone(idx, position) {
+        const p = G.players[idx]; const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
+        const isHolder = (idx === deviceHolder); const isMe = (idx === mi);
+        const label = isMe ? (isResponsePhase ? 'あなた（対応中）' : 'あなた') : (isHolder ? '相手（操作中）' : '相手（待機中）');
+        const bdr = isHolder && isMe ? 'border-left:3px solid var(--green)' : isHolder && !isMe ? 'border-left:3px solid var(--red)' : '';
+        return `<div class="${position}-zone" style="${bdr}">
+      <div class="zone-header"><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><span class="city-name-display">${p.name}の都市：${c ? c.name : '?'}</span>${p.effects.abilityDisabledHits > 0 ? '<span class="eff-badge eff-red">能力無効</span>' : ''}</div>
+      <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" id="hp-fill-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div></div>
+      ${renderBackupCity(idx)}
+      <div class="effects-row">${renderEffectBadges(p.effects)}</div>
+      <div class="hand-cards-area">${isMe ? zoneHand(idx) : `<div class="hand-back-row">${zoneHand(idx)}</div>`}${!isMe ? `<div class="hand-count">手札 ${p.hand.length} 枚</div>` : ''}</div>
+    </div>`;
+      }
+
+      return `<div class="screen active"><div class="battle-layout">
+    ${statusBar}${renderZone(oi, 'opponent')}${pendingBar}
+    <div class="log-area">${logHtml || '<div class="log-entry sys">ゲーム開始</div>'}</div>
+    ${renderZone(mi, 'player')}
+  </div></div>`;
+    }
+
+    // ─── 確認モーダル ───
+    function renderConfirmModal() {
+      const c = G.confirm; const tl = c.cardType === 'policy' ? '政策カード' : c.cardType === 'disaster' ? '災害カード' : 'カード';
+      let hint = '';
+      if (c.cardType === 'disaster' && c.fn === 'playCard') {
+        const defIdx = G.activePlayer === 0 ? 1 : 0; const defCity = getActiveCity(defIdx); const card = G.players[G.activePlayer].hand.find(cd => cd.uid === c.uid);
+        if (card && defCity && card.baseDamage) {
+          const base = card.baseDamage; let bonus = 0; let bl = '';
+          if (card.specialType === 'coastal_bonus' && defCity.isCoastal) { bonus = 10; bl = `${defCity.name}（海岸）`; }
+          else if (card.specialType === 'mountain_bonus' && defCity.isMountain) { bonus = 10; bl = `${defCity.name}（山間部）`; }
+          else if (card.specialType === 'inland_bonus' && !defCity.isCoastal && !defCity.isMountain) { bonus = 10; bl = `${defCity.name}（内陸）`; }
+          if (bonus > 0) hint = `<div style="margin:4px 0;padding:6px 10px;background:rgba(248,81,73,.12);border-radius:6px;font-size:.8rem;text-align:center">基礎 <strong>${base}</strong> + <strong style="color:var(--red)">+${bonus}</strong> = <strong style="color:var(--red)">${base + bonus}</strong> ダメージ<br><span style="color:var(--t3);font-size:.7rem">${bl}に有効</span></div>`;
+          else hint = `<div style="margin:4px 0;padding:5px 10px;background:rgba(139,148,158,.1);border-radius:6px;font-size:.8rem;color:var(--t2);text-align:center">基礎ダメージ <strong style="color:var(--t1)">${base}</strong></div>`;
+        }
+      }
+      if (c.cardType === 'policy') {
+        const pi = (c.fn === 'playResponseCard') ? G.pendingAttack.defenderIdx : G.activePlayer; const card = G.players[pi].hand.find(cd => cd.uid === c.uid);
+        if (card) {
+          const p = G.players[pi]; const curHp = p.cityHps[p.activeCityIdx]; const mxHp = getActiveMaxHp(pi); let h = '';
+          if (card.effectType === 'heal') { const aH = Math.min(curHp + card.value, mxHp); h = `HP +${card.value} 回復　<strong style="color:var(--green)">${curHp} → ${aH}</strong>`; }
+          else if (card.effectType === 'shield_quake_fire') { if (G.pendingAttack && (G.pendingAttack.card.id === 'earthquake' || G.pendingAttack.card.id === 'wildfire')) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `この攻撃に適用：−30 → 予測 <strong style="color:var(--green)">${Math.max(0, e - 30)}</strong>`; } else h = '次の地震・大火災を −30（シールド設置）'; }
+          else if (card.effectType === 'shield_flood') { if (G.pendingAttack && (G.pendingAttack.card.id === 'flood' || G.pendingAttack.card.id === 'tsunami')) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `この攻撃に適用：−20 → 予測 <strong style="color:var(--green)">${Math.max(0, e - 20)}</strong>`; } else h = '次の洪水・津波を −20（シールド設置）'; }
+          else if (card.effectType === 'negate_special') h = G.pendingAttack ? '特殊効果を無効化（基礎ダメージのみ）' : '次の災害の特殊効果を無効化';
+          else if (card.effectType === 'damage_reduce_2t') { if (G.pendingAttack) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `全ダメージ −20（次2回）→ 予測 <strong style="color:var(--green)">${Math.max(0, e - 20)}</strong>`; } else h = '全ダメージ −20（次2回の攻撃）'; }
+          else if (card.effectType === 'draw') h = `山札から ${card.value} 枚ドロー`;
+          else if (card.effectType === 'peek') h = '相手の手札 1 枚を確認';
+          if (h) hint = `<div style="margin:4px 0;padding:6px 10px;background:rgba(56,139,253,.12);border-radius:6px;font-size:.8rem;color:var(--t2);text-align:center">${h}</div>`;
+        }
+      }
+      return `<div class="confirm-overlay" onclick="cancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
+    <div class="confirm-card-preview"><span class="ci">${c.icon}</span><span>${c.name}</span></div>
+    ${hint}<p>${tl}を<strong style="color:${c.danger ? 'var(--red)' : 'var(--blue)'}">${c.actionLabel}</strong>しますか？</p>
+    <div class="confirm-btns"><button class="btn-ok${c.danger ? ' danger' : ''}" onclick="doConfirm()">はい</button><button class="btn-cancel" onclick="cancelConfirm()">キャンセル</button></div>
+  </div></div>`;
+    }
+
+    // ─── 捨て札選択 ───
+    function renderDiscard() {
+      const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi]; const excess = p.hand.length - 5;
+      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-name">${card.name}</div><div class="card-desc">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span></div>`).join('');
+      return `<div class="screen active"><div class="section-title">📤 ${p.name} — 捨てるカードを選んでください</div>
+    <div class="discard-info">手札が上限（5枚）を超えています。<strong style="color:var(--red)">${excess}枚</strong>を捨ててください。<br><span style="font-size:.75rem;color:var(--t3)">カードをクリックすると捨て札になります</span></div>
+    <div style="font-size:.8rem;color:var(--t2);text-align:center">現在の手札：<strong style="color:var(--yellow)">${p.hand.length}枚</strong>　→　目標：5枚</div>
+    <div class="discard-cards">${cards}</div></div>`;
+    }
+
+    // ─── ターン開始ドロー ───
+    function renderTurnDraw() {
+      const ts = G.turnDrawState; const pi = ts.pi ?? ts.playerIdx; const p = G.players[pi];
+      const pips = Array(ts.target).fill(0).map((_, i) => { const cls = i < ts.drawn ? 'done' : i === ts.drawn ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
+      let ca = '';
+      if (!ts.revealed) { ca = `<div class="gacha-mystery" onclick="pullTurnCard()"><div style="font-size:5rem;margin-bottom:12px">🂠</div><div style="font-size:.95rem;color:var(--t2)">山札の中身は…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullTurnCard()">🃏 カードを引く！</button>`; }
+      else { const c = ts.revealed; const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)'; ca = `<div class="gacha-card-box gacha-reveal" style="border-color:${c.type === 'policy' ? 'rgba(56,139,253,.5)' : 'rgba(248,81,73,.5)'}"><div style="font-size:3.5rem;margin-bottom:8px">${c.icon}</div><div style="font-size:.75rem;font-weight:600;color:${tc};margin-bottom:4px">${c.type === 'policy' ? '政策カード' : '災害カード'}</div><div style="font-size:1.4rem;font-weight:700;margin-bottom:6px">${c.name}</div><div style="font-size:.85rem;color:var(--t2);margin-bottom:10px">${c.desc}</div><div style="background:var(--bg0);border-radius:20px;padding:4px 14px;display:inline-block;font-size:.8rem;font-weight:700;color:${tc}">コスト ${c.cost}</div></div><button class="btn-accept" onclick="acceptTurnCard()">✅ 手札に加える</button>`; }
+      return `<div class="screen active"><div class="section-title">${ts.isHazardMap ? `🗺️ ${p.name} — ハザードマップ整備（${ts.drawn + 1}枚目／${ts.target}枚）` : `🃏 ${p.name} — ターン開始ドロー（${ts.drawn + 1}枚目／${ts.target}枚）`}</div>
+    <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t2)">ドロー </span><strong style="color:var(--yellow)">${ts.drawn} / ${ts.target}</strong><span style="font-size:.8rem;color:var(--t2)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
+    <div class="gacha-stage">${ca}</div></div>`;
+    }
+
+    // ─── 初期ドラフト ───
+    function renderDraft() {
+      const ds = G.draftState; const p = G.players[ds.playerIdx];
+      const pips = Array(ds.picksTarget).fill(0).map((_, i) => { const cls = i < ds.picksDone ? 'done' : i === ds.picksDone ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
+      const hp = p.hand.length > 0 ? p.hand.map(c => `<span class="draft-hand-tag">${c.icon} ${c.name}</span>`).join('') : `<span style="font-size:.75rem;color:var(--t3)">まだ引いていません</span>`;
+      let ca = '';
+      if (!ds.revealed) { ca = `<div class="gacha-mystery" onclick="pullDraftCard()"><div style="font-size:5rem;margin-bottom:12px">🂠</div><div style="font-size:.95rem;color:var(--t2)">山札の中身は…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullDraftCard()">🃏 山札から引く！</button>`; }
+      else { const c = ds.revealed; const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)'; ca = `<div class="gacha-card-box gacha-reveal" style="border-color:${c.type === 'policy' ? 'rgba(56,139,253,.5)' : 'rgba(248,81,73,.5)'}"><div style="font-size:3.5rem;margin-bottom:8px">${c.icon}</div><div style="font-size:.75rem;font-weight:600;color:${tc};margin-bottom:4px">${c.type === 'policy' ? '政策カード' : '災害カード'}</div><div style="font-size:1.4rem;font-weight:700;margin-bottom:6px">${c.name}</div><div style="font-size:.85rem;color:var(--t2);margin-bottom:10px">${c.desc}</div><div style="background:var(--bg0);border-radius:20px;padding:4px 14px;display:inline-block;font-size:.8rem;font-weight:700;color:${tc}">コスト ${c.cost}</div></div><button class="btn-accept" onclick="acceptDraftCard()">✅ 手札に加える</button>`; }
+      return `<div class="screen active"><div class="section-title">🃏 ${p.name} — 初期手札を引いてください</div>
+    <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t2)">手札 </span><strong style="color:var(--yellow)">${ds.picksDone} / ${ds.picksTarget}</strong><span style="font-size:.8rem;color:var(--t2)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
+    <div class="draft-hand-preview"><div style="font-size:.7rem;color:var(--t3);margin-bottom:5px">現在の手札</div><div style="display:flex;gap:6px;flex-wrap:wrap">${hp}</div></div>
+    <div class="gacha-stage">${ca}</div></div>`;
+    }
+
+    // ─── 防災協定 ───
+    function renderPeek() {
+      const c = G.peekCard;
+      return `<div class="screen active"><div style="text-align:center;padding:12px;color:var(--t2);font-size:.85rem">🔒 相手に見せないように確認してください</div>
+    <div class="peek-card-display"><div class="peek-card-big"><div class="pk-icon">${c.icon}</div><div class="pk-name">${c.name}</div><div class="pk-cost">コスト: ${c.cost}</div><div class="pk-desc">${c.desc}</div></div></div>
+    <div style="text-align:center;margin-top:16px"><button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">確認した（閉じる）</button></div></div>`;
+    }
+
+    // ─── ターンサマリー ───
+    function renderTurnSummary() {
+      const events = G._turnSummary || []; const p = G.players[G.activePlayer];
+      const items = events.map(ev => {
+        if (ev.type === 'damage') {
+          if (ev.damage === 0) { const dl = (ev.details && ev.details.length) ? ev.details.map(d => `<div class="ts-ev-subline">${d}</div>`).join('') : ''; return `<div class="ts-ev heal"><div class="ts-ev-title">🛡️ ${ev.cardIcon} ${ev.cardName} — 完全防御！</div>${dl}<div class="ts-ev-detail">基礎ダメージ ${ev.baseDamage || '?'} → 最終ダメージ 0（HP ${ev.hpBefore} のまま）</div></div>`; }
+          const dl = (ev.details && ev.details.length) ? ev.details.map(d => `<div class="ts-ev-subline">${d}</div>`).join('') : '';
+          let hl = ''; if (ev.healAmount > 0) hl = `<div class="ts-ev-subline" style="color:var(--green)">💚 「${ev.healCardName}」で +${ev.healAmount} 回復（HP ${ev.hpAfterDamage} → ${ev.hpAfter}）</div>`;
+          return `<div class="ts-ev damage"><div class="ts-ev-title">💥 ${ev.cardIcon} ${ev.cardName} — ${ev.damage} ダメージ</div><div class="ts-ev-subline" style="color:var(--t2)">基礎ダメージ：${ev.baseDamage || '?'}</div>${dl}<div class="ts-ev-detail">最終ダメージ ${ev.damage}（HP ${ev.hpBefore} → ${ev.hpAfterDamage}）</div>${hl}</div>`;
+        }
+        if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −20 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −20</div></div>`; }
+        if (ev.type === 'ability_disabled_set') return `<div class="ts-ev warn" style="border-color:var(--red)"><div class="ts-ev-title">⚡ 複合災害：都市能力が無効化されました</div><div class="ts-ev-detail">次の被攻撃1回、${ev.cityName ? `「${ev.cityName}」` : 'あなたの都市'}の能力が発動しません</div></div>`;
+        if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">💚 ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
+        if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">💧 ${ev.cityIcon} ${ev.cityName}：今ターン予算 +1</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
+        if (ev.type === 'typhoon_discard') return `<div class="ts-ev typhoon"><div class="ts-ev-title">🌀 台風の特殊効果（前ターン）</div><div class="ts-ev-detail">${ev.cardIcon} 「${ev.cardName}」が捨て札になりました</div></div>`;
+        return '';
+      }).join('');
+      return `<div class="screen active"><div class="turn-summary-box">
+    <div class="ts-title">📋 ${p.name}のターン — 前ターンの状況確認</div>
+    <div class="ts-events">${items || '<div style="color:var(--t3);font-size:.85rem">特記なし</div>'}</div>
+    <div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="dismissTurnSummary()">✅ 確認してターン開始</button></div>
+  </div></div>`;
+    }
+
+    // ─── ゲームオーバー ───
+    function renderGameOver() {
+      const w = G.players[G.winner]; const li = G.winner === 0 ? 1 : 0; const l = G.players[li];
+      const wc = w.cities.map((c, i) => `${c.icon}${c.name}(${Math.max(0, w.cityHps[i])}HP)`).join('・');
+      const lc = l.cities.map((c, i) => `${c.icon}${c.name}(${Math.max(0, l.cityHps[i])}HP)`).join('・');
+      return `<div class="screen active"><div class="gameover-box">
+    <div class="go-icon">🏆</div><h2>${w.name} の勝利！</h2><p>${l.name}の都市がすべて壊滅しました。</p>
+    <div style="margin:12px 0;padding:12px;background:var(--bg2);border-radius:10px;max-width:440px;font-size:.8rem;color:var(--t2);line-height:2">🏙️ ${w.name}：${wc}<br>💥 ${l.name}：${lc}</div>
+    <button class="btn-replay" onclick="restartGame()">もう一度遊ぶ</button>
+  </div></div>`;
+    }
+
+    // ═══════════════════════════════════════
+    // EVENT HANDLERS
+    // ═══════════════════════════════════════
+    function handleHostClick() { const name = lobbyState.nameInput.trim(); if (!name) { lobbyState.error = '名前を入力してください'; render(); return; } lobbyState.error = ''; createRoom(); }
+    function handleJoinClick() { const name = lobbyState.nameInput.trim(); const code = lobbyState.joinCodeInput.trim(); if (!name) { lobbyState.error = '名前を入力してください'; render(); return; } if (code.length !== 6) { lobbyState.error = 'ルームコードは6文字で入力してください'; render(); return; } lobbyState.error = ''; joinRoom(); }
+    function dismissTurnSummary() { G._turnSummary = null; setupTurnDraw(G.activePlayer); pushState(); render(); }
+    function requestConfirm(fn, uid, name, icon, cardType, actionLabel, danger = false) { G.confirm = { fn, uid, name, icon, cardType, actionLabel, danger }; render(); }
+    function doConfirm() { const c = G.confirm; G.confirm = null; if (c.fn === 'playCard') playCard(c.uid); else if (c.fn === 'playResponseCard') playResponseCard(c.uid); else if (c.fn === 'discardCard') discardCard(c.uid); }
+    function cancelConfirm() { G.confirm = null; render(); }
+
+    function playCard(uid) {
+      const p = G.players[G.activePlayer]; const idx = p.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = p.hand[idx];
+      if (G.activePlayer === 0 && G.turnsEach[0] === 0 && card.type === 'disaster') { alert('先攻1ターン目は災害カードを使えません。'); return; }
+      if (getBudgetLeft(G.activePlayer) < card.cost) return;
+      p.hand.splice(idx, 1); G.discard.push(card); p.budgetUsed += card.cost;
+      showBudgetToast(card.cost, getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
+      if (card.type === 'policy') {
+        applyPolicyEffect(card, G.activePlayer, false);
+        if (G.screen === 'peek') { pushState(); render(); return; }
+        if (G.screen === 'turnDraw') { pushState(); render(); return; }
+        if (!handleDiscardIfNeeded(G.activePlayer, 'main')) goMain();
+      } else {
+        const defIdx = G.activePlayer === 0 ? 1 : 0; G.pendingAttack = { card, attackerIdx: G.activePlayer, defenderIdx: defIdx };
+        addLog(`⚔️ ${p.name}が「${card.icon} ${card.name}」を宣言！`, 'sys'); pushState(); render();
+      }
+    }
+
+    function goResponseHandover() { G.screen = 'response'; pushState(); render(); }
+
+    function skipResponse() {
+      resolveDamage(G.pendingAttack.card, G.pendingAttack.defenderIdx, null); G.pendingAttack = null;
+      if (checkWin()) return; G.screen = 'main'; pushState(); render();
+    }
+
+    function playResponseCard(uid) {
+      const defIdx = G.pendingAttack.defenderIdx; const def = G.players[defIdx];
+      const idx = def.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = def.hand[idx]; if (card.type !== 'policy') return;
+      def.hand.splice(idx, 1); G.discard.push(card); addLog(`🛡️ ${def.name}が「${card.icon} ${card.name}」で対応！`, 'policy');
+      resolveDamage(G.pendingAttack.card, defIdx, card); G.pendingAttack = null;
+      if (checkWin()) return; G.screen = 'main'; pushState(); render();
+    }
+
+    function discardCard(uid) {
+      const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi];
+      const idx = p.hand.findIndex(c => c.uid === uid); if (idx === -1) return;
+      const card = p.hand.splice(idx, 1)[0]; G.discard.push(card); addLog(`📤 ${p.name}がカードを1枚捨てた`, 'sys');
+      if (p.hand.length <= 5) { G.discardNeeded = null; G.screen = dn.returnTo; }
+      pushState(); render();
+    }
+
+    function closePeek() { G.peekCard = null; G.screen = 'main'; pushState(); render(); }
+
+    function restartGame() {
+      if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
+      myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
+      lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '' };
+      G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
+      render();
+    }
+
+    // ═══════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════
+    window.addEventListener('load', () => {
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get('room');
+      if (roomParam) { lobbyState.joinCodeInput = roomParam.toUpperCase().slice(0, 6); lobbyState.mode = 'join'; }
+      if (isFirebaseConfigured()) initFirebase();
+      render();
+    });
+  </script>
+</body>
+
+</html>
