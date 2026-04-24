@@ -977,9 +977,9 @@
 
     /* TERRAIN BADGE */
     .terrain-badge {
-      font-size: .7rem;
+      font-size: 1rem;
       color: var(--t1);
-      font-weight: 400;
+      font-weight: 700;
       margin-left: 2px;
     }
 
@@ -1442,17 +1442,22 @@
     }
 
     /* ── カード画像モード ── */
+    .card .card-header { display:none }
+    .hand-group-label { display:none }
     .card-img-wrap { flex:1; position:relative; overflow:hidden; min-height:0 }
     .card-img { width:100%; height:100%; object-fit:cover; object-position:top center; display:block }
     .card-name-bar { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,.88) 55%); padding:20px 4px 3px; font-size:.6rem; font-weight:700; color:#fff; text-align:center; line-height:1.15; pointer-events:none }
     .card-text-fallback { display:none }
     .card.img-fail .card-text-fallback { display:block }
     .card.img-fail .card-img-wrap { display:none }
-    .card-disabled-reason { position:absolute; left:0; right:0; bottom:22px; font-size:.6rem; color:#fff; background:rgba(0,0,0,.72); text-align:center; padding:2px 4px; z-index:4 }
+    .card-disabled-reason { position:absolute; left:0; right:0; bottom:4px; font-size:.6rem; color:#fff; background:rgba(0,0,0,.72); text-align:center; padding:2px 4px; z-index:4 }
     .card-back img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block }
     .confirm-card-img { width:108px; border-radius:8px; display:block; margin:0 auto }
-    .gacha-card-img { width:160px; border-radius:10px; display:block; margin:0 auto 12px; box-shadow:0 4px 16px rgba(0,0,0,.5) }
-    .gacha-city-img { width:144px; border-radius:10px; display:block; margin:0 auto 12px; box-shadow:0 4px 16px rgba(0,0,0,.5) }
+    /* ガチャ・ドロー画面のカード型エリア */
+    .gacha-card-reveal-area { width:200px; aspect-ratio:288/450; border-radius:14px; overflow:hidden; cursor:pointer; border:3px solid var(--bg3); transition:transform .2s, border-color .2s }
+    .gacha-card-reveal-area img { width:100%; height:100%; object-fit:cover; display:block }
+    .gacha-card-reveal-area:hover:not(.revealed) { transform:scale(1.03); border-color:var(--yellow) }
+    .gacha-card-reveal-area.revealed { border-color:var(--yellow); box-shadow:0 0 32px rgba(210,153,34,.35); cursor:default }
     .cityorder-city-img { width:120px; border-radius:8px; display:block; margin:0 auto 8px }
   </style>
 </head>
@@ -1503,7 +1508,7 @@
       { id: 'kobe', name: '神戸', icon: '⚓', hp: 60, isCoastal: true, isMountain: false, abilityType: 'extra_budget', abilityValue: 1, abilityDesc: '毎ターン予算 +1（計4）', concept: '阪神大震災からの復興。港湾都市の経済力が防災投資を支える。' },
       { id: 'hiroshima', name: '広島', icon: '🕊️', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_landslide', abilityValue: 20, abilityDesc: '土砂崩れ −20', concept: '山に囲まれた地形が土砂リスクを生む。' },
       { id: 'nagoya', name: '名古屋', icon: '🌊', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_draw', abilityValue: 1, abilityDesc: '洪水・津波時 1枚ドロー', concept: '伊勢湾台風の歴史が今の対策を作った。' },
-      { id: 'new_orleans', name: 'N.オーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。' },
+      { id: 'new_orleans', name: 'ニューオーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。' },
       { id: 'sendai', name: '仙台', icon: '🌸', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 15, abilityDesc: '洪水・津波 −15', concept: '仙台防災枠組。日本の経験が国際防災政策を変えた。' },
       { id: 'kumamoto', name: '熊本', icon: '🌸', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。' },
       { id: 'niigata', name: '新潟', icon: '❄️', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10', concept: '1964年新潟地震。液状化研究の原点。' },
@@ -1516,7 +1521,7 @@
       { id: 'quake_wall', name: '耐震補強', icon: '🏗️', cost: 2, type: 'policy', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30' },
       { id: 'dam', name: '堤防建設', icon: '🌊', cost: 2, type: 'policy', effectType: 'shield_flood', value: 25, desc: '次の洪水・津波 −25' },
       { id: 'drill', name: '避難訓練', icon: '🏃', cost: 1, type: 'policy', effectType: 'heal', value: 20, desc: 'HP +20（対応時+10）' },
-      { id: 'hazard_map', name: 'ハザードマップ', icon: '🗺️', cost: 1, type: 'policy', effectType: 'draw', value: 2, desc: '山札から2枚ドロー' },
+      { id: 'hazard_map', name: 'ハザードマップ整備', icon: '🗺️', cost: 1, type: 'policy', effectType: 'draw', value: 2, desc: '山札から2枚ドロー' },
       { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）' },
       { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', effectType: 'negate_special', value: 10, desc: '特殊効果を無効＋ダメージ−10' },
       { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回）' },
@@ -1662,10 +1667,10 @@
         if (responseCard.effectType === 'shield_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= 30; def.effects.shieldQuakeFire = false; ld('shield_resp', '耐震補強（対応フェーズ）：発動・消費', -30); }
         if (responseCard.effectType === 'shield_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 25; def.effects.shieldFlood = false; ld('shield_resp', '堤防建設（対応フェーズ）：発動・消費', -25); }
       }
-      // N.オーリンズ
+      // ニューオーリンズ
       if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) {
-        dmg += defCity.abilityValue; ld('vuln', `N.オーリンズ（社会的脆弱性：手札${def.hand.length}枚）`, +defCity.abilityValue);
-        drawCards(defIdx, 1); autoDiscard(defIdx); ld('city_effect', 'N.オーリンズの底力：コミュニティ1枚ドロー', null);
+        dmg += defCity.abilityValue; ld('vuln', `ニューオーリンズ（社会的脆弱性：手札${def.hand.length}枚）`, +defCity.abilityValue);
+        drawCards(defIdx, 1); autoDiscard(defIdx); ld('city_effect', 'ニューオーリンズの底力：コミュニティ1枚ドロー', null);
       }
       // ダメージ確定
       dmg = Math.max(0, dmg); def.cityHps[def.activeCityIdx] -= dmg;
@@ -1800,7 +1805,7 @@
       G.players[pi].hand.push(ts.revealed); ts.drawn++; ts.revealed = null;
       if (ts.drawn >= ts.target) {
         G.turnDrawState = null;
-        if (ts.isHazardMap) addLog(`🗺️ ${G.players[pi].name}：ハザードマップで${ts.target}枚ドロー完了`, 'policy');
+        if (ts.isHazardMap) addLog(`🗺️ ${G.players[pi].name}：ハザードマップ整備で${ts.target}枚ドロー完了`, 'policy');
         else addLog(`─── ${G.players[pi].name}のターン開始（予算${getBudget(pi)}・${ts.target}枚ドロー）`, 'sys');
         if (!handleDiscardIfNeeded(pi, 'main')) goMain();
       } else { pushState(); render(); }
@@ -2081,8 +2086,8 @@
       let firstPickInfo = '';
       if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">✅ 1枚目：${fc.icon} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
       let ca = '';
-      if (!gc.revealed) { ca = `<div class="gacha-mystery" onclick="pullGacha()"><img src="images/cities/back.webp" style="width:100px;border-radius:8px;display:block;margin:0 auto 12px" alt="" onerror="this.style.display='none'"><div style="font-size:.95rem;color:var(--t2)">どの都市が出るか…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullGacha()">🎲 ガチャを引く！</button>`; }
-      else { const c = gc.revealed; ca = `<div class="gacha-card-box gacha-reveal"><img class="gacha-city-img" src="images/cities/${c.id}.webp" alt="" onerror="this.style.display='none'"><div style="font-size:1.5rem;font-weight:700;margin-bottom:6px">${c.icon} ${c.name}</div><div style="font-size:.85rem;color:var(--green);margin-bottom:8px">HP: ${c.hp}</div><div style="font-size:.9rem;color:var(--blue);font-weight:700;margin-bottom:10px">${c.abilityDesc}</div><div style="font-size:.7rem;color:var(--t3);line-height:1.5">${c.concept}</div></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`; }
+      if (!gc.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullGacha()"><img src="images/cities/back.webp" alt=""></div><button class="btn-gacha" onclick="pullGacha()">🎲 ガチャを引く！</button>`; }
+      else { const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`; }
       return `<div class="screen active"><div class="section-title">🎲 ${p.name} — ${gc.pickNum === 0 ? '1枚目' : '2枚目'}の都市ガチャ</div>${firstPickInfo}<div class="gacha-stage">${ca}</div></div>`;
     }
 
@@ -2265,7 +2270,7 @@
       const cardId = c.uid.replace(/_\d+$/, '');
       return `<div class="confirm-overlay" onclick="cancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
     <img class="confirm-card-img" src="images/cards/${cardId}.webp" alt="" onerror="this.style.display='none'">
-    <div class="confirm-card-preview"><span class="ci">${c.icon}</span><span>${c.name}</span></div>
+    <div class="confirm-card-preview"><span>${c.name}</span></div>
     ${hint}<p>${tl}を<strong style="color:${c.danger ? 'var(--red)' : 'var(--blue)'}">${c.actionLabel}</strong>しますか？</p>
     <div class="confirm-btns"><button class="btn-ok${c.danger ? ' danger' : ''}" onclick="doConfirm()">はい</button><button class="btn-cancel" onclick="cancelConfirm()">キャンセル</button></div>
   </div></div>`;
@@ -2286,8 +2291,8 @@
       const ts = G.turnDrawState; const pi = ts.pi ?? ts.playerIdx; const p = G.players[pi];
       const pips = Array(ts.target).fill(0).map((_, i) => { const cls = i < ts.drawn ? 'done' : i === ts.drawn ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
       let ca = '';
-      if (!ts.revealed) { ca = `<div class="gacha-mystery" onclick="pullTurnCard()"><img src="images/cards/back.webp" style="width:80px;border-radius:8px;display:block;margin:0 auto 12px" alt="" onerror="this.style.display='none'"><div style="font-size:.95rem;color:var(--t2)">山札の中身は…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullTurnCard()">🃏 カードを引く！</button>`; }
-      else { const c = ts.revealed; const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)'; ca = `<div class="gacha-card-box gacha-reveal" style="border-color:${c.type === 'policy' ? 'rgba(56,139,253,.5)' : 'rgba(248,81,73,.5)'}"><img class="gacha-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div style="font-size:.75rem;font-weight:600;color:${tc};margin-bottom:4px">${c.type === 'policy' ? '政策カード' : '災害カード'}</div><div style="font-size:1.4rem;font-weight:700;margin-bottom:6px">${c.icon} ${c.name}</div><div style="font-size:.85rem;color:var(--t2);margin-bottom:10px">${c.desc}</div><div style="background:var(--bg0);border-radius:20px;padding:4px 14px;display:inline-block;font-size:.8rem;font-weight:700;color:${tc}">コスト ${c.cost}</div></div><button class="btn-accept" onclick="acceptTurnCard()">✅ 手札に加える</button>`; }
+      if (!ts.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullTurnCard()">🃏 カードを引く！</button>`; }
+      else { const c = ts.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptTurnCard()">✅ 手札に加える</button>`; }
       return `<div class="screen active"><div class="section-title">${ts.isHazardMap ? `🗺️ ${p.name} — ハザードマップ整備（${ts.drawn + 1}枚目／${ts.target}枚）` : `🃏 ${p.name} — ターン開始ドロー（${ts.drawn + 1}枚目／${ts.target}枚）`}</div>
     <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t2)">ドロー </span><strong style="color:var(--yellow)">${ts.drawn} / ${ts.target}</strong><span style="font-size:.8rem;color:var(--t2)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
     <div class="gacha-stage">${ca}</div></div>`;
@@ -2299,8 +2304,8 @@
       const pips = Array(ds.picksTarget).fill(0).map((_, i) => { const cls = i < ds.picksDone ? 'done' : i === ds.picksDone ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
       const hp = p.hand.length > 0 ? p.hand.map(c => `<span class="draft-hand-tag">${c.icon} ${c.name}</span>`).join('') : `<span style="font-size:.75rem;color:var(--t3)">まだ引いていません</span>`;
       let ca = '';
-      if (!ds.revealed) { ca = `<div class="gacha-mystery" onclick="pullDraftCard()"><img src="images/cards/back.webp" style="width:80px;border-radius:8px;display:block;margin:0 auto 12px" alt="" onerror="this.style.display='none'"><div style="font-size:.95rem;color:var(--t2)">山札の中身は…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullDraftCard()">🃏 山札から引く！</button>`; }
-      else { const c = ds.revealed; const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)'; ca = `<div class="gacha-card-box gacha-reveal" style="border-color:${c.type === 'policy' ? 'rgba(56,139,253,.5)' : 'rgba(248,81,73,.5)'}"><img class="gacha-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div style="font-size:.75rem;font-weight:600;color:${tc};margin-bottom:4px">${c.type === 'policy' ? '政策カード' : '災害カード'}</div><div style="font-size:1.4rem;font-weight:700;margin-bottom:6px">${c.icon} ${c.name}</div><div style="font-size:.85rem;color:var(--t2);margin-bottom:10px">${c.desc}</div><div style="background:var(--bg0);border-radius:20px;padding:4px 14px;display:inline-block;font-size:.8rem;font-weight:700;color:${tc}">コスト ${c.cost}</div></div><button class="btn-accept" onclick="acceptDraftCard()">✅ 手札に加える</button>`; }
+      if (!ds.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullDraftCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullDraftCard()">🃏 山札から引く！</button>`; }
+      else { const c = ds.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptDraftCard()">✅ 手札に加える</button>`; }
       return `<div class="screen active"><div class="section-title">🃏 ${p.name} — 初期手札を引いてください</div>
     <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t2)">手札 </span><strong style="color:var(--yellow)">${ds.picksDone} / ${ds.picksTarget}</strong><span style="font-size:.8rem;color:var(--t2)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
     <div class="draft-hand-preview"><div style="font-size:.7rem;color:var(--t3);margin-bottom:5px">現在の手札</div><div style="display:flex;gap:6px;flex-wrap:wrap">${hp}</div></div>
