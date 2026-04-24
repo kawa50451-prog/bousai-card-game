@@ -1440,6 +1440,20 @@
         gap: 10px
       }
     }
+
+    /* ── カード画像モード ── */
+    .card-img-wrap { flex:1; position:relative; overflow:hidden; min-height:0 }
+    .card-img { width:100%; height:100%; object-fit:cover; object-position:top center; display:block }
+    .card-name-bar { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,.88) 55%); padding:20px 4px 3px; font-size:.6rem; font-weight:700; color:#fff; text-align:center; line-height:1.15; pointer-events:none }
+    .card-text-fallback { display:none }
+    .card.img-fail .card-text-fallback { display:block }
+    .card.img-fail .card-img-wrap { display:none }
+    .card-disabled-reason { position:absolute; left:0; right:0; bottom:22px; font-size:.6rem; color:#fff; background:rgba(0,0,0,.72); text-align:center; padding:2px 4px; z-index:4 }
+    .card-back img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block }
+    .confirm-card-img { width:108px; border-radius:8px; display:block; margin:0 auto }
+    .gacha-card-img { width:160px; border-radius:10px; display:block; margin:0 auto 12px; box-shadow:0 4px 16px rgba(0,0,0,.5) }
+    .gacha-city-img { width:144px; border-radius:10px; display:block; margin:0 auto 12px; box-shadow:0 4px 16px rgba(0,0,0,.5) }
+    .cityorder-city-img { width:120px; border-radius:8px; display:block; margin:0 auto 8px }
   </style>
 </head>
 
@@ -1735,6 +1749,7 @@
       const c0 = p.cities[0], c1 = p.cities[1];
       function cityCard(c, idx) {
         return `<div class="gacha-card-box" onclick="selectCityOrder(${pi},${idx})" style="cursor:pointer;width:200px;transition:.2s" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform=''">
+        <img class="cityorder-city-img" src="images/cities/${c.id}.webp" alt="" onerror="this.style.display='none'">
         <div style="font-size:2.5rem">${c.icon}</div>
         <div style="font-weight:700;font-size:1rem;margin:6px 0">${c.name}</div>
         <div class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</div>
@@ -2054,7 +2069,7 @@
     ${renderBackupCity(idx)}
     <div class="effects-row">${renderEffectBadges(p.effects)}</div>
     <div class="hand-cards-area">
-      ${isMe ? renderPlayerHandReadOnly(p) : `<div class="hand-back-row">${Array(p.hand.length).fill('<div class="card-back">🂠</div>').join('')}</div>`}
+      ${isMe ? renderPlayerHandReadOnly(p) : `<div class="hand-back-row">${Array(p.hand.length).fill('<div class="card-back"><img src="images/cards/back.webp" alt="" onerror="this.style.display=\'none\'"></div>').join('')}</div>`}
       <div class="hand-count">手札 ${p.hand.length} 枚</div>
     </div>
   </div>`;
@@ -2066,8 +2081,8 @@
       let firstPickInfo = '';
       if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">✅ 1枚目：${fc.icon} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
       let ca = '';
-      if (!gc.revealed) { ca = `<div class="gacha-mystery" onclick="pullGacha()"><div style="font-size:5rem;margin-bottom:12px">🎴</div><div style="font-size:.95rem;color:var(--t2)">どの都市が出るか…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullGacha()">🎲 ガチャを引く！</button>`; }
-      else { const c = gc.revealed; ca = `<div class="gacha-card-box gacha-reveal"><div style="font-size:4rem;margin-bottom:10px">${c.icon}</div><div style="font-size:1.5rem;font-weight:700;margin-bottom:6px">${c.name}</div><div style="font-size:.85rem;color:var(--green);margin-bottom:8px">HP: ${c.hp}</div><div style="font-size:.9rem;color:var(--blue);font-weight:700;margin-bottom:10px">${c.abilityDesc}</div><div style="font-size:.7rem;color:var(--t3);line-height:1.5">${c.concept}</div></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`; }
+      if (!gc.revealed) { ca = `<div class="gacha-mystery" onclick="pullGacha()"><img src="images/cities/back.webp" style="width:100px;border-radius:8px;display:block;margin:0 auto 12px" alt="" onerror="this.style.display='none'"><div style="font-size:.95rem;color:var(--t2)">どの都市が出るか…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullGacha()">🎲 ガチャを引く！</button>`; }
+      else { const c = gc.revealed; ca = `<div class="gacha-card-box gacha-reveal"><img class="gacha-city-img" src="images/cities/${c.id}.webp" alt="" onerror="this.style.display='none'"><div style="font-size:1.5rem;font-weight:700;margin-bottom:6px">${c.icon} ${c.name}</div><div style="font-size:.85rem;color:var(--green);margin-bottom:8px">HP: ${c.hp}</div><div style="font-size:.9rem;color:var(--blue);font-weight:700;margin-bottom:10px">${c.abilityDesc}</div><div style="font-size:.7rem;color:var(--t3);line-height:1.5">${c.concept}</div></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`; }
       return `<div class="screen active"><div class="section-title">🎲 ${p.name} — ${gc.pickNum === 0 ? '1枚目' : '2枚目'}の都市ガチャ</div>${firstPickInfo}<div class="gacha-stage">${ca}</div></div>`;
     }
 
@@ -2096,7 +2111,7 @@
         const cantAfford = left < card.cost; const ftBlk = isFirstTurn && card.type === 'disaster'; const dis = cantAfford || ftBlk;
         let reason = ''; if (cantAfford) reason = '予算不足'; else if (ftBlk) reason = '先攻1ターン目は使用不可';
         const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : ''}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-name">${card.name}</div><div class="card-desc">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span>${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : ''}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span>${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -2108,7 +2123,7 @@
 
     // ─── 手札描画（読み取り専用：自分のターン外） ───
     function renderPlayerHandReadOnly(p) {
-      function mkCard(card) { return `<div class="card ${card.type} card-disabled" style="cursor:default"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-name">${card.name}</div><div class="card-desc">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span></div>`; }
+      function mkCard(card) { return `<div class="card ${card.type} card-disabled" style="cursor:default"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span></div>`; }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
       const s = [];
@@ -2120,7 +2135,7 @@
     // ─── 手札描画（対応フェーズ） ───
     function renderResponseHand(p) {
       if (p.hand.length === 0) return `<div style="color:var(--t3);font-size:.85rem;padding:10px">手札なし</div>`;
-      function mkCard(card) { const dis = card.type !== 'policy'; const oc = dis ? '' : `requestConfirm('playResponseCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','対応に使用')`; return `<div class="card ${card.type} ${dis ? 'card-disabled' : ''}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-name">${card.name}</div><div class="card-desc">${card.desc}</div><span class="card-type-badge">${dis ? '災害（使用不可）' : '対応'}</span>${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`; }
+      function mkCard(card) { const dis = card.type !== 'policy'; const oc = dis ? '' : `requestConfirm('playResponseCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','対応に使用')`; return `<div class="card ${card.type} ${dis ? 'card-disabled' : ''}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${dis ? '災害（使用不可）' : '対応'}</span>${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`; }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
       const s = [];
@@ -2139,7 +2154,7 @@
 
       function zoneHand(idx) {
         const isMe = (idx === mi);
-        if (!isMe) return Array(G.players[idx].hand.length).fill('<div class="card-back">🂠</div>').join('');
+        if (!isMe) return Array(G.players[idx].hand.length).fill('<div class="card-back"><img src="images/cards/back.webp" alt="" onerror="this.style.display=\'none\'"></div>').join('');
         if (amIHolder) return isResponsePhase ? renderResponseHand(G.players[idx]) : renderPlayerHand(G.players[idx], idx);
         return renderPlayerHandReadOnly(G.players[idx]);
       }
@@ -2247,7 +2262,9 @@
           if (h) hint = `<div style="margin:4px 0;padding:6px 10px;background:rgba(56,139,253,.12);border-radius:6px;font-size:.8rem;color:var(--t2);text-align:center">${h}</div>`;
         }
       }
+      const cardId = c.uid.replace(/_\d+$/, '');
       return `<div class="confirm-overlay" onclick="cancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
+    <img class="confirm-card-img" src="images/cards/${cardId}.webp" alt="" onerror="this.style.display='none'">
     <div class="confirm-card-preview"><span class="ci">${c.icon}</span><span>${c.name}</span></div>
     ${hint}<p>${tl}を<strong style="color:${c.danger ? 'var(--red)' : 'var(--blue)'}">${c.actionLabel}</strong>しますか？</p>
     <div class="confirm-btns"><button class="btn-ok${c.danger ? ' danger' : ''}" onclick="doConfirm()">はい</button><button class="btn-cancel" onclick="cancelConfirm()">キャンセル</button></div>
@@ -2257,7 +2274,7 @@
     // ─── 捨て札選択 ───
     function renderDiscard() {
       const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi]; const excess = p.hand.length - 5;
-      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-name">${card.name}</div><div class="card-desc">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span></div>`).join('');
+      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span></div>`).join('');
       return `<div class="screen active"><div class="section-title">📤 ${p.name} — 捨てるカードを選んでください</div>
     <div class="discard-info">手札が上限（5枚）を超えています。<strong style="color:var(--red)">${excess}枚</strong>を捨ててください。<br><span style="font-size:.75rem;color:var(--t3)">カードをクリックすると捨て札になります</span></div>
     <div style="font-size:.8rem;color:var(--t2);text-align:center">現在の手札：<strong style="color:var(--yellow)">${p.hand.length}枚</strong>　→　目標：5枚</div>
@@ -2269,8 +2286,8 @@
       const ts = G.turnDrawState; const pi = ts.pi ?? ts.playerIdx; const p = G.players[pi];
       const pips = Array(ts.target).fill(0).map((_, i) => { const cls = i < ts.drawn ? 'done' : i === ts.drawn ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
       let ca = '';
-      if (!ts.revealed) { ca = `<div class="gacha-mystery" onclick="pullTurnCard()"><div style="font-size:5rem;margin-bottom:12px">🂠</div><div style="font-size:.95rem;color:var(--t2)">山札の中身は…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullTurnCard()">🃏 カードを引く！</button>`; }
-      else { const c = ts.revealed; const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)'; ca = `<div class="gacha-card-box gacha-reveal" style="border-color:${c.type === 'policy' ? 'rgba(56,139,253,.5)' : 'rgba(248,81,73,.5)'}"><div style="font-size:3.5rem;margin-bottom:8px">${c.icon}</div><div style="font-size:.75rem;font-weight:600;color:${tc};margin-bottom:4px">${c.type === 'policy' ? '政策カード' : '災害カード'}</div><div style="font-size:1.4rem;font-weight:700;margin-bottom:6px">${c.name}</div><div style="font-size:.85rem;color:var(--t2);margin-bottom:10px">${c.desc}</div><div style="background:var(--bg0);border-radius:20px;padding:4px 14px;display:inline-block;font-size:.8rem;font-weight:700;color:${tc}">コスト ${c.cost}</div></div><button class="btn-accept" onclick="acceptTurnCard()">✅ 手札に加える</button>`; }
+      if (!ts.revealed) { ca = `<div class="gacha-mystery" onclick="pullTurnCard()"><img src="images/cards/back.webp" style="width:80px;border-radius:8px;display:block;margin:0 auto 12px" alt="" onerror="this.style.display='none'"><div style="font-size:.95rem;color:var(--t2)">山札の中身は…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullTurnCard()">🃏 カードを引く！</button>`; }
+      else { const c = ts.revealed; const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)'; ca = `<div class="gacha-card-box gacha-reveal" style="border-color:${c.type === 'policy' ? 'rgba(56,139,253,.5)' : 'rgba(248,81,73,.5)'}"><img class="gacha-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div style="font-size:.75rem;font-weight:600;color:${tc};margin-bottom:4px">${c.type === 'policy' ? '政策カード' : '災害カード'}</div><div style="font-size:1.4rem;font-weight:700;margin-bottom:6px">${c.icon} ${c.name}</div><div style="font-size:.85rem;color:var(--t2);margin-bottom:10px">${c.desc}</div><div style="background:var(--bg0);border-radius:20px;padding:4px 14px;display:inline-block;font-size:.8rem;font-weight:700;color:${tc}">コスト ${c.cost}</div></div><button class="btn-accept" onclick="acceptTurnCard()">✅ 手札に加える</button>`; }
       return `<div class="screen active"><div class="section-title">${ts.isHazardMap ? `🗺️ ${p.name} — ハザードマップ整備（${ts.drawn + 1}枚目／${ts.target}枚）` : `🃏 ${p.name} — ターン開始ドロー（${ts.drawn + 1}枚目／${ts.target}枚）`}</div>
     <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t2)">ドロー </span><strong style="color:var(--yellow)">${ts.drawn} / ${ts.target}</strong><span style="font-size:.8rem;color:var(--t2)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
     <div class="gacha-stage">${ca}</div></div>`;
@@ -2282,8 +2299,8 @@
       const pips = Array(ds.picksTarget).fill(0).map((_, i) => { const cls = i < ds.picksDone ? 'done' : i === ds.picksDone ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
       const hp = p.hand.length > 0 ? p.hand.map(c => `<span class="draft-hand-tag">${c.icon} ${c.name}</span>`).join('') : `<span style="font-size:.75rem;color:var(--t3)">まだ引いていません</span>`;
       let ca = '';
-      if (!ds.revealed) { ca = `<div class="gacha-mystery" onclick="pullDraftCard()"><div style="font-size:5rem;margin-bottom:12px">🂠</div><div style="font-size:.95rem;color:var(--t2)">山札の中身は…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullDraftCard()">🃏 山札から引く！</button>`; }
-      else { const c = ds.revealed; const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)'; ca = `<div class="gacha-card-box gacha-reveal" style="border-color:${c.type === 'policy' ? 'rgba(56,139,253,.5)' : 'rgba(248,81,73,.5)'}"><div style="font-size:3.5rem;margin-bottom:8px">${c.icon}</div><div style="font-size:.75rem;font-weight:600;color:${tc};margin-bottom:4px">${c.type === 'policy' ? '政策カード' : '災害カード'}</div><div style="font-size:1.4rem;font-weight:700;margin-bottom:6px">${c.name}</div><div style="font-size:.85rem;color:var(--t2);margin-bottom:10px">${c.desc}</div><div style="background:var(--bg0);border-radius:20px;padding:4px 14px;display:inline-block;font-size:.8rem;font-weight:700;color:${tc}">コスト ${c.cost}</div></div><button class="btn-accept" onclick="acceptDraftCard()">✅ 手札に加える</button>`; }
+      if (!ds.revealed) { ca = `<div class="gacha-mystery" onclick="pullDraftCard()"><img src="images/cards/back.webp" style="width:80px;border-radius:8px;display:block;margin:0 auto 12px" alt="" onerror="this.style.display='none'"><div style="font-size:.95rem;color:var(--t2)">山札の中身は…？</div><div style="font-size:.75rem;color:var(--t3);margin-top:6px">タップして引く</div></div><button class="btn-gacha" onclick="pullDraftCard()">🃏 山札から引く！</button>`; }
+      else { const c = ds.revealed; const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)'; ca = `<div class="gacha-card-box gacha-reveal" style="border-color:${c.type === 'policy' ? 'rgba(56,139,253,.5)' : 'rgba(248,81,73,.5)'}"><img class="gacha-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div style="font-size:.75rem;font-weight:600;color:${tc};margin-bottom:4px">${c.type === 'policy' ? '政策カード' : '災害カード'}</div><div style="font-size:1.4rem;font-weight:700;margin-bottom:6px">${c.icon} ${c.name}</div><div style="font-size:.85rem;color:var(--t2);margin-bottom:10px">${c.desc}</div><div style="background:var(--bg0);border-radius:20px;padding:4px 14px;display:inline-block;font-size:.8rem;font-weight:700;color:${tc}">コスト ${c.cost}</div></div><button class="btn-accept" onclick="acceptDraftCard()">✅ 手札に加える</button>`; }
       return `<div class="screen active"><div class="section-title">🃏 ${p.name} — 初期手札を引いてください</div>
     <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t2)">手札 </span><strong style="color:var(--yellow)">${ds.picksDone} / ${ds.picksTarget}</strong><span style="font-size:.8rem;color:var(--t2)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
     <div class="draft-hand-preview"><div style="font-size:.7rem;color:var(--t3);margin-bottom:5px">現在の手札</div><div style="display:flex;gap:6px;flex-wrap:wrap">${hp}</div></div>
@@ -2296,6 +2313,7 @@
       const cardsHtml = cards.map(c => {
         const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)';
         return `<div class="peek-card-big" style="display:inline-flex;margin:6px">
+          <img src="images/cards/${c.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'">
           <div class="pk-icon">${c.icon}</div><div class="pk-name">${c.name}</div>
           <div class="pk-cost" style="color:${tc}">コスト: ${c.cost}</div>
           <div class="pk-desc">${c.desc}</div></div>`;
