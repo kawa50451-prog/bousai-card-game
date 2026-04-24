@@ -1536,7 +1536,7 @@
         { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
       ],
       deck: [], discard: [], log: [],
-      pendingAttack: null, peekCard: null, winner: null,
+      pendingAttack: null, peekCard: null, peekByPlayerIdx: null, winner: null,
       gachaPickedIds: [], gachaCurrent: null, draftState: null,
       discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
       _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null,
@@ -1683,7 +1683,7 @@
         case 'draw': G.turnDrawState = { pi, drawn: 0, target: card.value, revealed: null, isHazardMap: true }; G.screen = 'turnDraw'; addLog(`🗺️ ${p.name}「${card.name}」→ ${card.value}枚ドロー中…`, 'policy'); break;
         case 'negate_special': p.effects.negateSpecial = true; addLog(`🔵 ${p.name}「${card.name}」→ 次の特殊効果を無効化＋ダメージ−10`, 'policy'); break;
         case 'damage_reduce_2t': p.effects.damageReduceHits = 2; addLog(`🔵 ${p.name}「${card.name}」→ 全ダメージ −15（次2回）`, 'policy'); break;
-        case 'peek_all': { const opp = G.players[pi === 0 ? 1 : 0]; if (opp.hand.length > 0) { G.peekCards = opp.hand.slice(); addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札を全公開`, 'policy'); G.screen = 'peek'; } else addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札なし`, 'policy'); break; }
+        case 'peek_all': { const opp = G.players[pi === 0 ? 1 : 0]; if (opp.hand.length > 0) { G.peekCards = opp.hand.slice(); G.peekByPlayerIdx = pi; addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札を全公開`, 'policy'); G.screen = 'peek'; } else addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札なし`, 'policy'); break; }
       }
     }
 
@@ -1894,7 +1894,7 @@
           return G.activePlayer === mi ? 'main' : 'waiting';
         case 'response': return G.pendingAttack?.defenderIdx === mi ? 'response' : 'waiting';
         case 'discard': { const pi = G.discardNeeded?.pi ?? G.discardNeeded?.playerIdx; return pi === mi ? 'discard' : 'waiting'; }
-        case 'peek': return G.activePlayer === mi ? 'peek' : 'waiting';
+        case 'peek': return (G.peekByPlayerIdx ?? G.activePlayer) === mi ? 'peek' : 'waiting';
         case 'gameover': return 'gameover';
         default: return 'waiting';
       }
@@ -2402,7 +2402,7 @@
       const idx = def.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = def.hand[idx]; if (card.type !== 'policy') return;
       def.hand.splice(idx, 1); G.discard.push(card); addLog(`🛡️ ${def.name}が「${card.icon} ${card.name}」で対応！`, 'policy');
       resolveDamage(G.pendingAttack.card, defIdx, card); G.pendingAttack = null;
-      if (checkWin()) return; G.screen = 'main'; pushState(); render();
+      if (checkWin()) return; if (G.screen !== 'peek') G.screen = 'main'; pushState(); render();
     }
 
     function discardCard(uid) {
@@ -2413,7 +2413,7 @@
       pushState(); render();
     }
 
-    function closePeek() { G.peekCard = null; G.peekCards = null; G.screen = 'main'; pushState(); render(); }
+    function closePeek() { G.peekCard = null; G.peekCards = null; G.peekByPlayerIdx = null; G.screen = 'main'; pushState(); render(); }
 
     function restartGame() {
       if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
