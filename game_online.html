@@ -1448,17 +1448,16 @@
     .gallery-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:22px 20px; max-width:640px; width:100%; display:flex; flex-direction:column; gap:14px; box-shadow:0 12px 40px rgba(0,0,0,.5) }
     .gallery-header { display:flex; align-items:center; justify-content:space-between }
     .gallery-title { font-size:1rem; font-weight:700 }
-    .gallery-tabs { display:flex; gap:8px }
-    .gallery-tab-btn { flex:1; padding:10px 8px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:center }
+    .gallery-tabs { display:flex; flex-direction:column; gap:8px }
+    .gallery-tab-btn { padding:12px 16px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:left }
     .gallery-tab-btn:hover { border-color:var(--blue); background:rgba(56,139,253,.1); color:var(--blue) }
     .gallery-tab-btn.active { border-color:var(--blue); background:rgba(56,139,253,.15); color:var(--blue) }
     .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
     .gallery-card { border-radius:8px; overflow:hidden; cursor:pointer; border:2px solid var(--bg3); transition:.15s; aspect-ratio:288/450 }
     .gallery-card img { width:100%; height:100%; object-fit:cover; display:block }
     .gallery-card:hover { transform:translateY(-3px); border-color:var(--yellow); box-shadow:0 6px 16px rgba(0,0,0,.5) }
-    .gallery-zoom-overlay { position:fixed; inset:0; background:rgba(0,0,0,.9); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; z-index:1000; padding:20px; cursor:pointer }
-    .gallery-zoom-img { max-height:80vh; max-width:min(360px,90vw); border-radius:14px; box-shadow:0 8px 40px rgba(0,0,0,.8); cursor:default }
-    .gallery-zoom-close { color:var(--t2); font-size:.88rem; padding:8px 24px; background:var(--bg2); border-radius:8px; cursor:pointer }
+    .city-tap-btn { background:rgba(56,139,253,.13); border:1px solid rgba(56,139,253,.4); border-radius:14px; padding:3px 10px; color:var(--blue); cursor:pointer; font-size:.82rem; font-weight:600; white-space:nowrap; transition:.15s }
+    .city-tap-btn:hover,.city-tap-btn:active { background:rgba(56,139,253,.25) }
 
     /* ── カード画像モード ── */
     .card .card-header { display:none }
@@ -1559,39 +1558,39 @@
     // DATA
     // ═══════════════════════════════════════
     const CITIES = [
-      { id: 'tokyo', name: '東京', icon: '🗼', hp: 60, isCoastal: false, isMountain: false, abilityType: 'resist_quake_fire', abilityValue: 20, abilityDesc: '地震・大火災 −20', concept: '首都への集中投資。対策が進んだ都市の強さと限界。' },
-      { id: 'osaka', name: '大阪', icon: '🏯', hp: 60, isCoastal: true, isMountain: false, abilityType: 'regen', abilityValue: 5, abilityDesc: 'ターン終了時 HP +5', concept: 'レジリエンス。やられても回復する力。' },
-      { id: 'kobe', name: '神戸', icon: '⚓', hp: 60, isCoastal: true, isMountain: false, abilityType: 'extra_budget', abilityValue: 1, abilityDesc: '毎ターン予算 +1（計4）', concept: '阪神大震災からの復興。港湾都市の経済力が防災投資を支える。' },
-      { id: 'hiroshima', name: '広島', icon: '🕊️', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_landslide', abilityValue: 20, abilityDesc: '土砂崩れ −20', concept: '山に囲まれた地形が土砂リスクを生む。' },
-      { id: 'nagoya', name: '名古屋', icon: '🌊', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_draw', abilityValue: 1, abilityDesc: '洪水・津波時 1枚ドロー', concept: '伊勢湾台風の歴史が今の対策を作った。' },
-      { id: 'new_orleans', name: 'ニューオーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。' },
-      { id: 'sendai', name: '仙台', icon: '🌸', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 15, abilityDesc: '洪水・津波 −15', concept: '仙台防災枠組。日本の経験が国際防災政策を変えた。' },
-      { id: 'kumamoto', name: '熊本', icon: '🌸', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。' },
-      { id: 'niigata', name: '新潟', icon: '❄️', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10', concept: '1964年新潟地震。液状化研究の原点。' },
-      { id: 'kagoshima', name: '鹿児島', icon: '🌋', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。' },
-      { id: 'rotterdam', name: 'ロッテルダム', icon: '🌷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 1, abilityDesc: '洪水・津波後、次ターン予算+1', concept: '水と共存するオランダ型防災哲学。' },
-      { id: 'istanbul', name: 'イスタンブール', icon: '🕌', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_draw', abilityValue: 1, abilityDesc: '地震を受けたとき1枚ドロー', concept: '北アナトリア断層直上。事後学習型防災。' },
+      { id: 'tokyo', name: '東京', icon: '🗼', hp: 60, isCoastal: false, isMountain: false, abilityType: 'resist_quake_fire', abilityValue: 20, abilityDesc: '地震・大火災 −20', concept: '首都への集中投資。対策が進んだ都市の強さと限界。', learn: '首都への集中投資により地震・大火災への対策が最も進んだ都市。ただし首都機能の集中そのものがリスクでもある。対策の進んだ都市の「強さと限界」を体現する。' },
+      { id: 'osaka', name: '大阪', icon: '🏯', hp: 60, isCoastal: true, isMountain: false, abilityType: 'regen', abilityValue: 5, abilityDesc: 'ターン終了時 HP +5', concept: 'レジリエンス。やられても回復する力。', learn: '南海トラフや海抜ゼロメートル地帯のリスクを抱えながらも、粘り強く回復する「レジリエンス（回復力）」が強み。ターン終了時にHPが回復する能力がこの哲学を表す。' },
+      { id: 'kobe', name: '神戸', icon: '⚓', hp: 60, isCoastal: true, isMountain: false, abilityType: 'extra_budget', abilityValue: 1, abilityDesc: '毎ターン予算 +1（計4）', concept: '阪神大震災からの復興。港湾都市の経済力が防災投資を支える。', learn: '1995年の阪神・淡路大震災（死者6,434人）を経験し、防災への投資が制度化された都市。港湾都市の経済力が防災投資を支えるため、毎ターンの予算が1多い。' },
+      { id: 'hiroshima', name: '広島', icon: '🕊️', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_landslide', abilityValue: 20, abilityDesc: '土砂崩れ −20', concept: '山に囲まれた地形が土砂リスクを生む。', learn: '市街地を囲む山地が土砂崩れリスクを生む。2014年8月豪雨災害（死者77名）を経て山間部での防災強化が進んだ。土砂崩れへの強い耐性を持つ。' },
+      { id: 'nagoya', name: '名古屋', icon: '🌊', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_draw', abilityValue: 1, abilityDesc: '洪水・津波時 1枚ドロー', concept: '伊勢湾台風の歴史が今の対策を作った。', learn: '1959年の伊勢湾台風（死者5,098人）が日本最初の「災害対策基本法」（1961年）を生み出した。「被災が知識をもたらす」ことを、洪水・津波後のドロー能力で表現。' },
+      { id: 'new_orleans', name: 'ニューオーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。', learn: '2005年ハリケーン・カトリーナで被害が社会的弱者に集中したことが「社会的脆弱性」概念を世界に知らしめた。手札が少ない（準備不足の）状態でさらに被害が増える。' },
+      { id: 'sendai', name: '仙台', icon: '🌸', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 15, abilityDesc: '洪水・津波 −15', concept: '仙台防災枠組。日本の経験が国際防災政策を変えた。', learn: '2011年東日本大震災の経験を活かし、2015年に仙台で「仙台防災枠組2015-2030」が採択。日本の地域の経験が世界の防災政策を変えた都市。' },
+      { id: 'kumamoto', name: '熊本', icon: '🌸', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。', learn: '2016年熊本地震は前震（M6.5）→本震（M7.3）という連続地震で、想定を超えた適応力が求められた。同ターン2枚目の災害への耐性がその経験を示す。' },
+      { id: 'niigata', name: '新潟', icon: '❄️', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10', concept: '1964年新潟地震。液状化研究の原点。', learn: '1964年新潟地震（M7.5）で液状化現象が大規模に初めて記録され、防災学の重要な研究対象となった。地震を受けたターン後のHP回復は科学的蓄積と学習を象徴する。' },
+      { id: 'kagoshima', name: '鹿児島', icon: '🌋', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。', learn: '日本有数の活火山・桜島と共生する都市。「ゼロリスクを目指さない」防災哲学のもと、日常的な火山活動への対応力が複合災害への耐性として表れている。' },
+      { id: 'rotterdam', name: 'ロッテルダム', icon: '🌷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 1, abilityDesc: '洪水・津波後、次ターン予算+1', concept: '水と共存するオランダ型防災哲学。', learn: '国土の4分の1が海面以下のオランダの港湾都市。「水を制御するのではなく水と共存する」防災哲学を世界に発信。洪水・津波後に次ターンの予算が増えるのがその回復力。' },
+      { id: 'istanbul', name: 'イスタンブール', icon: '🕌', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_draw', abilityValue: 1, abilityDesc: '地震を受けたとき1枚ドロー', concept: '北アナトリア断層直上。事後学習型防災。', learn: '北アナトリア断層直上に位置し高確率でM7超の地震が予測されるが、耐震化は遅れている。地震後にカードを引く能力は「被災して初めて学ぶ事後学習型防災」の現実を示す。' },
     ];
 
     const POLICY_CARDS = [
-      { id: 'quake_wall', name: '耐震補強', icon: '🏗️', cost: 2, type: 'policy', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30' },
-      { id: 'dam', name: '堤防建設', icon: '🌊', cost: 2, type: 'policy', effectType: 'shield_flood', value: 25, desc: '次の洪水・津波 −25' },
-      { id: 'drill', name: '避難訓練', icon: '🏃', cost: 1, type: 'policy', effectType: 'heal', value: 20, desc: 'HP +20（対応時+10）' },
-      { id: 'hazard_map', name: 'ハザードマップ整備', icon: '🗺️', cost: 1, type: 'policy', effectType: 'draw', value: 2, desc: '山札から2枚ドロー' },
-      { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）' },
-      { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', effectType: 'negate_special', value: 10, desc: '特殊効果を無効＋ダメージ−10' },
-      { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回）' },
-      { id: 'pact', name: '防災協定', icon: '📋', cost: 2, type: 'policy', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開' },
+      { id: 'quake_wall', name: '耐震補強', icon: '🏗️', cost: 2, type: 'policy', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30', realConcept: 'ハード対策の代表。1981年の新耐震基準に基づく建物の構造強化。事前設置で次の地震・大火災を大幅に軽減するシールド型政策。' },
+      { id: 'dam', name: '堤防建設', icon: '🌊', cost: 2, type: 'policy', effectType: 'shield_flood', value: 25, desc: '次の洪水・津波 −25', realConcept: '洪水・津波に対するハード対策（治水インフラ）。物理的に水害を防ぐ構造物への投資で、効果は確実だが規模の上限がある。' },
+      { id: 'drill', name: '避難訓練', icon: '🏃', cost: 1, type: 'policy', effectType: 'heal', value: 20, desc: 'HP +20（対応時+10）', realConcept: 'ソフト対策の代表。事前の訓練が緊急時の行動を変え人的被害を減らす。対応フェーズでの効果半減は「事前準備ほど緊急時は効かない」ことを表す。' },
+      { id: 'hazard_map', name: 'ハザードマップ整備', icon: '🗺️', cost: 1, type: 'policy', effectType: 'draw', value: 2, desc: '山札から2枚ドロー', realConcept: 'リスク情報の整備が対応選択肢（手札）を広げる。「情報は備えの前提」という防災情報整備の本質を2枚ドローで表現。' },
+      { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
+      { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', effectType: 'negate_special', value: 10, desc: '特殊効果を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップも事前設置で無効化できる汎用性の高い政策。' },
+      { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回）', realConcept: '包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。2回分のダメージ軽減という持続型効果が、制度投資の長期的な価値を示す。' },
+      { id: 'pact', name: '防災協定', icon: '📋', cost: 2, type: 'policy', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開', realConcept: '自治体・企業間の防災情報共有体制。相手の手札を知る（情報収集）ことが効果的な備えの前提になることを示す。' },
     ];
 
     const DISASTER_CARDS = [
-      { id: 'earthquake', name: '地震', icon: '🌍', cost: 2, type: 'disaster', baseDamage: 30, specialType: 'inland_bonus', desc: '30（内陸都市 +10）' },
-      { id: 'flood', name: '洪水', icon: '🌧️', cost: 2, type: 'disaster', baseDamage: 30, specialType: 'coastal_bonus', desc: '30（海岸都市 +10）' },
-      { id: 'typhoon', name: '台風', icon: '🌀', cost: 2, type: 'disaster', baseDamage: 20, specialType: 'discard_policy', desc: '20+相手の政策1枚を捨てる' },
-      { id: 'tsunami', name: '津波', icon: '🌊', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'coastal_bonus', desc: '40（海岸都市 +10）' },
-      { id: 'landslide', name: '土砂崩れ', icon: '⛰️', cost: 1, type: 'disaster', baseDamage: 20, specialType: 'mountain_bonus', desc: '20（山間部 +10）' },
-      { id: 'wildfire', name: '大火災', icon: '🔥', cost: 3, type: 'disaster', baseDamage: 50, specialType: null, desc: 'ダメージ 50' },
-      { id: 'compound', name: '複合災害', icon: '⚡', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'skip_response', desc: '40+相手の対応フェーズを強制スキップ' },
+      { id: 'earthquake', name: '地震', icon: '🌍', cost: 2, type: 'disaster', baseDamage: 30, specialType: 'inland_bonus', desc: '30（内陸都市 +10）', columnTitle: 'リスク ＝ ハザード × 曝露 × 脆弱性', column: '内陸都市に追加ダメージ+10（曝露の違い）。東京は都市能力で軽減（対策の違い）、ニューオーリンズは手札不足でさらに被害増（脆弱性の違い）。同じ災害カード1枚で、「被害はなぜ都市によって異なるのか」を体験できる。' },
+      { id: 'flood', name: '洪水', icon: '🌧️', cost: 2, type: 'disaster', baseDamage: 30, specialType: 'coastal_bonus', desc: '30（海岸都市 +10）', columnTitle: '防災の哲学は一つではない', column: '海岸都市に追加ダメージ+10。ロッテルダム（水と共存するオランダ哲学）もニューオーリンズ（社会的脆弱性が被害を拡大）も同じ海岸都市だが、防災への向き合い方は全く異なる。日本の都市だけでは体感できない「防災の多様性」がここに詰まっている。' },
+      { id: 'typhoon', name: '台風', icon: '🌀', cost: 2, type: 'disaster', baseDamage: 20, specialType: 'discard_policy', desc: '20+相手の政策1枚を捨てる', columnTitle: 'ソフト対策の重要性', column: '政策カード1枚をランダムで廃棄し、どんな備えも突然失われることを示す。1枚の政策に頼らず複数を積み重ねること、そして広域避難指示のようなソフト対策（行動計画）の価値を実感できる。' },
+      { id: 'tsunami', name: '津波', icon: '🌊', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'coastal_bonus', desc: '40（海岸都市 +10）', columnTitle: '知識と行動の両立', column: '初期手札に政策2枚・災害2枚が保証されているのは偶然ではない。「どんな脅威があるか知ること（災害カード）」と「それに備えること（政策カード）」の両方がなければ防災は機能しない。知識だけでも行動だけでも不十分という防災の本質。' },
+      { id: 'landslide', name: '土砂崩れ', icon: '⛰️', cost: 1, type: 'disaster', baseDamage: 20, specialType: 'mountain_bonus', desc: '20（山間部 +10）', columnTitle: null, column: null },
+      { id: 'wildfire', name: '大火災', icon: '🔥', cost: 3, type: 'disaster', baseDamage: 50, specialType: null, desc: 'ダメージ 50', columnTitle: '事前投資の費用対効果', column: '最大ダメージ50のカードに対し、コスト2の耐震補強を事前設置すれば大幅に軽減できる。コスト2の政策でコスト3の災害を防ぐ「事前投資の費用対効果」を最もはっきり体験できる場面。' },
+      { id: 'compound', name: '複合災害', icon: '⚡', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'skip_response', desc: '40+相手の対応フェーズを強制スキップ', columnTitle: '複合・連鎖災害の恐ろしさ', column: '備えてきた都市能力を1ターン無効化する。東京の地震耐性や仙台の洪水耐性が突然機能しなくなる体験は、2011年東日本大震災の地震→津波→原発事故の連鎖と同じ構造。なお防災庁設置の効果は無効化されない——制度・組織への投資は複合災害でも守られるという設計上のメッセージ。' },
     ];
     const ALL_CARDS = [...POLICY_CARDS, ...DISASTER_CARDS];
 
@@ -2040,23 +2039,48 @@
           { key: 'disaster', label: '⚡ 災害カード' },
         ];
         const tabHtml = tabs.map(t => `<button class="gallery-tab-btn${lobbyState.galleryTab === t.key ? ' active' : ''}" onclick="lobbyState.galleryTab='${t.key}';lobbyState.galleryZoom=null;render()">${t.label}</button>`).join('');
-        let gridHtml = '';
-        if (lobbyState.galleryTab === 'city') {
-          gridHtml = CITIES.map(c => `<div class="gallery-card" onclick="openGalleryZoom('city','${c.id}','${c.name}')"><img src="images/cities/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
-        } else if (lobbyState.galleryTab === 'policy') {
-          gridHtml = POLICY_CARDS.map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
-        } else if (lobbyState.galleryTab === 'disaster') {
-          gridHtml = DISASTER_CARDS.map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
-        }
-        const zoom = lobbyState.galleryZoom ? (() => {
+        let contentHtml = '';
+        if (lobbyState.galleryZoom) {
           const z = lobbyState.galleryZoom;
           const src = z.type === 'city' ? `images/cities/${z.id}.webp` : `images/cards/${z.id}.webp`;
-          return `<div class="gallery-zoom-overlay" onclick="lobbyState.galleryZoom=null;render()"><img class="gallery-zoom-img" src="${src}" alt="${z.name}" onclick="event.stopPropagation()"><div class="gallery-zoom-close">タップして閉じる</div></div>`;
-        })() : '';
-        return `<div class="screen active">${zoom}<div class="gallery-wrap"><div class="gallery-box">
+          let infoHtml = '';
+          if (z.type === 'city') {
+            const city = CITIES.find(c => c.id === z.id);
+            if (city) {
+              const attr = city.isCoastal ? '海岸都市' : city.isMountain ? '山間部都市' : '内陸都市';
+              infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${city.name}<span style="font-size:.78rem;color:var(--t2);font-weight:400;margin-left:8px">[${attr}]</span></div><div style="font-size:.83rem;color:var(--t2);line-height:1.7;background:var(--bg2);border-radius:10px;padding:12px 14px">${city.learn}</div>`;
+            }
+          } else {
+            const card = [...POLICY_CARDS, ...DISASTER_CARDS].find(c => c.id === z.id);
+            if (card) {
+              if (card.type === 'policy') {
+                infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${card.name}</div><div style="font-size:.72rem;color:var(--t2);text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">対応する現実概念</div><div style="font-size:.83rem;color:var(--t2);line-height:1.7;background:var(--bg2);border-radius:10px;padding:12px 14px">${card.realConcept}</div>`;
+              } else {
+                const colHtml = card.column
+                  ? `<div style="font-size:.72rem;font-weight:700;color:var(--yellow);margin-bottom:6px;letter-spacing:.04em">コラム：${card.columnTitle}</div><div style="font-size:.83rem;color:var(--t2);line-height:1.7">${card.column}</div>`
+                  : `<div style="font-size:.82rem;color:var(--t3);text-align:center;padding:8px 0">コラムなし</div>`;
+                infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${card.name}</div><div style="background:var(--bg2);border-radius:10px;padding:12px 14px">${colHtml}</div>`;
+              }
+            }
+          }
+          contentHtml = `<button class="lobby-btn-back" style="width:auto;padding:8px 16px;margin:0;align-self:flex-start" onclick="lobbyState.galleryZoom=null;render()">← 一覧に戻る</button><div style="display:flex;flex-direction:column;align-items:center;gap:14px"><img src="${src}" alt="${z.name}" style="max-height:260px;max-width:min(200px,80vw);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.6)" onerror="this.style.opacity='.3'"><div style="width:100%;display:flex;flex-direction:column;gap:8px">${infoHtml}</div></div>`;
+        } else if (lobbyState.galleryTab) {
+          let gridHtml = '';
+          if (lobbyState.galleryTab === 'city') {
+            gridHtml = CITIES.map(c => `<div class="gallery-card" onclick="openGalleryZoom('city','${c.id}','${c.name}')"><img src="images/cities/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
+          } else if (lobbyState.galleryTab === 'policy') {
+            gridHtml = POLICY_CARDS.map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
+          } else if (lobbyState.galleryTab === 'disaster') {
+            gridHtml = DISASTER_CARDS.map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
+          }
+          contentHtml = `<div class="gallery-grid">${gridHtml}</div>`;
+        } else {
+          contentHtml = `<div style="text-align:center;color:var(--t3);font-size:.85rem;padding:20px 0">上のボタンでカードの種類を選んでください</div>`;
+        }
+        return `<div class="screen active"><div class="gallery-wrap"><div class="gallery-box">
     <div class="gallery-header"><button class="lobby-btn-back" style="width:auto;padding:8px 16px;margin:0" onclick="lobbyState.mode='select';lobbyState.galleryZoom=null;render()">← 戻る</button><span class="gallery-title">カード一覧</span><span></span></div>
     <div class="gallery-tabs">${tabHtml}</div>
-    ${lobbyState.galleryTab ? `<div class="gallery-grid">${gridHtml}</div>` : '<div style="text-align:center;color:var(--t3);font-size:.85rem;padding:16px 0">上のボタンでカードの種類を選んでください</div>'}
+    ${contentHtml}
   </div></div></div>`;
       }
 
@@ -2168,7 +2192,7 @@
       const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
       const isMe = (idx === myPlayerIdx);
       return `<div class="${position}-zone">
-    <div class="zone-header"><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><span class="city-name-display" onclick="showCityInfo(${idx})" style="cursor:pointer;border-bottom:1px dotted var(--t3);padding-bottom:1px">${p.name}の都市：${c ? c.name : '?'}</span>${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}</div>
+    <div class="zone-header"><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}</div>
     <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
     ${renderBackupCity(idx)}
     <div class="effects-row">${renderEffectBadges(p.effects)}</div>
@@ -2192,7 +2216,12 @@
 
     // ─── 予備都市 ───
     function renderBackupCity(pi) {
-      const p = G.players[pi]; if (p.activeCityIdx !== 0) return `<div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">予備都市なし</div>`; if (p.cities.length < 2) return '';
+      const p = G.players[pi];
+      if (p.activeCityIdx !== 0) return `<div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">予備都市なし</div>`;
+      if (p.cities.length < 2) return '';
+      // 両者が1体目の都市で戦っている間は2体目を隠す
+      const bothOnFirst = G.players[0].activeCityIdx === 0 && G.players[1].activeCityIdx === 0;
+      if (bothOnFirst) return `<div class="backup-city-row"><span class="backup-label" style="color:var(--t3);font-style:italic">予備都市: 未登場</span></div>`;
       const bc = p.cities[1]; const bHp = p.cityHps[1]; const pct = Math.max(0, bHp / bc.hp * 100);
       return `<div class="backup-city-row"><span class="backup-label">予備: ${bc.icon} ${bc.name}</span><div class="hp-bar-mini"><div class="hp-bar-mini-fill" style="width:${pct}%;background:${hpColor(bHp, bc.hp)}"></div></div><span class="backup-hp-text" style="color:${hpColor(bHp, bc.hp)}">${bHp}/${bc.hp}</span></div>`;
     }
@@ -2320,7 +2349,7 @@
         const bdr = isHolder && isMe ? 'border-left:3px solid var(--green)' : isHolder && !isMe ? 'border-left:3px solid var(--red)' : '';
         const terrainLabel = c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : '';
         return `<div class="${position}-zone" style="${bdr}">
-      <div class="zone-header"><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><span class="city-name-display" onclick="showCityInfo(${idx})" style="cursor:pointer;border-bottom:1px dotted var(--t3);padding-bottom:1px">${p.name}の都市：${c ? c.name : '?'}</span>${terrainLabel}</div>
+      <div class="zone-header"><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${terrainLabel}</div>
       <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
       ${renderBackupCity(idx)}
       <div class="effects-row">${renderEffectBadges(p.effects)}</div>
