@@ -2219,9 +2219,9 @@
       const p = G.players[pi];
       if (p.activeCityIdx !== 0) return `<div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">予備都市なし</div>`;
       if (p.cities.length < 2) return '';
-      // 両者が1体目の都市で戦っている間は2体目を隠す
+      // 相手の2体目は両者が1体目の間は隠す。自分の2体目は常に見える
       const bothOnFirst = G.players[0].activeCityIdx === 0 && G.players[1].activeCityIdx === 0;
-      if (bothOnFirst) return `<div class="backup-city-row"><span class="backup-label" style="color:var(--t3);font-style:italic">予備都市: 未登場</span></div>`;
+      if (bothOnFirst && pi !== myPlayerIdx) return `<div class="backup-city-row"><span class="backup-label" style="color:var(--t3);font-style:italic">予備都市: 未登場</span></div>`;
       const bc = p.cities[1]; const bHp = p.cityHps[1]; const pct = Math.max(0, bHp / bc.hp * 100);
       return `<div class="backup-city-row"><span class="backup-label">予備: ${bc.icon} ${bc.name}</span><div class="hp-bar-mini"><div class="hp-bar-mini-fill" style="width:${pct}%;background:${hpColor(bHp, bc.hp)}"></div></div><span class="backup-hp-text" style="color:${hpColor(bHp, bc.hp)}">${bHp}/${bc.hp}</span></div>`;
     }
