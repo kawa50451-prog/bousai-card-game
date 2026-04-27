@@ -1586,7 +1586,7 @@
     const DISASTER_CARDS = [
       { id: 'earthquake', name: '地震', icon: '🌍', cost: 2, type: 'disaster', baseDamage: 30, specialType: 'inland_bonus', desc: '30（内陸都市 +10）', columnTitle: 'リスク ＝ ハザード × 曝露 × 脆弱性', column: '内陸都市に追加ダメージ+10（曝露の違い）。東京は都市能力で軽減（対策の違い）、ニューオーリンズは手札不足でさらに被害増（脆弱性の違い）。同じ災害カード1枚で、「被害はなぜ都市によって異なるのか」を体験できる。' },
       { id: 'flood', name: '洪水', icon: '🌧️', cost: 2, type: 'disaster', baseDamage: 30, specialType: 'coastal_bonus', desc: '30（海岸都市 +10）', columnTitle: '防災の哲学は一つではない', column: '海岸都市に追加ダメージ+10。ロッテルダム（水と共存するオランダ哲学）もニューオーリンズ（社会的脆弱性が被害を拡大）も同じ海岸都市だが、防災への向き合い方は全く異なる。日本の都市だけでは体感できない「防災の多様性」がここに詰まっている。' },
-      { id: 'typhoon', name: '台風', icon: '🌀', cost: 2, type: 'disaster', baseDamage: 20, specialType: 'discard_policy', desc: '20+相手の政策1枚を捨てる', columnTitle: 'ソフト対策の重要性', column: '政策カード1枚をランダムで廃棄し、どんな備えも突然失われることを示す。1枚の政策に頼らず複数を積み重ねること、そして広域避難指示のようなソフト対策（行動計画）の価値を実感できる。' },
+      { id: 'typhoon', name: '台風', icon: '🌀', cost: 2, type: 'disaster', baseDamage: 20, specialType: 'discard_policy', desc: '20+相手の手札1枚を捨てる', columnTitle: 'ソフト対策の重要性', column: '手札1枚をランダムで廃棄し、どんな備えも突然失われることを示す。1枚のカードに頼らず複数を積み重ねること、そして広域避難指示のようなソフト対策（行動計画）の価値を実感できる。' },
       { id: 'tsunami', name: '津波', icon: '🌊', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'coastal_bonus', desc: '40（海岸都市 +10）', columnTitle: '知識と行動の両立', column: '初期手札に政策2枚・災害2枚が保証されているのは偶然ではない。「どんな脅威があるか知ること（災害カード）」と「それに備えること（政策カード）」の両方がなければ防災は機能しない。知識だけでも行動だけでも不十分という防災の本質。' },
       { id: 'landslide', name: '土砂崩れ', icon: '⛰️', cost: 1, type: 'disaster', baseDamage: 20, specialType: 'mountain_bonus', desc: '20（山間部 +10）', columnTitle: null, column: null },
       { id: 'wildfire', name: '大火災', icon: '🔥', cost: 3, type: 'disaster', baseDamage: 50, specialType: null, desc: 'ダメージ 50', columnTitle: '事前投資の費用対効果', column: '最大ダメージ50のカードに対し、コスト2の耐震補強を事前設置すれば大幅に軽減できる。コスト2の政策でコスト3の災害を防ぐ「事前投資の費用対効果」を最もはっきり体験できる場面。' },
@@ -1701,9 +1701,9 @@
         if (attackCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) { dmg += 10; ld('exposure', '山間部都市（地形リスク：土砂崩れへの曝露）', +10); }
         if (attackCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) { dmg += 10; ld('exposure', '内陸都市（地形リスク：地震への曝露）', +10); }
         if (attackCard.specialType === 'discard_policy') {
-          const pols = def.hand.filter(c => c.type === 'policy');
-          if (pols.length > 0) { const d = pols[Math.random() * pols.length | 0]; def.hand.splice(def.hand.indexOf(d), 1); G.discard.push(d); ld('special', `台風：${def.name}の政策カード1枚を破棄`, null); G._nextTurnEvents[defIdx].push({ type: 'typhoon_discard', cardIcon: d.icon, cardName: d.name }); }
-          else ld('special', '台風：政策カードなし（効果なし）', null);
+          const pols = def.hand.filter(c => c.type === 'policy' || c.type === 'disaster');
+          if (pols.length > 0) { const d = pols[Math.random() * pols.length | 0]; def.hand.splice(def.hand.indexOf(d), 1); G.discard.push(d); ld('special', `台風：${def.name}の手札から1枚を破棄`, null); G._nextTurnEvents[defIdx].push({ type: 'typhoon_discard', cardIcon: d.icon, cardName: d.name }); }
+          else ld('special', '台風：手札なし（効果なし）', null);
         }
       }
       // 都市能力
