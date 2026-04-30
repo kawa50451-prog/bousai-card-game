@@ -1573,14 +1573,14 @@
     ];
 
     const POLICY_CARDS = [
-      { id: 'quake_wall', name: '耐震補強', icon: '🏗️', cost: 2, type: 'policy', color: 'yellow', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30', realConcept: 'ハード対策の代表。1981年の新耐震基準に基づく建物の構造強化。事前設置で次の地震・大火災を大幅に軽減するシールド型政策。' },
-      { id: 'dam', name: '堤防建設', icon: '🌊', cost: 2, type: 'policy', color: 'yellow', effectType: 'shield_flood', value: 25, desc: '次の洪水・津波 −25', realConcept: '洪水・津波に対するハード対策（治水インフラ）。物理的に水害を防ぐ構造物への投資で、効果は確実だが規模の上限がある。' },
-      { id: 'drill', name: '避難訓練', icon: '🏃', cost: 1, type: 'policy', color: 'green', effectType: 'heal', value: 20, desc: 'HP +20（対応時+10）', realConcept: 'ソフト対策の代表。事前の訓練が緊急時の行動を変え人的被害を減らす。対応フェーズでの効果半減は「事前準備ほど緊急時は効かない」ことを表す。' },
-      { id: 'hazard_map', name: 'ハザードマップ整備', icon: '🗺️', cost: 1, type: 'policy', color: 'green', effectType: 'draw', value: 2, desc: '山札から2枚ドロー', realConcept: 'リスク情報の整備が対応選択肢（手札）を広げる。「情報は備えの前提」という防災情報整備の本質を2枚ドローで表現。' },
-      { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', color: 'green', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
-      { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', color: 'yellow', effectType: 'negate_special', value: 10, desc: '特殊効果を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップも事前設置で無効化できる汎用性の高い政策。' },
+      { id: 'quake_wall', name: '耐震補強', icon: '🏗️', cost: 2, type: 'policy', color: 'green', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30', realConcept: 'ハード対策の代表。1981年の新耐震基準に基づく建物の構造強化。事前設置で次の地震・大火災を大幅に軽減するシールド型政策。' },
+      { id: 'dam', name: '堤防建設', icon: '🌊', cost: 2, type: 'policy', color: 'green', effectType: 'shield_flood', value: 25, desc: '次の洪水・津波 −25', realConcept: '洪水・津波に対するハード対策（治水インフラ）。物理的に水害を防ぐ構造物への投資で、効果は確実だが規模の上限がある。' },
+      { id: 'drill', name: '避難訓練', icon: '🏃', cost: 1, type: 'policy', color: 'yellow', effectType: 'heal', value: 20, desc: 'HP +20（対応時+10）', realConcept: 'ソフト対策の代表。事前の訓練が緊急時の行動を変え人的被害を減らす。対応フェーズでの効果半減は「事前準備ほど緊急時は効かない」ことを表す。' },
+      { id: 'hazard_map', name: 'ハザードマップ整備', icon: '🗺️', cost: 1, type: 'policy', color: 'yellow', effectType: 'draw', value: 2, desc: '山札から2枚ドロー', realConcept: 'リスク情報の整備が対応選択肢（手札）を広げる。「情報は備えの前提」という防災情報整備の本質を2枚ドローで表現。' },
+      { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', color: 'yellow', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
+      { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', color: 'green', effectType: 'negate_special', value: 10, desc: '特殊効果を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップも事前設置で無効化できる汎用性の高い政策。' },
       { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', color: 'green', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回）', realConcept: '包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。2回分のダメージ軽減という持続型効果が、制度投資の長期的な価値を示す。' },
-      { id: 'pact', name: '防災協定', icon: '📋', cost: 2, type: 'policy', color: 'green', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開', realConcept: '自治体・企業間の防災情報共有体制。相手の手札を知る（情報収集）ことが効果的な備えの前提になることを示す。' },
+      { id: 'pact', name: '防災協定', icon: '📋', cost: 2, type: 'policy', color: 'yellow', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開', realConcept: '自治体・企業間の防災情報共有体制。相手の手札を知る（情報収集）ことが効果的な備えの前提になることを示す。' },
     ];
 
     const DISASTER_CARDS = [
@@ -2035,9 +2035,8 @@
       if (lobbyState.mode === 'gallery') {
         const tabs = [
           { key: 'city', label: '🏙️ 都市カード' },
-          { key: 'policy_green', label: '🟢 政策カード（緑）' },
-          { key: 'policy_yellow', label: '🟡 政策カード（黄色）' },
-          { key: 'disaster', label: '🔴 災害カード' },
+          { key: 'policy', label: '🛡️ 政策カード' },
+          { key: 'disaster', label: '⚡ 災害カード' },
         ];
         const tabHtml = tabs.map(t => `<button class="gallery-tab-btn${lobbyState.galleryTab === t.key ? ' active' : ''}" onclick="lobbyState.galleryTab='${t.key}';lobbyState.galleryZoom=null;render()">${t.label}</button>`).join('');
         let contentHtml = '';
@@ -2069,14 +2068,14 @@
           let gridHtml = '';
           if (lobbyState.galleryTab === 'city') {
             gridHtml = CITIES.map(c => `<div class="gallery-card" onclick="openGalleryZoom('city','${c.id}','${c.name}')"><img src="images/cities/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
-          } else if (lobbyState.galleryTab === 'policy_green') {
-            gridHtml = POLICY_CARDS.filter(c => c.color === 'green').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
-          } else if (lobbyState.galleryTab === 'policy_yellow') {
-            gridHtml = POLICY_CARDS.filter(c => c.color === 'yellow').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
+          } else if (lobbyState.galleryTab === 'policy') {
+            const yellows = POLICY_CARDS.filter(c => c.color === 'yellow').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
+            const greens  = POLICY_CARDS.filter(c => c.color === 'green').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
+            contentHtml = `<div class="gallery-grid">${yellows}</div><div style="border-top:1px solid var(--bg3);margin:6px 0"></div><div class="gallery-grid">${greens}</div>`;
           } else if (lobbyState.galleryTab === 'disaster') {
             gridHtml = DISASTER_CARDS.map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
           }
-          contentHtml = `<div class="gallery-grid">${gridHtml}</div>`;
+          if (gridHtml) contentHtml = `<div class="gallery-grid">${gridHtml}</div>`;
         } else {
           contentHtml = `<div style="text-align:center;color:var(--t3);font-size:.85rem;padding:20px 0">上のボタンでカードの種類を選んでください</div>`;
         }
