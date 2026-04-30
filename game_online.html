@@ -1449,9 +1449,10 @@
     .gallery-header { display:flex; align-items:center; justify-content:space-between }
     .gallery-title { font-size:1rem; font-weight:700 }
     .gallery-tabs { display:flex; flex-direction:column; gap:8px }
-    .gallery-tab-btn { padding:12px 16px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:left }
+    .gallery-tab-btn { padding:12px 16px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:left; display:flex; align-items:center; gap:10px }
     .gallery-tab-btn:hover { border-color:var(--blue); background:rgba(56,139,253,.1); color:var(--blue) }
     .gallery-tab-btn.active { border-color:var(--blue); background:rgba(56,139,253,.15); color:var(--blue) }
+    .tab-icon { width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0 }
     .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
     .gallery-card { border-radius:8px; overflow:hidden; cursor:pointer; border:2px solid var(--bg3); transition:.15s; aspect-ratio:288/450 }
     .gallery-card img { width:100%; height:100%; object-fit:cover; display:block }
@@ -2034,11 +2035,14 @@
       // ── ギャラリーモード ──
       if (lobbyState.mode === 'gallery') {
         const tabs = [
-          { key: 'city', label: '🏙️ 都市カード' },
-          { key: 'policy', label: '🛡️ 政策カード' },
-          { key: 'disaster', label: '⚡ 災害カード' },
+          { key: 'city',    icons: ['images/icons/icon_city.webp'], label: '都市カード' },
+          { key: 'policy',  icons: ['images/icons/icon_policy_yellow.webp', 'images/icons/icon_policy_green.webp'], label: '政策カード' },
+          { key: 'disaster',icons: ['images/icons/icon_disaster.webp'], label: '災害カード' },
         ];
-        const tabHtml = tabs.map(t => `<button class="gallery-tab-btn${lobbyState.galleryTab === t.key ? ' active' : ''}" onclick="lobbyState.galleryTab='${t.key}';lobbyState.galleryZoom=null;render()">${t.label}</button>`).join('');
+        const tabHtml = tabs.map(t => {
+          const iconsHtml = t.icons.map(src => `<img src="${src}" class="tab-icon" alt="">`).join('');
+          return `<button class="gallery-tab-btn${lobbyState.galleryTab === t.key ? ' active' : ''}" onclick="lobbyState.galleryTab='${t.key}';lobbyState.galleryZoom=null;render()">${iconsHtml}<span>${t.label}</span></button>`;
+        }).join('');
         let contentHtml = '';
         if (lobbyState.galleryZoom) {
           const z = lobbyState.galleryZoom;
