@@ -1533,11 +1533,15 @@
     .hint-tag.blue { background:rgba(56,139,253,.18); color:var(--blue); border:1px solid rgba(56,139,253,.25) }
 
     /* ── 11. Tutorial ── */
+    .city-tap-btn.tut-pulse { animation:tutCityPulse 1.2s ease-in-out infinite; border-color:var(--blue) !important; color:var(--blue) !important }
+    @keyframes tutCityPulse { 0%,100% { background:rgba(56,139,253,.15); box-shadow:0 0 0 2px var(--blue) } 50% { background:rgba(56,139,253,.3); box-shadow:0 0 0 3px var(--blue),0 0 12px rgba(56,139,253,.5) } }
+    .terrain-badge.tut-pulse { animation:tutCityPulse 1.2s ease-in-out infinite; border-radius:6px }
     .card.tut-glow { animation:tutGlow 1.1s ease-in-out infinite alternate; cursor:pointer !important; opacity:1 !important }
     @keyframes tutGlow { from { box-shadow:0 0 0 2px var(--blue),0 0 10px rgba(56,139,253,.4); transform:translateY(-2px) } to { box-shadow:0 0 0 3px var(--blue),0 0 22px rgba(56,139,253,.7); transform:translateY(-7px) } }
     .btn-end.tut-glow { animation:tutGlowBtn 1.1s ease-in-out infinite alternate }
     @keyframes tutGlowBtn { from { box-shadow:0 0 0 2px var(--green),0 0 8px rgba(63,185,80,.35) } to { box-shadow:0 0 0 3px var(--green),0 0 18px rgba(63,185,80,.65) } }
     .tut-dim { opacity:.28 !important; pointer-events:none !important }
+    .tut-dim-soft { opacity:.28 !important }
     .tut-guide { background:var(--bg1); border:1.5px solid var(--blue); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:10px }
     .tut-guide-title { font-size:.88rem; font-weight:700; color:var(--blue) }
     .tut-guide-body { font-size:.82rem; color:var(--t2); line-height:1.8 }
@@ -1723,21 +1727,30 @@
     // ─── チュートリアル ───
     let tutorialState = null;
 
+    const TUT_STEP_STATES = [
+      { playerHp:45, budgetUsed:0, shieldActive:false, usedUids:[] },
+      { playerHp:45, budgetUsed:0, shieldActive:false, usedUids:[] },
+      { playerHp:45, budgetUsed:2, shieldActive:true,  usedUids:['tu_dam'] },
+      { playerHp:60, budgetUsed:3, shieldActive:true,  usedUids:['tu_dam','tu_drill'] },
+      { playerHp:60, budgetUsed:3, shieldActive:true,  usedUids:['tu_dam','tu_drill'] },
+      { playerHp:60, budgetUsed:3, shieldActive:true,  usedUids:['tu_dam','tu_drill'] },
+    ];
+
     const TUT_STEPS = [
-      { title: '⚔️ バトル開始！', body: '<strong>上が相手ゾーン、下があなたのゾーン</strong>です。HPバーで残り体力が分かります。<br>あなたは <strong>仙台（海岸都市）</strong> を守っています。予算 <strong>3pt</strong> でカードを使えます。', highlight: null, btnLabel: '次へ →', action: 'next' },
+      { title: '⚔️ バトル開始！', body: '<strong>上が相手ゾーン、下があなたのゾーン</strong>です。HPバーで残り体力が分かります。<br>・<strong>都市名（ⓘ）</strong>をタップ → 地形・都市能力を確認できます<br>・地形（海岸 / 内陸 / 山間部）によって特定の災害で追加ダメージを受けます<br>・下の手札の<strong>カードをタップ</strong>すると効果の詳細を確認できます<br>予算 <strong>3pt</strong> でカードを使えます。', highlight: null, btnLabel: '次へ →', action: 'next' },
       { title: '🛡️ 緑カードを設置しよう', body: '<strong>堤防建設（コスト2）</strong> をタップして設置。相手が洪水・津波を使ったとき、自動で <strong>-25軽減</strong> します。', highlight: 'dam', btnLabel: null, action: 'play_dam' },
       { title: '💛 黄カードで即時回復', body: '<strong>避難訓練（コスト1）</strong> をタップ。タップした瞬間に <strong>HP +20</strong> 回復します。', highlight: 'drill', btnLabel: null, action: 'play_drill' },
       { title: '✅ ターン終了', body: '予算を使い切りました。光っている「<strong>ターン終了</strong>」を押して相手にターンを渡しましょう。', highlight: 'end_turn', btnLabel: null, action: 'end_turn' },
       { title: '⚡ 相手のターン：洪水攻撃！', body: '東京が <strong>洪水（コスト2）</strong> を使用！<br>仙台は海岸都市なので 基礎30 + 海岸+10 = <strong>40ダメージ</strong>。<br>でも 堤防建設 が <strong>-25軽減</strong> → 実際のダメージは <strong>15</strong>。', highlight: null, btnLabel: '対応フェーズへ →', action: 'next' },
       { title: '🛡️ 対応フェーズ', body: '<strong>相互支援協定（黄）</strong> で対応できます。対応時はHP回復が <strong>半減（+15）</strong> になりますが、15ダメージをちょうど相殺！タップして対応しましょう。', highlight: 'agreement', btnLabel: null, action: 'respond' },
-      { title: '🎉 チュートリアル完了！', body: '1ターンで体験したこと：<br>・<strong>緑カード</strong>（シールド型）は事前設置で次の攻撃を自動軽減<br>・<strong>黄カード</strong>（即時型）はタップで即発動、対応時は半減<br>・<strong>対応フェーズ</strong>で政策カードを使って被害を減らせる', highlight: null, btnLabel: 'ロビーへ →', action: 'finish' },
+      { title: '🎉 チュートリアル完了！', body: '1ターンで体験したこと：<br>・<strong>緑カード</strong>（シールド型）は事前設置で次の攻撃を自動軽減<br>・<strong>黄カード</strong>（即時型）はタップで即発動、対応時は半減<br>・<strong>対応フェーズ</strong>で政策カードを使って被害を減らせる<br><br><strong>自分の都市を守りつつ、相手の都市のHPを0にしよう！</strong><br>実際に対戦してみましょう！', highlight: null, btnLabel: '対戦ロビーへ →', action: 'finish' },
     ];
 
     function startTutorial() {
       const dam       = { ...POLICY_CARDS.find(c => c.id === 'dam'),       uid: 'tu_dam' };
       const drill     = { ...POLICY_CARDS.find(c => c.id === 'drill'),     uid: 'tu_drill' };
       const agreement = { ...POLICY_CARDS.find(c => c.id === 'agreement'), uid: 'tu_agr' };
-      tutorialState = { step: 0, playerHp: 45, opponentHp: 60, budgetUsed: 0, shieldActive: false, hand: [dam, drill, agreement], usedUids: [], feedback: null, skipWarning: false };
+      tutorialState = { step: 0, playerHp: 45, opponentHp: 60, budgetUsed: 0, shieldActive: false, hand: [dam, drill, agreement], usedUids: [], feedback: null, skipWarning: false, cityPopup: null, confirmCard: null };
       _hintOpen = false;
       G.screen = 'tutorial';
       render();
@@ -1745,17 +1758,30 @@
 
     function tutorialAction(action) {
       const ts = tutorialState; if (!ts) return;
-      ts.skipWarning = false;
-      if (action === 'next')         { ts.feedback = null; ts.step++; }
+      ts.skipWarning = false; ts.confirmCard = null;
+      if (action === 'next')          { ts.feedback = null; ts.step++; }
       else if (action === 'play_dam')  { ts.usedUids.push('tu_dam'); ts.budgetUsed += 2; ts.shieldActive = true; ts.feedback = '✅ 堤防建設を設置！シールドバッジが表示されています。'; ts.step++; }
       else if (action === 'play_drill'){ ts.usedUids.push('tu_drill'); ts.budgetUsed += 1; const prev = ts.playerHp; ts.playerHp = Math.min(60, prev + 20); ts.feedback = `✅ HP +20 回復！（${prev} → ${ts.playerHp}）`; ts.step++; }
       else if (action === 'end_turn')  { ts.feedback = null; ts.step++; }
       else if (action === 'skip_attempt') { ts.skipWarning = true; }
       else if (action === 'respond')   { ts.usedUids.push('tu_agr'); ts.feedback = '✅ 洪水ダメージ 15 − 相互支援協定 +15 = 実ダメージ 0！'; ts.step++; }
       else if (action === 'finish')    { tutorialState = null; G.screen = 'lobby'; }
+      else if (action === 'back') {
+        const prev = ts.step - 1;
+        if (prev >= 0 && TUT_STEP_STATES[prev]) {
+          const s = TUT_STEP_STATES[prev];
+          ts.step = prev; ts.playerHp = s.playerHp; ts.budgetUsed = s.budgetUsed;
+          ts.shieldActive = s.shieldActive; ts.usedUids = [...s.usedUids];
+          ts.feedback = null; ts.skipWarning = false; ts.cityPopup = null; ts.confirmCard = null;
+        }
+      }
       render();
     }
 
+    function tutorialShowCity(id) { if (tutorialState) { tutorialState.cityPopup = CITIES.find(c => c.id === id) || null; render(); } }
+    function tutorialCloseCityPopup() { if (tutorialState) { tutorialState.cityPopup = null; render(); } }
+    function tutorialShowConfirm(uid) { if (!tutorialState) return; const card = tutorialState.hand.find(c => c.uid === uid); if (card) { tutorialState.confirmCard = card; render(); } }
+    function tutorialCancelConfirm() { if (tutorialState) { tutorialState.confirmCard = null; render(); } }
     function exitTutorial() { tutorialState = null; G.screen = 'lobby'; render(); }
 
     function renderTutorial() {
@@ -1779,7 +1805,7 @@
 
       // ── ガイドボックス ──
       const dots = TUT_STEPS.map((_, i) => `<div class="tut-dot" style="background:${i === ts.step ? 'var(--blue)' : i < ts.step ? 'var(--green)' : 'var(--bg3)'}"></div>`).join('');
-      const stepCounter = `<span style="font-size:.72rem;color:var(--t3)">${ts.step + 1} / ${TUT_STEPS.length}</span>`;
+      const stepCounter = `<span style="font-size:.72rem;color:var(--t1);font-weight:600">${ts.step + 1} / ${TUT_STEPS.length}</span>`;
       const guideBtn = step.btnLabel ? `<button class="btn-respond" onclick="tutorialAction('${step.action}')">${step.btnLabel}</button>` : `<span style="font-size:.72rem;color:var(--t3)">↓ 光っているものをタップ</span>`;
       const feedbackLine = ts.feedback ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.28);border-radius:8px;padding:8px 10px;font-size:.8rem;color:var(--green)">${ts.feedback}</div>` : '';
       const guideBox = `<div class="tut-guide">
@@ -1787,14 +1813,17 @@
         ${feedbackLine}
         <div class="tut-guide-body">${step.body}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <div style="display:flex;align-items:center;gap:6px"><div class="tut-progress">${dots}</div>${stepCounter}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${ts.step > 0 ? `<button style="padding:3px 8px;font-size:.7rem;background:var(--bg3);border:none;border-radius:6px;color:var(--t2);cursor:pointer" onclick="tutorialAction('back')">← 戻る</button>` : ''}
+            <div class="tut-progress">${dots}</div>${stepCounter}
+          </div>
           ${guideBtn}
         </div>
       </div>`;
 
       // ── 相手ゾーン ──
       const oppZone = `<div class="opponent-zone" style="border-left:3px solid var(--red)">
-        <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm">🗼</span><button class="city-tap-btn" style="cursor:default">東京 ⓘ</button><span class="terrain-badge">(内陸)</span></div>
+        <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm">🗼</span><button class="city-tap-btn${ts.step === 0 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('tokyo')">東京 ⓘ</button><span class="terrain-badge${ts.step === 0 ? ' tut-pulse' : ''}">(内陸)</span></div>
         <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:100%;background:var(--green)"></div></div><div class="hp-text" style="color:var(--green)">60/60</div></div>
         <div style="margin-top:4px">${isResp ? `<div style="background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:4px 10px;font-size:.75rem;color:var(--red);display:inline-block">🌧️ 洪水 発動中</div>` : `<div class="hand-back-row">${Array(3).fill('<div class="card-back"><img src="images/cards/back.webp" alt=""></div>').join('')}</div>`}</div>
       </div>`;
@@ -1802,9 +1831,11 @@
       // ── 手札カード ──
       function mkTutCard(card) {
         const used = ts.usedUids.includes(card.uid); if (used) return '';
-        const isGlow = step.highlight === card.id; const isDim = step.highlight !== null && !isGlow;
-        const oc = isGlow ? `onclick="tutorialAction('${step.action}')"` : '';
-        return `<div class="card policy${isGlow ? ' tut-glow' : ''}${isDim ? ' tut-dim' : ''}" style="cursor:${isGlow?'pointer':'default'}" ${oc}>
+        const isGlow = step.highlight === card.id;
+        const isDim = step.highlight !== null && !isGlow;
+        const isDimSoft = ts.step === 0;
+        const oc = `onclick="tutorialShowConfirm('${card.uid}')"`;
+        return `<div class="card policy${isGlow ? ' tut-glow' : ''}${isDim ? ' tut-dim' : isDimSoft ? ' tut-dim-soft' : ''}" style="cursor:pointer" ${oc}>
           <div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${isResp ? '無料' : card.cost}</span></div>
           <div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>
@@ -1826,17 +1857,61 @@
       // ── プレイヤーゾーン ──
       const hpColor = ts.playerHp > 30 ? 'var(--green)' : ts.playerHp > 10 ? 'var(--yellow)' : 'var(--red)';
       const playerZone = `<div class="player-zone" style="border-left:3px solid var(--green)">
-        <div class="zone-header"><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm">🌸</span><button class="city-tap-btn" style="cursor:default">仙台 ⓘ</button><span class="terrain-badge">(海岸)</span></div>
+        <div class="zone-header"><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm">🌸</span><button class="city-tap-btn${ts.step === 0 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('sendai')">仙台 ⓘ</button><span class="terrain-badge${ts.step === 0 ? ' tut-pulse' : ''}">(海岸)</span></div>
         <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:${ts.playerHp/60*100}%;background:${hpColor}"></div></div><div class="hp-text" style="color:${hpColor}">${ts.playerHp}/60</div></div>
         <div style="margin-top:4px;min-height:24px">${shieldBadge}</div>
         <div class="hand-cards-area">${handHtml}</div>
         ${isResp ? respBar : actionBar}
       </div>`;
 
+      // ── 都市情報ポップアップ ──
+      let cityOverlay = '';
+      if (ts.cityPopup) {
+        const cy = ts.cityPopup;
+        const terrain = cy.isCoastal ? '海岸都市' : cy.isMountain ? '山間部都市' : '内陸都市';
+        const terrainNote = cy.isCoastal ? '洪水・津波で +10ダメージ' : cy.isMountain ? '土砂崩れで +10ダメージ' : '地震で +10ダメージ';
+        cityOverlay = `<div class="confirm-overlay" onclick="tutorialCloseCityPopup()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:300px">
+          <img src="images/cities/${cy.id}.webp" alt="" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-bottom:8px" onerror="this.style.display='none'">
+          <div class="confirm-card-preview"><span>${cy.icon} ${cy.name}</span></div>
+          <div style="background:rgba(56,139,253,.1);border-radius:6px;padding:6px 10px;font-size:.78rem;color:var(--t2);margin:4px 0">
+            <div style="color:var(--blue);font-weight:700;margin-bottom:2px">地形：${terrain}</div>
+            <div>${terrainNote}</div>
+          </div>
+          <div style="background:rgba(63,185,80,.1);border-radius:6px;padding:6px 10px;font-size:.78rem;color:var(--t2);margin:4px 0">
+            <div style="color:var(--green);font-weight:700;margin-bottom:2px">都市能力</div>
+            <div>${cy.abilityDesc}</div>
+          </div>
+          <div class="confirm-btns" style="margin-top:10px"><button class="btn-cancel" style="width:100%" onclick="tutorialCloseCityPopup()">閉じる</button></div>
+        </div></div>`;
+      }
+
+      // ── カード確認モーダル ──
+      let cardOverlay = '';
+      if (ts.confirmCard) {
+        const card = ts.confirmCard;
+        const isTargetCard = step.highlight === card.id;
+        const typeLabel = card.color === 'green' ? 'シールド型政策' : '即時型政策';
+        const effectNote = card.color === 'green'
+          ? `<div style="background:rgba(63,185,80,.1);border-radius:6px;padding:5px 10px;font-size:.78rem;color:var(--t2);margin:4px 0"><span style="color:var(--green);font-weight:700">設置型：</span>使用後も効果が持続します</div>`
+          : `<div style="background:rgba(210,153,34,.1);border-radius:6px;padding:5px 10px;font-size:.78rem;color:var(--t2);margin:4px 0"><span style="color:var(--yellow);font-weight:700">即時型：</span>タップした瞬間に効果発動</div>`;
+        const actionBtns = isTargetCard
+          ? `<div class="confirm-btns"><button class="btn-ok" onclick="tutorialAction('${step.action}')">使用する</button><button class="btn-cancel" onclick="tutorialCancelConfirm()">キャンセル</button></div>`
+          : `<div class="confirm-btns"><button class="btn-cancel" style="width:100%" onclick="tutorialCancelConfirm()">閉じる</button></div>`;
+        cardOverlay = `<div class="confirm-overlay" onclick="tutorialCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
+          <img class="confirm-card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+          <div class="confirm-card-preview" style="display:flex;align-items:center;gap:6px">${cardTypeIconHtml(card.type, card.color)}<span>${card.name}</span></div>
+          <div style="font-size:.72rem;color:var(--blue);text-align:center;margin:-4px 0 4px">${typeLabel}　コスト ${isResp ? '無料（対応）' : card.cost + 'pt'}</div>
+          <div style="background:rgba(139,148,158,.08);border-radius:6px;padding:5px 10px;font-size:.8rem;color:var(--t2);text-align:center;margin:4px 0">${card.desc}</div>
+          ${effectNote}
+          ${!isTargetCard ? `<div style="font-size:.72rem;color:var(--t3);text-align:center;margin-top:4px">今はこのカードを使う手順ではありません</div>` : ''}
+          ${actionBtns}
+        </div></div>`;
+      }
+
       return `<div class="screen active"><div class="battle-layout">
         ${guideBox}${oppZone}${statusBar}${playerZone}
         <button class="lobby-btn-back" style="width:auto;padding:8px 16px;margin-top:4px;align-self:flex-start" onclick="exitTutorial()">← ロビーに戻る</button>
-      </div></div>`;
+      </div>${cityOverlay}${cardOverlay}</div>`;
     }
 
     // ═══════════════════════════════════════
@@ -2673,6 +2748,15 @@
   </div></div>`;
     }
 
+    function cardTypeIconHtml(type, color, size) {
+      size = size || 24;
+      let src;
+      if (type === 'policy') src = color === 'green' ? 'images/icons/icon_policy_green.webp' : 'images/icons/icon_policy_yellow.webp';
+      else if (type === 'disaster') src = 'images/icons/icon_disaster.webp';
+      else return '';
+      return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;vertical-align:middle;flex-shrink:0" onerror="this.style.display='none'">`;
+    }
+
     // ─── 確認モーダル ───
     function renderConfirmModal() {
       const c = G.confirm;
@@ -2713,9 +2797,12 @@
         }
       }
       const cardId = c.uid.replace(/_\d+$/, '');
+      const _cpi = (c.fn === 'playResponseCard') ? G.pendingAttack.defenderIdx : G.activePlayer;
+      const _ccard = G.players[_cpi]?.hand.find(cd => cd.uid === c.uid);
+      const _cIcon = cardTypeIconHtml(c.cardType, _ccard?.color);
       return `<div class="confirm-overlay" onclick="cancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
     <img class="confirm-card-img" src="images/cards/${cardId}.webp" alt="" onerror="this.style.display='none'">
-    <div class="confirm-card-preview"><span>${c.name}</span></div>
+    <div class="confirm-card-preview" style="display:flex;align-items:center;gap:6px">${_cIcon}<span>${c.name}</span></div>
     ${hint}<p>${tl}を<strong style="color:${c.danger ? 'var(--red)' : 'var(--blue)'}">${c.actionLabel}</strong>しますか？</p>
     <div class="confirm-btns"><button class="btn-ok${c.danger ? ' danger' : ''}" onclick="doConfirm()">はい</button><button class="btn-cancel" onclick="cancelConfirm()">キャンセル</button></div>
   </div></div>`;
@@ -2764,7 +2851,7 @@
         const tc = c.type === 'policy' ? 'var(--blue)' : 'var(--red)';
         return `<div class="peek-card-big" style="display:inline-flex;margin:6px">
           <img src="images/cards/${c.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'">
-          <div class="pk-icon">${c.icon}</div><div class="pk-name">${c.name}</div>
+          <div class="pk-icon">${cardTypeIconHtml(c.type, c.color, 32)}</div><div class="pk-name">${c.name}</div>
           <div class="pk-cost" style="color:${tc}">コスト: ${c.cost}</div>
           <div class="pk-desc">${c.desc}</div></div>`;
       }).join('');
