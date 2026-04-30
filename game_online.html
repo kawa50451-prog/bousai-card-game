@@ -2209,7 +2209,7 @@
     // ═══════════════════════════════════════
     function myView() {
       if (!isFirebaseConfigured()) return 'setup_required';
-      if (G.screen === 'lobby' || G.screen === 'waiting_connection') return G.screen;
+      if (G.screen === 'lobby' || G.screen === 'waiting_connection' || G.screen === 'tutorial') return G.screen;
       const mi = myPlayerIdx;
       switch (G.screen) {
         case 'cityOrder': return G.cityOrderState?.playerIdx === mi ? 'cityOrder' : 'waiting';
