@@ -1514,6 +1514,23 @@
       .hand-group-cards { flex-wrap:nowrap }
       .hand-group { scroll-snap-align:start }
     }
+
+    /* ── 10. Hint overlay ── */
+    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:var(--bg2); border:1.5px solid var(--bg3); color:var(--t2); font-size:1rem; font-weight:700; cursor:pointer; z-index:900; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
+    .hint-btn:hover { border-color:var(--blue); color:var(--blue); background:rgba(56,139,253,.1) }
+    .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:1000; display:flex; align-items:flex-end; justify-content:center; padding:12px }
+    .hint-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:20px 18px; max-width:520px; width:100%; max-height:72vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px }
+    .hint-box-header { display:flex; align-items:center; justify-content:space-between }
+    .hint-title { font-size:.95rem; font-weight:700; color:var(--blue) }
+    .hint-close { background:none; border:none; color:var(--t3); font-size:1.2rem; cursor:pointer; padding:0 4px; line-height:1 }
+    .hint-section { font-size:.83rem; color:var(--t2); line-height:1.8 }
+    .hint-section strong { color:var(--t1) }
+    .hint-divider { border:none; border-top:1px solid var(--bg3); margin:2px 0 }
+    .hint-tag { display:inline-block; padding:1px 7px; border-radius:5px; font-size:.72rem; font-weight:700; margin-right:3px }
+    .hint-tag.green { background:rgba(63,185,80,.18); color:var(--green); border:1px solid rgba(63,185,80,.25) }
+    .hint-tag.yellow { background:rgba(210,153,34,.18); color:var(--yellow); border:1px solid rgba(210,153,34,.25) }
+    .hint-tag.red { background:rgba(248,81,73,.18); color:var(--red); border:1px solid rgba(248,81,73,.25) }
+    .hint-tag.blue { background:rgba(56,139,253,.18); color:var(--blue); border:1px solid rgba(56,139,253,.25) }
   </style>
 </head>
 
@@ -1554,6 +1571,133 @@
     let lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
     let _logExpanded = false;
     let _cityInfoModal = null;
+    let _hintOpen = false;
+
+    // ══ HINT CONTENT ══
+    const HINT_CONTENT = {
+      lobby: {
+        title: 'ゲームの流れ',
+        sections: [
+          '都市防災カードバトルは<strong>2人対戦カードゲーム</strong>です。約15〜20分、各自1デバイスでプレイします。',
+          '<strong>① 都市選択（ガチャ）</strong>：4都市から2つ選ぶ。地形（海岸・内陸・山間部）と固有能力が異なります。',
+          '<strong>② 手札選択（ドラフト）</strong>：8枚から4枚を選んで初期手札にします。',
+          '<strong>③ バトル</strong>：交互にターンを進め、相手の都市HPを0にしたら勝利。',
+          '「<strong>ルームを作成</strong>」するとコードが発行されます。相手に共有してください。',
+        ]
+      },
+      gacha: {
+        title: '都市選択（ガチャ）',
+        sections: [
+          '4都市が提示されます。その中から<strong>2つ選んで</strong>ください。',
+          '各都市には<strong>地形</strong>と<strong>固有能力</strong>があります：',
+          '・<span class="hint-tag blue">海岸</span>洪水・津波で追加 +10ダメージを受ける代わりに強力な能力を持つことが多い',
+          '・<span class="hint-tag blue">内陸</span>地震で追加 +10ダメージを受ける',
+          '・<span class="hint-tag blue">山間部</span>土砂崩れで追加 +10ダメージを受ける',
+          '固有能力は都市名の横の ⓘ から確認できます。',
+        ]
+      },
+      cityOrder: {
+        title: '都市の順番',
+        sections: [
+          '選んだ2都市の<strong>どちらを先に使うか</strong>を決めます。',
+          '先の都市のHPが0になると2都市目に自動で切り替わります。',
+          'タフな都市を先に置くか、能力の強い都市を先に置くか——戦略的に選びましょう。',
+        ]
+      },
+      draft: {
+        title: '初期手札の選択',
+        sections: [
+          '8枚のカードが提示されます。その中から<strong>4枚選んで</strong>初期手札にします。',
+          '<span class="hint-tag green">緑 シールド型政策</span>：事前に設置しておくと、相手の攻撃を自動で軽減します。',
+          '<span class="hint-tag yellow">黄 即時型政策</span>：使った瞬間に効果が発動します（HP回復・ドローなど）。',
+          '<span class="hint-tag red">災害カード</span>：相手の都市を攻撃します。コストが高いほど威力大。',
+          '政策2枚・災害2枚が最低1枚ずつ含まれることが保証されています。',
+        ]
+      },
+      main: {
+        title: 'あなたのターン',
+        sections: [
+          '毎ターン<strong>予算3pt</strong>（神戸のみ4pt）が与えられます。カードのコスト分を消費して使います。',
+          '<span class="hint-tag green">緑 シールド型</span>：設置すると次のターン以降も有効。相手の攻撃を自動軽減します。',
+          '<span class="hint-tag yellow">黄 即時型</span>：使った瞬間に発動。HP回復・ドロー・手札公開などの効果があります。',
+          '<span class="hint-tag red">災害カード</span>：使うと相手に対応フェーズが発生します。宣言後にカードが確定します。',
+          '複数枚使ってもOK。使い切ったら「<strong>ターン終了</strong>」を押してください。',
+        ]
+      },
+      response: {
+        title: '対応フェーズ',
+        sections: [
+          '相手が災害カードを使いました。<strong>政策カード1枚</strong>を手札から使って被害を減らせます。',
+          '<span class="hint-tag green">緑 シールド型</span>：すでに設置してある場合は自動で軽減されています（画面上のバッジで確認）。',
+          '<span class="hint-tag yellow">黄 即時型</span>：今使えます。ただし<strong>HP回復効果は半減</strong>（対応時のペナルティ）します。',
+          '「<strong>対応しない</strong>」を押すとダメージをそのまま受けます。有効なカードがなければ迷わず押しましょう。',
+        ]
+      },
+      waiting_response: {
+        title: '相手が対応中',
+        sections: [
+          '相手が対応フェーズを処理しています。しばらくお待ちください。',
+          '相手が「対応カードを選ぶ」か「対応しない」を押すと自動で次に進みます。',
+        ]
+      },
+      waiting: {
+        title: '相手のターン',
+        sections: [
+          '相手がターンを進めています。操作が終わるまでお待ちください。',
+          '自分の手札や相手の都市HPは画面で確認できます。次のターンの手を考えておきましょう。',
+        ]
+      },
+      turnDraw: {
+        title: 'ドロー中',
+        sections: [
+          '山札からカードを引いています。引いたカードが1枚ずつ表示されます。',
+          '毎ターン、手札上限5枚との差分（最大2枚）を補充します。',
+          '手札が5枚いっぱいの場合はドローがありません。',
+        ]
+      },
+      turnSummary: {
+        title: 'ターンまとめ',
+        sections: [
+          'このターンに起きたことの確認画面です。ダメージ・回復・特殊効果の結果が表示されています。',
+          '「<strong>確認</strong>」を押すと次のターンへ進みます。',
+        ]
+      },
+      discard: {
+        title: '手札を捨てる',
+        sections: [
+          '手札が上限（<strong>5枚</strong>）を超えました。1枚選んで捨ててください。',
+          '捨てたカードはゲーム中に山札へ戻りません。優先度の低いカードを選びましょう。',
+          '例：すでにシールド型が効いているなら、同じシールド型の重複は捨て候補です。',
+        ]
+      },
+      peek: {
+        title: '相手の手札を確認中',
+        sections: [
+          '「防災協定」の効果で相手の手札が全公開されています。',
+          'どんな攻撃が来るか・どんな防御を持っているかを把握して次の手を組み立てましょう。',
+          '「<strong>確認</strong>」を押すと次のアクションに進みます。',
+        ]
+      },
+      gameover: {
+        title: 'ゲーム終了',
+        sections: [
+          'ゲームが終了しました。お疲れ様でした！',
+          '各カードの防災知識・学習ポイントはロビーの「<strong>📖 カードを見る</strong>」で確認できます。',
+        ]
+      },
+    };
+
+    function toggleHint() { _hintOpen = !_hintOpen; render(); }
+
+    function renderHintOverlay() {
+      const view = myView();
+      const content = HINT_CONTENT[view] || { title: 'ヒント', sections: ['この画面のヘルプはありません。'] };
+      const sectionsHtml = content.sections.map(s => `<div class="hint-section">${s}</div>`).join('<hr class="hint-divider">');
+      return `<div class="hint-overlay" onclick="toggleHint()"><div class="hint-box" onclick="event.stopPropagation()">
+        <div class="hint-box-header"><span class="hint-title">💡 ${content.title}</span><button class="hint-close" onclick="toggleHint()">✕</button></div>
+        ${sectionsHtml}
+      </div></div>`;
+    }
 
     // ═══════════════════════════════════════
     // DATA
@@ -2010,6 +2154,8 @@
       const _cityModalViews = ['main', 'response', 'waiting', 'waiting_response'];
       if (_cityInfoModal !== null && _cityModalViews.includes(view)) html += renderCityInfoModal();
       else if (!_cityModalViews.includes(view)) _cityInfoModal = null;
+      if (view !== 'setup_required') html += `<button class="hint-btn" onclick="toggleHint()" title="ヒント">？</button>`;
+      if (_hintOpen) html += renderHintOverlay();
       app.innerHTML = html; processHpAnims();
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
     }
@@ -2635,6 +2781,7 @@
       if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
       myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
       lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
+      _hintOpen = false;
       G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
       render();
     }
