@@ -1697,6 +1697,15 @@
           '各カードの防災知識・学習ポイントはロビーの「<strong>📖 カードを見る</strong>」で確認できます。',
         ]
       },
+      tutorial: {
+        title: 'チュートリアルの進め方',
+        sections: [
+          '上の青いボックスが<strong>現在のステップの説明</strong>です。まずそこを読んでください。',
+          '操作が必要なときは対象のカードや「<strong>ターン終了</strong>ボタン」が青く光ります。光っているものをタップして進みましょう。',
+          '説明を読んで次に進む場合は「<strong>次へ →</strong>」または「<strong>対応フェーズへ →</strong>」ボタンを押します。',
+          '途中でやめる場合は画面下の「← ロビーに戻る」を押してください。',
+        ]
+      },
     };
 
     function toggleHint() { _hintOpen = !_hintOpen; render(); }
@@ -1715,20 +1724,20 @@
     let tutorialState = null;
 
     const TUT_STEPS = [
-      { title: '⚔️ バトル開始！', body: 'あなたは <strong>仙台（海岸都市）</strong> を守っています。予算 <strong>3pt</strong> でカードを使えます。まず防衛の準備をしましょう。', highlight: null, btnLabel: '次へ →', action: 'next' },
+      { title: '⚔️ バトル開始！', body: '<strong>上が相手ゾーン、下があなたのゾーン</strong>です。HPバーで残り体力が分かります。<br>あなたは <strong>仙台（海岸都市）</strong> を守っています。予算 <strong>3pt</strong> でカードを使えます。', highlight: null, btnLabel: '次へ →', action: 'next' },
       { title: '🛡️ 緑カードを設置しよう', body: '<strong>堤防建設（コスト2）</strong> をタップして設置。相手が洪水・津波を使ったとき、自動で <strong>-25軽減</strong> します。', highlight: 'dam', btnLabel: null, action: 'play_dam' },
       { title: '💛 黄カードで即時回復', body: '<strong>避難訓練（コスト1）</strong> をタップ。タップした瞬間に <strong>HP +20</strong> 回復します。', highlight: 'drill', btnLabel: null, action: 'play_drill' },
       { title: '✅ ターン終了', body: '予算を使い切りました。光っている「<strong>ターン終了</strong>」を押して相手にターンを渡しましょう。', highlight: 'end_turn', btnLabel: null, action: 'end_turn' },
       { title: '⚡ 相手のターン：洪水攻撃！', body: '東京が <strong>洪水（コスト2）</strong> を使用！<br>仙台は海岸都市なので 基礎30 + 海岸+10 = <strong>40ダメージ</strong>。<br>でも 堤防建設 が <strong>-25軽減</strong> → 実際のダメージは <strong>15</strong>。', highlight: null, btnLabel: '対応フェーズへ →', action: 'next' },
       { title: '🛡️ 対応フェーズ', body: '<strong>相互支援協定（黄）</strong> で対応できます。対応時はHP回復が <strong>半減（+15）</strong> になりますが、15ダメージをちょうど相殺！タップして対応しましょう。', highlight: 'agreement', btnLabel: null, action: 'respond' },
-      { title: '🎉 チュートリアル完了！', body: '1ターンで体験したこと：<br>・<strong>緑カード</strong>（シールド型）は事前設置で次の攻撃を自動軽減<br>・<strong>黄カード</strong>（即時型）はタップで即発動、対応時は半減<br>・<strong>対応フェーズ</strong>で政策カードを使って被害を減らせる<br><br>実際に対戦してみましょう！', highlight: null, btnLabel: 'ロビーへ →', action: 'finish' },
+      { title: '🎉 チュートリアル完了！', body: '1ターンで体験したこと：<br>・<strong>緑カード</strong>（シールド型）は事前設置で次の攻撃を自動軽減<br>・<strong>黄カード</strong>（即時型）はタップで即発動、対応時は半減<br>・<strong>対応フェーズ</strong>で政策カードを使って被害を減らせる', highlight: null, btnLabel: 'ロビーへ →', action: 'finish' },
     ];
 
     function startTutorial() {
       const dam       = { ...POLICY_CARDS.find(c => c.id === 'dam'),       uid: 'tu_dam' };
       const drill     = { ...POLICY_CARDS.find(c => c.id === 'drill'),     uid: 'tu_drill' };
       const agreement = { ...POLICY_CARDS.find(c => c.id === 'agreement'), uid: 'tu_agr' };
-      tutorialState = { step: 0, playerHp: 45, opponentHp: 60, budgetUsed: 0, shieldActive: false, hand: [dam, drill, agreement], usedUids: [] };
+      tutorialState = { step: 0, playerHp: 45, opponentHp: 60, budgetUsed: 0, shieldActive: false, hand: [dam, drill, agreement], usedUids: [], feedback: null, skipWarning: false };
       _hintOpen = false;
       G.screen = 'tutorial';
       render();
@@ -1736,11 +1745,13 @@
 
     function tutorialAction(action) {
       const ts = tutorialState; if (!ts) return;
-      if (action === 'next')         { ts.step++; }
-      else if (action === 'play_dam')  { ts.usedUids.push('tu_dam');   ts.budgetUsed += 2; ts.shieldActive = true; ts.step++; }
-      else if (action === 'play_drill'){ ts.usedUids.push('tu_drill'); ts.budgetUsed += 1; ts.playerHp = Math.min(60, ts.playerHp + 20); ts.step++; }
-      else if (action === 'end_turn')  { ts.step++; }
-      else if (action === 'respond')   { ts.usedUids.push('tu_agr'); ts.step++; }
+      ts.skipWarning = false;
+      if (action === 'next')         { ts.feedback = null; ts.step++; }
+      else if (action === 'play_dam')  { ts.usedUids.push('tu_dam'); ts.budgetUsed += 2; ts.shieldActive = true; ts.feedback = '✅ 堤防建設を設置！シールドバッジが表示されています。'; ts.step++; }
+      else if (action === 'play_drill'){ ts.usedUids.push('tu_drill'); ts.budgetUsed += 1; const prev = ts.playerHp; ts.playerHp = Math.min(60, prev + 20); ts.feedback = `✅ HP +20 回復！（${prev} → ${ts.playerHp}）`; ts.step++; }
+      else if (action === 'end_turn')  { ts.feedback = null; ts.step++; }
+      else if (action === 'skip_attempt') { ts.skipWarning = true; }
+      else if (action === 'respond')   { ts.usedUids.push('tu_agr'); ts.feedback = '✅ 洪水ダメージ 15 − 相互支援協定 +15 = 実ダメージ 0！'; ts.step++; }
       else if (action === 'finish')    { tutorialState = null; G.screen = 'lobby'; }
       render();
     }
@@ -1749,18 +1760,46 @@
 
     function renderTutorial() {
       const ts = tutorialState; const step = TUT_STEPS[ts.step];
-      const isResp = (ts.step === 5); const budgetLeft = 3 - ts.budgetUsed;
+      const isResp = (ts.step === 5); const isFinish = (ts.step === 6);
+      const budgetLeft = 3 - ts.budgetUsed;
 
+      // ── 完了画面（ステップ6）は盤面なしの専用レイアウト ──
+      if (isFinish) {
+        const feedbackHtml = ts.feedback ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.28);border-radius:8px;padding:10px 12px;font-size:.82rem;color:var(--green)">${ts.feedback}</div>` : '';
+        return `<div class="screen active"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:20px">
+          <div class="tut-guide" style="max-width:480px;width:100%;gap:14px">
+            <div style="font-size:2.2rem;text-align:center">🎉</div>
+            <div class="tut-guide-title" style="font-size:1rem;text-align:center">${step.title}</div>
+            ${feedbackHtml}
+            <div class="tut-guide-body">${step.body}</div>
+            <button class="btn-respond" style="width:100%;padding:12px;font-size:.9rem" onclick="tutorialAction('finish')">${step.btnLabel}</button>
+          </div>
+        </div></div>`;
+      }
+
+      // ── ガイドボックス ──
       const dots = TUT_STEPS.map((_, i) => `<div class="tut-dot" style="background:${i === ts.step ? 'var(--blue)' : i < ts.step ? 'var(--green)' : 'var(--bg3)'}"></div>`).join('');
-      const guideBtn = step.btnLabel ? `<button class="btn-respond" onclick="tutorialAction('${step.action}')">${step.btnLabel}</button>` : `<span style="font-size:.72rem;color:var(--t3)">↑ 光っているものをタップ</span>`;
-      const guideBox = `<div class="tut-guide"><div class="tut-guide-title">${step.title}</div><div class="tut-guide-body">${step.body}</div><div style="display:flex;align-items:center;justify-content:space-between"><div class="tut-progress">${dots}</div>${guideBtn}</div></div>`;
+      const stepCounter = `<span style="font-size:.72rem;color:var(--t3)">${ts.step + 1} / ${TUT_STEPS.length}</span>`;
+      const guideBtn = step.btnLabel ? `<button class="btn-respond" onclick="tutorialAction('${step.action}')">${step.btnLabel}</button>` : `<span style="font-size:.72rem;color:var(--t3)">↓ 光っているものをタップ</span>`;
+      const feedbackLine = ts.feedback ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.28);border-radius:8px;padding:8px 10px;font-size:.8rem;color:var(--green)">${ts.feedback}</div>` : '';
+      const guideBox = `<div class="tut-guide">
+        <div class="tut-guide-title">${step.title}</div>
+        ${feedbackLine}
+        <div class="tut-guide-body">${step.body}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="display:flex;align-items:center;gap:6px"><div class="tut-progress">${dots}</div>${stepCounter}</div>
+          ${guideBtn}
+        </div>
+      </div>`;
 
+      // ── 相手ゾーン ──
       const oppZone = `<div class="opponent-zone" style="border-left:3px solid var(--red)">
         <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm">🗼</span><button class="city-tap-btn" style="cursor:default">東京 ⓘ</button><span class="terrain-badge">(内陸)</span></div>
         <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:100%;background:var(--green)"></div></div><div class="hp-text" style="color:var(--green)">60/60</div></div>
         <div style="margin-top:4px">${isResp ? `<div style="background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:4px 10px;font-size:.75rem;color:var(--red);display:inline-block">🌧️ 洪水 発動中</div>` : `<div class="hand-back-row">${Array(3).fill('<div class="card-back"><img src="images/cards/back.webp" alt=""></div>').join('')}</div>`}</div>
       </div>`;
 
+      // ── 手札カード ──
       function mkTutCard(card) {
         const used = ts.usedUids.includes(card.uid); if (used) return '';
         const isGlow = step.highlight === card.id; const isDim = step.highlight !== null && !isGlow;
@@ -1772,18 +1811,19 @@
           <span class="card-type-badge">${isResp ? '対応可' : card.color === 'green' ? 'シールド' : '即時'}</span>
         </div>`;
       }
-
       const visibleHand = ts.hand.filter(c => !ts.usedUids.includes(c.uid));
       const handHtml = visibleHand.length > 0
         ? `<div class="hand-groups"><div class="hand-group"><div class="hand-group-label policy-label">${isResp ? '政策（対応可）' : '政策'}</div><div class="hand-group-cards">${visibleHand.map(mkTutCard).join('')}</div></div></div>`
         : `<div style="color:var(--t3);font-size:.82rem;padding:8px">手札なし</div>`;
 
+      // ── ステータスバー・バッジ・アクションバー ──
       const statusBar = ts.step < 4 ? `<div class="status-bar"><span class="turn-badge">チュートリアル | あなたのターン</span><div class="budget-display"><span class="budget-label">予算</span><div class="budget-pips">${Array(3).fill(0).map((_,i)=>`<div class="pip ${i<ts.budgetUsed?'used':'avail'}"></div>`).join('')}</div><span style="font-size:.8rem;font-weight:700;color:var(--green)">${budgetLeft}<span style="color:var(--t3);font-weight:400">/3</span></span></div></div>` : '';
-
       const shieldBadge = ts.shieldActive ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.25);border-radius:6px;padding:3px 8px;font-size:.72rem;color:var(--green);display:inline-block">🌊 堤防設置中 -25</div>` : '';
-      const respBar = isResp ? `<div class="response-pending-bar"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>東京が「🌧️ 洪水」を使用！</strong><br>想定ダメージ: 40 → 堤防 -25 → 実ダメージ <strong>15</strong><br>政策カードを選んで対応するか「対応しない」を押してください。</div><button class="btn-skip-resp" onclick="tutorialAction('finish')">対応しない</button></div>` : '';
+      const skipWarn = ts.skipWarning ? `<div style="background:rgba(210,153,34,.15);border:1px solid rgba(210,153,34,.3);border-radius:6px;padding:5px 10px;font-size:.75rem;color:var(--yellow);margin-top:6px">⚠️ まず上のカードをタップして対応を試してみましょう！</div>` : '';
+      const respBar = isResp ? `<div class="response-pending-bar"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>東京が「🌧️ 洪水」を使用！</strong><br>想定ダメージ: 40 → 堤防 -25 → 実ダメージ <strong>15</strong><br>政策カードを選んで対応するか「対応しない」を押してください。${skipWarn}</div><button class="btn-skip-resp" onclick="tutorialAction('skip_attempt')">対応しない</button></div>` : '';
       const actionBar = step.action === 'end_turn' ? `<div class="action-bar"><button class="btn-end tut-glow" onclick="tutorialAction('end_turn')">ターン終了 →</button></div>` : ts.step < 4 ? `<div class="action-bar"><button class="btn-end" style="opacity:.3;pointer-events:none">ターン終了 →</button></div>` : '';
 
+      // ── プレイヤーゾーン ──
       const hpColor = ts.playerHp > 30 ? 'var(--green)' : ts.playerHp > 10 ? 'var(--yellow)' : 'var(--red)';
       const playerZone = `<div class="player-zone" style="border-left:3px solid var(--green)">
         <div class="zone-header"><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm">🌸</span><button class="city-tap-btn" style="cursor:default">仙台 ⓘ</button><span class="terrain-badge">(海岸)</span></div>
