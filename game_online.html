@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>都市防災カードバトル オンライン版</title>
+  <title>Ready or Not</title>
   <style>
     *,
     *::before,
@@ -86,12 +86,16 @@
     }
 
     .lobby-title {
-      font-size: 1.8rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #f0c040, #e06020);
+      font-size: 2.6rem;
+      font-weight: 900;
+      font-style: normal;
+      font-family: 'Helvetica Neue', 'Arial Black', 'Hiragino Sans', sans-serif;
+      background: linear-gradient(135deg, #f5d060, #e8882a);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      margin: 8px 0 4px
+      margin: 10px 0 4px;
+      letter-spacing: 0.04em;
+      line-height: 1.15
     }
 
     .lobby-label {
@@ -1428,7 +1432,7 @@
       }
 
       .lobby-title {
-        font-size: 1.5rem
+        font-size: 2.1rem
       }
 
       .room-code-value {
@@ -1589,6 +1593,8 @@
     let _logExpanded = false;
     let _cityInfoModal = null;
     let _hintOpen = false;
+    let _mainTutorialShown = false;
+    let _tutStepSpotlights = new Set();
 
     // ══ HINT CONTENT ══
     const HINT_CONTENT = {
@@ -1758,6 +1764,8 @@
       const drill     = { ...POLICY_CARDS.find(c => c.id === 'drill'),     uid: 'tu_drill' };
       const agreement = { ...POLICY_CARDS.find(c => c.id === 'agreement'), uid: 'tu_agr' };
       tutorialState = { step: 0, playerHp: 45, opponentHp: 60, budgetUsed: 0, shieldActive: false, hand: [dam, drill, agreement], usedUids: [], feedback: null, skipWarning: false, cityPopup: null, confirmCard: null };
+      _mainTutorialShown = false;
+      _tutStepSpotlights = new Set();
       _hintOpen = false;
       G.screen = 'tutorial';
       render();
@@ -1849,7 +1857,7 @@
       // ── 相手ゾーン ──
       const isAttackActive = ts.step >= 6;
       const oppZone = `<div class="opponent-zone" style="border-left:3px solid var(--red)">
-        <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm">🗼</span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('tokyo')">東京 ⓘ</button><span class="terrain-badge${ts.step === 2 ? ' tut-flash' : ''}">(内陸)</span></div>
+        <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm">🗼</span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('tokyo')">東京 ⓘ</button><span class="terrain-badge">(内陸)</span></div>
         <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:100%;background:var(--green)"></div></div><div class="hp-text" style="color:var(--green)">60/60</div></div>
         <div style="margin-top:4px">${isAttackActive ? `<div style="background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:4px 10px;font-size:.75rem;color:var(--red);display:inline-block">🌧️ 洪水 発動中</div>` : `<div class="hand-back-row">${Array(3).fill('<div class="card-back"><img src="images/cards/back.webp" alt=""></div>').join('')}</div>`}</div>
       </div>`;
@@ -1883,7 +1891,7 @@
       // ── プレイヤーゾーン ──
       const hpColor = ts.playerHp > 30 ? 'var(--green)' : ts.playerHp > 10 ? 'var(--yellow)' : 'var(--red)';
       const playerZone = `<div class="player-zone" style="border-left:3px solid var(--green)">
-        <div class="zone-header"><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm">🌸</span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('sendai')">仙台 ⓘ</button><span class="terrain-badge${ts.step === 2 ? ' tut-flash' : ''}">(海岸)</span></div>
+        <div class="zone-header"><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm">🌸</span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('sendai')">仙台 ⓘ</button><span class="terrain-badge">(海岸)</span></div>
         <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:${ts.playerHp/60*100}%;background:${hpColor}"></div></div><div class="hp-text" style="color:${hpColor}">${ts.playerHp}/60</div></div>
         <div style="margin-top:4px;min-height:24px">${shieldBadge}</div>
         <div class="hand-cards-area">${handHtml}</div>
@@ -2370,6 +2378,113 @@
     }
 
     // ═══════════════════════════════════════
+    // MAIN TUTORIAL SPOTLIGHT
+    // ═══════════════════════════════════════
+    function showMainTutorial() {
+      if (_mainTutorialShown) return;
+      _mainTutorialShown = true;
+      const btn = document.querySelector('.player-zone .city-tap-btn');
+      const badge = document.querySelector('.player-zone .terrain-badge');
+      const budget = document.querySelector('.budget-display');
+      if (!btn) return;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const PAD = 8;
+      function elR(el) {
+        const r = el.getBoundingClientRect();
+        return { x: r.left-PAD, y: r.top-PAD, w: r.width+PAD*2, h: r.height+PAD*2, cx: r.left+r.width/2, cy: r.top+r.height/2 };
+      }
+      const b1 = elR(btn);
+      const b2 = badge ? elR(badge) : null;
+      const b3 = budget ? elR(budget) : null;
+      const cw = Math.min(220, vw - 40);
+      const cx = Math.round((vw - cw) / 2);
+      const overlay = document.createElement('div');
+      overlay.id = 'main-tutorial-overlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
+      const maskHoles = [
+        `<rect x="${b1.x}" y="${b1.y}" width="${b1.w}" height="${b1.h}" rx="8" fill="black"/>`,
+        b2 ? `<rect x="${b2.x}" y="${b2.y}" width="${b2.w}" height="${b2.h}" rx="6" fill="black"/>` : '',
+        b3 ? `<rect x="${b3.x}" y="${b3.y}" width="${b3.w}" height="${b3.h}" rx="8" fill="black"/>` : ''
+      ].join('');
+      const hilights = [
+        `<rect x="${b1.x}" y="${b1.y}" width="${b1.w}" height="${b1.h}" rx="8" fill="none" stroke="#388bfd" stroke-width="2.5"/>`,
+        b2 ? `<rect x="${b2.x}" y="${b2.y}" width="${b2.w}" height="${b2.h}" rx="6" fill="none" stroke="#d29922" stroke-width="2"/>` : '',
+        b3 ? `<rect x="${b3.x}" y="${b3.y}" width="${b3.w}" height="${b3.h}" rx="8" fill="none" stroke="#3fb950" stroke-width="2"/>` : ''
+      ].join('');
+      overlay.innerHTML = `<svg id="mto-svg" style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="mto-mask"><rect width="${vw}" height="${vh}" fill="white"/>${maskHoles}</mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.78)" mask="url(#mto-mask)"/>${hilights}<line id="mto-line1" x1="0" y1="0" x2="0" y2="0" stroke="#388bfd" stroke-width="1.5" stroke-dasharray="5,3"/>${b2?`<line id="mto-line2" x1="0" y1="0" x2="0" y2="0" stroke="#d29922" stroke-width="1.5" stroke-dasharray="5,3"/>`:''} ${b3?`<line id="mto-line3" x1="0" y1="0" x2="0" y2="0" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="5,3"/>`:''}</svg>` +
+        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove()" style="position:fixed;top:16px;right:16px;z-index:1;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#8b949e;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>` +
+        `<div id="mto-c1" style="position:absolute;left:${cx}px;top:${Math.round(vh*0.04)}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid #388bfd;border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#388bfd;margin-bottom:5px">🏙️ 都市名をタップ</div><div>地形・都市の特殊能力を確認できます</div></div>` +
+        (b2 ? `<div id="mto-c2" style="position:absolute;left:${cx}px;top:${Math.round(vh*0.20)}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid #d29922;border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#d29922;margin-bottom:5px">⚠️ 地形バッジ</div><div>地形属性により特定の災害で<br><strong style="color:#d29922">追加ダメージ</strong>が発生します<br><span style="color:#8b949e;font-size:.72rem">例：海岸 → 洪水・津波 +10</span></div></div>` : '') +
+        (b3 ? `<div id="mto-c3" style="position:absolute;left:${cx}px;top:${Math.round(vh*0.40)}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid #3fb950;border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#3fb950;margin-bottom:5px">💰 予算</div><div>1ターンの使用上限です<br>カードのコスト分だけ消費します<br><span style="color:#8b949e;font-size:.72rem">例：コスト2のカード → 予算2消費</span></div></div>` : '') +
+        `<div style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.4);font-size:.72rem;pointer-events:none;letter-spacing:.04em">タップして閉じる</div>`;
+      overlay.onclick = () => overlay.remove();
+      document.body.appendChild(overlay);
+      requestAnimationFrame(() => {
+        const pairs = [
+          ['mto-c1','mto-line1', b1],
+          ['mto-c2','mto-line2', b2],
+          ['mto-c3','mto-line3', b3]
+        ];
+        for (const [cid, lid, b] of pairs) {
+          if (!b) continue;
+          const cEl = document.getElementById(cid);
+          const lEl = document.getElementById(lid);
+          if (cEl && lEl) {
+            const cr = cEl.getBoundingClientRect();
+            lEl.setAttribute('x1', cr.left + cr.width / 2);
+            lEl.setAttribute('y1', cr.bottom);
+            lEl.setAttribute('x2', b.cx);
+            lEl.setAttribute('y2', b.y);
+          }
+        }
+      });
+    }
+
+    function showStepSpotlight(step) {
+      if (_tutStepSpotlights.has(step)) return;
+      _tutStepSpotlights.add(step);
+      const CFG = {
+        3: { sel: '.player-zone .card.tut-glow',  title: '🛡️ 緑カードをタップ',        body: '光っているカードをタップして設置しましょう',           color: '#3fb950' },
+        4: { sel: '.player-zone .card.tut-glow',  title: '💛 黄カードをタップ',        body: '光っているカードをタップして即時回復！',             color: '#d29922' },
+        5: { sel: '.btn-end.tut-glow',            title: '✅ ターン終了をタップ',      body: '光っているボタンを押して相手にターンを渡しましょう', color: '#388bfd' },
+        6: { sel: '.tut-guide .btn-respond',      title: '⚡ ボタンをタップ',         body: '対応フェーズへ進みましょう',                         color: '#f85149' },
+        7: { sel: '.tut-guide .btn-respond',      title: '🔄 ボタンをタップ',         body: '対応フェーズへ進みましょう',                         color: '#a371f7' },
+        8: { sel: '.player-zone .card.tut-glow',  title: '🛡️ 黄カードをタップ',       body: '光っているカードで洪水ダメージを相殺！',             color: '#d29922' }
+      };
+      const cfg = CFG[step]; if (!cfg) return;
+      const el = document.querySelector(cfg.sel); if (!el) return;
+      const PAD = 10;
+      const r = el.getBoundingClientRect();
+      const b = { x: r.left-PAD, y: r.top-PAD, w: r.width+PAD*2, h: r.height+PAD*2, cx: r.left+r.width/2, cy: r.top+r.height/2 };
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const cw = Math.min(220, vw-40);
+      const cx = Math.round((vw-cw)/2);
+      const above = b.cy > vh*0.5;
+      const cy = above ? Math.max(16, Math.round(b.y - 110)) : Math.round(b.y + b.h + 20);
+      const overlay = document.createElement('div');
+      overlay.id = 'step-spotlight-overlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
+      overlay.innerHTML =
+        `<svg style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="ss-mask"><rect width="${vw}" height="${vh}" fill="white"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="black"/></mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.72)" mask="url(#ss-mask)"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="none" stroke="${cfg.color}" stroke-width="2.5"/><line id="ss-line" x1="${cx+cw/2}" y1="${above?cy+80:cy}" x2="${b.cx}" y2="${above?b.y:b.y+b.h}" stroke="${cfg.color}" stroke-width="1.5" stroke-dasharray="5,3"/></svg>` +
+        `<div id="ss-callout" style="position:absolute;left:${cx}px;top:${cy}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid ${cfg.color};border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><button onclick="document.getElementById('step-spotlight-overlay').remove()" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#8b949e;font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1">×</button><div style="font-weight:700;color:${cfg.color};margin-bottom:5px;padding-right:20px">${cfg.title}</div><div>${cfg.body}</div></div>` +
+        `<div style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.4);font-size:.72rem;pointer-events:none;letter-spacing:.04em">タップして閉じる</div>`;
+      overlay.onclick = () => overlay.remove();
+      document.body.appendChild(overlay);
+      requestAnimationFrame(() => {
+        const callout = document.getElementById('ss-callout');
+        const line = document.getElementById('ss-line');
+        if (callout && line) {
+          const cr = callout.getBoundingClientRect();
+          line.setAttribute('x1', cr.left + cr.width/2);
+          line.setAttribute('y1', above ? cr.bottom : cr.top);
+          line.setAttribute('x2', b.cx);
+          line.setAttribute('y2', above ? b.y : b.y+b.h);
+        }
+      });
+      setTimeout(() => { const o = document.getElementById('step-spotlight-overlay'); if (o) o.remove(); }, 3000);
+    }
+
+    // ═══════════════════════════════════════
     // RENDER
     // ═══════════════════════════════════════
     function render() {
@@ -2400,6 +2515,11 @@
       if (_hintOpen) html += renderHintOverlay();
       app.innerHTML = html; processHpAnims();
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
+      if (view === 'tutorial' && tutorialState) {
+        const _ts = tutorialState.step;
+        if (_ts === 2 && !_mainTutorialShown) setTimeout(showMainTutorial, 80);
+        else if (_ts >= 3 && _ts <= 8 && !_tutStepSpotlights.has(_ts)) setTimeout(() => showStepSpotlight(_ts), 80);
+      }
     }
 
     // ─── セットアップ必須 ───
@@ -2498,7 +2618,7 @@
     <button class="lobby-btn-back" onclick="lobbyState.mode='select';lobbyState.error='';render()">← 戻る</button>`;
       }
       return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
-    <div class="lobby-hero"><div style="font-size:2.2rem">🌊⚡🔥</div><h1 class="lobby-title">都市防災カードバトル</h1><p style="color:var(--t2);font-size:.8rem">オンライン版 — 1人1デバイス</p></div>
+    <div class="lobby-hero"><div style="font-size:2.2rem">🌊⚡🔥</div><h1 class="lobby-title">Ready or Not</h1><p style="color:var(--t2);font-size:.75rem;letter-spacing:.06em;margin-bottom:2px">都市防災カードバトル</p><p style="color:var(--t2);font-size:.75rem;opacity:.6">オンライン版 — 1人1デバイス</p></div>
     ${body}
     <div style="text-align:center;color:var(--t3);font-size:.7rem;margin-top:4px">簡易版 v3 ／ 2人用 ／ 各2都市 ／ 15〜20分</div>
   </div></div></div>`;
