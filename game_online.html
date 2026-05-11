@@ -33,7 +33,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
-      background: var(--bg0);
+      background: radial-gradient(ellipse at 30% 0%, #111827 0%, #0d1117 45%, #080d14 100%);
       color: var(--t1);
       min-height: 100vh;
       overflow-x: hidden
@@ -522,17 +522,20 @@
 
     .opponent-zone,
     .player-zone {
-      background: var(--bg1);
+      background: rgba(22, 27, 34, 0.65);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       border-radius: 12px;
       padding: 12px
     }
 
     .opponent-zone {
-      border: 1px solid var(--bg3)
+      border: 1px solid rgba(139, 148, 158, 0.2)
     }
 
     .player-zone {
-      border: 2px solid var(--blue)
+      border: 2px solid rgba(56, 139, 253, 0.5);
+      box-shadow: 0 0 20px rgba(56, 139, 253, 0.08)
     }
 
     .zone-header {
@@ -572,13 +575,27 @@
       height: 14px;
       background: var(--bg3);
       border-radius: 7px;
-      overflow: hidden
+      overflow: hidden;
+      position: relative
+    }
+
+    .hp-bar-ghost {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      border-radius: 7px;
+      background: rgba(210, 153, 34, 0.55);
+      z-index: 1;
+      transition: width 1.2s ease
     }
 
     .hp-bar-fill {
+      position: relative;
       height: 100%;
       border-radius: 7px;
-      transition: width .4s
+      transition: width .6s cubic-bezier(.25,.8,.25,1), background .6s ease;
+      z-index: 2
     }
 
     .hp-text {
@@ -745,9 +762,21 @@
       position: relative
     }
 
+    .card {
+      perspective: 600px
+    }
+
     .card:hover:not(.card-disabled) {
-      transform: translateY(-8px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, .6)
+      transform: translateY(-12px) rotateX(5deg) scale(1.04);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, .7)
+    }
+
+    .card.policy:hover:not(.card-disabled) {
+      box-shadow: 0 12px 28px rgba(56, 139, 253, .45), 0 0 0 1px rgba(56, 139, 253, .4)
+    }
+
+    .card.disaster:hover:not(.card-disabled) {
+      box-shadow: 0 12px 28px rgba(248, 81, 73, .45), 0 0 0 1px rgba(248, 81, 73, .4)
     }
 
     .card-disabled {
@@ -1552,6 +1581,137 @@
     .tut-guide-body { font-size:.82rem; color:var(--t1); line-height:1.8 }
     .tut-progress { display:flex; align-items:center; gap:5px }
     .tut-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0 }
+
+    /* ── ロビー登場アニメーション ── */
+    @keyframes lobby-fade-in { from { opacity:0; transform:translateY(18px) scale(.97) } to { opacity:1; transform:translateY(0) scale(1) } }
+    .lobby-box.lobby-enter { animation: lobby-fade-in .5s cubic-bezier(.23,1,.32,1) both }
+
+    /* ── 新都市登場アニメーション ── */
+    @keyframes city-appear { 0% { opacity:0; transform:translateX(-22px) } 50% { box-shadow:0 0 0 2px var(--yellow),0 0 18px rgba(210,153,34,.45) } 100% { opacity:1; transform:translateX(0); box-shadow:none } }
+    .city-appear-anim { animation: city-appear .75s cubic-bezier(.23,1,.32,1) both }
+
+    /* ── HPバーダメージフラッシュ ── */
+    @keyframes hp-damage-flash { 0%,100% { filter:brightness(1) } 30% { filter:brightness(2.5) } }
+    .hp-flash { animation: hp-damage-flash .35s ease }
+
+    /* ── 浮き上がりダメージ数字 ── */
+    @keyframes float-up-dmg { 0% { opacity:1; transform:translateY(0) scale(1) } 70% { opacity:.9; transform:translateY(-48px) scale(1.1) } 100% { opacity:0; transform:translateY(-64px) scale(.9) } }
+    .float-dmg {
+      position: fixed;
+      pointer-events: none;
+      font-size: 1.5rem;
+      font-weight: 900;
+      text-shadow: 0 2px 8px rgba(0,0,0,.8);
+      animation: float-up-dmg .95s cubic-bezier(.23,1,.32,1) forwards;
+      z-index: 9000;
+      user-select: none
+    }
+
+    /* ── ターン開始スプラッシュ ── */
+    @keyframes turn-splash-anim { 0% { opacity:0; transform:scale(.82) } 15% { opacity:1; transform:scale(1.04) } 65% { opacity:1; transform:scale(1) } 100% { opacity:0; transform:scale(1.06) } }
+    .turn-splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 8000;
+      background: rgba(0,0,0,.22)
+    }
+    .turn-splash-inner {
+      padding: 20px 48px;
+      border-radius: 18px;
+      text-align: center;
+      animation: turn-splash-anim 1.5s cubic-bezier(.23,1,.32,1) forwards
+    }
+    .turn-splash-icon {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 10px
+    }
+
+    /* ── スキャンライン演出（ホーム画面ロード） ── */
+    .sl-overlay {
+      position: fixed;
+      inset: 0;
+      background: #080d14;
+      z-index: 9500;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 32px
+    }
+    .sl-header { text-align: center }
+    .sl-title {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: rgba(255,255,255,.9);
+      letter-spacing: .08em;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity .5s ease, transform .5s ease
+    }
+    .sl-subtitle {
+      font-size: .78rem;
+      color: rgba(255,255,255,.4);
+      letter-spacing: .14em;
+      margin-top: 6px;
+      opacity: 0;
+      transition: opacity .5s ease .15s
+    }
+    .sl-icon-row {
+      display: flex;
+      gap: 32px;
+      align-items: flex-end
+    }
+    .sl-icon-wrap {
+      position: relative;
+      width: 96px;
+      overflow: visible;
+      text-align: center
+    }
+    .sl-icon-clip {
+      position: relative;
+      width: 96px;
+      height: 96px;
+      overflow: hidden
+    }
+    .sl-icon-wrap img {
+      width: 96px;
+      height: 96px;
+      object-fit: contain;
+      display: block;
+      filter: brightness(0);
+      transition: filter .15s ease
+    }
+    .sl-icon-wrap.sl-lit img {
+      filter: brightness(1)
+    }
+    .sl-label {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      color: rgba(255,255,255,.4);
+      margin-top: 10px;
+      opacity: 0;
+      transition: opacity .4s ease
+    }
+    .sl-icon-wrap.sl-lit .sl-label { opacity: 1 }
+    @keyframes sl-sweep { from { top: -4px } to { top: 100px } }
+    .sl-scan-line {
+      position: absolute;
+      left: -6px;
+      right: -6px;
+      height: 3px;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.85) 30%, #fff 50%, rgba(255,255,255,.85) 70%, transparent 100%);
+      box-shadow: 0 0 10px 3px rgba(255,255,255,.5), 0 0 24px 6px rgba(255,255,255,.2);
+      top: -4px;
+      animation: sl-sweep .52s ease-in forwards
+    }
   </style>
 </head>
 
@@ -1780,7 +1940,7 @@
       else if (action === 'end_turn')  { ts.feedback = null; ts.step++; }
       else if (action === 'skip_attempt') { ts.skipWarning = true; }
       else if (action === 'respond')   { ts.usedUids.push('tu_agr'); ts.feedback = '✅ 洪水ダメージ 15 − 相互支援協定 +15 = 実ダメージ 0！'; ts.step++; }
-      else if (action === 'finish')    { tutorialState = null; G.screen = 'lobby'; }
+      else if (action === 'finish')    { _lobbyEnter = true; tutorialState = null; G.screen = 'lobby'; }
       else if (action === 'back') {
         const prev = ts.step - 1;
         if (prev >= 0 && TUT_STEP_STATES[prev]) {
@@ -1797,7 +1957,7 @@
     function tutorialCloseCityPopup() { if (tutorialState) { tutorialState.cityPopup = null; render(); } }
     function tutorialShowConfirm(uid) { if (!tutorialState) return; const card = tutorialState.hand.find(c => c.uid === uid); if (card) { tutorialState.confirmCard = card; render(); } }
     function tutorialCancelConfirm() { if (tutorialState) { tutorialState.confirmCard = null; render(); } }
-    function exitTutorial() { tutorialState = null; G.screen = 'lobby'; render(); }
+    function exitTutorial() { _lobbyEnter = true; tutorialState = null; G.screen = 'lobby'; render(); }
 
     function renderTutorial() {
       const ts = tutorialState; const step = TUT_STEPS[ts.step];
@@ -2070,6 +2230,7 @@
             const old = p.cities[p.activeCityIdx];
             p.cityHps[p.activeCityIdx] = 0; p.activeCityIdx = nxt; p.effects = mkEffects();
             addLog(`💥 ${p.name}の「${old.name}」壊滅！→「${p.cities[nxt].name}」に切り替え！`, 'sys');
+            G._nextTurnEvents[i].push({ type: 'city_switch', oldCityName: old.name, newCityIcon: p.cities[nxt].icon, newCityName: p.cities[nxt].name });
             return false;
           } else { G.winner = i === 0 ? 1 : 0; G.screen = 'gameover'; pushState(); render(); return true; }
         }
@@ -2170,6 +2331,8 @@
       const p = G.players[pi]; p.budgetUsed = 0; p.effects.disastersReceivedThisTurn = 0;
       if (p.effects.floodBonusTurns > 0) p.effects.floodBonusTurns--;
       const target = Math.min(2, Math.max(0, 5 - p.hand.length));
+      const isMyTurn = (pi === myPlayerIdx);
+      setTimeout(() => showTurnSplash(isMyTurn), 50);
       if (target === 0) { addLog(`─── ${p.name}のターン開始（予算${getBudget(pi)}・手札満杯のためドローなし）`, 'sys'); G.screen = 'main'; }
       else { G.turnDrawState = { pi, drawn: 0, target, revealed: null }; G.screen = 'turnDraw'; }
     }
@@ -2272,17 +2435,82 @@
     // HP ANIMATION & BUDGET TOAST
     // ═══════════════════════════════════════
     let _hpQ = [];
+    let _pendingMainHpAnims = [];
+    let _pendingCityEnterAnim = false;
+    let _lobbyEnter = true;
     function queueHpAnim(pi, fh, th) { _hpQ.push({ pi, fh, th }); }
     function processHpAnims() {
       if (G.screen !== 'main' && G.screen !== 'response') return; if (G._turnSummary) return;
       const q = _hpQ.splice(0); for (const a of q) _animateHp(a.pi, a.fh, a.th);
     }
     function _animateHp(pi, fh, th) {
-      const mxHp = getActiveMaxHp(pi); const fill = document.getElementById('hp-fill-' + pi); const text = document.getElementById('hp-text-' + pi);
+      const mxHp = getActiveMaxHp(pi); const fill = document.getElementById('hp-fill-' + pi); const text = document.getElementById('hp-text-' + pi); const ghost = document.getElementById('hp-ghost-' + pi);
       if (!fill || !text) return;
+      const isDamage = th < fh;
       fill.style.transition = 'none'; fill.style.width = Math.max(0, fh / mxHp * 100) + '%'; fill.style.background = hpColor(fh, mxHp); fill.offsetWidth;
-      fill.style.transition = 'width .6s ease, background .6s ease'; fill.style.width = Math.max(0, th / mxHp * 100) + '%'; fill.style.background = hpColor(th, mxHp);
+      if (ghost) { ghost.style.transition = 'none'; ghost.style.width = Math.max(0, fh / mxHp * 100) + '%'; ghost.offsetWidth; }
+      fill.style.transition = 'width .6s cubic-bezier(.25,.8,.25,1), background .6s ease'; fill.style.width = Math.max(0, th / mxHp * 100) + '%'; fill.style.background = hpColor(th, mxHp);
       text.style.color = hpColor(th, mxHp); text.textContent = Math.max(0, th) + '/' + mxHp;
+      if (isDamage) {
+        fill.classList.remove('hp-flash'); fill.offsetWidth; fill.classList.add('hp-flash');
+        fill.addEventListener('animationend', () => fill.classList.remove('hp-flash'), { once: true });
+        showDamageFloat(pi, fh - th, false);
+        if (ghost) setTimeout(() => { ghost.style.transition = 'width 1.2s ease'; ghost.style.width = Math.max(0, th / mxHp * 100) + '%'; }, 500);
+      } else {
+        if (ghost) { ghost.style.transition = 'none'; ghost.style.width = Math.max(0, th / mxHp * 100) + '%'; }
+        if (th > fh) showDamageFloat(pi, th - fh, true);
+      }
+    }
+    function showDamageFloat(pi, amount, isHeal) {
+      const sec = document.getElementById('hp-section-' + pi); if (!sec) return;
+      const r = sec.getBoundingClientRect();
+      const el = document.createElement('div'); el.className = 'float-dmg';
+      el.textContent = (isHeal ? '+' : '-') + amount;
+      el.style.color = isHeal ? 'var(--green)' : 'var(--red)';
+      el.style.left = (r.left + r.width * 0.4 + Math.random() * 30 - 15) + 'px';
+      el.style.top = (r.top - 4) + 'px';
+      document.body.appendChild(el); setTimeout(() => el.remove(), 1000);
+    }
+    function showTurnSplash(isMyTurn, isResponsePhase) {
+      const SPLASH_DEFS = {
+        my_main:     { icon: 'images/icons/neon_city.webp',          glow: '56,139,253',  bg: 'rgba(56,139,253,.16)',  border: 'rgba(56,139,253,.6)',  title: 'あなたのターン',  sub: 'カードをプレイしよう' },
+        opp_main:    { icon: 'images/icons/neon_disaster.webp',       glow: '248,81,73',   bg: 'rgba(248,81,73,.12)',   border: 'rgba(248,81,73,.5)',   title: '相手のターン',    sub: '対応カードを準備しよう' },
+        my_resp:     { icon: 'images/icons/neon_policy_shield.webp',  glow: '210,153,34',  bg: 'rgba(210,153,34,.16)', border: 'rgba(210,153,34,.6)', title: '対応フェーズ',    sub: '対応カードを選ぼう' },
+        opp_resp:    { icon: 'images/icons/neon_disaster.webp',       glow: '248,81,73',   bg: 'rgba(248,81,73,.09)',   border: 'rgba(248,81,73,.35)', title: '相手が対応中',    sub: '対応結果を待っています' },
+      };
+      const key = isResponsePhase ? (isMyTurn ? 'my_resp' : 'opp_resp') : (isMyTurn ? 'my_main' : 'opp_main');
+      const d = SPLASH_DEFS[key];
+      const el = document.createElement('div'); el.className = 'turn-splash';
+      const inner = document.createElement('div'); inner.className = 'turn-splash-inner';
+      inner.style.cssText = `background:${d.bg};border:2px solid ${d.border}`;
+      inner.innerHTML = `<img src="${d.icon}" class="turn-splash-icon" style="filter:drop-shadow(0 0 14px rgba(${d.glow},.8))"><div style="font-size:1.55rem;font-weight:900;color:#fff;letter-spacing:.04em">${d.title}</div><div style="font-size:.82rem;color:rgba(255,255,255,.65);margin-top:6px">${d.sub}</div>`;
+      el.appendChild(inner); document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1700);
+    }
+    function showScanlineIntro() {
+      const ICONS = [
+        { src: 'images/icons/neon_disaster.webp',      label: '災害',    glow: '248,81,73' },
+        { src: 'images/icons/neon_policy_instant.webp', label: '即時対応', glow: '210,153,34' },
+        { src: 'images/icons/neon_policy_shield.webp',  label: 'シールド', glow: '63,185,80' },
+        { src: 'images/icons/neon_city.webp',           label: '都市',    glow: '56,139,253' },
+      ];
+      const ov = document.createElement('div'); ov.className = 'sl-overlay';
+      ov.innerHTML = `<div class="sl-header"><div class="sl-title" id="sl-title">Ready or Not</div><div class="sl-subtitle" id="sl-sub">都市防災カードバトル</div></div><div class="sl-icon-row">${ICONS.map((ic, i) => `<div class="sl-icon-wrap" id="sl-ic-${i}"><div class="sl-icon-clip"><img src="${ic.src}" alt="${ic.label}"></div><div class="sl-label">${ic.label}</div></div>`).join('')}</div>`;
+      document.body.appendChild(ov);
+      setTimeout(() => { const t = document.getElementById('sl-title'), s = document.getElementById('sl-sub'); if (t) { t.style.opacity='1'; t.style.transform='translateY(0)'; } if (s) s.style.opacity='1'; }, 180);
+      ICONS.forEach((ic, i) => {
+        setTimeout(() => {
+          const wrap = document.getElementById('sl-ic-' + i); if (!wrap) return;
+          const clip = wrap.querySelector('.sl-icon-clip'); const img = wrap.querySelector('img');
+          const line = document.createElement('div'); line.className = 'sl-scan-line'; clip.appendChild(line);
+          setTimeout(() => {
+            line.remove(); wrap.classList.add('sl-lit');
+            if (img) img.style.filter = `brightness(1) drop-shadow(0 0 16px rgba(${ic.glow},.9)) drop-shadow(0 0 4px rgba(${ic.glow},1))`;
+          }, 500);
+        }, 550 + i * 370);
+      });
+      const done = 550 + ICONS.length * 370 + 650;
+      setTimeout(() => { ov.style.transition = 'opacity .65s ease'; ov.style.opacity = '0'; setTimeout(() => ov.remove(), 680); }, done);
     }
     function showBudgetToast(cost, rem, tot) {
       setTimeout(() => { const t = document.createElement('div'); t.className = 'budget-toast'; t.innerHTML = `<span style="color:var(--yellow)">−${cost}pt</span> 使用　残り <strong style="color:var(--green)">${rem}</strong><span style="color:var(--t2)">/${tot}</span>`; const a = document.getElementById('app'); if (a) a.appendChild(t); setTimeout(() => t.remove(), 1800); }, 0);
@@ -2303,9 +2531,22 @@
     }
 
     function listenToState() {
+      let _prevActivePlayer = null; let _prevGScreen = null;
       db.ref(`rooms/${roomId}/state`).on('value', snap => {
         const data = snap.val(); if (!data || data === myLastPush) return;
-        G = { ...JSON.parse(data), confirm: null }; render(); processHpAnims();
+        const prevScreen = G.screen;
+        G = { ...JSON.parse(data), confirm: null };
+        const newAp = G.activePlayer; const newScreen = G.screen;
+        // メインフェーズ ターン切り替え
+        if (_prevActivePlayer !== null && _prevActivePlayer !== newAp && (newScreen === 'main' || newScreen === 'turnDraw') && prevScreen !== 'turnSummary') {
+          setTimeout(() => showTurnSplash(newAp === myPlayerIdx, false), 80);
+        }
+        // 対応フェーズ開始（ディフェンダー側デバイスでの検知）
+        if (_prevGScreen !== 'response' && newScreen === 'response' && G.pendingAttack?.defenderIdx === myPlayerIdx) {
+          setTimeout(() => showTurnSplash(true, true), 120);
+        }
+        _prevActivePlayer = newAp; _prevGScreen = newScreen;
+        render(); processHpAnims();
       });
     }
 
@@ -2491,6 +2732,7 @@
     // ═══════════════════════════════════════
     function render() {
       const app = document.getElementById('app'); const view = myView(); let html = '';
+      const _wasLobbyEnter = _lobbyEnter;
       switch (view) {
         case 'setup_required': html = renderSetupRequired(); break;
         case 'tutorial': html = renderTutorial(); break;
@@ -2516,6 +2758,9 @@
       if (view !== 'setup_required') html += `<button class="hint-btn" onclick="toggleHint()" title="ヒント">？</button>`;
       if (_hintOpen) html += renderHintOverlay();
       app.innerHTML = html; processHpAnims();
+      if (view === 'lobby' && _wasLobbyEnter) setTimeout(() => showScanlineIntro(), 60);
+      if (view === 'main' && _pendingMainHpAnims.length > 0) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
+      if (view === 'main' && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
       if (view === 'tutorial' && tutorialState) {
         const _ts = tutorialState.step;
@@ -2541,6 +2786,7 @@
     function renderLobby() {
       const nv = lobbyState.nameInput.replace(/"/g, '&quot;'); const jv = lobbyState.joinCodeInput.replace(/"/g, '&quot;');
       const err = lobbyState.error ? `<div class="lobby-error">⚠️ ${lobbyState.error}</div>` : '';
+      const enterClass = _lobbyEnter ? ' lobby-enter' : ''; _lobbyEnter = false;
 
       // ── ギャラリーモード ──
       if (lobbyState.mode === 'gallery') {
@@ -2619,7 +2865,7 @@
     <button class="lobby-btn-single" onclick="handleJoinClick()">参加する</button>
     <button class="lobby-btn-back" onclick="lobbyState.mode='select';lobbyState.error='';render()">← 戻る</button>`;
       }
-      return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
+      return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box${enterClass}">
     <div class="lobby-hero"><div style="font-size:2.2rem">🌊⚡🔥</div><h1 class="lobby-title">Ready or Not</h1><p style="color:var(--t2);font-size:.75rem;letter-spacing:.06em;margin-bottom:2px">都市防災カードバトル</p><p style="color:var(--t2);font-size:.75rem;opacity:.6">オンライン版 — 1人1デバイス</p></div>
     ${body}
     <div style="text-align:center;color:var(--t3);font-size:.7rem;margin-top:4px">簡易版 v3 ／ 2人用 ／ 各2都市 ／ 15〜20分</div>
@@ -2712,7 +2958,7 @@
       const isMe = (idx === myPlayerIdx);
       return `<div class="${position}-zone">
     <div class="zone-header"><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}</div>
-    <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
+    <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
     ${renderBackupCity(idx)}
     <div class="effects-row">${renderEffectBadges(p.effects)}</div>
     <div class="hand-cards-area">
@@ -2869,7 +3115,7 @@
         const terrainLabel = c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : '';
         return `<div class="${position}-zone" style="${bdr}">
       <div class="zone-header"><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${terrainLabel}</div>
-      <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
+      <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
       ${renderBackupCity(idx)}
       <div class="effects-row">${renderEffectBadges(p.effects)}</div>
       <div class="hand-cards-area">${isMe ? zoneHand(idx) : `<div class="hand-back-row">${zoneHand(idx)}</div>`}${!isMe ? `<div class="hand-count">手札 ${p.hand.length} 枚</div>` : ''}</div>
@@ -3032,6 +3278,7 @@
         if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">💚 ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
         if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">💧 ${ev.cityIcon} ${ev.cityName}：今ターン予算 +1</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
         if (ev.type === 'typhoon_discard') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">🌀 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">⚠️ あなたの手札からカードが奪われました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${ev.cardIcon}</span><br>「<strong>${ev.cardName}</strong>」が手札から失われました</div></div>`;
+        if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">💥 ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が次の都市として登場します</div></div>`;
         return '';
       }).join('');
       return `<div class="screen active"><div class="turn-summary-box">
@@ -3096,7 +3343,18 @@
     // ═══════════════════════════════════════
     function handleHostClick() { const name = lobbyState.nameInput.trim(); if (!name) { lobbyState.error = '名前を入力してください'; render(); return; } lobbyState.error = ''; createRoom(); }
     function handleJoinClick() { const name = lobbyState.nameInput.trim(); const code = lobbyState.joinCodeInput.trim(); if (!name) { lobbyState.error = '名前を入力してください'; render(); return; } if (code.length !== 6) { lobbyState.error = 'ルームコードは6文字で入力してください'; render(); return; } lobbyState.error = ''; joinRoom(); }
-    function dismissTurnSummary() { G._turnSummary = null; setupTurnDraw(G.activePlayer); pushState(); render(); }
+    function dismissTurnSummary() {
+      const _evts = G._turnSummary || []; const _ap = G.activePlayer;
+      const _hasSwitch = _evts.some(ev => ev.type === 'city_switch');
+      if (!_hasSwitch) {
+        for (const ev of _evts) { if (ev.type === 'damage' && ev.hpBefore != null && ev.hpAfter != null && ev.hpBefore !== ev.hpAfter) _pendingMainHpAnims.push({ pi: _ap, fh: ev.hpBefore, th: ev.hpAfter, delay: 80 }); }
+      } else {
+        _pendingCityEnterAnim = true;
+        const _np = G.players[_ap]; const _nh = _np.cityHps[_np.activeCityIdx];
+        if (_nh > 0) _pendingMainHpAnims.push({ pi: _ap, fh: 0, th: _nh, delay: 480 });
+      }
+      G._turnSummary = null; setupTurnDraw(G.activePlayer); pushState(); render();
+    }
     function requestConfirm(fn, uid, name, icon, cardType, actionLabel, danger = false) { G.confirm = { fn, uid, name, icon, cardType, actionLabel, danger }; render(); }
     function doConfirm() { const c = G.confirm; G.confirm = null; if (c.fn === 'playCard') playCard(c.uid); else if (c.fn === 'playResponseCard') playResponseCard(c.uid); else if (c.fn === 'discardCard') discardCard(c.uid); else if (c.fn === 'endTurn') endTurn(); }
     function cancelConfirm() { G.confirm = null; render(); }
@@ -3130,7 +3388,7 @@
         G.screen = 'main'; pushState(); render();
         return;
       }
-      G.screen = 'response'; pushState(); render();
+      G.screen = 'response'; showTurnSplash(false, true); pushState(); render();
     }
 
     function skipResponse() {
@@ -3157,12 +3415,19 @@
     function closePeek() { G.peekCard = null; G.peekCards = null; G.peekByPlayerIdx = null; G.screen = 'main'; pushState(); render(); }
 
     function restartGame() {
-      if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
-      myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
-      lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
-      _hintOpen = false; tutorialState = null;
-      G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
-      render();
+      _lobbyEnter = true;
+      const _rApp = document.getElementById('app');
+      _rApp.style.transition = 'opacity .28s ease'; _rApp.style.opacity = '0';
+      setTimeout(() => {
+        if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
+        myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
+        lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
+        _hintOpen = false; tutorialState = null;
+        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
+        _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
+        render();
+        requestAnimationFrame(() => { _rApp.style.transition = ''; });
+      }, 280);
     }
 
     // ═══════════════════════════════════════
