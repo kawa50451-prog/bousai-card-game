@@ -5,6 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ready or Not</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700;900&display=swap" rel="stylesheet">
   <style>
     *,
     *::before,
@@ -86,14 +89,18 @@
     }
 
     .lobby-title {
-      font-size: 2.6rem;
+      font-size: 3rem;
       font-weight: 900;
       font-style: normal;
-      font-family: 'Helvetica Neue', 'Arial Black', 'Hiragino Sans', sans-serif;
+      font-family: 'Roboto Condensed', 'Arial Narrow', 'Hiragino Sans', sans-serif;
       color: #fa2a4e;
-      margin: 10px 0 4px;
+      margin: 0;
       letter-spacing: .15em;
-      line-height: 1.15
+      line-height: 1.1
+    }
+    .lobby-hero .ron-wrap {
+      padding: 12px 0;
+      margin-bottom: 4px;
     }
 
     .lobby-label {
@@ -1473,7 +1480,7 @@
     }
 
     /* ── カードギャラリー ── */
-    .lobby-btn-gallery { width:100%; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; padding:11px; color:var(--t2); font-size:.88rem; cursor:pointer; transition:.2s; margin-top:2px }
+    .lobby-btn-gallery { width:100%; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; padding:11px; color:var(--t2); font-size:.88rem; cursor:pointer; transition:.2s; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:6px }
     .lobby-btn-gallery:hover { background:var(--bg3); color:var(--t1) }
     .gallery-wrap { flex:1; display:flex; align-items:flex-start; justify-content:center; padding:16px }
     .gallery-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:22px 20px; max-width:640px; width:100%; display:flex; flex-direction:column; gap:14px; box-shadow:0 12px 40px rgba(0,0,0,.5) }
@@ -1646,8 +1653,9 @@
     }
     .sl-header { text-align: center }
     .sl-title {
-      font-size: 2.2rem;
+      font-size: 2.6rem;
       font-weight: 900;
+      font-family: 'Roboto Condensed', 'Arial Narrow', sans-serif;
       color: rgba(255,255,255,.9);
       letter-spacing: .18em;
     }
@@ -1717,10 +1725,45 @@
     }
     @keyframes sl-icon-zoom {
       0%   { transform: scale(1);   opacity: 1 }
-      100% { transform: scale(3.2); opacity: 0 }
+      30%  { transform: scale(2);   opacity: .9 }
+      100% { transform: scale(14);  opacity: 0 }
     }
     .sl-icon-wrap.sl-zoom {
-      animation: sl-icon-zoom .42s cubic-bezier(.4,0,1,1) forwards
+      animation: sl-icon-zoom .65s cubic-bezier(.28, 0, .9, 1) forwards
+    }
+    @keyframes sl-icon-glitch {
+      0%   { transform: translateX(0);    filter: brightness(0) }
+      8%   { transform: translateX(-6px); filter: brightness(1.8) }
+      16%  { transform: translateX(5px);  filter: brightness(0) }
+      24%  { transform: translateX(-4px); filter: brightness(2.2) }
+      32%  { transform: translateX(3px);  filter: brightness(0.1) }
+      40%  { transform: translateX(-2px); filter: brightness(1.5) }
+      50%  { transform: translateX(2px);  filter: brightness(0.3) }
+      60%  { transform: translateX(-1px); filter: brightness(1.8) }
+      70%  { transform: translateX(1px);  filter: brightness(0.5) }
+      80%  { transform: translateX(0);    filter: brightness(1.6) }
+      90%  { transform: translateX(0);    filter: brightness(0.8) }
+      100% { transform: translateX(0);    filter: brightness(1) }
+    }
+    .sl-icon-glitch-reveal {
+      animation: sl-icon-glitch .48s linear forwards
+    }
+    .lobby-neon-icons {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: center;
+    }
+    .lobby-neon-icon {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    .btn-icon {
+      width: 1.3rem;
+      height: 1.3rem;
+      flex-shrink: 0;
+      color: white;
     }
     @keyframes ron-flicker {
       0%,100% { opacity: 1 }
@@ -2550,6 +2593,31 @@
       el.appendChild(inner); document.body.appendChild(el);
       setTimeout(() => el.remove(), 1700);
     }
+    function initNeonIcons() {
+      const ICONS = [
+        { id: 'lni-0', glow: '248,81,73' },
+        { id: 'lni-1', glow: '210,153,34' },
+        { id: 'lni-2', glow: '63,185,80' },
+        { id: 'lni-3', glow: '56,139,253' },
+      ];
+      ICONS.forEach((ic, i) => {
+        setTimeout(() => {
+          const el = document.getElementById(ic.id); if (!el) return;
+          const g = ic.glow;
+          const glowFinal = `brightness(1) drop-shadow(0 0 8px rgba(${g},.85)) drop-shadow(0 0 3px rgba(${g},1))`;
+          el.animate([
+            { filter: 'brightness(0.04)' },
+            { filter: `brightness(2.8) drop-shadow(0 0 5px rgba(${g},1))`,     offset: .12 },
+            { filter: 'brightness(0.08)',                                        offset: .22 },
+            { filter: `brightness(2) drop-shadow(0 0 8px rgba(${g},.9))`,      offset: .38 },
+            { filter: 'brightness(0.3)',                                         offset: .52 },
+            { filter: `brightness(1.4) drop-shadow(0 0 7px rgba(${g},.8))`,    offset: .68 },
+            { filter: 'brightness(0.65)',                                        offset: .78 },
+            { filter: glowFinal },
+          ], { duration: 900, easing: 'ease-in-out', fill: 'forwards' });
+        }, i * 130);
+      });
+    }
     function initRonAnim(wrap, delay, noFlicker) {
       setTimeout(() => {
         const lines = wrap.querySelector('.ron-lines');
@@ -2591,13 +2659,22 @@
           const clip = wrap.querySelector('.sl-icon-clip'); const img = wrap.querySelector('img');
           const line = document.createElement('div'); line.className = 'sl-scan-line'; clip.appendChild(line);
           setTimeout(() => {
-            line.remove(); wrap.classList.add('sl-lit');
-            if (img) img.style.filter = `brightness(1) drop-shadow(0 0 16px rgba(${ic.glow},.9)) drop-shadow(0 0 4px rgba(${ic.glow},1))`;
+            line.remove();
+            if (img) {
+              const g = ic.glow;
+              const finalFilter = `brightness(1) drop-shadow(0 0 16px rgba(${g},.9)) drop-shadow(0 0 4px rgba(${g},1))`;
+              img.classList.add('sl-icon-glitch-reveal');
+              img.addEventListener('animationend', () => {
+                img.style.filter = finalFilter;
+                img.classList.remove('sl-icon-glitch-reveal');
+                wrap.classList.add('sl-lit');
+              }, { once: true });
+            }
           }, 500);
         }, 550 + i * 370);
       });
-      // 全点灯後にズームしてロビーへ
-      const allLitAt = 550 + (ICONS.length - 1) * 370 + 500;
+      // 全点灯後にズームしてロビーへ (+480ms for glitch duration)
+      const allLitAt = 550 + (ICONS.length - 1) * 370 + 500 + 480;
       const zoomAt = allLitAt + 460;
       setTimeout(() => {
         ICONS.forEach((_, i) => {
@@ -2860,10 +2937,10 @@
         if (_wasLobbyEnter) {
           _lobbyTitleAnimDone = false;
           setTimeout(() => showScanlineIntro(), 60);
-          setTimeout(() => { _lobbyTitleAnimDone = true; const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); }, 3480);
+          setTimeout(() => { _lobbyTitleAnimDone = true; const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); initNeonIcons(); }, 4000);
         } else if (!_lobbyTitleAnimDone) {
           _lobbyTitleAnimDone = true;
-          setTimeout(() => { const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); }, 80);
+          setTimeout(() => { const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); initNeonIcons(); }, 80);
         }
       }
       if (view === 'main' && _pendingMainHpAnims.length > 0) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
@@ -2954,16 +3031,20 @@
       }
 
       let body = '';
+      const _svgHouse = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>`;
+      const _svgUsers = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+      const _svgGame = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="17" cy="13" r="1" fill="currentColor" stroke="none"/></svg>`;
+      const _svgBook = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
       if (lobbyState.mode === 'select') {
         body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
     ${err}
     <div class="lobby-mode-btns">
-      <button class="lobby-btn host" onclick="handleHostClick()"><span style="font-size:1.5rem">🏠</span><strong>ルームを作成</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ホスト（先攻）</span></button>
-      <button class="lobby-btn join" onclick="lobbyState.mode='join';lobbyState.error='';render()"><span style="font-size:1.5rem">🔗</span><strong>ルームに参加</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ゲスト（後攻）</span></button>
+      <button class="lobby-btn host" onclick="handleHostClick()">${_svgHouse}<strong>ルームを作成</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ホスト（先攻）</span></button>
+      <button class="lobby-btn join" onclick="lobbyState.mode='join';lobbyState.error='';render()">${_svgUsers}<strong>ルームに参加</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ゲスト（後攻）</span></button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <button class="lobby-btn-gallery" onclick="startTutorial()">🎮 1ターン体験</button>
-      <button class="lobby-btn-gallery" onclick="lobbyState.mode='gallery';lobbyState.galleryTab=null;lobbyState.galleryZoom=null;render()">📖 カードを見る</button>
+      <button class="lobby-btn-gallery" onclick="startTutorial()">${_svgGame} 1ターン体験</button>
+      <button class="lobby-btn-gallery" onclick="lobbyState.mode='gallery';lobbyState.galleryTab=null;lobbyState.galleryZoom=null;render()">${_svgBook} カードを見る</button>
     </div>`;
       } else {
         body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 鈴木" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
@@ -2975,8 +3056,10 @@
       const _rlLinesCls = _lobbyTitleAnimDone ? ' ron-active' : '';
       const _rlTextCls = _lobbyTitleAnimDone ? ' ron-active ron-flicker' : '';
       const _rlHtml = `<div class="ron-wrap" id="lobby-ron"><div class="ron-lines${_rlLinesCls}"><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div></div><h1 class="lobby-title ron-text${_rlTextCls}">Ready or Not</h1></div>`;
+      const _LICONS = [{src:'images/icons/neon_disaster.webp',glow:'248,81,73'},{src:'images/icons/neon_policy_instant.webp',glow:'210,153,34'},{src:'images/icons/neon_policy_shield.webp',glow:'63,185,80'},{src:'images/icons/neon_city.webp',glow:'56,139,253'}];
+      const _neonIconsHtml = `<div class="lobby-neon-icons">${_LICONS.map((ic,i) => { const f = _lobbyTitleAnimDone ? `brightness(1) drop-shadow(0 0 8px rgba(${ic.glow},.85)) drop-shadow(0 0 3px rgba(${ic.glow},1))` : 'brightness(0.04)'; return `<img class="lobby-neon-icon" id="lni-${i}" src="${ic.src}" alt="" style="filter:${f}">`; }).join('')}</div>`;
       return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box${enterClass}">
-    <div class="lobby-hero"><div style="font-size:2.2rem">🌊⚡🔥</div>${_rlHtml}<p style="color:var(--t2);font-size:.75rem;letter-spacing:.06em;margin-bottom:2px">都市防災カードバトル</p></div>
+    <div class="lobby-hero">${_neonIconsHtml}${_rlHtml}<p style="color:var(--t2);font-size:.75rem;letter-spacing:.06em;margin-bottom:2px">都市防災カードバトル</p></div>
     ${body}
     <div style="text-align:center;color:var(--t3);font-size:.7rem;margin-top:4px">簡易版 v3 ／ 2人用 ／ 各2都市 ／ 15〜20分</div>
   </div></div></div>`;
