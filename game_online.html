@@ -90,11 +90,9 @@
       font-weight: 900;
       font-style: normal;
       font-family: 'Helvetica Neue', 'Arial Black', 'Hiragino Sans', sans-serif;
-      background: linear-gradient(135deg, #f5d060, #e8882a);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: #fa2a4e;
       margin: 10px 0 4px;
-      letter-spacing: 0.04em;
+      letter-spacing: .15em;
       line-height: 1.15
     }
 
@@ -1643,17 +1641,15 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 32px
+      gap: 32px;
+      overflow: hidden
     }
     .sl-header { text-align: center }
     .sl-title {
       font-size: 2.2rem;
       font-weight: 900;
       color: rgba(255,255,255,.9);
-      letter-spacing: .08em;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: opacity .5s ease, transform .5s ease
+      letter-spacing: .18em;
     }
     .sl-subtitle {
       font-size: .78rem;
@@ -1665,24 +1661,28 @@
     }
     .sl-icon-row {
       display: flex;
-      gap: 32px;
-      align-items: flex-end
+      gap: clamp(12px, 3.5vw, 32px);
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 0 16px;
+      box-sizing: border-box
     }
     .sl-icon-wrap {
       position: relative;
-      width: 96px;
+      width: clamp(64px, 18vw, 96px);
       overflow: visible;
       text-align: center
     }
     .sl-icon-clip {
       position: relative;
-      width: 96px;
-      height: 96px;
+      width: clamp(64px, 18vw, 96px);
+      height: clamp(64px, 18vw, 96px);
       overflow: hidden
     }
     .sl-icon-wrap img {
-      width: 96px;
-      height: 96px;
+      width: clamp(64px, 18vw, 96px);
+      height: clamp(64px, 18vw, 96px);
       object-fit: contain;
       display: block;
       filter: brightness(0);
@@ -1697,12 +1697,12 @@
     }
     .sl-scan-line {
       position: absolute;
-      left: 48px;
-      top: 48px;
+      left: 50%;
+      top: 50%;
       width: 200px;
-      height: 72px;
+      height: clamp(48px, 10vw, 72px);
       margin-left: -100px;
-      margin-top: -36px;
+      margin-top: clamp(-36px, -5vw, -24px);
       background: linear-gradient(
         to bottom,
         transparent 0%,
@@ -1721,6 +1721,58 @@
     }
     .sl-icon-wrap.sl-zoom {
       animation: sl-icon-zoom .42s cubic-bezier(.4,0,1,1) forwards
+    }
+    @keyframes ron-flicker {
+      0%,100% { opacity: 1 }
+      7%  { opacity: .82 }
+      10% { opacity: 1 }
+      12% { opacity: .91 }
+      20% { opacity: 1 }
+      33% { opacity: .86 }
+      36% { opacity: 1 }
+      55% { opacity: .94 }
+      58% { opacity: 1 }
+      80% { opacity: .89 }
+      83% { opacity: 1 }
+    }
+    .ron-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    .ron-lines {
+      position: absolute;
+      left: -30px; right: -30px; top: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      pointer-events: none;
+    }
+    .ron-line {
+      height: 1px;
+      background: rgba(245, 208, 96, .3);
+      transform-origin: left center;
+      transform: scaleX(0);
+      transition: transform .52s cubic-bezier(.25, .8, .25, 1);
+    }
+    .ron-line:nth-child(1) { transition-delay: .00s }
+    .ron-line:nth-child(2) { transition-delay: .06s }
+    .ron-line:nth-child(3) { transition-delay: .12s }
+    .ron-line:nth-child(4) { transition-delay: .18s }
+    .ron-line:nth-child(5) { transition-delay: .24s }
+    .ron-lines.ron-active .ron-line { transform: scaleX(1) }
+    .ron-text {
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(7px);
+      transition: opacity .4s ease, transform .4s ease;
+    }
+    .ron-text.ron-active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .ron-text.ron-flicker {
+      animation: ron-flicker 3s ease-in-out infinite;
     }
   </style>
 </head>
@@ -2448,6 +2500,7 @@
     let _pendingMainHpAnims = [];
     let _pendingCityEnterAnim = false;
     let _lobbyEnter = true;
+    let _lobbyTitleAnimDone = false;
     function queueHpAnim(pi, fh, th) { _hpQ.push({ pi, fh, th }); }
     function processHpAnims() {
       if (G.screen !== 'main' && G.screen !== 'response') return; if (G._turnSummary) return;
@@ -2497,6 +2550,26 @@
       el.appendChild(inner); document.body.appendChild(el);
       setTimeout(() => el.remove(), 1700);
     }
+    function initRonAnim(wrap, delay, noFlicker) {
+      setTimeout(() => {
+        const lines = wrap.querySelector('.ron-lines');
+        const text = wrap.querySelector('.ron-text');
+        if (text) text.classList.add('ron-active');
+        setTimeout(() => {
+          if (lines) {
+            const lineEls = lines.querySelectorAll('.ron-line');
+            const delayMs = [0, 55, 110, 165, 220];
+            for (let i = delayMs.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [delayMs[i], delayMs[j]] = [delayMs[j], delayMs[i]];
+            }
+            lineEls.forEach((el, k) => { el.style.transitionDelay = delayMs[k] + 'ms'; });
+            lines.classList.add('ron-active');
+          }
+        }, 30);
+        if (!noFlicker) setTimeout(() => { if (text) text.classList.add('ron-flicker'); }, 560);
+      }, delay || 0);
+    }
     function showScanlineIntro() {
       const ICONS = [
         { src: 'images/icons/neon_disaster.webp',      label: '災害',    glow: '248,81,73' },
@@ -2505,9 +2578,13 @@
         { src: 'images/icons/neon_city.webp',           label: '都市',    glow: '56,139,253' },
       ];
       const ov = document.createElement('div'); ov.className = 'sl-overlay';
-      ov.innerHTML = `<div class="sl-header"><div class="sl-title" id="sl-title">Ready or Not</div><div class="sl-subtitle" id="sl-sub">都市防災カードバトル</div></div><div class="sl-icon-row">${ICONS.map((ic, i) => `<div class="sl-icon-wrap" id="sl-ic-${i}"><div class="sl-icon-clip"><img src="${ic.src}" alt="${ic.label}"></div></div>`).join('')}</div>`;
+      const ronLines = '<div class="ron-lines"><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div></div>';
+      ov.innerHTML = `<div class="sl-header"><div class="ron-wrap" id="sl-ron">${ronLines}<div class="sl-title ron-text" id="sl-title">Ready or Not</div></div><div class="sl-subtitle" id="sl-sub">都市防災カードバトル</div></div><div class="sl-icon-row">${ICONS.map((ic, i) => `<div class="sl-icon-wrap" id="sl-ic-${i}"><div class="sl-icon-clip"><img src="${ic.src}" alt="${ic.label}"></div></div>`).join('')}</div>`;
       document.body.appendChild(ov);
-      setTimeout(() => { const t = document.getElementById('sl-title'), s = document.getElementById('sl-sub'); if (t) { t.style.opacity='1'; t.style.transform='translateY(0)'; } if (s) s.style.opacity='1'; }, 180);
+      setTimeout(() => {
+        const ron = document.getElementById('sl-ron'); if (ron) initRonAnim(ron, 0, true);
+        const s = document.getElementById('sl-sub'); if (s) s.style.opacity = '1';
+      }, 180);
       ICONS.forEach((ic, i) => {
         setTimeout(() => {
           const wrap = document.getElementById('sl-ic-' + i); if (!wrap) return;
@@ -2527,8 +2604,8 @@
           const wrap = document.getElementById('sl-ic-' + i);
           if (wrap) wrap.classList.add('sl-zoom');
         });
-        const t = document.getElementById('sl-title'), s = document.getElementById('sl-sub');
-        if (t) { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; }
+        const ron = document.getElementById('sl-ron'), s = document.getElementById('sl-sub');
+        if (ron) { ron.style.transition = 'opacity .3s'; ron.style.opacity = '0'; }
         if (s) { s.style.transition = 'opacity .3s'; s.style.opacity = '0'; }
       }, zoomAt);
       setTimeout(() => { ov.style.transition = 'opacity .45s ease'; ov.style.opacity = '0'; setTimeout(() => ov.remove(), 480); }, zoomAt + 220);
@@ -2779,7 +2856,16 @@
       if (view !== 'setup_required') html += `<button class="hint-btn" onclick="toggleHint()" title="ヒント">？</button>`;
       if (_hintOpen) html += renderHintOverlay();
       app.innerHTML = html; processHpAnims();
-      if (view === 'lobby' && _wasLobbyEnter) setTimeout(() => showScanlineIntro(), 60);
+      if (view === 'lobby') {
+        if (_wasLobbyEnter) {
+          _lobbyTitleAnimDone = false;
+          setTimeout(() => showScanlineIntro(), 60);
+          setTimeout(() => { _lobbyTitleAnimDone = true; const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); }, 3480);
+        } else if (!_lobbyTitleAnimDone) {
+          _lobbyTitleAnimDone = true;
+          setTimeout(() => { const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); }, 80);
+        }
+      }
       if (view === 'main' && _pendingMainHpAnims.length > 0) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
       if (view === 'main' && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
@@ -2886,8 +2972,11 @@
     <button class="lobby-btn-single" onclick="handleJoinClick()">参加する</button>
     <button class="lobby-btn-back" onclick="lobbyState.mode='select';lobbyState.error='';render()">← 戻る</button>`;
       }
+      const _rlLinesCls = _lobbyTitleAnimDone ? ' ron-active' : '';
+      const _rlTextCls = _lobbyTitleAnimDone ? ' ron-active ron-flicker' : '';
+      const _rlHtml = `<div class="ron-wrap" id="lobby-ron"><div class="ron-lines${_rlLinesCls}"><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div></div><h1 class="lobby-title ron-text${_rlTextCls}">Ready or Not</h1></div>`;
       return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box${enterClass}">
-    <div class="lobby-hero"><div style="font-size:2.2rem">🌊⚡🔥</div><h1 class="lobby-title">Ready or Not</h1><p style="color:var(--t2);font-size:.75rem;letter-spacing:.06em;margin-bottom:2px">都市防災カードバトル</p><p style="color:var(--t2);font-size:.75rem;opacity:.6">オンライン版 — 1人1デバイス</p></div>
+    <div class="lobby-hero"><div style="font-size:2.2rem">🌊⚡🔥</div>${_rlHtml}<p style="color:var(--t2);font-size:.75rem;letter-spacing:.06em;margin-bottom:2px">都市防災カードバトル</p></div>
     ${body}
     <div style="text-align:center;color:var(--t3);font-size:.7rem;margin-top:4px">簡易版 v3 ／ 2人用 ／ 各2都市 ／ 15〜20分</div>
   </div></div></div>`;
