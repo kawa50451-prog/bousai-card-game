@@ -92,9 +92,9 @@
       text-orientation: mixed;
       font-family: 'Roboto Condensed', 'Arial Narrow', sans-serif;
       font-weight: 900;
-      font-size: 10vh;
+      font-size: 13vh;
       color: #1c2438;
-      letter-spacing: .1em;
+      letter-spacing: 0;
       white-space: nowrap;
       will-change: transform;
     }
@@ -127,7 +127,7 @@
     }
 
     .lobby-title {
-      font-size: 3rem;
+      font-size: 4rem;
       font-weight: 900;
       font-style: normal;
       font-family: 'Roboto Condensed', 'Arial Narrow', 'Hiragino Sans', sans-serif;
@@ -1523,11 +1523,12 @@
     .gallery-wrap { flex:1; display:flex; align-items:flex-start; justify-content:center; padding:16px }
     .gallery-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:22px 20px; max-width:640px; width:100%; display:flex; flex-direction:column; gap:14px; box-shadow:0 12px 40px rgba(0,0,0,.5) }
     .gallery-header { display:flex; align-items:center; justify-content:space-between }
-    .gallery-title { font-size:1rem; font-weight:700 }
+    .gallery-title { font-size:1.3rem; font-weight:700; text-align:center; flex:1 }
+    .gallery-btn-back { width:40px; height:40px; background:transparent; border:2px solid #fff; border-radius:6px; color:#fff; cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0 }
     .gallery-tabs { display:flex; flex-direction:column; gap:8px }
     .gallery-tab-btn { padding:12px 16px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:left; display:flex; align-items:center; gap:10px }
-    .gallery-tab-btn:hover { border-color:var(--blue); background:rgba(56,139,253,.1); color:var(--blue) }
-    .gallery-tab-btn.active { border-color:var(--blue); background:rgba(56,139,253,.15); color:var(--blue) }
+    .gallery-tab-btn:hover { border-color:#fa2a4e; background:rgba(250,42,78,.1); color:#fa2a4e }
+    .gallery-tab-btn.active { border-color:#fa2a4e; background:rgba(250,42,78,.15); color:#fa2a4e }
     .tab-icon { width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0 }
     .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
     .gallery-card { border-radius:8px; overflow:hidden; cursor:pointer; border:2px solid var(--bg3); transition:.15s; aspect-ratio:288/450 }
@@ -2657,16 +2658,12 @@
         setTimeout(() => {
           img.animate([
             { filter: 'brightness(0)',    offset: 0   },
-            { filter: 'brightness(2.0)', offset: .08 },
-            { filter: 'brightness(0.05)',offset: .17 },
-            { filter: 'brightness(1.6)', offset: .28 },
-            { filter: 'brightness(0.2)', offset: .38 },
-            { filter: 'brightness(1.4)', offset: .50 },
-            { filter: 'brightness(0.4)', offset: .62 },
-            { filter: 'brightness(1.2)', offset: .74 },
-            { filter: 'brightness(0.7)', offset: .84 },
+            { filter: 'brightness(2.0)', offset: .12 },
+            { filter: 'brightness(0.1)', offset: .30 },
+            { filter: 'brightness(1.5)', offset: .58 },
+            { filter: 'brightness(0.5)', offset: .75 },
             { filter: 'brightness(1.0)', offset: 1   },
-          ], { duration: 900, easing: 'ease-in-out', fill: 'forwards' });
+          ], { duration: 850, easing: 'ease-in-out', fill: 'forwards' });
         }, i * 55);
       });
     }
@@ -3071,10 +3068,10 @@
           }
           if (gridHtml) contentHtml = `<div class="gallery-grid">${gridHtml}</div>`;
         } else {
-          contentHtml = `<div style="text-align:center;color:var(--t3);font-size:.85rem;padding:20px 0">上のボタンでカードの種類を選んでください</div>`;
+          contentHtml = '';
         }
         return `<div class="screen active"><div class="gallery-wrap"><div class="gallery-box">
-    <div class="gallery-header"><button class="lobby-btn-back" style="width:auto;padding:8px 16px;margin:0" onclick="lobbyState.mode='select';lobbyState.galleryZoom=null;render()">← 戻る</button><span class="gallery-title">カード一覧</span><span></span></div>
+    <div class="gallery-header"><button class="gallery-btn-back" onclick="lobbyState.mode='select';lobbyState.galleryZoom=null;render()">＜</button><span class="gallery-title">カード一覧</span><span style="width:40px;flex-shrink:0"></span></div>
     <div class="gallery-tabs">${tabHtml}</div>
     ${contentHtml}
   </div></div></div>`;
