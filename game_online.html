@@ -68,7 +68,29 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .lobby-bg-title {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 10px;
+      display: flex;
+      align-items: flex-start;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-family: 'Roboto Condensed', 'Arial Narrow', sans-serif;
+      font-weight: 900;
+      font-size: 8vh;
+      color: #1c2438;
+      letter-spacing: .08em;
+      white-space: nowrap;
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+      overflow: hidden;
     }
 
     .lobby-box {
@@ -77,6 +99,8 @@
       border-radius: 20px;
       padding: 28px 24px;
       max-width: 440px;
+      position: relative;
+      z-index: 1;
       width: 100%;
       display: flex;
       flex-direction: column;
@@ -1674,7 +1698,9 @@
       justify-content: center;
       width: 100%;
       padding: 0 16px;
-      box-sizing: border-box
+      box-sizing: border-box;
+      position: relative;
+      overflow: hidden
     }
     .sl-icon-wrap {
       position: relative;
@@ -1731,22 +1757,16 @@
     .sl-icon-wrap.sl-zoom {
       animation: sl-icon-zoom .65s cubic-bezier(.28, 0, .9, 1) forwards
     }
-    @keyframes sl-icon-glitch {
-      0%   { transform: translateX(0);    filter: brightness(0) }
-      8%   { transform: translateX(-6px); filter: brightness(1.8) }
-      16%  { transform: translateX(5px);  filter: brightness(0) }
-      24%  { transform: translateX(-4px); filter: brightness(2.2) }
-      32%  { transform: translateX(3px);  filter: brightness(0.1) }
-      40%  { transform: translateX(-2px); filter: brightness(1.5) }
-      50%  { transform: translateX(2px);  filter: brightness(0.3) }
-      60%  { transform: translateX(-1px); filter: brightness(1.8) }
-      70%  { transform: translateX(1px);  filter: brightness(0.5) }
-      80%  { transform: translateX(0);    filter: brightness(1.6) }
-      90%  { transform: translateX(0);    filter: brightness(0.8) }
-      100% { transform: translateX(0);    filter: brightness(1) }
+    @keyframes sl-icon-reveal {
+      0%   { filter: brightness(0) }
+      15%  { filter: brightness(2.6) }
+      30%  { filter: brightness(0.1) }
+      52%  { filter: brightness(1.9) }
+      72%  { filter: brightness(0.65) }
+      100% { filter: brightness(1) }
     }
-    .sl-icon-glitch-reveal {
-      animation: sl-icon-glitch .48s linear forwards
+    .sl-icon-reveal {
+      animation: sl-icon-reveal .46s ease-in-out forwards
     }
     .lobby-neon-icons {
       display: flex;
@@ -1755,8 +1775,8 @@
       justify-content: center;
     }
     .lobby-neon-icon {
-      width: 32px;
-      height: 32px;
+      width: 44px;
+      height: 44px;
       object-fit: contain;
     }
     .btn-icon {
@@ -2478,7 +2498,7 @@
       const pi = G.cityOrderState?.playerIdx ?? 0; const p = G.players[pi];
       const c0 = p.cities[0], c1 = p.cities[1];
       function cityCard(c, idx) {
-        return `<div class="gacha-card-box" onclick="selectCityOrder(${pi},${idx})" style="cursor:pointer;width:200px;transition:.2s" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform=''">
+        return `<div class="gacha-card-box" onclick="selectCityOrder(${pi},${idx})" style="cursor:pointer;width:200px;transition:.2s;flex-shrink:0" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform=''">
         <img class="cityorder-city-img" src="images/cities/${c.id}.webp" alt="" onerror="this.style.display='none'">
         <div style="font-size:2.5rem">${c.icon}</div>
         <div style="font-weight:700;font-size:1rem;margin:6px 0">${c.name}</div>
@@ -2490,7 +2510,7 @@
       }
       return `<div class="screen active"><div class="gacha-stage">
       <div style="text-align:center;margin-bottom:12px"><div class="section-title">🏙️ 戦闘順の選択</div><div style="color:var(--t2);font-size:.85rem;margin-top:4px">${p.name} — どちらの都市を先に戦わせますか？</div></div>
-      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">${cityCard(c0, 0)}${cityCard(c1, 1)}</div>
+      <div style="display:flex;gap:16px;justify-content:center;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px">${cityCard(c0, 0)}${cityCard(c1, 1)}</div>
       <div style="color:var(--t3);font-size:.75rem;margin-top:12px;text-align:center">先に選んだ都市が最初に戦います。壊滅後に残りの都市が登場します。</div>
     </div></div>`;
     }
@@ -2579,43 +2599,59 @@
     }
     function showTurnSplash(isMyTurn, isResponsePhase) {
       const SPLASH_DEFS = {
-        my_main:     { icon: 'images/icons/neon_city.webp',          glow: '56,139,253',  bg: 'rgba(56,139,253,.16)',  border: 'rgba(56,139,253,.6)',  title: 'あなたのターン',  sub: 'カードをプレイしよう' },
-        opp_main:    { icon: 'images/icons/neon_disaster.webp',       glow: '248,81,73',   bg: 'rgba(248,81,73,.12)',   border: 'rgba(248,81,73,.5)',   title: '相手のターン',    sub: '対応カードを準備しよう' },
-        my_resp:     { icon: 'images/icons/neon_policy_shield.webp',  glow: '210,153,34',  bg: 'rgba(210,153,34,.16)', border: 'rgba(210,153,34,.6)', title: '対応フェーズ',    sub: '対応カードを選ぼう' },
-        opp_resp:    { icon: 'images/icons/neon_disaster.webp',       glow: '248,81,73',   bg: 'rgba(248,81,73,.09)',   border: 'rgba(248,81,73,.35)', title: '相手が対応中',    sub: '対応結果を待っています' },
+        my_main:  { icons: ['images/icons/icon_city.webp'],                                                      glow: '56,139,253',  bg: 'rgba(56,139,253,.16)',  border: 'rgba(56,139,253,.6)',  title: 'あなたのターン',  sub: 'カードをプレイしよう' },
+        opp_main: { icons: ['images/icons/neon_disaster.webp'],                                                  glow: '248,81,73',   bg: 'rgba(248,81,73,.12)',   border: 'rgba(248,81,73,.5)',   title: '相手のターン',    sub: '対応カードを準備しよう' },
+        my_resp:  { icons: ['images/icons/icon_policy_yellow.webp', 'images/icons/icon_policy_green.webp'],      glow: '63,185,80',   bg: 'rgba(63,185,80,.12)',   border: 'rgba(63,185,80,.5)',   title: '対応フェーズ',    sub: '対応カードを選ぼう' },
+        opp_resp: { icons: ['images/icons/icon_disaster.webp'],                                                  glow: '248,81,73',   bg: 'rgba(248,81,73,.09)',   border: 'rgba(248,81,73,.35)', title: '相手が対応中',    sub: '対応結果を待っています' },
       };
       const key = isResponsePhase ? (isMyTurn ? 'my_resp' : 'opp_resp') : (isMyTurn ? 'my_main' : 'opp_main');
       const d = SPLASH_DEFS[key];
       const el = document.createElement('div'); el.className = 'turn-splash';
       const inner = document.createElement('div'); inner.className = 'turn-splash-inner';
       inner.style.cssText = `background:${d.bg};border:2px solid ${d.border}`;
-      inner.innerHTML = `<img src="${d.icon}" class="turn-splash-icon" style="filter:drop-shadow(0 0 14px rgba(${d.glow},.8))"><div style="font-size:1.55rem;font-weight:900;color:#fff;letter-spacing:.04em">${d.title}</div><div style="font-size:.82rem;color:rgba(255,255,255,.65);margin-top:6px">${d.sub}</div>`;
+      const _iconsHtml = d.icons.map(src => `<img src="${src}" class="turn-splash-icon" style="filter:drop-shadow(0 0 14px rgba(${d.glow},.8))">`).join('');
+      inner.innerHTML = `<div style="display:flex;gap:10px;justify-content:center">${_iconsHtml}</div><div style="font-size:1.55rem;font-weight:900;color:#fff;letter-spacing:.04em;margin-top:4px">${d.title}</div><div style="font-size:.82rem;color:rgba(255,255,255,.65);margin-top:6px">${d.sub}</div>`;
       el.appendChild(inner); document.body.appendChild(el);
       setTimeout(() => el.remove(), 1700);
     }
+    function playNeonAnim(el, g, delay) {
+      if (!el) return;
+      setTimeout(() => {
+        const gf = `brightness(1) drop-shadow(0 0 8px rgba(${g},.85)) drop-shadow(0 0 3px rgba(${g},1))`;
+        el.animate([
+          { filter: 'brightness(0.04)' },
+          { filter: `brightness(2.8) drop-shadow(0 0 5px rgba(${g},1))`, offset: .12 },
+          { filter: 'brightness(0.08)',                                    offset: .22 },
+          { filter: `brightness(2) drop-shadow(0 0 8px rgba(${g},.9))`,  offset: .38 },
+          { filter: 'brightness(0.3)',                                     offset: .52 },
+          { filter: `brightness(1.4) drop-shadow(0 0 7px rgba(${g},.8))`,offset: .68 },
+          { filter: 'brightness(0.65)',                                    offset: .78 },
+          { filter: gf },
+        ], { duration: 900, easing: 'ease-in-out', fill: 'forwards' });
+      }, delay || 0);
+    }
+    const _NEON_GLOWS = ['248,81,73','210,153,34','63,185,80','56,139,253'];
     function initNeonIcons() {
-      const ICONS = [
-        { id: 'lni-0', glow: '248,81,73' },
-        { id: 'lni-1', glow: '210,153,34' },
-        { id: 'lni-2', glow: '63,185,80' },
-        { id: 'lni-3', glow: '56,139,253' },
-      ];
-      ICONS.forEach((ic, i) => {
+      _NEON_GLOWS.forEach((g, i) => playNeonAnim(document.getElementById('lni-'+i), g, i*130));
+    }
+    function initWaitNeonIcons() {
+      _NEON_GLOWS.forEach((g, i) => playNeonAnim(document.getElementById('wni-'+i), g, i*130));
+    }
+    function initGalleryAnim() {
+      document.querySelectorAll('.gallery-card img').forEach((img, i) => {
+        img.style.filter = 'brightness(0)';
         setTimeout(() => {
-          const el = document.getElementById(ic.id); if (!el) return;
-          const g = ic.glow;
-          const glowFinal = `brightness(1) drop-shadow(0 0 8px rgba(${g},.85)) drop-shadow(0 0 3px rgba(${g},1))`;
-          el.animate([
-            { filter: 'brightness(0.04)' },
-            { filter: `brightness(2.8) drop-shadow(0 0 5px rgba(${g},1))`,     offset: .12 },
-            { filter: 'brightness(0.08)',                                        offset: .22 },
-            { filter: `brightness(2) drop-shadow(0 0 8px rgba(${g},.9))`,      offset: .38 },
-            { filter: 'brightness(0.3)',                                         offset: .52 },
-            { filter: `brightness(1.4) drop-shadow(0 0 7px rgba(${g},.8))`,    offset: .68 },
-            { filter: 'brightness(0.65)',                                        offset: .78 },
-            { filter: glowFinal },
-          ], { duration: 900, easing: 'ease-in-out', fill: 'forwards' });
-        }, i * 130);
+          img.animate([
+            { filter: 'brightness(0)' },
+            { filter: 'brightness(2.5)', offset: .12 },
+            { filter: 'brightness(0.1)', offset: .22 },
+            { filter: 'brightness(1.8)', offset: .38 },
+            { filter: 'brightness(0.3)', offset: .52 },
+            { filter: 'brightness(1.3)', offset: .68 },
+            { filter: 'brightness(0.7)', offset: .78 },
+            { filter: 'brightness(1)' },
+          ], { duration: 700, easing: 'ease-in-out', fill: 'forwards' });
+        }, i * 55);
       });
     }
     function initRonAnim(wrap, delay, noFlicker) {
@@ -2647,34 +2683,30 @@
       ];
       const ov = document.createElement('div'); ov.className = 'sl-overlay';
       const ronLines = '<div class="ron-lines"><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div></div>';
-      ov.innerHTML = `<div class="sl-header"><div class="ron-wrap" id="sl-ron">${ronLines}<div class="sl-title ron-text" id="sl-title">Ready or Not</div></div><div class="sl-subtitle" id="sl-sub">都市防災カードバトル</div></div><div class="sl-icon-row">${ICONS.map((ic, i) => `<div class="sl-icon-wrap" id="sl-ic-${i}"><div class="sl-icon-clip"><img src="${ic.src}" alt="${ic.label}"></div></div>`).join('')}</div>`;
+      ov.innerHTML = `<div class="sl-header"><div class="ron-wrap" id="sl-ron">${ronLines}<div class="sl-title ron-text" id="sl-title">Ready or Not</div></div><div class="sl-subtitle" id="sl-sub">都市防災カードバトル</div></div><div class="sl-icon-row">${ICONS.map((ic, i) => `<div class="sl-icon-wrap" id="sl-ic-${i}"><img src="${ic.src}" alt="${ic.label}"></div>`).join('')}</div>`;
       document.body.appendChild(ov);
       setTimeout(() => {
         const ron = document.getElementById('sl-ron'); if (ron) initRonAnim(ron, 0, true);
         const s = document.getElementById('sl-sub'); if (s) s.style.opacity = '1';
       }, 180);
-      ICONS.forEach((ic, i) => {
-        setTimeout(() => {
+      const revealAt = 700;
+      setTimeout(() => {
+        ICONS.forEach((ic, i) => {
           const wrap = document.getElementById('sl-ic-' + i); if (!wrap) return;
-          const clip = wrap.querySelector('.sl-icon-clip'); const img = wrap.querySelector('img');
-          const line = document.createElement('div'); line.className = 'sl-scan-line'; clip.appendChild(line);
-          setTimeout(() => {
-            line.remove();
-            if (img) {
-              const g = ic.glow;
-              const finalFilter = `brightness(1) drop-shadow(0 0 16px rgba(${g},.9)) drop-shadow(0 0 4px rgba(${g},1))`;
-              img.classList.add('sl-icon-glitch-reveal');
-              img.addEventListener('animationend', () => {
-                img.style.filter = finalFilter;
-                img.classList.remove('sl-icon-glitch-reveal');
-                wrap.classList.add('sl-lit');
-              }, { once: true });
-            }
-          }, 500);
-        }, 550 + i * 370);
-      });
-      // 全点灯後にズームしてロビーへ (+480ms for glitch duration)
-      const allLitAt = 550 + (ICONS.length - 1) * 370 + 500 + 480;
+          const img = wrap.querySelector('img');
+          if (img) {
+            const g = ic.glow;
+            const finalFilter = `brightness(1) drop-shadow(0 0 16px rgba(${g},.9)) drop-shadow(0 0 4px rgba(${g},1))`;
+            img.classList.add('sl-icon-reveal');
+            img.addEventListener('animationend', () => {
+              img.style.filter = finalFilter;
+              img.classList.remove('sl-icon-reveal');
+              wrap.classList.add('sl-lit');
+            }, { once: true });
+          }
+        });
+      }, revealAt);
+      const allLitAt = revealAt + 480;
       const zoomAt = allLitAt + 460;
       setTimeout(() => {
         ICONS.forEach((_, i) => {
@@ -2937,12 +2969,14 @@
         if (_wasLobbyEnter) {
           _lobbyTitleAnimDone = false;
           setTimeout(() => showScanlineIntro(), 60);
-          setTimeout(() => { _lobbyTitleAnimDone = true; const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); initNeonIcons(); }, 4000);
+          setTimeout(() => { _lobbyTitleAnimDone = true; const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); initNeonIcons(); }, 3200);
         } else if (!_lobbyTitleAnimDone) {
           _lobbyTitleAnimDone = true;
           setTimeout(() => { const w = document.getElementById('lobby-ron'); if (w) initRonAnim(w, 0); initNeonIcons(); }, 80);
         }
+        if (lobbyState.mode === 'gallery' && lobbyState.galleryTab && !lobbyState.galleryZoom) setTimeout(initGalleryAnim, 30);
       }
+      if (view === 'waiting') setTimeout(initWaitNeonIcons, 60);
       if (view === 'main' && _pendingMainHpAnims.length > 0) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
       if (view === 'main' && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
@@ -3058,10 +3092,9 @@
       const _rlHtml = `<div class="ron-wrap" id="lobby-ron"><div class="ron-lines${_rlLinesCls}"><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div><div class="ron-line"></div></div><h1 class="lobby-title ron-text${_rlTextCls}">Ready or Not</h1></div>`;
       const _LICONS = [{src:'images/icons/neon_disaster.webp',glow:'248,81,73'},{src:'images/icons/neon_policy_instant.webp',glow:'210,153,34'},{src:'images/icons/neon_policy_shield.webp',glow:'63,185,80'},{src:'images/icons/neon_city.webp',glow:'56,139,253'}];
       const _neonIconsHtml = `<div class="lobby-neon-icons">${_LICONS.map((ic,i) => { const f = _lobbyTitleAnimDone ? `brightness(1) drop-shadow(0 0 8px rgba(${ic.glow},.85)) drop-shadow(0 0 3px rgba(${ic.glow},1))` : 'brightness(0.04)'; return `<img class="lobby-neon-icon" id="lni-${i}" src="${ic.src}" alt="" style="filter:${f}">`; }).join('')}</div>`;
-      return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box${enterClass}">
-    <div class="lobby-hero">${_neonIconsHtml}${_rlHtml}<p style="color:var(--t2);font-size:.75rem;letter-spacing:.06em;margin-bottom:2px">都市防災カードバトル</p></div>
+      return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-bg-title" aria-hidden="true">Ready or Not</div><div class="lobby-box${enterClass}">
+    <div class="lobby-hero">${_neonIconsHtml}${_rlHtml}</div>
     ${body}
-    <div style="text-align:center;color:var(--t3);font-size:.7rem;margin-top:4px">簡易版 v3 ／ 2人用 ／ 各2都市 ／ 15〜20分</div>
   </div></div></div>`;
     }
 
@@ -3117,8 +3150,10 @@
       ${renderZoneReadOnly(mi, 'player')}
     </div>`;
       }
+      const _WICONS = [{src:'images/icons/neon_disaster.webp',glow:'248,81,73'},{src:'images/icons/neon_policy_instant.webp',glow:'210,153,34'},{src:'images/icons/neon_policy_shield.webp',glow:'63,185,80'},{src:'images/icons/neon_city.webp',glow:'56,139,253'}];
+      const _wNeonHtml = `<div class="lobby-neon-icons">${_WICONS.map((ic,i) => `<img class="lobby-neon-icon" id="wni-${i}" src="${ic.src}" alt="" style="filter:brightness(0.04)">`).join('')}</div>`;
       return `<div class="screen active"><div class="wait-screen">
-    <div class="wait-icon">⏳</div><div class="wait-title">${msg}</div>
+    ${_wNeonHtml}<div class="wait-title">${msg}</div>
     <div class="wait-sub">相手の操作をお待ちください</div>
   </div></div>`;
     }
