@@ -1691,26 +1691,36 @@
     .sl-icon-wrap.sl-lit img {
       filter: brightness(1)
     }
-    .sl-label {
-      font-size: .7rem;
-      font-weight: 600;
-      letter-spacing: .04em;
-      color: rgba(255,255,255,.4);
-      margin-top: 10px;
-      opacity: 0;
-      transition: opacity .4s ease
+    @keyframes sl-sweep-45 {
+      from { transform: rotate(45deg) translateX(-160px) }
+      to   { transform: rotate(45deg) translateX(160px) }
     }
-    .sl-icon-wrap.sl-lit .sl-label { opacity: 1 }
-    @keyframes sl-sweep { from { top: -4px } to { top: 100px } }
     .sl-scan-line {
       position: absolute;
-      left: -6px;
-      right: -6px;
-      height: 3px;
-      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.85) 30%, #fff 50%, rgba(255,255,255,.85) 70%, transparent 100%);
-      box-shadow: 0 0 10px 3px rgba(255,255,255,.5), 0 0 24px 6px rgba(255,255,255,.2);
-      top: -4px;
-      animation: sl-sweep .52s ease-in forwards
+      left: 48px;
+      top: 48px;
+      width: 200px;
+      height: 72px;
+      margin-left: -100px;
+      margin-top: -36px;
+      background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(255,255,255,.12) 20%,
+        rgba(255,255,255,.72) 44%,
+        rgba(255,255,255,.72) 56%,
+        rgba(255,255,255,.12) 80%,
+        transparent 100%
+      );
+      transform: rotate(45deg) translateX(-160px);
+      animation: sl-sweep-45 .56s ease-in forwards
+    }
+    @keyframes sl-icon-zoom {
+      0%   { transform: scale(1);   opacity: 1 }
+      100% { transform: scale(3.2); opacity: 0 }
+    }
+    .sl-icon-wrap.sl-zoom {
+      animation: sl-icon-zoom .42s cubic-bezier(.4,0,1,1) forwards
     }
   </style>
 </head>
@@ -2495,7 +2505,7 @@
         { src: 'images/icons/neon_city.webp',           label: '都市',    glow: '56,139,253' },
       ];
       const ov = document.createElement('div'); ov.className = 'sl-overlay';
-      ov.innerHTML = `<div class="sl-header"><div class="sl-title" id="sl-title">Ready or Not</div><div class="sl-subtitle" id="sl-sub">都市防災カードバトル</div></div><div class="sl-icon-row">${ICONS.map((ic, i) => `<div class="sl-icon-wrap" id="sl-ic-${i}"><div class="sl-icon-clip"><img src="${ic.src}" alt="${ic.label}"></div><div class="sl-label">${ic.label}</div></div>`).join('')}</div>`;
+      ov.innerHTML = `<div class="sl-header"><div class="sl-title" id="sl-title">Ready or Not</div><div class="sl-subtitle" id="sl-sub">都市防災カードバトル</div></div><div class="sl-icon-row">${ICONS.map((ic, i) => `<div class="sl-icon-wrap" id="sl-ic-${i}"><div class="sl-icon-clip"><img src="${ic.src}" alt="${ic.label}"></div></div>`).join('')}</div>`;
       document.body.appendChild(ov);
       setTimeout(() => { const t = document.getElementById('sl-title'), s = document.getElementById('sl-sub'); if (t) { t.style.opacity='1'; t.style.transform='translateY(0)'; } if (s) s.style.opacity='1'; }, 180);
       ICONS.forEach((ic, i) => {
@@ -2509,8 +2519,19 @@
           }, 500);
         }, 550 + i * 370);
       });
-      const done = 550 + ICONS.length * 370 + 650;
-      setTimeout(() => { ov.style.transition = 'opacity .65s ease'; ov.style.opacity = '0'; setTimeout(() => ov.remove(), 680); }, done);
+      // 全点灯後にズームしてロビーへ
+      const allLitAt = 550 + (ICONS.length - 1) * 370 + 500;
+      const zoomAt = allLitAt + 460;
+      setTimeout(() => {
+        ICONS.forEach((_, i) => {
+          const wrap = document.getElementById('sl-ic-' + i);
+          if (wrap) wrap.classList.add('sl-zoom');
+        });
+        const t = document.getElementById('sl-title'), s = document.getElementById('sl-sub');
+        if (t) { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; }
+        if (s) { s.style.transition = 'opacity .3s'; s.style.opacity = '0'; }
+      }, zoomAt);
+      setTimeout(() => { ov.style.transition = 'opacity .45s ease'; ov.style.opacity = '0'; setTimeout(() => ov.remove(), 480); }, zoomAt + 220);
     }
     function showBudgetToast(cost, rem, tot) {
       setTimeout(() => { const t = document.createElement('div'); t.className = 'budget-toast'; t.innerHTML = `<span style="color:var(--yellow)">−${cost}pt</span> 使用　残り <strong style="color:var(--green)">${rem}</strong><span style="color:var(--t2)">/${tot}</span>`; const a = document.getElementById('app'); if (a) a.appendChild(t); setTimeout(() => t.remove(), 1800); }, 0);
