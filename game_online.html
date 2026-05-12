@@ -2304,14 +2304,21 @@
     /* [DEV] プレビューボタン */
 
     /* ═══════════════════════════════════════════════════
-       MOBILE BATTLE LAYOUT — comprehensive fix
-       - バトル画面を 100dvh に収め、縦スクロールを廃止
-       - 相手手札バックカードを横スクロール化
-       - プレイヤーゾーンが残り領域をすべて取る
+       MOBILE BATTLE LAYOUT — comprehensive fix v2
     ═══════════════════════════════════════════════════ */
 
-    /* ── バトル画面アクティブ時：ビューポートをロック ── */
+    /* ── 防災協定（Peek）画面：縦方向センタリング ── */
+    .peek-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+    }
+
     @media (max-width: 600px) {
+
+      /* ── 1. バトル画面アクティブ時：ビューポートをロック ── */
       body:has(.battle-layout) {
         overflow: hidden;
         height: 100dvh;
@@ -2319,66 +2326,91 @@
       body:has(.battle-layout) #app {
         height: 100dvh;
         overflow: hidden;
-        padding: 6px 6px 0;
+        /* 上下ともsafe-area + 6px のパディング */
+        padding: calc(env(safe-area-inset-top, 0px) + 6px) 6px
+                 calc(env(safe-area-inset-bottom, 0px) + 6px);
       }
       body:has(.battle-layout) .screen.active {
         height: 100%;
         overflow: hidden;
       }
 
-      /* battle-layout 自体も高さを全て使う */
+      /* ── 2. battle-layout：上部に少し余白を追加（相手ゾーンを下げる） ── */
       .battle-layout {
         height: 100%;
         overflow: hidden;
         gap: 4px;
+        padding-top: 4px;
       }
 
-      /* 相手ゾーン：固定サイズ（縮まない）、コンパクト化 */
+      /* ── 3. ログ：モバイルバトル画面では非表示（ターンサマリーで代替） ── */
+      .battle-layout .log-area,
+      .screen.active > .log-area {
+        display: none;
+      }
+
+      /* ── 4. 相手ゾーン：固定サイズ・コンパクト化 ── */
       .opponent-zone {
         flex-shrink: 0;
         padding: 8px 10px;
       }
 
-      /* ログ：常に折りたたみ、モバイルでは2行まで */
-      .log-area {
-        flex-shrink: 0;
-        max-height: 50px;
-        overflow: hidden;
-      }
-      .log-area .log-toggle { display: none; }
-      .battle-layout .log-area .log-entry:nth-child(n+3) { display: none !important; }
-
-      /* ステータスバー・バナー類：固定 */
+      /* ── 5. ステータスバー・バナー類：縮まない ── */
       .state-banner,
       .status-bar,
       .auto-end-bar {
         flex-shrink: 0;
       }
 
-      /* プレイヤーゾーン：残り領域をすべて占有、内部スクロール */
+      /* ── 6. プレイヤーゾーン：flex-column で action-bar を最下部固定 ── */
       .player-zone {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 8px 10px 4px;
+      }
+
+      /* ── 7. 手札エリア：プレイヤーゾーン内でスクロール ── */
+      .player-zone .hand-cards-area {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding: 8px 10px;
-        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
       }
 
-      /* カードサイズ：相手手札コンパクト化に合わせて微調整 */
+      /* ── 8. action-bar / response-pending-bar を常に最下部へ ── */
+      .player-zone .action-bar,
+      .player-zone .auto-end-bar,
+      .player-zone .response-pending-bar {
+        flex-shrink: 0;
+        /* ハテナボタンの右スペースを避ける */
+        padding-right: 52px;
+      }
+      /* auto-end-bar は幅いっぱい使う */
+      .player-zone .auto-end-bar {
+        padding-right: 52px;
+      }
+
+      /* ── 9. ハテナ(?)ボタン：safe-area 下端に合わせて同じ高さに ── */
+      .hint-btn {
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+      }
+
+      /* ── 10. カードサイズ微調整 ── */
       :root {
         --card-h: 108px;
         --card-w: 76px;
       }
 
-      /* ── 相手手札バックカード：横スクロール化（折り返し禁止）── */
+      /* ── 11. 相手手札バックカード：横スクロール化 ── */
       .hand-back-row {
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         padding-bottom: 4px;
         gap: 5px;
-        /* スクロールバーを非表示 */
         scrollbar-width: none;
       }
       .hand-back-row::-webkit-scrollbar { display: none; }
@@ -2388,9 +2420,12 @@
         height: 84px;
       }
 
-      /* ── action bar をゾーンに密着させる ── */
-      .action-bar { padding: 4px 0; }
-      .response-pending-bar { flex-shrink: 0; }
+      /* ── 12. ターンサマリー：タイトルを下方向にずらす ── */
+      .turn-summary-box {
+        padding-top: 36px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
     }
   </style>
 </head>
@@ -4123,9 +4158,11 @@
           <div class="pk-cost" style="color:${costColor}">コスト: ${c.cost}</div>
           <div class="pk-desc">${c.desc}</div></div>`;
       }).join('');
-      return `<div class="screen active"><div style="text-align:center;padding:12px;color:var(--t2);font-size:.85rem">🔒 相手の手札（${cards.length}枚）</div>
+      return `<div class="screen active"><div class="peek-wrap">
+    <div style="text-align:center;padding:12px;color:var(--t2);font-size:.85rem">🔒 相手の手札（${cards.length}枚）</div>
     <div class="peek-card-display" style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px;padding:8px 12px 16px;justify-content:flex-start">${cardsHtml}</div>
-    <div style="text-align:center;margin-top:8px"><button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">確認した（閉じる）</button></div></div>`;
+    <div style="text-align:center;margin-top:8px"><button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">確認した（閉じる）</button></div>
+  </div></div>`;
     }
 
     // ─── ターンサマリー ───
