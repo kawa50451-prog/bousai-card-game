@@ -17,6 +17,10 @@
       padding: 0
     }
 
+    html {
+      background: #080d14;
+    }
+
     :root {
       --bg0: #0d1117;
       --bg1: #161b22;
@@ -39,6 +43,7 @@
       background: radial-gradient(ellipse at 30% 0%, #111827 0%, #0d1117 45%, #080d14 100%);
       color: var(--t1);
       min-height: 100vh;
+      min-height: 100dvh;
       overflow-x: hidden
     }
 
@@ -1980,7 +1985,8 @@
     .turn-banner {
       position:fixed; top:0; left:0; right:0;
       background:linear-gradient(90deg,rgba(250,42,78,.92) 0%,rgba(160,20,45,.7) 100%);
-      color:#fff; padding:10px 22px;
+      color:#fff;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 22px 10px;
       font-family:'Roboto Condensed','Arial Narrow',sans-serif;
       font-weight:900; font-size:1.25rem; letter-spacing:.18em; text-transform:uppercase;
       z-index:9999; pointer-events:none;
@@ -2296,6 +2302,96 @@
     .go-gallery-btn:hover { background:var(--blue); color:#fff; }
 
     /* [DEV] プレビューボタン */
+
+    /* ═══════════════════════════════════════════════════
+       MOBILE BATTLE LAYOUT — comprehensive fix
+       - バトル画面を 100dvh に収め、縦スクロールを廃止
+       - 相手手札バックカードを横スクロール化
+       - プレイヤーゾーンが残り領域をすべて取る
+    ═══════════════════════════════════════════════════ */
+
+    /* ── バトル画面アクティブ時：ビューポートをロック ── */
+    @media (max-width: 600px) {
+      body:has(.battle-layout) {
+        overflow: hidden;
+        height: 100dvh;
+      }
+      body:has(.battle-layout) #app {
+        height: 100dvh;
+        overflow: hidden;
+        padding: 6px 6px 0;
+      }
+      body:has(.battle-layout) .screen.active {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* battle-layout 自体も高さを全て使う */
+      .battle-layout {
+        height: 100%;
+        overflow: hidden;
+        gap: 4px;
+      }
+
+      /* 相手ゾーン：固定サイズ（縮まない）、コンパクト化 */
+      .opponent-zone {
+        flex-shrink: 0;
+        padding: 8px 10px;
+      }
+
+      /* ログ：常に折りたたみ、モバイルでは2行まで */
+      .log-area {
+        flex-shrink: 0;
+        max-height: 50px;
+        overflow: hidden;
+      }
+      .log-area .log-toggle { display: none; }
+      .battle-layout .log-area .log-entry:nth-child(n+3) { display: none !important; }
+
+      /* ステータスバー・バナー類：固定 */
+      .state-banner,
+      .status-bar,
+      .auto-end-bar {
+        flex-shrink: 0;
+      }
+
+      /* プレイヤーゾーン：残り領域をすべて占有、内部スクロール */
+      .player-zone {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 8px 10px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+
+      /* カードサイズ：相手手札コンパクト化に合わせて微調整 */
+      :root {
+        --card-h: 108px;
+        --card-w: 76px;
+      }
+
+      /* ── 相手手札バックカード：横スクロール化（折り返し禁止）── */
+      .hand-back-row {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+        gap: 5px;
+        /* スクロールバーを非表示 */
+        scrollbar-width: none;
+      }
+      .hand-back-row::-webkit-scrollbar { display: none; }
+      .hand-back-row .card-back {
+        flex-shrink: 0;
+        width: 62px;
+        height: 84px;
+      }
+
+      /* ── action bar をゾーンに密着させる ── */
+      .action-bar { padding: 4px 0; }
+      .response-pending-bar { flex-shrink: 0; }
+    }
   </style>
 </head>
 
