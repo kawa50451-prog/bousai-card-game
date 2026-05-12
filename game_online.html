@@ -612,8 +612,14 @@
     }
 
     .city-icon-sm {
-      font-size: 1.4rem
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0
     }
+    .city-icon-sm img { width: 22px; height: 22px; object-fit: contain }
 
     .hp-section {
       display: flex;
@@ -2177,7 +2183,7 @@
       // ── 相手ゾーン ──
       const isAttackActive = ts.step >= 6;
       const oppZone = `<div class="opponent-zone" style="border-left:3px solid var(--red)">
-        <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm">🗼</span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('tokyo')">東京 ⓘ</button><span class="terrain-badge">(内陸)</span></div>
+        <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm"><img src="images/icons/terrain_inland.webp" alt="" style="width:22px;height:22px;object-fit:contain"></span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('tokyo')">東京 ⓘ</button><span class="terrain-badge">(内陸)</span></div>
         <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:100%;background:var(--green)"></div></div><div class="hp-text" style="color:var(--green)">60/60</div></div>
         <div style="margin-top:4px">${isAttackActive ? `<div style="background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:4px 10px;font-size:.75rem;color:var(--red);display:inline-block">🌧️ 洪水 発動中</div>` : `<div class="hand-back-row">${Array(3).fill('<div class="card-back"><img src="images/cards/back.webp" alt=""></div>').join('')}</div>`}</div>
       </div>`;
@@ -2211,7 +2217,7 @@
       // ── プレイヤーゾーン ──
       const hpColor = ts.playerHp > 30 ? 'var(--green)' : ts.playerHp > 10 ? 'var(--yellow)' : 'var(--red)';
       const playerZone = `<div class="player-zone" style="border-left:3px solid var(--green)">
-        <div class="zone-header"><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm">🌸</span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('sendai')">仙台 ⓘ</button><span class="terrain-badge">(海岸)</span></div>
+        <div class="zone-header"><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm"><img src="images/icons/terrain_coastal.webp" alt="" style="width:22px;height:22px;object-fit:contain"></span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('sendai')">仙台 ⓘ</button><span class="terrain-badge">(海岸)</span></div>
         <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:${ts.playerHp/60*100}%;background:${hpColor}"></div></div><div class="hp-text" style="color:${hpColor}">${ts.playerHp}/60</div></div>
         <div style="margin-top:4px;min-height:24px">${shieldBadge}</div>
         <div class="hand-cards-area">${handHtml}</div>
@@ -2226,7 +2232,7 @@
         const terrainNote = cy.isCoastal ? '洪水・津波で +10ダメージ' : cy.isMountain ? '土砂崩れで +10ダメージ' : '地震で +10ダメージ';
         cityOverlay = `<div class="confirm-overlay" onclick="tutorialCloseCityPopup()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:300px;max-height:85vh;overflow-y:auto;padding:16px 20px;gap:10px">
           <img src="images/cities/${cy.id}.webp" alt="" style="width:100%;object-fit:contain;border-radius:10px;display:block" onerror="this.style.display='none'">
-          <div class="confirm-card-preview"><span>${cy.icon} ${cy.name}</span></div>
+          <div class="confirm-card-preview"><span>${terrainImg(cy, 20)} ${cy.name}</span></div>
           <div style="background:rgba(56,139,253,.1);border-radius:6px;padding:6px 10px;font-size:.78rem;color:var(--t2);margin:4px 0">
             <div style="color:var(--blue);font-weight:700;margin-bottom:2px">地形：${terrain}</div>
             <div>${terrainNote}</div>
@@ -2350,6 +2356,11 @@
       if (G.log.length > 40) G.log.length = 40;
     }
     function hpColor(hp, max) { const r = hp / max; if (r > 0.6) return '#3fb950'; if (r > 0.3) return '#d29922'; return '#f85149'; }
+    function terrainImg(city, size) {
+      const sz = size || 22;
+      const src = city.isCoastal ? 'images/icons/terrain_coastal.webp' : city.isMountain ? 'images/icons/terrain_mountain.webp' : 'images/icons/terrain_inland.webp';
+      return `<img src="${src}" alt="" style="width:${sz}px;height:${sz}px;object-fit:contain;vertical-align:middle;display:inline-block">`;
+    }
 
     function drawCards(pi, n) {
       const p = G.players[pi];
@@ -2390,7 +2401,7 @@
             const old = p.cities[p.activeCityIdx];
             p.cityHps[p.activeCityIdx] = 0; p.activeCityIdx = nxt; p.effects = mkEffects();
             addLog(`💥 ${p.name}の「${old.name}」壊滅！→「${p.cities[nxt].name}」に切り替え！`, 'sys');
-            G._nextTurnEvents[i].push({ type: 'city_switch', oldCityName: old.name, newCityIcon: p.cities[nxt].icon, newCityName: p.cities[nxt].name });
+            G._nextTurnEvents[i].push({ type: 'city_switch', oldCityName: old.name, newCityIcon: terrainImg(p.cities[nxt], 18), newCityName: p.cities[nxt].name });
             return false;
           } else { G.winner = i === 0 ? 1 : 0; G.screen = 'gameover'; pushState(); render(); return true; }
         }
@@ -2499,8 +2510,8 @@
 
     function endTurn() {
       const p = G.players[G.activePlayer]; const city = getActiveCity(G.activePlayer);
-      if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: city.icon, cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
-      if (city && city.abilityType === 'quake_regen' && p.effects.quakeHitThisTurn) { const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, city.hp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の能力（地震後回復）+${city.abilityValue}`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: city.icon, cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
+      if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
+      if (city && city.abilityType === 'quake_regen' && p.effects.quakeHitThisTurn) { const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, city.hp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の能力（地震後回復）+${city.abilityValue}`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
       p.effects.quakeHitThisTurn = false;
       G.turnsEach[G.activePlayer]++; const next = G.activePlayer === 0 ? 1 : 0; G.activePlayer = next;
       const evts = G._nextTurnEvents[next];
@@ -2535,7 +2546,7 @@
       function cityCard(c, idx) {
         return `<div class="gacha-card-box" onclick="selectCityOrder(${pi},${idx})" style="cursor:pointer;width:200px;transition:.2s;flex-shrink:0" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform=''">
         <img class="cityorder-city-img" src="images/cities/${c.id}.webp" alt="" onerror="this.style.display='none'">
-        <div style="font-size:2.5rem">${c.icon}</div>
+        <div style="height:40px;display:flex;align-items:center;justify-content:center">${terrainImg(c, 40)}</div>
         <div style="font-weight:700;font-size:1rem;margin:6px 0">${c.name}</div>
         <div class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</div>
         <div style="font-size:.8rem;color:var(--t2);margin-top:6px">HP ${c.hp}</div>
@@ -2889,72 +2900,62 @@
       const b1 = elR(btn);
       const b2 = badge ? elR(badge) : null;
       const b3 = budget ? elR(budget) : null;
-      const cw = Math.min(170, Math.floor(vw * 0.44));
-      const rx = vw - cw - 8;
+      const ITEMS = [
+        { b: b1, num: '①', color: '#388bfd', rx: '8', sw: '2.5', title: '都市名をタップ', desc: '地形・都市の特殊能力を確認できます' },
+        b2 ? { b: b2, num: '②', color: '#d29922', rx: '6', sw: '2', title: '地形属性', desc: '特定の災害で追加ダメージが発生' } : null,
+        b3 ? { b: b3, num: '③', color: '#3fb950', rx: '8', sw: '2', title: '予算', desc: '1ターンの使用上限。カードのコスト分を消費' } : null
+      ].filter(Boolean);
+      const bw = Math.min(152, Math.floor(vw * 0.38));
+      const lx = vw - bw - 8;
+      const maskHoles = ITEMS.map(c => `<rect x="${c.b.x}" y="${c.b.y}" width="${c.b.w}" height="${c.b.h}" rx="${c.rx}" fill="black"/>`).join('');
+      const hilights  = ITEMS.map(c => `<rect x="${c.b.x}" y="${c.b.y}" width="${c.b.w}" height="${c.b.h}" rx="${c.rx}" fill="none" stroke="${c.color}" stroke-width="${c.sw}"/>`).join('');
+      const boxes = ITEMS.map((c, i) =>
+        `<div class="mto-box-outer" id="mto-box${i}" style="position:absolute;left:${lx}px;top:-999px;width:${bw}px;overflow:hidden;border-radius:6px;z-index:1">` +
+        `<div class="mto-mask-inner" style="position:absolute;inset:0;background:#0d1117;z-index:2"></div>` +
+        `<div class="mto-box-content" style="background:rgba(22,27,34,0.96);border:1.5px solid ${c.color};border-radius:6px;padding:8px 10px;font-size:.76rem;color:#e6edf3;line-height:1.5;pointer-events:auto;opacity:0;transform:scale(1.06)" onclick="event.stopPropagation()">` +
+        `<div style="font-weight:700;color:${c.color};margin-bottom:3px">${c.num} ${c.title}</div>` +
+        `<div>${c.desc}</div>` +
+        `</div></div>`
+      ).join('');
       const overlay = document.createElement('div');
       overlay.id = 'main-tutorial-overlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
-      const maskHoles = [
-        `<rect x="${b1.x}" y="${b1.y}" width="${b1.w}" height="${b1.h}" rx="8" fill="black"/>`,
-        b2 ? `<rect x="${b2.x}" y="${b2.y}" width="${b2.w}" height="${b2.h}" rx="6" fill="black"/>` : '',
-        b3 ? `<rect x="${b3.x}" y="${b3.y}" width="${b3.w}" height="${b3.h}" rx="8" fill="black"/>` : ''
-      ].join('');
-      const hilights = [
-        `<rect x="${b1.x}" y="${b1.y}" width="${b1.w}" height="${b1.h}" rx="8" fill="none" stroke="#388bfd" stroke-width="2.5"/>`,
-        b2 ? `<rect x="${b2.x}" y="${b2.y}" width="${b2.w}" height="${b2.h}" rx="6" fill="none" stroke="#d29922" stroke-width="2"/>` : '',
-        b3 ? `<rect x="${b3.x}" y="${b3.y}" width="${b3.w}" height="${b3.h}" rx="8" fill="none" stroke="#3fb950" stroke-width="2"/>` : ''
-      ].join('');
       overlay.innerHTML =
-        `<svg id="mto-svg" style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="mto-mask"><rect width="${vw}" height="${vh}" fill="white"/>${maskHoles}</mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.78)" mask="url(#mto-mask)"/>${hilights}` +
-        `<polyline id="mto-ln1" points="0,0" fill="none" stroke="#388bfd" stroke-width="1" style="opacity:0"/>` +
-        (b2 ? `<polyline id="mto-ln2" points="0,0" fill="none" stroke="#d29922" stroke-width="1" style="opacity:0"/>` : '') +
-        (b3 ? `<polyline id="mto-ln3" points="0,0" fill="none" stroke="#3fb950" stroke-width="1" style="opacity:0"/>` : '') +
-        `</svg>` +
-        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:16px;right:${cw+20}px;z-index:1;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#fff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>` +
-        `<div id="mto-box0" style="position:absolute;left:${rx}px;top:0;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #388bfd;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#388bfd;margin-bottom:4px">都市名をタップ</div><div>地形・都市の特殊能力を確認できます</div></div>` +
-        (b2 ? `<div id="mto-box1" style="position:absolute;left:${rx}px;top:0;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #d29922;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#d29922;margin-bottom:4px">地形属性</div><div>特定の災害で<br><strong style="color:#d29922">追加ダメージ</strong>が発生</div></div>` : '') +
-        (b3 ? `<div id="mto-box2" style="position:absolute;left:${rx}px;top:0;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #3fb950;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#3fb950;margin-bottom:4px">予算</div><div>1ターンの使用上限<br>カードのコスト分を消費</div></div>` : '') +
+        `<svg id="mto-svg" style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="mto-mask"><rect width="${vw}" height="${vh}" fill="white"/>${maskHoles}</mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.78)" mask="url(#mto-mask)"/>${hilights}</svg>` +
+        boxes +
+        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:12px;right:${bw+16}px;z-index:5;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#fff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>` +
         `<div style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.4);font-size:.72rem;pointer-events:none;letter-spacing:.04em">タップして閉じる</div>`;
       overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; };
       document.body.style.overflow = 'hidden';
       document.body.appendChild(overlay);
-      // Dynamically stack boxes then draw lines
+      // Stack boxes vertically ①②③ from top, no overlaps
       requestAnimationFrame(() => {
-        const pairs = [
-          ['mto-box0', 'mto-ln1', b1],
-          ['mto-box1', 'mto-ln2', b2],
-          ['mto-box2', 'mto-ln3', b3]
-        ].filter(([, , el]) => el);
-        // Sort by element cy so top element → top box (prevents line crossings)
-        pairs.sort((pA, pB) => pA[2].cy - pB[2].cy);
-        // Stack boxes with gap
-        let nextTop = 12;
-        for (const [bid] of pairs) {
-          const bEl = document.getElementById(bid);
-          if (!bEl) continue;
-          bEl.style.top = nextTop + 'px';
-          nextTop += bEl.getBoundingClientRect().height + 12;
-        }
-        // Nested rAF: boxes positioned, now draw lines
+        let nextTop = 20;
+        ITEMS.forEach((_, i) => {
+          const boxEl = document.getElementById(`mto-box${i}`);
+          if (!boxEl) return;
+          boxEl.style.top = nextTop + 'px';
+          nextTop += boxEl.getBoundingClientRect().height + 10;
+        });
         requestAnimationFrame(() => {
-          for (const [bid, lid, b] of pairs) {
-            const bEl = document.getElementById(bid);
-            const lEl = document.getElementById(lid);
-            if (bEl && lEl) {
-              const br = bEl.getBoundingClientRect();
-              const bcy = br.top + br.height / 2;
-              const elbowX = br.left - 28;
-              lEl.setAttribute('points', `${b.cx},${b.cy} ${elbowX},${bcy} ${br.left},${bcy}`);
-              lEl.style.transition = 'opacity .3s ease';
-              lEl.style.opacity = '1';
-            }
-          }
-          // ① 引き出し線 → ② 説明欄
-          setTimeout(() => {
-            for (const [bid] of pairs) {
-              const el = document.getElementById(bid); if (el) el.style.opacity = '1';
-            }
-          }, 380);
+          ITEMS.forEach((_, i) => {
+            const boxEl = document.getElementById(`mto-box${i}`);
+            if (!boxEl) return;
+            const maskEl = boxEl.querySelector('.mto-mask-inner');
+            const contentEl = boxEl.querySelector('.mto-box-content');
+            setTimeout(() => {
+              maskEl.animate(
+                [{ transform: 'translateX(0)' }, { transform: 'translateX(101%)' }],
+                { duration: 750, easing: 'cubic-bezier(0.25,1,0.5,1)', fill: 'forwards' }
+              );
+              setTimeout(() => {
+                contentEl.animate(
+                  [{ opacity: 0, transform: 'scale(1.06)' }, { opacity: 1, transform: 'scale(1.0)' }],
+                  { duration: 900, easing: 'cubic-bezier(0.215,0.61,0.355,1)', fill: 'forwards' }
+                );
+              }, 60);
+            }, i * 150);
+          });
         });
       });
     }
@@ -3261,7 +3262,7 @@
       const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
       const isMe = (idx === myPlayerIdx);
       return `<div class="${position}-zone">
-    <div class="zone-header"><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}</div>
+    <div class="zone-header"><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? terrainImg(c) : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}</div>
     <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
     ${renderBackupCity(idx)}
     <div class="effects-row">${renderEffectBadges(p.effects)}</div>
@@ -3276,7 +3277,7 @@
     function renderGacha() {
       const gc = G.gachaCurrent; const p = G.players[gc.playerIdx];
       let firstPickInfo = '';
-      if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">✅ 1枚目：${fc.icon} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
+      if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">✅ 1枚目：${terrainImg(fc, 18)} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
       let ca = '';
       if (!gc.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullGacha()"><img src="images/cities/back.webp" alt=""></div><button class="btn-gacha" onclick="pullGacha()">🎲 ガチャを引く！</button>`; }
       else { const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`; }
@@ -3292,7 +3293,7 @@
       const bothOnFirst = G.players[0].activeCityIdx === 0 && G.players[1].activeCityIdx === 0;
       if (bothOnFirst && pi !== myPlayerIdx) return `<div class="backup-city-row"><span class="backup-label" style="color:var(--t3);font-style:italic">予備都市: 未登場</span></div>`;
       const bc = p.cities[1]; const bHp = p.cityHps[1]; const pct = Math.max(0, bHp / bc.hp * 100);
-      return `<div class="backup-city-row"><span class="backup-label">予備: ${bc.icon} ${bc.name}</span><div class="hp-bar-mini"><div class="hp-bar-mini-fill" style="width:${pct}%;background:${hpColor(bHp, bc.hp)}"></div></div><span class="backup-hp-text" style="color:${hpColor(bHp, bc.hp)}">${bHp}/${bc.hp}</span></div>`;
+      return `<div class="backup-city-row"><span class="backup-label">予備: ${terrainImg(bc, 16)} ${bc.name}</span><div class="hp-bar-mini"><div class="hp-bar-mini-fill" style="width:${pct}%;background:${hpColor(bHp, bc.hp)}"></div></div><span class="backup-hp-text" style="color:${hpColor(bHp, bc.hp)}">${bHp}/${bc.hp}</span></div>`;
     }
 
     // ─── 効果バッジ ───
@@ -3418,7 +3419,7 @@
         const bdr = isHolder && isMe ? 'border-left:3px solid var(--green)' : isHolder && !isMe ? 'border-left:3px solid var(--red)' : '';
         const terrainLabel = c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : '';
         return `<div class="${position}-zone" style="${bdr}">
-      <div class="zone-header"><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? c.icon : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${terrainLabel}</div>
+      <div class="zone-header"><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? terrainImg(c) : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${terrainLabel}</div>
       <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
       ${renderBackupCity(idx)}
       <div class="effects-row">${renderEffectBadges(p.effects)}</div>
@@ -3595,8 +3596,8 @@
     // ─── ゲームオーバー ───
     function renderGameOver() {
       const w = G.players[G.winner]; const li = G.winner === 0 ? 1 : 0; const l = G.players[li];
-      const wc = w.cities.map((c, i) => `${c.icon}${c.name}(${Math.max(0, w.cityHps[i])}HP)`).join('・');
-      const lc = l.cities.map((c, i) => `${c.icon}${c.name}(${Math.max(0, l.cityHps[i])}HP)`).join('・');
+      const wc = w.cities.map((c, i) => `${terrainImg(c, 16)} ${c.name}(${Math.max(0, w.cityHps[i])}HP)`).join('・');
+      const lc = l.cities.map((c, i) => `${terrainImg(c, 16)} ${c.name}(${Math.max(0, l.cityHps[i])}HP)`).join('・');
       return `<div class="screen active"><div class="gameover-box">
     <div class="go-icon">🏆</div><h2>${w.name} の勝利！</h2><p>${l.name}の都市がすべて壊滅しました。</p>
     <div style="margin:12px 0;padding:12px;background:var(--bg2);border-radius:10px;max-width:440px;font-size:.8rem;color:var(--t2);line-height:2">🏙️ ${w.name}：${wc}<br>💥 ${l.name}：${lc}</div>
@@ -3618,7 +3619,7 @@
       return `<div class="city-info-overlay" onclick="hideCityInfo()">
         <div class="city-info-box" onclick="event.stopPropagation()">
           <img src="images/cities/${c.id}.webp" style="width:120px;border-radius:10px;display:block;margin:0 auto 6px" alt="" onerror="this.style.display='none'">
-          <div style="font-size:1.4rem;text-align:center">${c.icon}</div>
+          <div style="text-align:center;margin-bottom:2px">${terrainImg(c, 28)}</div>
           <div style="font-size:1.1rem;font-weight:700;text-align:center;margin:3px 0">${c.name}</div>
           <div style="font-size:.73rem;color:var(--t2);text-align:center">${terrain} ／ HP <strong style="color:${hpColor(hp, mxHp)}">${hp}</strong>/${mxHp}</div>
           <div style="background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.3);border-radius:8px;padding:9px 12px;font-size:.82rem;margin-top:4px">
