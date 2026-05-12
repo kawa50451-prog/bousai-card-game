@@ -1513,7 +1513,7 @@
       }
 
       .lobby-title {
-        font-size: 2.1rem
+        font-size: min(3.8rem, 16vw)
       }
 
       .room-code-value {
@@ -1545,7 +1545,7 @@
     .gallery-tab-btn.active { border-color:#fa2a4e; background:rgba(250,42,78,.15); color:#fa2a4e }
     .tab-icon { width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0 }
     .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
-    .gallery-card { border-radius:8px; overflow:hidden; cursor:pointer; border:2px solid var(--bg3); transition:.15s; aspect-ratio:288/450 }
+    .gallery-card { border-radius:8px; overflow:hidden; cursor:pointer; border:2px solid var(--bg3); transition:.15s; aspect-ratio:288/450; position:relative }
     .gallery-card img { width:100%; height:100%; object-fit:cover; display:block }
     .gallery-card:hover { transform:translateY(-3px); border-color:var(--yellow); box-shadow:0 6px 16px rgba(0,0,0,.5) }
     .city-tap-btn { background:rgba(56,139,253,.13); border:1px solid rgba(56,139,253,.4); border-radius:14px; padding:3px 10px; color:var(--blue); cursor:pointer; font-size:.82rem; font-weight:600; white-space:nowrap; transition:.15s }
@@ -2673,18 +2673,30 @@
       _NEON_GLOWS.forEach((g, i) => playNeonAnim(document.getElementById('wni-'+i), g, i*130));
     }
     function initGalleryAnim() {
-      document.querySelectorAll('.gallery-card img').forEach((img, i) => {
-        img.style.filter = 'brightness(0)';
+      document.querySelectorAll('.gallery-card').forEach((card, i) => {
+        if (!card.querySelector('.gal-mask')) {
+          const m = document.createElement('div');
+          m.className = 'gal-mask';
+          m.style.cssText = 'position:absolute;inset:0;background:#0d1117;z-index:2;will-change:transform';
+          card.appendChild(m);
+        }
+        const mask = card.querySelector('.gal-mask');
+        const img = card.querySelector('img');
+        img.style.opacity = '0';
+        img.style.transform = 'scale(1.12)';
+        const delay = i * 75;
         setTimeout(() => {
-          img.animate([
-            { filter: 'brightness(0)',    offset: 0   },
-            { filter: 'brightness(2.0)', offset: .12 },
-            { filter: 'brightness(0.1)', offset: .30 },
-            { filter: 'brightness(1.5)', offset: .58 },
-            { filter: 'brightness(0.5)', offset: .75 },
-            { filter: 'brightness(1.0)', offset: 1   },
-          ], { duration: 850, easing: 'ease-in-out', fill: 'forwards' });
-        }, i * 55);
+          mask.animate(
+            [{ transform: 'translateX(0)' }, { transform: 'translateX(101%)' }],
+            { duration: 750, easing: 'cubic-bezier(0.25,1,0.5,1)', fill: 'forwards' }
+          );
+          setTimeout(() => {
+            img.animate(
+              [{ opacity: 0, transform: 'scale(1.12)' }, { opacity: 1, transform: 'scale(1.0)' }],
+              { duration: 1100, easing: 'cubic-bezier(0.215,0.61,0.355,1)', fill: 'forwards' }
+            );
+          }, 60);
+        }, delay);
       });
     }
     function initRonAnim(wrap, delay, noFlicker) {
@@ -2877,10 +2889,8 @@
       const b1 = elR(btn);
       const b2 = badge ? elR(badge) : null;
       const b3 = budget ? elR(budget) : null;
-      const cw = Math.min(180, vw - 40);
-      const rx = vw - cw - 12;
-      // Box order top→bottom: 都市名, 地形属性, 予算  (lines: b1→box0, b2→box1, b3→box2)
-      const boxTops = [Math.round(vh*0.04), Math.round(vh*0.30), Math.round(vh*0.55)];
+      const cw = Math.min(170, Math.floor(vw * 0.44));
+      const rx = vw - cw - 8;
       const overlay = document.createElement('div');
       overlay.id = 'main-tutorial-overlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
@@ -2901,40 +2911,51 @@
         (b3 ? `<polyline id="mto-ln3" points="0,0" fill="none" stroke="#3fb950" stroke-width="1" style="opacity:0"/>` : '') +
         `</svg>` +
         `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:16px;right:${cw+20}px;z-index:1;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#fff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>` +
-        `<div id="mto-box0" style="position:absolute;left:${rx}px;top:${boxTops[0]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #388bfd;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#388bfd;margin-bottom:4px">都市名をタップ</div><div>地形・都市の特殊能力を確認できます</div></div>` +
-        (b2 ? `<div id="mto-box1" style="position:absolute;left:${rx}px;top:${boxTops[1]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #d29922;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#d29922;margin-bottom:4px">地形属性</div><div>特定の災害で<br><strong style="color:#d29922">追加ダメージ</strong>が発生</div></div>` : '') +
-        (b3 ? `<div id="mto-box2" style="position:absolute;left:${rx}px;top:${boxTops[2]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #3fb950;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#3fb950;margin-bottom:4px">予算</div><div>1ターンの使用上限<br>カードのコスト分を消費</div></div>` : '') +
+        `<div id="mto-box0" style="position:absolute;left:${rx}px;top:0;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #388bfd;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#388bfd;margin-bottom:4px">都市名をタップ</div><div>地形・都市の特殊能力を確認できます</div></div>` +
+        (b2 ? `<div id="mto-box1" style="position:absolute;left:${rx}px;top:0;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #d29922;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#d29922;margin-bottom:4px">地形属性</div><div>特定の災害で<br><strong style="color:#d29922">追加ダメージ</strong>が発生</div></div>` : '') +
+        (b3 ? `<div id="mto-box2" style="position:absolute;left:${rx}px;top:0;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #3fb950;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#3fb950;margin-bottom:4px">予算</div><div>1ターンの使用上限<br>カードのコスト分を消費</div></div>` : '') +
         `<div style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.4);font-size:.72rem;pointer-events:none;letter-spacing:.04em">タップして閉じる</div>`;
       overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; };
       document.body.style.overflow = 'hidden';
       document.body.appendChild(overlay);
+      // Dynamically stack boxes then draw lines
       requestAnimationFrame(() => {
-        // Diagonal lines: element center → box left-center (交差しない順序: 都市名→box0, 地形→box1, 予算→box2)
         const pairs = [
           ['mto-box0', 'mto-ln1', b1],
           ['mto-box1', 'mto-ln2', b2],
           ['mto-box2', 'mto-ln3', b3]
-        ];
-        for (const [bid, lid, b] of pairs) {
-          if (!b) continue;
+        ].filter(([, , el]) => el);
+        // Sort by element cy so top element → top box (prevents line crossings)
+        pairs.sort((pA, pB) => pA[2].cy - pB[2].cy);
+        // Stack boxes with gap
+        let nextTop = 12;
+        for (const [bid] of pairs) {
           const bEl = document.getElementById(bid);
-          const lEl = document.getElementById(lid);
-          if (bEl && lEl) {
-            const br = bEl.getBoundingClientRect();
-            const bcy = br.top + br.height / 2;
-            const elbowX = br.left - 28;  // 斜め→水平への折れ点
-            // 3点: 要素中心 → 折れ点(box Y) → box左辺中心
-            lEl.setAttribute('points', `${b.cx},${b.cy} ${elbowX},${bcy} ${br.left},${bcy}`);
-            lEl.style.transition = 'opacity .3s ease';
-            lEl.style.opacity = '1';
-          }
+          if (!bEl) continue;
+          bEl.style.top = nextTop + 'px';
+          nextTop += bEl.getBoundingClientRect().height + 12;
         }
-        // ① 引き出し線 → ② 説明欄 の順番で表示
-        setTimeout(() => {
-          ['mto-box0','mto-box1','mto-box2'].forEach(id => {
-            const el = document.getElementById(id); if (el) el.style.opacity = '1';
-          });
-        }, 380);
+        // Nested rAF: boxes positioned, now draw lines
+        requestAnimationFrame(() => {
+          for (const [bid, lid, b] of pairs) {
+            const bEl = document.getElementById(bid);
+            const lEl = document.getElementById(lid);
+            if (bEl && lEl) {
+              const br = bEl.getBoundingClientRect();
+              const bcy = br.top + br.height / 2;
+              const elbowX = br.left - 28;
+              lEl.setAttribute('points', `${b.cx},${b.cy} ${elbowX},${bcy} ${br.left},${bcy}`);
+              lEl.style.transition = 'opacity .3s ease';
+              lEl.style.opacity = '1';
+            }
+          }
+          // ① 引き出し線 → ② 説明欄
+          setTimeout(() => {
+            for (const [bid] of pairs) {
+              const el = document.getElementById(bid); if (el) el.style.opacity = '1';
+            }
+          }, 380);
+        });
       });
     }
 
@@ -3135,7 +3156,7 @@
     <div style="font-size:.78rem;color:#fff;text-align:center;line-height:1.6;padding:2px 0">ホストの画面に表示されるQRコードはカメラから読み込んでください</div>
     ${err}
     <button class="lobby-btn-single" onclick="handleJoinClick()">参加する</button>
-    <button class="sq-btn-r" onclick="lobbyState.mode='select';lobbyState.error='';render()">＜</button>`;
+    <button class="sq-btn-r" onclick="lobbyState.mode='select';lobbyState.error='';render()">＜ ロビーに戻る</button>`;
       }
       const _rlLinesCls = _lobbyTitleAnimDone ? ' ron-active' : '';
       const _rlTextCls = _lobbyTitleAnimDone ? ' ron-active ron-flicker' : '';
