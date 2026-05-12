@@ -133,12 +133,23 @@
       font-family: 'Roboto Condensed', 'Arial Narrow', 'Hiragino Sans', sans-serif;
       color: #fa2a4e;
       margin: 0;
-      letter-spacing: .15em;
-      line-height: 1.1
+      letter-spacing: 0;
+      line-height: 1.1;
+      white-space: nowrap;
+      display: block;
+      width: 100%;
+      text-align: justify;
+      text-align-last: justify
     }
     .lobby-hero .ron-wrap {
       padding: 12px 0;
       margin-bottom: 4px;
+      display: block;
+      width: 100%;
+    }
+    .lobby-hero .ron-lines {
+      left: 0;
+      right: 0;
     }
 
     .lobby-label {
@@ -1524,7 +1535,9 @@
     .gallery-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:22px 20px; max-width:640px; width:100%; display:flex; flex-direction:column; gap:14px; box-shadow:0 12px 40px rgba(0,0,0,.5) }
     .gallery-header { display:flex; align-items:center; justify-content:space-between }
     .gallery-title { font-size:1.3rem; font-weight:700; text-align:center; flex:1 }
-    .gallery-btn-back { width:40px; height:40px; background:transparent; border:2px solid #fff; border-radius:6px; color:#fff; cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0 }
+    .gallery-btn-back { width:40px; height:40px; background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0 }
+    .sq-btn { background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:8px 14px; min-height:40px; display:inline-flex; align-items:center; justify-content:center; transition:background .15s; white-space:nowrap }
+    .sq-btn:hover { background:rgba(250,42,78,.1); border-color:#fa2a4e; color:#fa2a4e }
     .gallery-tabs { display:flex; flex-direction:column; gap:8px }
     .gallery-tab-btn { padding:12px 16px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:left; display:flex; align-items:center; gap:10px }
     .gallery-tab-btn:hover { border-color:#fa2a4e; background:rgba(250,42,78,.1); color:#fa2a4e }
@@ -1593,8 +1606,8 @@
     }
 
     /* ── 10. Hint overlay ── */
-    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:var(--bg2); border:1.5px solid var(--bg3); color:var(--t2); font-size:1rem; font-weight:700; cursor:pointer; z-index:900; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
-    .hint-btn:hover { border-color:var(--blue); color:var(--blue); background:rgba(56,139,253,.1) }
+    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:0; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:900; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
+    .hint-btn:hover { border-color:#fa2a4e; color:#fa2a4e; background:rgba(250,42,78,.1) }
     .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:1000; display:flex; align-items:flex-end; justify-content:center; padding:12px }
     .hint-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:20px 18px; max-width:520px; width:100%; max-height:72vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px }
     .hint-box-header { display:flex; align-items:center; justify-content:space-between }
@@ -2047,8 +2060,8 @@
     ];
 
     const TUT_STEPS = [
-      { title: '🏙️ ゲーム開始：都市カードを選ぼう', body: `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px"><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">01.</div><div><div style="font-weight:700;color:var(--blue);font-size:1.05rem">都市ガチャ</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">引いた2枚の都市で戦うことになります</div></div></div><div style="text-align:center;font-size:.9rem;color:var(--t3);line-height:1.2">↓</div><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">02.</div><div><div style="font-weight:700;color:var(--yellow);font-size:1.05rem">初期手札のドロー</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">政策2枚＋災害2枚を引く</div></div></div><div style="text-align:center;font-size:.9rem;color:var(--t3);line-height:1.2">↓</div><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">03.</div><div><div style="font-weight:700;color:var(--green);font-size:1.05rem">バトル開始！</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">相手の都市HPを0にしたら勝利</div></div></div></div><div style="font-size:.88rem;color:var(--t1);line-height:1.8">都市ごとに<strong>地形</strong>と<strong>固有能力</strong>が異なります。<br>🌊 <strong style="color:var(--blue)">海岸</strong> — 洪水・津波 +10追加ダメージ<br>🏔️ <strong>山間部</strong> — 土砂崩れ +10追加ダメージ<br>🏙️ <strong style="color:var(--yellow)">内陸</strong> — 地震 +10追加ダメージ</div><div style="font-size:.82rem;color:var(--t3);margin-top:6px">このチュートリアルは <strong>仙台（海岸）</strong> vs <strong>東京（内陸）</strong> で進みます。</div>`, highlight: null, btnLabel: '次へ →', action: 'next' },
-      { title: '🃏 初期手札のドロー', body: `都市選択後、山札から<strong>4枚の手札</strong>を引きます（政策2枚＋災害2枚）。<br><br><div style="display:flex;flex-direction:column;gap:10px"><div style="background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_policy_green.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--green);font-weight:700;font-size:.88rem;margin-bottom:4px">政策カード（緑）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">事前に<strong>設置</strong>するシールド型の守備カード。相手の特定攻撃を受けたとき自動で軽減・防御する。</div></div></div><div style="background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_policy_yellow.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--yellow);font-weight:700;font-size:.88rem;margin-bottom:4px">政策カード（黄）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">タップした瞬間に<strong>即発動</strong>する守備・回復カード。HP回復・ドロー・特殊効果を即時適用する。</div></div></div><div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_disaster.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--red);font-weight:700;font-size:.88rem;margin-bottom:4px">災害カード（赤）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">相手の都市にダメージを与える攻撃カード。地形が一致すると<strong>+10追加ダメージ</strong>！</div></div></div></div><div style="font-size:.72rem;color:var(--t3);margin-top:8px">毎ターン最大2枚ドロー。手札上限5枚。</div>`, highlight: null, btnLabel: 'バトルへ →', action: 'next' },
+      { title: '🏙️ ゲーム開始：都市カードを選ぼう', body: `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px"><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">01.</div><div><div style="font-weight:700;color:var(--blue);font-size:1.05rem">都市ガチャ</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">引いた2枚の都市で戦うことになります</div></div></div><div style="text-align:center;font-size:.9rem;color:var(--t3);line-height:1.2">↓</div><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">02.</div><div><div style="font-weight:700;color:var(--yellow);font-size:1.05rem">初期手札のドロー</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">政策2枚＋災害2枚を引く</div></div></div><div style="text-align:center;font-size:.9rem;color:var(--t3);line-height:1.2">↓</div><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">03.</div><div><div style="font-weight:700;color:var(--green);font-size:1.05rem">バトル開始！</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">相手の都市HPを0にしたら勝利</div></div></div></div><div style="font-size:.88rem;color:var(--t1);line-height:1.8">都市ごとに<strong>地形</strong>と<strong>固有能力</strong>が異なります。<br>🌊 <strong style="color:var(--blue)">海岸</strong> — 洪水・津波 +10追加ダメージ<br>🏔️ <strong>山間部</strong> — 土砂崩れ +10追加ダメージ<br>🏙️ <strong style="color:var(--yellow)">内陸</strong> — 地震 +10追加ダメージ</div><div style="font-size:.82rem;color:#e6edf3;margin-top:6px">このチュートリアルは <strong>仙台（海岸）</strong> vs <strong>東京（内陸）</strong> で進みます。</div>`, highlight: null, btnLabel: '次へ →', action: 'next' },
+      { title: '🃏 初期手札のドロー', body: `都市選択後、山札から<strong>4枚の手札</strong>を引きます（政策2枚＋災害2枚）。<br><br><div style="display:flex;flex-direction:column;gap:10px"><div style="background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_policy_green.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--green);font-weight:700;font-size:.88rem;margin-bottom:4px">政策カード（緑）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">事前に<strong>設置</strong>するシールド型の守備カード。相手の特定攻撃を受けたとき自動で軽減・防御する。</div></div></div><div style="background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_policy_yellow.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--yellow);font-weight:700;font-size:.88rem;margin-bottom:4px">政策カード（黄）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">タップした瞬間に<strong>即発動</strong>する守備・回復カード。HP回復・ドロー・特殊効果を即時適用する。</div></div></div><div style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_disaster.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--red);font-weight:700;font-size:.88rem;margin-bottom:4px">災害カード（赤）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">相手の都市にダメージを与える攻撃カード。地形が一致すると<strong>+10追加ダメージ</strong>！</div></div></div></div><div style="font-size:.72rem;color:#e6edf3;margin-top:8px">毎ターン最大2枚ドロー。手札上限5枚。</div>`, highlight: null, btnLabel: 'バトルへ →', action: 'next' },
       { title: '⚔️ バトル開始！', body: '<strong>上が相手ゾーン、下があなたのゾーン</strong>です。HPバーで残り体力が分かります。<br>・<strong>都市名（ⓘ）</strong>をタップ → 地形・都市能力を確認できます<br>・地形（海岸 / 内陸 / 山間部）によって特定の災害で追加ダメージを受けます<br>・下の手札の<strong>カードをタップ</strong>すると効果の詳細を確認できます<br>予算 <strong>3pt</strong> でカードを使えます。', highlight: null, btnLabel: '次へ →', action: 'next' },
       { title: '🛡️ 緑カードを設置しよう', body: '<strong>堤防建設（コスト2）</strong> をタップして設置。相手が洪水・津波を使ったとき、自動で <strong>-25軽減</strong> します。', highlight: 'dam', btnLabel: null, action: 'play_dam' },
       { title: '💛 黄カードで即時回復', body: '<strong>避難訓練（コスト1）</strong> をタップ。タップした瞬間に <strong>HP +20</strong> 回復します。', highlight: 'drill', btnLabel: null, action: 'play_drill' },
@@ -2071,6 +2084,12 @@
       render();
     }
 
+    function _tl(label) {
+      const s = label.replace(/[\s→←]+$/, '').replace(/^[\s→←]+/, '');
+      if (s === '次へ') return '＞';
+      if (s === '戻る') return '＜';
+      return s + ' ＞';
+    }
     function tutorialAction(action) {
       const ts = tutorialState; if (!ts) return;
       ts.skipWarning = false; ts.confirmCard = null;
@@ -2108,9 +2127,9 @@
       // ── 共通：進捗ドット・戻るボタン ──
       const dots = TUT_STEPS.map((_, i) => `<div class="tut-dot" style="background:${i === ts.step ? 'var(--blue)' : i < ts.step ? 'var(--green)' : 'var(--bg3)'}"></div>`).join('');
       const stepCounter = `<span style="font-size:.72rem;color:var(--t1);font-weight:600">${ts.step + 1} / ${TUT_STEPS.length}</span>`;
-      const backBtn = ts.step > 0 ? `<button style="padding:3px 8px;font-size:.7rem;background:var(--bg3);border:none;border-radius:6px;color:var(--t2);cursor:pointer" onclick="tutorialAction('back')">← 戻る</button>` : '';
+      const backBtn = ts.step > 0 ? `<button class="sq-btn" style="font-size:.75rem;min-height:28px;padding:3px 10px" onclick="tutorialAction('back')">＜</button>` : '';
       const progressRow = `<div style="display:flex;align-items:center;gap:6px">${backBtn}<div class="tut-progress">${dots}</div>${stepCounter}</div>`;
-      const lobbyBackBtn = `<button class="lobby-btn-back" style="width:auto;padding:8px 16px;margin-top:4px;align-self:flex-start" onclick="exitTutorial()">← ロビーに戻る</button>`;
+      const lobbyBackBtn = `<button class="sq-btn" style="margin-top:4px;align-self:flex-start" onclick="exitTutorial()">＜ ロビーに戻る</button>`;
 
       // ── 前半：説明カード（ステップ 0-1）──
       if (isPreBattle) {
@@ -2120,7 +2139,7 @@
             <div class="tut-guide-body">${step.body}</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
               ${progressRow}
-              <button class="btn-respond" onclick="tutorialAction('${step.action}')">${step.btnLabel}</button>
+              <button class="sq-btn" onclick="tutorialAction('${step.action}')">${_tl(step.btnLabel)}</button>
             </div>
           </div>
           ${lobbyBackBtn}
@@ -2136,13 +2155,13 @@
             <div class="tut-guide-title" style="font-size:1rem;text-align:center">${step.title}</div>
             ${feedbackHtml}
             <div class="tut-guide-body">${step.body}</div>
-            <button class="btn-respond" style="width:100%;padding:12px;font-size:.9rem" onclick="tutorialAction('finish')">${step.btnLabel}</button>
+            <button class="sq-btn" style="width:100%;padding:12px;font-size:.9rem" onclick="tutorialAction('finish')">${_tl(step.btnLabel)}</button>
           </div>
         </div></div>`;
       }
 
       // ── ガイドボックス（バトル用）──
-      const guideBtn = step.btnLabel ? `<button class="btn-respond" onclick="tutorialAction('${step.action}')">${step.btnLabel}</button>` : `<span style="font-size:.72rem;color:var(--t3)">↓ 光っているものをタップ</span>`;
+      const guideBtn = step.btnLabel ? `<button class="sq-btn" onclick="tutorialAction('${step.action}')">${_tl(step.btnLabel)}</button>` : `<span style="font-size:.72rem;color:var(--t3)">↓ 光っているものをタップ</span>`;
       const feedbackLine = ts.feedback ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.28);border-radius:8px;padding:8px 10px;font-size:.8rem;color:var(--green)">${ts.feedback}</div>` : '';
       const guideBox = `<div class="tut-guide">
         <div class="tut-guide-title">${step.title}</div>
@@ -2857,8 +2876,9 @@
       const b1 = elR(btn);
       const b2 = badge ? elR(badge) : null;
       const b3 = budget ? elR(budget) : null;
-      const cw = Math.min(220, vw - 40);
-      const cx = Math.round((vw - cw) / 2);
+      const cw = Math.min(180, vw - 40);
+      const rx = vw - cw - 12;   // boxes right-aligned, 12px from edge
+      const boxTops = [Math.round(vh*0.03), Math.round(vh*0.28), Math.round(vh*0.53)];
       const overlay = document.createElement('div');
       overlay.id = 'main-tutorial-overlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
@@ -2872,20 +2892,27 @@
         b2 ? `<rect x="${b2.x}" y="${b2.y}" width="${b2.w}" height="${b2.h}" rx="6" fill="none" stroke="#d29922" stroke-width="2"/>` : '',
         b3 ? `<rect x="${b3.x}" y="${b3.y}" width="${b3.w}" height="${b3.h}" rx="8" fill="none" stroke="#3fb950" stroke-width="2"/>` : ''
       ].join('');
-      overlay.innerHTML = `<svg id="mto-svg" style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="mto-mask"><rect width="${vw}" height="${vh}" fill="white"/>${maskHoles}</mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.78)" mask="url(#mto-mask)"/>${hilights}<line id="mto-line1" x1="0" y1="0" x2="0" y2="0" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="5,3"/>${b1?`<line id="mto-line2" x1="0" y1="0" x2="0" y2="0" stroke="#388bfd" stroke-width="1.5" stroke-dasharray="5,3"/>`:''} ${b2?`<line id="mto-line3" x1="0" y1="0" x2="0" y2="0" stroke="#d29922" stroke-width="1.5" stroke-dasharray="5,3"/>`:''}</svg>` +
-        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:16px;right:16px;z-index:1;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#ffffff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>` +
-        (b3 ? `<div id="mto-c1" style="position:absolute;left:${cx}px;top:${Math.round(vh*0.04)}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid #3fb950;border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#3fb950;margin-bottom:5px">💰 予算</div><div>1ターンの使用上限です<br>カードのコスト分だけ消費します<br><span style="color:#8b949e;font-size:.72rem">例：コスト2のカード → 予算2消費</span></div></div>` : '') +
-        `<div id="mto-c2" style="position:absolute;left:${cx}px;top:${Math.round(vh*0.20)}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid #388bfd;border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#388bfd;margin-bottom:5px">🏙️ 都市名をタップ</div><div>地形・都市の特殊能力を確認できます</div></div>` +
-        (b2 ? `<div id="mto-c3" style="position:absolute;left:${cx}px;top:${Math.round(vh*0.40)}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid #d29922;border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#d29922;margin-bottom:5px">⚠️ 地形バッジ</div><div>地形属性により特定の災害で<br><strong style="color:#d29922">追加ダメージ</strong>が発生します<br><span style="color:#8b949e;font-size:.72rem">例：海岸 → 洪水・津波 +10</span></div></div>` : '') +
+      // L-shaped connector polylines (element top-center → up to box Y → right to box left edge)
+      overlay.innerHTML =
+        `<svg id="mto-svg" style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="mto-mask"><rect width="${vw}" height="${vh}" fill="white"/>${maskHoles}</mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.78)" mask="url(#mto-mask)"/>${hilights}` +
+        (b3 ? `<polyline id="mto-line1" points="0,0" stroke="#3fb950" stroke-width="1" fill="none"/>` : '') +
+        `<polyline id="mto-line2" points="0,0" stroke="#388bfd" stroke-width="1" fill="none"/>` +
+        (b2 ? `<polyline id="mto-line3" points="0,0" stroke="#d29922" stroke-width="1" fill="none"/>` : '') +
+        `</svg>` +
+        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:16px;right:${cw+20}px;z-index:1;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#ffffff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>` +
+        (b3 ? `<div id="mto-c1" style="position:absolute;left:${rx}px;top:${boxTops[0]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #3fb950;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#3fb950;margin-bottom:4px">💰 予算</div><div>1ターンの使用上限<br>カードのコスト分を消費<br><span style="color:#8b949e;font-size:.7rem">例：コスト2 → 予算2消費</span></div></div>` : '') +
+        `<div id="mto-c2" style="position:absolute;left:${rx}px;top:${boxTops[1]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #388bfd;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#388bfd;margin-bottom:4px">🏙️ 都市名をタップ</div><div>地形・都市の特殊能力を確認できます</div></div>` +
+        (b2 ? `<div id="mto-c3" style="position:absolute;left:${rx}px;top:${boxTops[2]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #d29922;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#d29922;margin-bottom:4px">⚠️ 地形バッジ</div><div>特定の災害で<br><strong style="color:#d29922">追加ダメージ</strong>が発生<br><span style="color:#8b949e;font-size:.7rem">例：海岸 → 洪水・津波 +10</span></div></div>` : '') +
         `<div style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.4);font-size:.72rem;pointer-events:none;letter-spacing:.04em">タップして閉じる</div>`;
       overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; };
       document.body.style.overflow = 'hidden';
       document.body.appendChild(overlay);
       requestAnimationFrame(() => {
+        // L-shape: element top-center → vertical to box Y → horizontal to box left edge
         const pairs = [
-          ['mto-c1','mto-line1', b3],
-          ['mto-c2','mto-line2', b1],
-          ['mto-c3','mto-line3', b2]
+          ['mto-c1', 'mto-line1', b3],
+          ['mto-c2', 'mto-line2', b1],
+          ['mto-c3', 'mto-line3', b2]
         ];
         for (const [cid, lid, b] of pairs) {
           if (!b) continue;
@@ -2893,10 +2920,8 @@
           const lEl = document.getElementById(lid);
           if (cEl && lEl) {
             const cr = cEl.getBoundingClientRect();
-            lEl.setAttribute('x1', cr.left + cr.width / 2);
-            lEl.setAttribute('y1', cr.bottom);
-            lEl.setAttribute('x2', b.cx);
-            lEl.setAttribute('y2', b.y);
+            const bcy = cr.top + cr.height / 2;
+            lEl.setAttribute('points', `${b.cx},${b.y} ${b.cx},${bcy} ${cr.left},${bcy}`);
           }
         }
       });
@@ -2909,8 +2934,8 @@
         3: { sel: '.player-zone .card.tut-glow',  title: '🛡️ 緑カードをタップ',        body: '光っているカードをタップして設置しましょう',           color: '#3fb950' },
         4: { sel: '.player-zone .card.tut-glow',  title: '💛 黄カードをタップ',        body: '光っているカードをタップして即時回復！',             color: '#d29922' },
         5: { sel: '.btn-end.tut-glow',            title: '✅ ターン終了をタップ',      body: '光っているボタンを押して相手にターンを渡しましょう', color: '#388bfd' },
-        6: { sel: '.tut-guide .btn-respond',      title: '⚡ ボタンをタップ',         body: '対応フェーズへ進みましょう',                         color: '#f85149' },
-        7: { sel: '.tut-guide .btn-respond',      title: '🔄 ボタンをタップ',         body: '対応フェーズへ進みましょう',                         color: '#a371f7' },
+        6: { sel: '.tut-guide .sq-btn',           title: '⚡ ボタンをタップ',         body: '対応フェーズへ進みましょう',                         color: '#f85149' },
+        7: { sel: '.tut-guide .sq-btn',           title: '🔄 ボタンをタップ',         body: '対応フェーズへ進みましょう',                         color: '#a371f7' },
         8: { sel: '.player-zone .card.tut-glow',  title: '🛡️ 黄カードをタップ',       body: '光っているカードで洪水ダメージを相殺！',             color: '#d29922' }
       };
       const cfg = CFG[step]; if (!cfg) return;
@@ -2927,7 +2952,7 @@
       overlay.id = 'step-spotlight-overlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
       overlay.innerHTML =
-        `<svg style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="ss-mask"><rect width="${vw}" height="${vh}" fill="white"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="black"/></mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.72)" mask="url(#ss-mask)"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="none" stroke="${cfg.color}" stroke-width="2.5"/><line id="ss-line" x1="${cx+cw/2}" y1="${above?cy+80:cy}" x2="${b.cx}" y2="${above?b.y:b.y+b.h}" stroke="${cfg.color}" stroke-width="1.5" stroke-dasharray="5,3"/></svg>` +
+        `<svg style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="ss-mask"><rect width="${vw}" height="${vh}" fill="white"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="black"/></mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.72)" mask="url(#ss-mask)"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="none" stroke="${cfg.color}" stroke-width="2.5"/><line id="ss-line" x1="${cx+cw/2}" y1="${above?cy+80:cy}" x2="${b.cx}" y2="${above?b.y:b.y+b.h}" stroke="${cfg.color}" stroke-width="1"/></svg>` +
         `<div id="ss-callout" style="position:absolute;left:${cx}px;top:${cy}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid ${cfg.color};border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><button onclick="event.stopPropagation();document.getElementById('step-spotlight-overlay').remove();document.body.style.overflow=''" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#ffffff;font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1">×</button><div style="font-weight:700;color:${cfg.color};margin-bottom:5px;padding-right:20px">${cfg.title}</div><div>${cfg.body}</div></div>` +
         `<div style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.4);font-size:.72rem;pointer-events:none;letter-spacing:.04em">タップして閉じる</div>`;
       overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; };
