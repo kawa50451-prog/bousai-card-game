@@ -134,12 +134,10 @@
       color: #fa2a4e;
       margin: 0;
       letter-spacing: 0;
+      word-spacing: -0.12em;
       line-height: 1.1;
       white-space: nowrap;
-      display: block;
-      width: 100%;
-      text-align: justify;
-      text-align-last: justify
+      text-align: center
     }
     .lobby-hero .ron-wrap {
       padding: 12px 0;
@@ -1535,9 +1533,12 @@
     .gallery-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:22px 20px; max-width:640px; width:100%; display:flex; flex-direction:column; gap:14px; box-shadow:0 12px 40px rgba(0,0,0,.5) }
     .gallery-header { display:flex; align-items:center; justify-content:space-between }
     .gallery-title { font-size:1.3rem; font-weight:700; text-align:center; flex:1 }
-    .gallery-btn-back { width:40px; height:40px; background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0 }
-    .sq-btn { background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:8px 14px; min-height:40px; display:inline-flex; align-items:center; justify-content:center; transition:background .15s; white-space:nowrap }
+    .gallery-btn-back { width:40px; height:40px; background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0; transition:.2s }
+    .gallery-btn-back:hover { background:rgba(250,42,78,.1); border-color:#fa2a4e; color:#fa2a4e }
+    .sq-btn { background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:8px 14px; min-height:40px; display:inline-flex; align-items:center; justify-content:center; transition:.2s; white-space:nowrap }
     .sq-btn:hover { background:rgba(250,42,78,.1); border-color:#fa2a4e; color:#fa2a4e }
+    .sq-btn-r { background:transparent; border:1.5px solid #fff; border-radius:10px; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:10px 14px; width:100%; display:flex; align-items:center; justify-content:center; transition:.2s; margin-top:4px }
+    .sq-btn-r:hover { background:rgba(250,42,78,.1); border-color:#fa2a4e; color:#fa2a4e }
     .gallery-tabs { display:flex; flex-direction:column; gap:8px }
     .gallery-tab-btn { padding:12px 16px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:left; display:flex; align-items:center; gap:10px }
     .gallery-tab-btn:hover { border-color:#fa2a4e; background:rgba(250,42,78,.1); color:#fa2a4e }
@@ -1606,7 +1607,7 @@
     }
 
     /* ── 10. Hint overlay ── */
-    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:0; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:900; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
+    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:900; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
     .hint-btn:hover { border-color:#fa2a4e; color:#fa2a4e; background:rgba(250,42,78,.1) }
     .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:1000; display:flex; align-items:flex-end; justify-content:center; padding:12px }
     .hint-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:20px 18px; max-width:520px; width:100%; max-height:72vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px }
@@ -2877,8 +2878,9 @@
       const b2 = badge ? elR(badge) : null;
       const b3 = budget ? elR(budget) : null;
       const cw = Math.min(180, vw - 40);
-      const rx = vw - cw - 12;   // boxes right-aligned, 12px from edge
-      const boxTops = [Math.round(vh*0.03), Math.round(vh*0.28), Math.round(vh*0.53)];
+      const rx = vw - cw - 12;
+      // Box order top→bottom: 都市名, 地形属性, 予算  (lines: b1→box0, b2→box1, b3→box2)
+      const boxTops = [Math.round(vh*0.04), Math.round(vh*0.30), Math.round(vh*0.55)];
       const overlay = document.createElement('div');
       overlay.id = 'main-tutorial-overlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
@@ -2892,38 +2894,47 @@
         b2 ? `<rect x="${b2.x}" y="${b2.y}" width="${b2.w}" height="${b2.h}" rx="6" fill="none" stroke="#d29922" stroke-width="2"/>` : '',
         b3 ? `<rect x="${b3.x}" y="${b3.y}" width="${b3.w}" height="${b3.h}" rx="8" fill="none" stroke="#3fb950" stroke-width="2"/>` : ''
       ].join('');
-      // L-shaped connector polylines (element top-center → up to box Y → right to box left edge)
       overlay.innerHTML =
         `<svg id="mto-svg" style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="mto-mask"><rect width="${vw}" height="${vh}" fill="white"/>${maskHoles}</mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.78)" mask="url(#mto-mask)"/>${hilights}` +
-        (b3 ? `<polyline id="mto-line1" points="0,0" stroke="#3fb950" stroke-width="1" fill="none"/>` : '') +
-        `<polyline id="mto-line2" points="0,0" stroke="#388bfd" stroke-width="1" fill="none"/>` +
-        (b2 ? `<polyline id="mto-line3" points="0,0" stroke="#d29922" stroke-width="1" fill="none"/>` : '') +
+        `<polyline id="mto-ln1" points="0,0" fill="none" stroke="#388bfd" stroke-width="1" style="opacity:0"/>` +
+        (b2 ? `<polyline id="mto-ln2" points="0,0" fill="none" stroke="#d29922" stroke-width="1" style="opacity:0"/>` : '') +
+        (b3 ? `<polyline id="mto-ln3" points="0,0" fill="none" stroke="#3fb950" stroke-width="1" style="opacity:0"/>` : '') +
         `</svg>` +
-        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:16px;right:${cw+20}px;z-index:1;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#ffffff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>` +
-        (b3 ? `<div id="mto-c1" style="position:absolute;left:${rx}px;top:${boxTops[0]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #3fb950;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#3fb950;margin-bottom:4px">💰 予算</div><div>1ターンの使用上限<br>カードのコスト分を消費<br><span style="color:#8b949e;font-size:.7rem">例：コスト2 → 予算2消費</span></div></div>` : '') +
-        `<div id="mto-c2" style="position:absolute;left:${rx}px;top:${boxTops[1]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #388bfd;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#388bfd;margin-bottom:4px">🏙️ 都市名をタップ</div><div>地形・都市の特殊能力を確認できます</div></div>` +
-        (b2 ? `<div id="mto-c3" style="position:absolute;left:${rx}px;top:${boxTops[2]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #d29922;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><div style="font-weight:700;color:#d29922;margin-bottom:4px">⚠️ 地形バッジ</div><div>特定の災害で<br><strong style="color:#d29922">追加ダメージ</strong>が発生<br><span style="color:#8b949e;font-size:.7rem">例：海岸 → 洪水・津波 +10</span></div></div>` : '') +
+        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:16px;right:${cw+20}px;z-index:1;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#fff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>` +
+        `<div id="mto-box0" style="position:absolute;left:${rx}px;top:${boxTops[0]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #388bfd;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#388bfd;margin-bottom:4px">都市名をタップ</div><div>地形・都市の特殊能力を確認できます</div></div>` +
+        (b2 ? `<div id="mto-box1" style="position:absolute;left:${rx}px;top:${boxTops[1]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #d29922;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#d29922;margin-bottom:4px">地形属性</div><div>特定の災害で<br><strong style="color:#d29922">追加ダメージ</strong>が発生</div></div>` : '') +
+        (b3 ? `<div id="mto-box2" style="position:absolute;left:${rx}px;top:${boxTops[2]}px;width:${cw}px;background:rgba(22,27,34,0.96);border:1px solid #3fb950;border-radius:6px;padding:8px 12px;font-size:.78rem;color:#e6edf3;line-height:1.55;pointer-events:auto;opacity:0;transition:opacity .35s ease" onclick="event.stopPropagation()"><div style="font-weight:700;color:#3fb950;margin-bottom:4px">予算</div><div>1ターンの使用上限<br>カードのコスト分を消費</div></div>` : '') +
         `<div style="position:absolute;bottom:20px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.4);font-size:.72rem;pointer-events:none;letter-spacing:.04em">タップして閉じる</div>`;
       overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; };
       document.body.style.overflow = 'hidden';
       document.body.appendChild(overlay);
       requestAnimationFrame(() => {
-        // L-shape: element top-center → vertical to box Y → horizontal to box left edge
+        // Diagonal lines: element center → box left-center (交差しない順序: 都市名→box0, 地形→box1, 予算→box2)
         const pairs = [
-          ['mto-c1', 'mto-line1', b3],
-          ['mto-c2', 'mto-line2', b1],
-          ['mto-c3', 'mto-line3', b2]
+          ['mto-box0', 'mto-ln1', b1],
+          ['mto-box1', 'mto-ln2', b2],
+          ['mto-box2', 'mto-ln3', b3]
         ];
-        for (const [cid, lid, b] of pairs) {
+        for (const [bid, lid, b] of pairs) {
           if (!b) continue;
-          const cEl = document.getElementById(cid);
+          const bEl = document.getElementById(bid);
           const lEl = document.getElementById(lid);
-          if (cEl && lEl) {
-            const cr = cEl.getBoundingClientRect();
-            const bcy = cr.top + cr.height / 2;
-            lEl.setAttribute('points', `${b.cx},${b.y} ${b.cx},${bcy} ${cr.left},${bcy}`);
+          if (bEl && lEl) {
+            const br = bEl.getBoundingClientRect();
+            const bcy = br.top + br.height / 2;
+            const elbowX = br.left - 28;  // 斜め→水平への折れ点
+            // 3点: 要素中心 → 折れ点(box Y) → box左辺中心
+            lEl.setAttribute('points', `${b.cx},${b.cy} ${elbowX},${bcy} ${br.left},${bcy}`);
+            lEl.style.transition = 'opacity .3s ease';
+            lEl.style.opacity = '1';
           }
         }
+        // ① 引き出し線 → ② 説明欄 の順番で表示
+        setTimeout(() => {
+          ['mto-box0','mto-box1','mto-box2'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.style.opacity = '1';
+          });
+        }, 380);
       });
     }
 
@@ -3121,9 +3132,10 @@
       } else {
         body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 鈴木" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
     <div><label class="lobby-label">ルームコード（6文字）</label><input id="lobby-code" class="lobby-input code-input" type="text" placeholder="AB3K7X" maxlength="6" value="${jv}" oninput="lobbyState.joinCodeInput=this.value.toUpperCase();this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')handleJoinClick()"></div>
+    <div style="font-size:.78rem;color:#fff;text-align:center;line-height:1.6;padding:2px 0">ホストの画面に表示されるQRコードはカメラから読み込んでください</div>
     ${err}
     <button class="lobby-btn-single" onclick="handleJoinClick()">参加する</button>
-    <button class="lobby-btn-back" onclick="lobbyState.mode='select';lobbyState.error='';render()">← 戻る</button>`;
+    <button class="sq-btn-r" onclick="lobbyState.mode='select';lobbyState.error='';render()">＜</button>`;
       }
       const _rlLinesCls = _lobbyTitleAnimDone ? ' ron-active' : '';
       const _rlTextCls = _lobbyTitleAnimDone ? ' ron-active ron-flicker' : '';
@@ -3145,7 +3157,7 @@
     function renderWaitingConnection() {
       if (myRole === 'p1') {
         return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
-      <div style="text-align:center"><div style="font-size:2rem;margin-bottom:6px">🏠 ホスト待機中</div><p style="color:var(--t2);font-size:.88rem">相手にルームコードまたはQRコードを共有してください</p></div>
+      <div style="text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;color:#e6edf3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span style="font-size:1.3rem;font-weight:700;color:#e6edf3">ホスト待機中</span></div><p style="color:var(--t2);font-size:.88rem">相手にルームコードまたはQRコードを共有してください</p></div>
       <div class="room-code-display"><div class="room-code-label">ルームコード</div><div class="room-code-value">${roomId || '------'}</div></div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
         <div id="qr-container" style="background:var(--bg2);padding:10px;border-radius:10px;border:1px solid var(--bg3);min-height:52px;display:flex;align-items:center;justify-content:center"></div>
