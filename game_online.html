@@ -2318,19 +2318,19 @@
 
     @media (max-width: 600px) {
 
-      /* ── 1. バトル画面アクティブ時：ビューポートをロック ── */
-      body:has(.battle-layout) {
+      /* ── 1. バトル画面アクティブ時：ビューポートをロック（JS が body.battle-active を付与） ── */
+      body.battle-active {
         overflow: hidden;
         height: 100dvh;
       }
-      body:has(.battle-layout) #app {
+      body.battle-active #app {
         height: 100dvh;
         overflow: hidden;
         /* 上下ともsafe-area + 6px のパディング */
         padding: calc(env(safe-area-inset-top, 0px) + 6px) 6px
                  calc(env(safe-area-inset-bottom, 0px) + 6px);
       }
-      body:has(.battle-layout) .screen.active {
+      body.battle-active .screen.active {
         height: 100%;
         overflow: hidden;
       }
@@ -2372,9 +2372,9 @@
         padding: 8px 10px 4px;
       }
 
-      /* ── 7. 手札エリア：プレイヤーゾーン内でスクロール ── */
+      /* ── 7. 手札エリア：自然高さ+縮小可能（flex:1 だと空白ができるため削除） ── */
       .player-zone .hand-cards-area {
-        flex: 1;
+        flex-shrink: 1;
         min-height: 0;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -2425,6 +2425,13 @@
         padding-top: 36px;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+      }
+
+      /* ── 13. YOUR TURN バナー：ターンサマリータイトルと同じ高さに表示 ── */
+      .turn-banner {
+        top: calc(env(safe-area-inset-top, 0px) + 72px);
+        padding: 10px 22px;
+        border-radius: 0 0 8px 8px;
       }
     }
   </style>
@@ -3605,6 +3612,9 @@
     // ═══════════════════════════════════════
     function render() {
       const app = document.getElementById('app'); const view = myView(); let html = '';
+      const _battleViews = ['main', 'response', 'waiting_response'];
+      document.body.classList.toggle('battle-active', _battleViews.includes(view));
+      if (!_battleViews.includes(view)) window.scrollTo(0, 0);
       const _wasLobbyEnter = _lobbyEnter;
       switch (view) {
         case 'setup_required': html = renderSetupRequired(); break;
