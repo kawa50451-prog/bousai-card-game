@@ -2326,9 +2326,9 @@
       body.battle-active #app {
         height: 100dvh;
         overflow: hidden;
-        /* 上下ともsafe-area + 6px のパディング */
+        /* 上: safe-area + 6px、下: safe-area + 12px（枠線を確実に表示） */
         padding: calc(env(safe-area-inset-top, 0px) + 6px) 6px
-                 calc(env(safe-area-inset-bottom, 0px) + 6px);
+                 calc(env(safe-area-inset-bottom, 0px) + 12px);
       }
       body.battle-active .screen.active {
         height: 100%;
@@ -2380,21 +2380,18 @@
         -webkit-overflow-scrolling: touch;
       }
 
-      /* ── 8. action-bar / response-pending-bar を常に最下部へ ── */
+      /* ── 8. action-bar / response-pending-bar：カードの直下でなく下部へ押し出す ── */
       .player-zone .action-bar,
       .player-zone .auto-end-bar,
       .player-zone .response-pending-bar {
         flex-shrink: 0;
-        /* ハテナボタンの右スペースを避ける */
-        padding-right: 52px;
-      }
-      /* auto-end-bar は幅いっぱい使う */
-      .player-zone .auto-end-bar {
-        padding-right: 52px;
+        margin-top: auto;   /* カードとの間にスペースを作り、ボタンを下部へ */
+        margin-bottom: 4px;
       }
 
-      /* ── 9. ハテナ(?)ボタン：safe-area 下端に合わせて同じ高さに ── */
+      /* ── 9. ハテナ(?)ボタン：プレイヤーゾーンのフレーム右下コーナーに重ねる ── */
       .hint-btn {
+        right: 0;
         bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
       }
 
