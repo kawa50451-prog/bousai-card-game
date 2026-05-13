@@ -2380,14 +2380,24 @@
         -webkit-overflow-scrolling: touch;
       }
 
-      /* ── 8. action-bar / response-pending-bar：カードの直下でなく下部へ押し出す ── */
+      /* ── 8a. ターン終了・自動終了：カードとの間にスペースを作り下部へ押し出す ── */
       .player-zone .action-bar,
-      .player-zone .auto-end-bar,
-      .player-zone .response-pending-bar {
+      .player-zone .auto-end-bar {
         flex-shrink: 0;
-        margin-top: auto;   /* カードとの間にスペースを作り、ボタンを下部へ */
+        margin-top: auto;
         margin-bottom: 4px;
       }
+
+      /* ── 8b. 対応フェーズバー：カードの直下に自然配置（下部に押し出すと見切れるため） ── */
+      .player-zone .response-pending-bar {
+        flex-shrink: 0;
+        margin-top: 10px;
+        margin-bottom: 4px;
+        padding: 8px 10px;
+        gap: 6px;
+      }
+      .player-zone .response-pending-bar .rpb-icon { font-size: 1.1rem; }
+      .player-zone .response-pending-bar .rpb-text { font-size: .78rem; }
 
       /* ── 9. ハテナ(?)ボタン：プレイヤーゾーンのフレーム右下コーナーに重ねる ── */
       .hint-btn {
