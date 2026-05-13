@@ -2362,14 +2362,18 @@
         flex-shrink: 0;
       }
 
-      /* ── 6. プレイヤーゾーン：flex-column で action-bar を最下部固定 ── */
+      /* ── 6. プレイヤーゾーン：自ターン時はコンテンツ分だけ（コンパクト）、対応フェーズ時に拡張 ── */
       .player-zone {
-        flex: 1;
+        flex: 0 1 auto;   /* 自ターン：コンテンツ高さだけ使用、余白は枠外に */
         min-height: 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
         padding: 8px 10px 4px;
+      }
+      /* 対応フェーズ：response-pending-bar のスペースを確保するために拡張 */
+      .battle-layout.response-phase .player-zone {
+        flex: 1;
       }
 
       /* ── 7. 手札エリア：自然高さ+縮小可能（flex:1 だと空白ができるため削除） ── */
@@ -4057,7 +4061,7 @@
         actionBar = `<div class="action-bar"><button class="btn-end" onclick="requestEndTurn()">ターン終了 →</button></div>`;
       }
 
-      return `<div class="screen active"><div class="battle-layout">
+      return `<div class="screen active"><div class="battle-layout${isResponsePhase ? ' response-phase' : ''}">
     ${stateBanner}
     ${renderZone(oi, 'opponent')}
     <div class="log-area${_logExpanded ? '' : ' log-collapsed'}" id="log-area">${logAll || '<div class="log-entry sys">ゲーム開始</div>'}${toggleBtn}</div>
