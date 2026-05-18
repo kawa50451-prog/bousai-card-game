@@ -2326,6 +2326,15 @@
     .spec-gameover-box { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:28px 16px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px; }
     .spec-gameover-winner { font-size:1.2rem; font-weight:700; color:var(--green); }
     .spec-gameover-loser { font-size:.88rem; color:var(--t2); }
+    .spec-player-block { display:flex; flex-direction:column; gap:8px; }
+    .spec-tab-bar { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:4px; }
+    .spec-tab-btn { padding:10px; border-radius:10px; border:1px solid var(--bg3); background:var(--bg2); color:var(--t2); font-size:.88rem; font-weight:700; cursor:pointer; font-family:'Roboto Condensed',sans-serif; letter-spacing:.04em; transition:.2s; }
+    .spec-tab-btn.active { border-color:var(--blue); color:var(--blue); background:rgba(56,139,253,.1); }
+    .spec-learn-city-header { display:flex; align-items:center; gap:6px; font-size:.9rem; font-weight:700; color:var(--t1); margin-bottom:6px; }
+    .spec-learn-text { font-size:.8rem; color:var(--t2); line-height:1.7; }
+    .spec-learn-sub { font-size:.75rem; color:var(--t3); margin-bottom:10px; }
+    .spec-learn-box { background:var(--bg3); border-radius:10px; padding:12px; margin-bottom:8px; }
+    .spec-learn-box:last-child { margin-bottom:0; }
 
     .go-share-btn {
       width:100%; padding:11px 32px;
@@ -2629,6 +2638,7 @@
     let myPlayerIdx = 0;      // 0 | 1
     let roomId = null;
     let _rematchListenerSet = false;
+    let _specTab = 0;
     let _rematchRequested = false;
     let _presenceConnRef = null;
     let _presenceOppRef = null;
@@ -3485,6 +3495,19 @@
     function initWaitNeonIcons() {
       _NEON_GLOWS.forEach((g, i) => playNeonAnim(document.getElementById('wni-'+i), g, i*130));
     }
+    function initSpecNeonIcons() {
+      _NEON_GLOWS.forEach((g, i) => playNeonAnim(document.getElementById('sni-'+i), g, i*130));
+    }
+    function setSpecTab(n) { _specTab = n; render(); }
+    function copySpecReport() {
+      if (!G || G.winner === null || G.winner === undefined) return;
+      const wi = G.winner; const w = G.players[wi]; const l = G.players[wi===0?1:0];
+      const totalTurns = G.turnsEach[0] + G.turnsEach[1];
+      const p0cities = G.players[0].cities.map(c=>c.name).join('・');
+      const p1cities = G.players[1].cities.map(c=>c.name).join('・');
+      const text = `【観戦レポート】\n${w.name} vs ${l.name}\n結果：${w.name} の勝利\n総ターン数：${totalTurns}\n${G.players[0].name} 都市：${p0cities}\n${G.players[1].name} 都市：${p1cities}\n#ReadyOrNot #防災`;
+      _copyText(text, '観戦レポートをコピー');
+    }
     function initGalleryAnim() {
       document.querySelectorAll('.gallery-card').forEach((card, i) => {
         if (!card.querySelector('.gal-mask')) {
@@ -3993,6 +4016,8 @@
       }
       if (view === 'gameover') setTimeout(initGoObserver, 60);
       if (view === 'waiting') setTimeout(initWaitNeonIcons, 60);
+      if (view === 'spectator' && G.screen === 'gameover') setTimeout(initGoObserver, 60);
+      if (view === 'spectator' && ['gacha','cityOrder','draft','turnDraw','turnSummary'].includes(G.screen)) setTimeout(initSpecNeonIcons, 60);
       if (view === 'main' && _pendingMainHpAnims.length > 0) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
       if (view === 'main' && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
@@ -4563,27 +4588,34 @@
       const _svgEyeHd = `<svg style="width:16px;height:16px;color:var(--blue)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
       const screen = G.screen;
       const p0 = G.players[0]; const p1 = G.players[1];
-      const header = `<div class="spec-header">${_svgEyeHd}<span class="spec-badge">観戦中</span><span class="spec-turn-info">${G.players[G.activePlayer]?.name || ''} のターン</span><button class="spec-exit-btn-small" onclick="restartGame()">退出</button></div>`;
+      const ap = G.activePlayer;
+      const header = `<div class="spec-header">${_svgEyeHd}<span class="spec-badge">観戦中</span><span class="spec-turn-info">${G.players[ap]?.name || ''} のターン</span><button class="spec-exit-btn-small" onclick="restartGame()">退出</button></div>`;
 
-      // ゲーム開始前（ガチャ・都市選択・ドラフト中）
-      const preGame = ['gacha','cityOrder','draft','turnDraw'];
-      if (preGame.includes(screen) || !p0.cities || p0.cities.length === 0) {
-        return `<div class="screen active spec-screen">${header}<div class="spec-waiting"><div style="font-size:2rem">⏳</div><div class="spec-waiting-text">対戦準備中...</div><div class="spec-player-names">${p0.name} vs ${p1.name}</div></div><button class="spec-exit-btn" onclick="restartGame()">ロビーに戻る</button></div>`;
+      // ─ カード引き中・準備中 ─
+      const drawingScreens = ['gacha','cityOrder','draft','turnDraw','turnSummary'];
+      if (drawingScreens.includes(screen) || !p0.cities || p0.cities.length === 0) {
+        let drawMsg = `${p0.name} vs ${p1.name} — 対戦準備中...`;
+        if (screen === 'turnDraw') { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? ap; drawMsg = `${G.players[pi].name} がカードを引いています`; }
+        else if (screen === 'draft') { drawMsg = `${G.players[G.draftState?.playerIdx ?? ap].name} が初期手札を引いています`; }
+        else if (screen === 'gacha') { drawMsg = `${G.players[G.gachaCurrent?.playerIdx ?? ap].name} が都市を選んでいます`; }
+        else if (screen === 'cityOrder') { drawMsg = `${G.players[G.cityOrderState?.playerIdx ?? ap].name} が戦闘順を選んでいます`; }
+        else if (screen === 'turnSummary') { drawMsg = `${G.players[ap].name} がターンサマリーを確認しています`; }
+        const _SICONS = [{src:'images/icons/neon_disaster.webp'},{src:'images/icons/neon_policy_instant.webp'},{src:'images/icons/neon_policy_shield.webp'},{src:'images/icons/neon_city.webp'}];
+        const _sNeonHtml = `<div class="lobby-neon-icons">${_SICONS.map((ic,i) => `<img class="lobby-neon-icon" id="sni-${i}" src="${ic.src}" alt="" style="filter:brightness(0.04)">`).join('')}</div>`;
+        return `<div class="screen active spec-screen">${header}<div class="spec-waiting">${_sNeonHtml}<div class="spec-waiting-text">${drawMsg}</div></div><button class="spec-exit-btn" onclick="restartGame()">ロビーに戻る</button></div>`;
       }
 
-      // ゲームオーバー
+      // ─ ゲームオーバー ─
       if (screen === 'gameover' && G.winner !== null && G.winner !== undefined) {
-        const wi = G.winner; const w = G.players[wi]; const l = G.players[wi === 0 ? 1 : 0];
-        const wHp = Math.max(0, getActiveCityHp(wi));
-        return `<div class="screen active spec-screen">${header}<div class="spec-gameover-box"><div style="font-size:2.5rem">🏆</div><div class="spec-gameover-winner">${w.name} の勝利！</div><div class="spec-gameover-loser">${l.name} 敗北</div><div style="font-size:.82rem;color:var(--t2)">残HP: ${wHp}</div></div><button class="spec-exit-btn" onclick="restartGame()">ロビーに戻る</button></div>`;
+        return renderSpectatorGameOver();
       }
 
-      // 試合中（神視点）
+      // ─ 試合中（神視点：ゾーン＋手札セット） ─
       function specZone(idx) {
         const p = G.players[idx];
         if (!p.cities || p.cities.length === 0) return `<div class="spec-zone"><div style="color:var(--t3);text-align:center;padding:12px">準備中...</div></div>`;
         const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
-        const isActive = G.activePlayer === idx;
+        const isActive = ap === idx;
         return `<div class="spec-zone${isActive ? ' spec-zone-active' : ''}">
           <div class="spec-zone-header">
             ${isActive ? '<span class="spec-turn-dot"></span>' : ''}
@@ -4601,26 +4633,124 @@
           <div class="effects-row">${renderEffectBadges(p.effects)}</div>
         </div>`;
       }
-
       function specHand(idx) {
         const p = G.players[idx];
         if (!p.hand || p.hand.length === 0) return `<div style="color:var(--t3);font-size:.82rem;text-align:center;padding:4px">手札なし</div>`;
         return renderPlayerHandReadOnly(p);
       }
-
-      const logHtml = G.log.slice(0, 6).map(e => `<div class="log-entry ${e.cls}">${e.msg}</div>`).join('') || '<div class="log-entry sys">ゲーム開始</div>';
-
+      const logHtml = G.log.slice(0, 8).map(e => `<div class="log-entry ${e.cls}">${e.msg}</div>`).join('') || '<div class="log-entry sys">ゲーム開始</div>';
       return `<div class="screen active spec-screen">
         ${header}
-        ${specZone(0)}
-        <div class="spec-vs-divider">─── VS ───</div>
-        ${specZone(1)}
-        <div class="spec-hands">
+        <div class="spec-player-block">
+          ${specZone(0)}
           <div class="spec-hand-section"><div class="spec-hand-label">${p0.name} の手札</div>${specHand(0)}</div>
+        </div>
+        <div class="spec-vs-divider">─── VS ───</div>
+        <div class="spec-player-block">
+          ${specZone(1)}
           <div class="spec-hand-section"><div class="spec-hand-label">${p1.name} の手札</div>${specHand(1)}</div>
         </div>
         <div class="spec-log"><div class="spec-log-title">ログ</div>${logHtml}</div>
         <button class="spec-exit-btn" onclick="restartGame()">ロビーに戻る</button>
+      </div>`;
+    }
+
+    function renderSpectatorGameOver() {
+      const wi = G.winner; const li = wi === 0 ? 1 : 0;
+      const w = G.players[wi]; const l = G.players[li];
+      const totalTurns = G.turnsEach[0] + G.turnsEach[1];
+      const themeCls = _specTab === wi ? 'go-victory' : 'go-defeat';
+      const bigTitle = _specTab === wi ? 'VICTORY' : 'GAME OVER';
+      const bgText = (`${bigTitle} `.repeat(6)) + (`${bigTitle} `.repeat(6));
+
+      // タブバー
+      const tabBar = `<div class="spec-tab-bar go-inview">
+        <button class="spec-tab-btn${_specTab===0?' active':''}" onclick="setSpecTab(0)">${G.players[0].name}</button>
+        <button class="spec-tab-btn${_specTab===1?' active':''}" onclick="setSpecTab(1)">${G.players[1].name}</button>
+      </div>`;
+
+      // 勝敗行
+      const wRows = w.cities.map((c, i) => { const hp = Math.max(0, w.cityHps[i]); return `<div class="go-stats-row"><span>${terrainImg(c,15)}</span><span class="go-stats-row-name">${c.name}</span><span class="${hp>0?'go-hp-alive':'go-hp-dead'}">${hp>0?'HP '+hp:'壊滅'}</span></div>`; }).join('');
+      const lRows = l.cities.map(c => `<div class="go-stats-row"><span>${terrainImg(c,15)}</span><span class="go-stats-row-name">${c.name}</span><span class="go-hp-dead">壊滅</span></div>`).join('');
+
+      // 被害カルテ（タブ対象プレイヤー）
+      const hist = G._gameHistory || [];
+      const viewerDmg = hist.filter(ev => ev.type === 'damage' && ev.playerIdx === _specTab);
+      let karte = '';
+      if (viewerDmg.length > 0) {
+        const rows = viewerDmg.map(ev => { const tb = (ev.details||[]).some(d=>d.cat==='exposure')?`<span class="go-karte-badge">地形+</span>`:''; return `<div class="go-stats-row"><span style="font-size:1rem">${ev.cardIcon}</span><span class="go-stats-row-name">${ev.cardName}${tb}</span><span class="go-hp-dead" style="font-size:.85rem">−${ev.damage}</span></div>`; }).join('');
+        const totalDmg = viewerDmg.reduce((s,ev)=>s+ev.damage,0);
+        karte = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header">📋 被害カルテ — ${G.players[_specTab].name} が受けたダメージ</div>${rows}<div class="go-stats-row" style="border-top:1px solid var(--bg3);margin-top:2px"><span class="go-stats-row-name" style="font-size:.78rem">合計</span><span class="go-hp-dead">−${totalDmg}</span></div></div>`;
+      }
+
+      // 地形リスク
+      const terrainHits = viewerDmg.filter(ev=>(ev.details||[]).some(d=>d.cat==='exposure'));
+      let terrainStat = '';
+      if (terrainHits.length > 0) {
+        const tRows = terrainHits.map(ev=>{ const d=ev.details.find(d=>d.cat==='exposure'); return `<div class="go-stats-row"><span style="font-size:.9rem">${ev.cardIcon}</span><span class="go-stats-row-name" style="font-size:.82rem">${d.text}</span><span style="color:var(--red);font-weight:700;font-family:'Roboto Condensed',sans-serif;font-size:.82rem">+${d.delta}</span></div>`; }).join('');
+        terrainStat = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header">🗾 地形リスク発動 — ${terrainHits.length}回</div>${tRows}<div class="go-terrain-note">都市の地形によってダメージが増減します → カード図鑑で確認</div></div>`;
+      }
+
+      // カウンター提案
+      let counterHtml = '';
+      if (viewerDmg.length > 0) {
+        const worst = viewerDmg.reduce((m,ev)=>ev.damage>(m?.damage??0)?ev:m,null);
+        const counterCard = worst ? POLICY_CARDS.find(c=>c.id===(COUNTER_MAP[worst.cardId]||[])[0]) : null;
+        if (counterCard && worst) {
+          const ctColor = counterCard.color==='green'?'var(--green)':'var(--yellow)';
+          counterHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label">🛡 次はこのカードで備えよう</div><div class="go-counter-trigger"><span style="font-size:1.1rem">${worst.cardIcon}</span><span class="go-counter-arrow">→</span><span style="font-size:.82rem;color:var(--t1)">${worst.cardName} ${worst.damage}ダメージへの対策</span></div><div class="go-mvp-card-row" style="margin-top:10px"><img class="go-mvp-img" src="images/cards/${counterCard.id}.webp" alt="" onerror="this.style.display='none'"><div class="go-mvp-info"><div class="go-mvp-name" style="color:${ctColor}">${counterCard.icon} ${counterCard.name}</div><div class="go-mvp-type">${counterCard.desc}</div><div class="go-mvp-desc">${counterCard.realConcept}</div></div></div></div>`;
+        }
+      }
+
+      // 観戦者限定: 防災ポイント（両プレイヤーの都市 learn テキスト）
+      const learnBoxes = [0,1].map(pi => {
+        const p = G.players[pi];
+        if (!p.cities || p.cities.length === 0) return '';
+        return p.cities.filter(c=>c.learn).map(c => `<div class="spec-learn-box"><div class="spec-learn-city-header">${terrainImg(c,18)}<strong>${c.name}</strong><span class="terrain-badge">(${c.isCoastal?'海岸':c.isMountain?'山間部':'内陸'})</span></div><div class="spec-learn-text">${c.learn}</div></div>`).join('');
+      }).join('');
+      const disasterLearn = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header">🗾 今試合の防災ポイント</div><div class="spec-learn-sub">この試合で使われた都市の防災知識（両プレイヤー分）</div>${learnBoxes}</div>`;
+
+      // 観戦者限定: 試合ハイライト
+      const allDmg = hist.filter(ev=>ev.type==='damage');
+      let highlightHtml = '';
+      if (allDmg.length > 0) {
+        const maxAtk = allDmg.reduce((m,ev)=>ev.damage>(m?.damage??0)?ev:m,null);
+        const p0dealt = allDmg.filter(ev=>ev.playerIdx===1).reduce((s,ev)=>s+ev.damage,0);
+        const p1dealt = allDmg.filter(ev=>ev.playerIdx===0).reduce((s,ev)=>s+ev.damage,0);
+        highlightHtml = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header">⚡ 試合ハイライト</div>${maxAtk?`<div class="go-stats-row"><span style="font-size:1rem">${maxAtk.cardIcon}</span><span class="go-stats-row-name">最大ダメージ：${maxAtk.cardName}</span><span class="go-hp-dead">−${maxAtk.damage}</span></div>`:''}<div class="go-stats-row"><span style="font-size:1rem">⚔️</span><span class="go-stats-row-name">${G.players[0].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p0dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">⚔️</span><span class="go-stats-row-name">${G.players[1].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p1dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">🕐</span><span class="go-stats-row-name">総ターン数</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${totalTurns}</span></div></div>`;
+      }
+
+      // 観戦者限定: 観戦レポートコピー
+      const reportHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label">📝 観戦レポートをシェア</div><button class="go-gallery-btn" onclick="copySpecReport()">📋 観戦レポートをコピー</button></div>`;
+
+      return `<div class="screen active go-screen ${themeCls}">
+        <div class="go-hero">
+          <div class="go-hero-bg" aria-hidden="true">
+            <div class="go-hero-bg-col"><div class="go-hero-bg-col-inner go-scroll-a">${bgText}</div></div>
+            <div class="go-hero-bg-col"><div class="go-hero-bg-col-inner go-scroll-b">${bgText}</div></div>
+            <div class="go-hero-bg-col"><div class="go-hero-bg-col-inner go-scroll-a">${bgText}</div></div>
+          </div>
+          <div class="go-hero-content">
+            <div style="font-size:.78rem;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.1em;margin-bottom:6px">👁 SPECTATOR</div>
+            <div class="go-big-title">${bigTitle}</div>
+            <div class="go-player-name">${w.name} の勝利！</div>
+          </div>
+          <div class="go-scroll-hint"><p class="go-scroll-txt">SCROLL DOWN</p><div class="go-scroll-line"><span></span></div></div>
+        </div>
+        <div class="go-details">
+          ${tabBar}
+          <div class="go-inview go-section-label">RESULT — ${G.players[_specTab].name}</div>
+          <div class="go-inview go-stats-table">
+            <div class="go-stats-section-header">WINNER ${w.name}</div>${wRows}
+            <div class="go-stats-section-header">LOSER ${l.name}</div>${lRows}
+          </div>
+          <div class="go-inview go-turns-badge">総ターン数 <strong>${totalTurns}</strong></div>
+          ${karte}${terrainStat}${counterHtml}
+          ${disasterLearn}
+          ${highlightHtml}
+          ${reportHtml}
+          <button class="go-inview go-replay-btn" onclick="restartGame()">ロビーに戻る</button>
+        </div>
       </div>`;
     }
 
