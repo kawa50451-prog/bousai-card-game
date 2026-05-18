@@ -316,7 +316,7 @@
 
     .room-code-label {
       font-size: .72rem;
-      color: var(--t2);
+      color: var(--t1);
       letter-spacing: .08em;
       text-transform: uppercase;
       margin-bottom: 6px
@@ -1584,9 +1584,9 @@
     }
 
     /* ── 10. Hint overlay ── */
-    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:900; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
+    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:9100; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
     .hint-btn:hover { border-color:#fa2a4e; color:#fa2a4e; background:rgba(250,42,78,.1) }
-    .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:1000; display:flex; align-items:flex-end; justify-content:center; padding:12px }
+    .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:9200; display:flex; align-items:flex-end; justify-content:center; padding:12px }
     .hint-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:20px 18px; max-width:520px; width:100%; max-height:72vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px }
     .hint-box-header { display:flex; align-items:center; justify-content:space-between }
     .hint-title { font-size:.95rem; font-weight:700; color:var(--blue) }
@@ -2272,6 +2272,95 @@
     .go-defeat  .go-replay-btn { border-color:#fa2a4e; color:#fa2a4e; }
     .go-defeat  .go-replay-btn:hover { background:#fa2a4e; color:#fff; }
 
+    .go-rematch-btn {
+      width:100%; padding:15px 32px;
+      border-radius:40px; border:none;
+      font-size:1.05rem; font-weight:700;
+      cursor:pointer;
+      font-family:'Roboto Condensed',sans-serif;
+      letter-spacing:.06em; transition:.2s;
+    }
+    .go-victory .go-rematch-btn { background:var(--green); color:#000; }
+    .go-victory .go-rematch-btn:hover { background:#2da843; }
+    .go-defeat  .go-rematch-btn { background:var(--blue);  color:#fff; }
+    .go-defeat  .go-rematch-btn:hover { background:#1f6fd0; }
+    .go-rematch-btn:disabled { opacity:.45; cursor:default; }
+
+    .go-share-btn {
+      width:100%; padding:11px 32px;
+      border-radius:40px;
+      border:2px solid var(--bg3);
+      font-size:.88rem; font-weight:700;
+      cursor:pointer; background:transparent; color:var(--t2);
+      font-family:'Roboto Condensed',sans-serif;
+      letter-spacing:.06em; transition:.2s;
+    }
+    .go-share-btn:hover { background:var(--bg2); color:var(--t1); border-color:var(--t2); }
+
+    @keyframes share-toast-anim {
+      0%   { opacity:0; transform:translateX(-50%) translateY(8px); }
+      15%  { opacity:1; transform:translateX(-50%) translateY(0); }
+      75%  { opacity:1; transform:translateX(-50%) translateY(0); }
+      100% { opacity:0; transform:translateX(-50%) translateY(-8px); }
+    }
+    .go-share-toast {
+      position:fixed; bottom:28px; left:50%;
+      transform:translateX(-50%);
+      background:var(--bg2); border:1px solid var(--green);
+      color:var(--green); padding:10px 24px;
+      border-radius:40px; font-size:.88rem; font-weight:700;
+      z-index:9999; pointer-events:none; white-space:nowrap;
+      animation:share-toast-anim 2.2s ease forwards;
+    }
+
+    /* 切断オーバーレイ */
+    .disconnect-overlay {
+      position:fixed; inset:0; z-index:9000;
+      background:rgba(8,13,20,.88);
+      backdrop-filter:blur(4px);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .disconnect-box {
+      background:var(--bg1); border:1px solid var(--bg3);
+      border-radius:20px; padding:32px 24px;
+      text-align:center; max-width:300px; width:90%;
+      display:flex; flex-direction:column; align-items:center; gap:14px;
+    }
+    .disconnect-icon { font-size:2.4rem; }
+    .disconnect-title { font-size:1.15rem; font-weight:700; color:var(--t1); }
+    .disconnect-sub { font-size:.85rem; color:var(--t2); line-height:1.5; }
+
+    /* ワンタップコピー */
+    .room-code-value { cursor:pointer; transition:.15s; }
+    .room-code-value:active { opacity:.65; }
+    .copy-url-btn {
+      width:100%; padding:10px; border-radius:10px;
+      border:1px solid var(--bg3);
+      background:transparent; color:var(--t1);
+      font-size:.82rem; font-weight:700; cursor:pointer; transition:.2s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .copy-url-btn:hover { background:var(--bg2); }
+
+    @keyframes reconnect-pop-anim {
+      0%   { opacity:0; transform:translateX(-50%) translateY(20px) scale(.92); }
+      18%  { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+      78%  { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+      100% { opacity:0; transform:translateX(-50%) translateY(-10px) scale(.96); }
+    }
+    .reconnect-popup {
+      position:fixed; bottom:44px; left:50%; transform:translateX(-50%);
+      z-index:9500; pointer-events:none;
+      animation:reconnect-pop-anim 3s ease forwards;
+    }
+    .reconnect-box {
+      background:var(--bg1); border:1px solid var(--green);
+      border-radius:16px; padding:20px 28px;
+      text-align:center; display:flex; flex-direction:column; align-items:center; gap:12px;
+      box-shadow:0 0 24px rgba(63,185,80,.25);
+    }
+    .reconnect-title { font-size:1rem; font-weight:700; color:var(--green); }
+
     /* IntersectionObserver — fadeInUp on scroll */
     .go-inview {
       opacity: 0; transform: translateY(22px);
@@ -2498,6 +2587,11 @@
     let myRole = null;   // 'p1' | 'p2'
     let myPlayerIdx = 0;      // 0 | 1
     let roomId = null;
+    let _rematchListenerSet = false;
+    let _rematchRequested = false;
+    let _presenceConnRef = null;
+    let _presenceOppRef = null;
+    let _onlineHandler = null;
     let db = null;
     let myLastPush = null;   // 自分のpushが返ってきたとき無視する用
 
@@ -2640,9 +2734,13 @@
       const view = myView();
       const content = HINT_CONTENT[view] || { title: 'ヒント', sections: ['この画面のヘルプはありません。'] };
       const sectionsHtml = content.sections.map(s => `<div class="hint-section">${s}</div>`).join('<hr class="hint-divider">');
+      const _svgCopy = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+      const _svgLink2 = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+      const roomSection = roomId ? `<hr class="hint-divider"><div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:8px">再接続用</div><div style="display:flex;flex-direction:column;gap:6px"><button class="copy-url-btn" style="font-size:.78rem" onclick="copyRoomCode();toggleHint()">${_svgCopy}ルームコードをコピー（${roomId}）</button><button class="copy-url-btn" style="font-size:.78rem" onclick="copyRoomUrl();toggleHint()">${_svgLink2}招待URLをコピー</button></div></div>` : '';
       return `<div class="hint-overlay" onclick="toggleHint()"><div class="hint-box" onclick="event.stopPropagation()">
         <div class="hint-box-header"><span class="hint-title">💡 ${content.title}</span><button class="hint-close" onclick="toggleHint()">✕</button></div>
         ${sectionsHtml}
+        ${roomSection}
       </div></div>`;
     }
 
@@ -3450,6 +3548,103 @@
 
     function generateRoomCode() { const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++)c += chars[Math.random() * chars.length | 0]; return c; }
 
+    // ─── コピー系ユーティリティ ───
+    function _copyText(text, msg) {
+      navigator.clipboard.writeText(text).catch(() => {
+        try { const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); } catch (e) {}
+      }).finally ? null : undefined;
+      const old = document.getElementById('copy-toast'); if (old) old.remove();
+      const t = document.createElement('div'); t.id = 'copy-toast'; t.className = 'go-share-toast';
+      t.textContent = '✅ ' + msg; document.body.appendChild(t);
+      setTimeout(() => { if (t.parentNode) t.remove(); }, 2200);
+    }
+    function copyRoomCode() { if (roomId) _copyText(roomId, 'ルームコードをコピー'); }
+    function copyRoomUrl() {
+      if (!roomId) return;
+      const url = window.location.href.split('?')[0] + '?room=' + roomId;
+      _copyText(url, 'URLをコピー');
+    }
+
+    // ─── 切断オーバーレイ ───
+    function showDisconnectOverlay() {
+      if (document.getElementById('disconnect-overlay')) return;
+      const ov = document.createElement('div'); ov.id = 'disconnect-overlay'; ov.className = 'disconnect-overlay';
+      const _warnSvg = `<svg style="width:52px;height:52px;color:var(--yellow)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+      const _svgLinkD = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+      ov.innerHTML = `<div class="disconnect-box">
+        ${_warnSvg}
+        <div class="disconnect-title">接続が切れました</div>
+        <div class="disconnect-sub">相手の再接続を待っています。<br>下のコードまたはURLを送ってあげましょう。</div>
+        <div class="room-code-display" onclick="copyRoomCode()" style="width:100%;cursor:pointer">
+          <div class="room-code-label">ルームコード（タップでコピー）</div>
+          <div class="room-code-value">${roomId}</div>
+        </div>
+        <button class="copy-url-btn" onclick="copyRoomUrl()">${_svgLinkD}招待URLをコピー</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="pulse-dot" style="background:var(--yellow);min-width:12px"></span>
+          <span style="font-size:.82rem;color:var(--yellow)">待機中</span>
+        </div>
+        <button style="width:100%;padding:12px;border-radius:40px;border:2px solid var(--bg3);background:transparent;color:var(--t2);font-size:.88rem;font-weight:700;cursor:pointer;font-family:'Roboto Condensed',sans-serif;letter-spacing:.06em;transition:.2s" onclick="restartGame()">ロビーに戻る</button>
+      </div>`;
+      document.body.appendChild(ov);
+    }
+    function hideDisconnectOverlay() {
+      const ov = document.getElementById('disconnect-overlay'); if (ov) ov.remove();
+    }
+
+    function showReconnectPopup() {
+      const old = document.getElementById('reconnect-popup'); if (old) old.remove();
+      const pop = document.createElement('div'); pop.id = 'reconnect-popup'; pop.className = 'reconnect-popup';
+      const _checkSvg = `<svg style="width:52px;height:52px;color:var(--green)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+      pop.innerHTML = `<div class="reconnect-box">${_checkSvg}<div class="reconnect-title">再接続しました</div></div>`;
+      document.body.appendChild(pop);
+      setTimeout(() => { if (pop.parentNode) pop.remove(); }, 3200);
+    }
+
+    // ─── Firebase Presence（切断検知・自動ルーム削除） ───
+    function setupPresence() {
+      if (!db || !roomId) return;
+      const myKey = myRole;
+      const oppKey = myRole === 'p1' ? 'p2' : 'p1';
+      const myPresRef = db.ref(`rooms/${roomId}/presence/${myKey}`);
+
+      _presenceConnRef = db.ref('.info/connected');
+      _presenceConnRef.on('value', snap => {
+        if (!snap.val()) return;
+        myPresRef.set(true);
+        myPresRef.onDisconnect().set(false);
+      });
+
+      // ブラウザがオフライン→オンライン復帰したとき即座にプレゼンスを再登録
+      _onlineHandler = () => {
+        if (db && roomId) {
+          myPresRef.set(true);
+          myPresRef.onDisconnect().set(false);
+        }
+      };
+      window.addEventListener('online', _onlineHandler);
+
+      _presenceOppRef = db.ref(`rooms/${roomId}/presence/${oppKey}`);
+      _presenceOppRef.on('value', snap => {
+        const connected = snap.val();
+        const inGame = ['gacha','cityOrder','draft','turnDraw','turnSummary','main','response','discard','peek'].includes(G.screen);
+        if (connected === false && inGame) {
+          showDisconnectOverlay();
+        } else if (connected === true) {
+          const wasDisconnected = !!document.getElementById('disconnect-overlay');
+          hideDisconnectOverlay();
+          if (wasDisconnected) showReconnectPopup();
+        }
+      });
+    }
+
+    function cleanupPresence() {
+      if (_presenceConnRef) { _presenceConnRef.off(); _presenceConnRef = null; }
+      if (_presenceOppRef) { _presenceOppRef.off(); _presenceOppRef = null; }
+      if (_onlineHandler) { window.removeEventListener('online', _onlineHandler); _onlineHandler = null; }
+      hideDisconnectOverlay();
+    }
+
     function pushState() {
       if (!db || !roomId) return;
       const s = JSON.stringify({ ...G, confirm: null }); myLastPush = s;
@@ -3480,6 +3675,8 @@
       const name = lobbyState.nameInput.trim();
       if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
       myRole = 'p1'; myPlayerIdx = 0; roomId = generateRoomCode(); G.players[0].name = name;
+      history.replaceState(null, '', '?room=' + roomId);
+      localStorage.setItem('ron_lastRoom', roomId); localStorage.setItem('ron_lastName', name);
       try {
         await db.ref(`rooms/${roomId}`).set({ p1Name: name, p2Name: '', p2Joined: false, state: null });
         db.ref(`rooms/${roomId}/p2Joined`).on('value', snap => {
@@ -3488,6 +3685,7 @@
             db.ref(`rooms/${roomId}/p2Name`).get().then(s2 => {
               G.players[1].name = s2.val() || 'プレイヤー2';
               listenToState();
+              setupPresence();
               G.gachaPickedIds = []; G.gachaCurrent = { playerIdx: 0, pickNum: 0, revealed: null }; G.screen = 'gacha';
               pushState(); render();
             });
@@ -3504,11 +3702,18 @@
       try {
         const snap = await db.ref(`rooms/${code}`).get();
         if (!snap.val()) { lobbyState.error = 'ルームが見つかりません'; render(); return; }
-        if (snap.val().p2Joined) { lobbyState.error = 'このルームはすでに満員です'; render(); return; }
+        const roomData = snap.val();
+        // 再接続: p2Joined=true かつ presence/p2 が false(切断済み) なら再参加を許可
+        const isRejoin = roomData.p2Joined && roomData.presence?.p2 === false;
+        if (roomData.p2Joined && !isRejoin) { lobbyState.error = 'このルームはすでに満員です'; render(); return; }
         myRole = 'p2'; myPlayerIdx = 1; roomId = code; G.players[1].name = name;
+        history.replaceState(null, '', '?room=' + roomId);
+        localStorage.setItem('ron_lastRoom', roomId); localStorage.setItem('ron_lastName', name);
         await db.ref(`rooms/${roomId}/p2Name`).set(name);
-        await db.ref(`rooms/${roomId}/p2Joined`).set(true);
-        listenToState(); G.screen = 'waiting_connection'; render();
+        if (!roomData.p2Joined) await db.ref(`rooms/${roomId}/p2Joined`).set(true);
+        listenToState();
+        setupPresence();
+        G.screen = 'waiting_connection'; render();
       } catch (e) { lobbyState.error = '参加に失敗: ' + e.message; render(); }
     }
 
@@ -3846,29 +4051,37 @@
 
     // ─── 接続待ち ───
     function renderWaitingConnection() {
+      const _svgLink = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
       if (myRole === 'p1') {
         return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
-      <div style="text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;color:#e6edf3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span style="font-size:1.3rem;font-weight:700;color:#e6edf3">ホスト待機中</span></div><p style="color:var(--t2);font-size:.88rem">相手にルームコードまたはQRコードを共有してください</p></div>
-      <div class="room-code-display"><div class="room-code-label">ルームコード</div><div class="room-code-value">${roomId || '------'}</div></div>
+      <div style="text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;color:#e6edf3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span style="font-size:1.3rem;font-weight:700;color:#e6edf3">ホスト待機中</span></div><p style="color:var(--t1);font-size:.88rem">相手にルームコードまたはURLを共有してください</p></div>
+      <div class="room-code-display" onclick="copyRoomCode()" title="タップしてコピー">
+        <div class="room-code-label">ルームコード（タップでコピー）</div>
+        <div class="room-code-value">${roomId || '------'}</div>
+      </div>
+      <button class="copy-url-btn" onclick="copyRoomUrl()">${_svgLink}招待URLをコピー</button>
       <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
         <div id="qr-container" style="background:var(--bg2);padding:10px;border-radius:10px;border:1px solid var(--bg3);min-height:52px;display:flex;align-items:center;justify-content:center"></div>
-        <div style="font-size:.7rem;color:var(--t3)">QRコードを読み取るか、上のコードを口頭で伝えてください</div>
+        <div style="font-size:.7rem;color:var(--t1)">QRコードをカメラで読み取るか、URLまたはコードを共有してください</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(250,42,78,.08);border:1px solid rgba(250,42,78,.3);border-radius:8px;padding:10px 14px">
         <span class="pulse-dot" style="background:#fa2a4e;min-width:12px"></span>
         <span style="font-size:.85rem;color:#fa2a4e">相手の接続を待っています...</span>
       </div>
-      <div style="color:var(--t3);font-size:.75rem;text-align:center">${G.players[0].name} としてホスト中</div>
+      <div style="color:var(--t1);font-size:.75rem;text-align:center">${G.players[0].name} としてホスト中</div>
     </div></div></div>`;
       } else {
         return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
-      <div style="text-align:center"><div style="font-size:2rem;margin-bottom:6px">🔗 参加完了</div><p style="color:var(--t2);font-size:.88rem">ホストがゲームを開始するまでお待ちください</p></div>
-      <div class="room-code-display"><div class="room-code-label">接続中のルーム</div><div class="room-code-value">${roomId || '------'}</div></div>
+      <div style="text-align:center"><div style="font-size:2rem;margin-bottom:6px">🔗 参加完了</div><p style="color:var(--t1);font-size:.88rem">ホストがゲームを開始するまでお待ちください</p></div>
+      <div class="room-code-display" onclick="copyRoomCode()" title="タップしてコピー">
+        <div class="room-code-label">接続中のルーム（タップでコピー）</div>
+        <div class="room-code-value">${roomId || '------'}</div>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:8px;padding:10px 14px;margin-top:8px">
         <span class="pulse-dot" style="background:var(--green);min-width:12px"></span>
         <span style="font-size:.85rem;color:var(--green)">ホストの開始を待っています...</span>
       </div>
-      <div style="color:var(--t3);font-size:.75rem;text-align:center">${G.players[1].name} として参加中</div>
+      <div style="color:var(--t1);font-size:.75rem;text-align:center">${G.players[1].name} として参加中</div>
     </div></div></div>`;
       }
     }
@@ -4273,6 +4486,7 @@
 
     // ─── ゲームオーバー ───
     function renderGameOver() {
+      setupRematchListener();
       const wi = G.winner; const li = wi === 0 ? 1 : 0;
       const w = G.players[wi]; const l = G.players[li];
       const isMyWin = wi === myPlayerIdx;
@@ -4412,6 +4626,11 @@
     ${karte}
     ${terrainStat}
     ${counterHtml}
+    ${roomId
+      ? (myRole === 'p1'
+        ? `<button class="go-inview go-rematch-btn" onclick="doRematch()">⚔️ もう1戦</button>`
+        : `<button class="go-inview go-rematch-btn" onclick="requestRematch()" ${_rematchRequested ? 'disabled' : ''}>${_rematchRequested ? '⏳ ホスト待機中...' : '⚔️ もう1戦リクエスト'}</button>`)
+      : ''}
     <button class="go-inview go-replay-btn" onclick="restartGame()">ロビーに戻る</button>
   </div>
 
@@ -4550,13 +4769,96 @@
 
     function closePeek() { G.peekCard = null; G.peekCards = null; G.peekByPlayerIdx = null; G.screen = 'main'; pushState(); render(); }
 
+    // ─── リマッチ ───
+    function doRematch() {
+      if (myRole !== 'p1') return;
+      if (db && roomId) db.ref(`rooms/${roomId}/rematch`).remove();
+      _rematchListenerSet = false; _rematchRequested = false;
+      const p0name = G.players[0].name; const p1name = G.players[1].name;
+      G = {
+        screen: 'gacha', activePlayer: 0, turnsEach: [0, 0],
+        players: [
+          { name: p0name, cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
+          { name: p1name, cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
+        ],
+        deck: [], discard: [], log: [],
+        pendingAttack: null, peekCard: null, peekByPlayerIdx: null, winner: null,
+        gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null }, draftState: null,
+        discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
+        _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
+      };
+      pushState(); render();
+    }
+
+    function requestRematch() {
+      if (!db || !roomId || _rematchRequested) return;
+      _rematchRequested = true;
+      db.ref(`rooms/${roomId}/rematch`).set(true);
+      render();
+    }
+
+    function setupRematchListener() {
+      if (_rematchListenerSet || !db || !roomId || myRole !== 'p1') return;
+      _rematchListenerSet = true;
+      db.ref(`rooms/${roomId}/rematch`).on('value', snap => {
+        if (snap.val() && G.screen === 'gameover') {
+          db.ref(`rooms/${roomId}/rematch`).off();
+          _rematchListenerSet = false;
+          doRematch();
+        }
+      });
+    }
+
+    // ─── リザルト共有 ───
+    function shareResult() {
+      const wi = G.winner; const li = wi === 0 ? 1 : 0;
+      const w = G.players[wi]; const l = G.players[li];
+      const isMyWin = wi === myPlayerIdx;
+      const totalTurns = G.turnsEach[0] + G.turnsEach[1];
+      const tLabel = c => c.isCoastal ? '🌊' : c.isMountain ? '🏔️' : '🏙️';
+      const wCities = w.cities.map((c, i) => {
+        const hp = Math.max(0, w.cityHps[i]);
+        return `  ${tLabel(c)}${c.name}${hp > 0 ? ' HP' + hp : ' 壊滅'}`;
+      }).join('\n');
+      const lCities = l.cities.map(c => `  ${tLabel(c)}${c.name} 壊滅`).join('\n');
+      const hist = G._gameHistory || [];
+      const myDmgEvts = hist.filter(ev => ev.type === 'damage' && ev.playerIdx === myPlayerIdx);
+      const worst = myDmgEvts.reduce((m, ev) => ev.damage > (m?.damage ?? 0) ? ev : m, null);
+      let text = `【Ready or Not 対戦結果】\n${isMyWin ? '🏆 勝利！' : '💀 敗北...'}\n\n`;
+      text += `勝者: ${w.name}\n${w.name}の都市:\n${wCities}\n\n`;
+      text += `敗者: ${l.name}\n${l.name}の都市:\n${lCities}\n\n`;
+      text += `総ターン数: ${totalTurns}`;
+      if (worst) text += `\n最大被弾: ${worst.cardName} −${worst.damage}`;
+      text += '\n\n#ReadyOrNot #防災カードゲーム';
+      navigator.clipboard.writeText(text).then(() => {
+        showShareToast('リザルトをコピーしました');
+      }).catch(() => {
+        try {
+          const el = document.createElement('textarea'); el.value = text;
+          document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+        } catch (e) {}
+        showShareToast('リザルトをコピーしました');
+      });
+    }
+
+    function showShareToast(msg) {
+      const old = document.getElementById('go-share-toast'); if (old) old.remove();
+      const t = document.createElement('div'); t.id = 'go-share-toast'; t.className = 'go-share-toast';
+      t.textContent = '✅ ' + msg; document.body.appendChild(t);
+      setTimeout(() => { if (t.parentNode) t.remove(); }, 2500);
+    }
+
     function restartGame() {
       _lobbyEnter = true;
+      cleanupPresence();
       const _rApp = document.getElementById('app');
       _rApp.style.transition = 'opacity .28s ease'; _rApp.style.opacity = '0';
       setTimeout(() => {
         if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
         myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
+        _rematchListenerSet = false; _rematchRequested = false;
+        localStorage.removeItem('ron_lastRoom');
+        history.replaceState(null, '', window.location.pathname);
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
         _hintOpen = false; tutorialState = null;
         G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
@@ -4572,7 +4874,14 @@
     window.addEventListener('load', () => {
       const params = new URLSearchParams(window.location.search);
       const roomParam = params.get('room');
-      if (roomParam) { lobbyState.joinCodeInput = roomParam.toUpperCase().slice(0, 6); lobbyState.mode = 'join'; }
+      const savedRoom = localStorage.getItem('ron_lastRoom');
+      const savedName = localStorage.getItem('ron_lastName');
+      if (savedName) lobbyState.nameInput = savedName;
+      if (roomParam) {
+        lobbyState.joinCodeInput = roomParam.toUpperCase().slice(0, 6); lobbyState.mode = 'join';
+      } else if (savedRoom) {
+        lobbyState.joinCodeInput = savedRoom; lobbyState.mode = 'join';
+      }
       if (isFirebaseConfigured()) initFirebase();
       render();
     });
