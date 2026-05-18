@@ -2224,10 +2224,11 @@
     }
     .go-stats-section-header {
       padding: 8px 16px;
-      font-size: 0.68rem; font-weight: 700;
-      letter-spacing: 0.08em; text-transform: uppercase;
+      font-size: 0.88rem; font-weight: 700;
+      letter-spacing: 0.06em;
       color: var(--t1); background: var(--bg2);
       border-bottom: 1px solid var(--bg3);
+      display: flex; align-items: center; gap: 6px;
     }
     .go-stats-row {
       display: flex; align-items: center;
@@ -2259,9 +2260,10 @@
       border-radius: 14px; padding: 16px;
     }
     .go-mvp-label {
-      font-size: 0.63rem; font-weight: 700;
-      letter-spacing: 0.1em; text-transform: uppercase;
+      font-size: 0.82rem; font-weight: 700;
+      letter-spacing: 0.06em;
       color: var(--t1); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
     }
     .go-mvp-card-row { display: flex; gap: 14px; align-items: flex-start; }
     .go-mvp-img { width: 72px; border-radius: 8px; flex-shrink: 0; }
@@ -2339,7 +2341,7 @@
     .spec-tab-btn { padding:10px; border-radius:10px; border:1px solid var(--bg3); background:var(--bg2); color:var(--t2); font-size:.88rem; font-weight:700; cursor:pointer; font-family:'Roboto Condensed',sans-serif; letter-spacing:.04em; transition:.2s; }
     .spec-tab-btn.active { border-color:var(--blue); color:var(--blue); background:rgba(56,139,253,.1); }
     .spec-learn-city-header { display:flex; align-items:center; gap:6px; font-size:.9rem; font-weight:700; color:var(--t1); margin-bottom:6px; }
-    .spec-learn-text { font-size:.8rem; color:var(--t2); line-height:1.7; }
+    .spec-learn-text { font-size:.8rem; color:var(--t1); line-height:1.7; }
     .spec-learn-sub { font-size:.75rem; color:var(--t3); margin-bottom:10px; }
     .spec-learn-box { background:var(--bg3); border-radius:10px; padding:12px; margin-bottom:8px; }
     .spec-learn-box:last-child { margin-bottom:0; }
@@ -2432,7 +2434,7 @@
     .go-inview:nth-child(5) { transition-delay: .32s; }
 
     /* 被害カルテ・地形リスク */
-    .go-karte-header { font-size:.72rem !important; }
+    .go-karte-header { font-size:.9rem !important; display:flex; align-items:center; gap:6px; }
     .go-karte-badge {
       display:inline-block; margin-left:5px;
       font-size:.58rem; font-weight:700;
@@ -3064,13 +3066,13 @@
       { id: 'kobe', name: '神戸', icon: '⚓', hp: 60, isCoastal: true, isMountain: false, abilityType: 'extra_budget', abilityValue: 1, abilityDesc: '毎ターン予算 +1（計4）', concept: '阪神大震災からの復興。港湾都市の経済力が防災投資を支える。', learn: '1995年の阪神・淡路大震災（死者6,434人）を経験し、防災への投資が制度化された都市。港湾都市の経済力が防災投資を支えるため、毎ターンの予算が1多い。' },
       { id: 'hiroshima', name: '広島', icon: '🕊️', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_landslide', abilityValue: 20, abilityDesc: '土砂崩れ −20', concept: '山に囲まれた地形が土砂リスクを生む。', learn: '市街地を囲む山地が土砂崩れリスクを生む。2014年8月豪雨災害（死者77名）を経て山間部での防災強化が進んだ。土砂崩れへの強い耐性を持つ。' },
       { id: 'nagoya', name: '名古屋', icon: '🌊', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_draw', abilityValue: 1, abilityDesc: '洪水・津波時 1枚ドロー', concept: '伊勢湾台風の歴史が今の対策を作った。', learn: '1959年の伊勢湾台風（死者5,098人）が日本最初の「災害対策基本法」（1961年）を生み出した。「被災が知識をもたらす」ことを、洪水・津波後のドロー能力で表現。' },
-      { id: 'new_orleans', name: 'ニューオーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。', learn: '2005年ハリケーン・カトリーナで被害が社会的弱者に集中したことが「社会的脆弱性」概念を世界に知らしめた。手札が少ない（準備不足の）状態でさらに被害が増える。' },
       { id: 'sendai', name: '仙台', icon: '🌸', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 15, abilityDesc: '洪水・津波 −15', concept: '仙台防災枠組。日本の経験が国際防災政策を変えた。', learn: '2011年東日本大震災の経験を活かし、2015年に仙台で「仙台防災枠組2015-2030」が採択。日本の地域の経験が世界の防災政策を変えた都市。' },
       { id: 'kumamoto', name: '熊本', icon: '🌸', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。', learn: '2016年熊本地震は前震（M6.5）→本震（M7.3）という連続地震で、想定を超えた適応力が求められた。同ターン2枚目の災害への耐性がその経験を示す。' },
       { id: 'niigata', name: '新潟', icon: '❄️', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10', concept: '1964年新潟地震。液状化研究の原点。', learn: '1964年新潟地震（M7.5）で液状化現象が大規模に初めて記録され、防災学の重要な研究対象となった。地震を受けたターン後のHP回復は科学的蓄積と学習を象徴する。' },
       { id: 'kagoshima', name: '鹿児島', icon: '🌋', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。', learn: '日本有数の活火山・桜島と共生する都市。「ゼロリスクを目指さない」防災哲学のもと、日常的な火山活動への対応力が複合災害への耐性として表れている。' },
       { id: 'rotterdam', name: 'ロッテルダム', icon: '🌷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 1, abilityDesc: '洪水・津波後、次ターン予算+1', concept: '水と共存するオランダ型防災哲学。', learn: '国土の4分の1が海面以下のオランダの港湾都市。「水を制御するのではなく水と共存する」防災哲学を世界に発信。洪水・津波後に次ターンの予算が増えるのがその回復力。' },
       { id: 'istanbul', name: 'イスタンブール', icon: '🕌', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_draw', abilityValue: 1, abilityDesc: '地震を受けたとき1枚ドロー', concept: '北アナトリア断層直上。事後学習型防災。', learn: '北アナトリア断層直上に位置し高確率でM7超の地震が予測されるが、耐震化は遅れている。地震後にカードを引く能力は「被災して初めて学ぶ事後学習型防災」の現実を示す。' },
+      { id: 'new_orleans', name: 'ニューオーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。', learn: '2005年ハリケーン・カトリーナで被害が社会的弱者に集中したことが「社会的脆弱性」概念を世界に知らしめた。手札が少ない（準備不足の）状態でさらに被害が増える。' },
     ];
 
     const POLICY_CARDS = [
@@ -3091,7 +3093,7 @@
       { id: 'tsunami', name: '津波', icon: '🌊', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'coastal_bonus', desc: '40（海岸都市 +10）', columnTitle: '知識と行動の両立', column: '初期手札に政策2枚・災害2枚が保証されているのは偶然ではない。「どんな脅威があるか知ること（災害カード）」と「それに備えること（政策カード）」の両方がなければ防災は機能しない。知識だけでも行動だけでも不十分という防災の本質。' },
       { id: 'landslide', name: '土砂崩れ', icon: '⛰️', cost: 1, type: 'disaster', baseDamage: 20, specialType: 'mountain_bonus', desc: '20（山間部 +10）', columnTitle: null, column: null },
       { id: 'wildfire', name: '大火災', icon: '🔥', cost: 3, type: 'disaster', baseDamage: 50, specialType: null, desc: 'ダメージ 50', columnTitle: '事前投資の費用対効果', column: '最大ダメージ50のカードに対し、コスト2の耐震補強を事前設置すれば大幅に軽減できる。コスト2の政策でコスト3の災害を防ぐ「事前投資の費用対効果」を最もはっきり体験できる場面。' },
-      { id: 'compound', name: '複合災害', icon: '⚡', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'skip_response', desc: '40+相手の対応フェーズを強制スキップ', columnTitle: '複合・連鎖災害の恐ろしさ', column: '備えてきた都市能力を1ターン無効化する。東京の地震耐性や仙台の洪水耐性が突然機能しなくなる体験は、2011年東日本大震災の地震→津波→原発事故の連鎖と同じ構造。なお防災庁設置の効果は無効化されない——制度・組織への投資は複合災害でも守られるという設計上のメッセージ。' },
+      { id: 'compound', name: '複合災害', icon: '⚡', cost: 3, type: 'disaster', baseDamage: 40, specialType: 'skip_response', desc: '40+相手の対応フェーズを1回強制スキップ（事前の広域避難指示で無効化可能）', columnTitle: '複合・連鎖災害の恐ろしさ', column: '相手は対応フェーズを強制スキップされ、政策カードを使う機会を奪われる。2011年東日本大震災の地震→津波→原発事故の連鎖が示すように、複合災害は「備えが追いつかない状況」を生み出す。ただし事前に広域避難指示を設置していれば無効化でき、ソフト対策の重要性を体験できる。' },
     ];
     const ALL_CARDS = [...POLICY_CARDS, ...DISASTER_CARDS];
 
@@ -3775,7 +3777,7 @@
       if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
       myRole = 'p1'; myPlayerIdx = 0; roomId = generateRoomCode(); G.players[0].name = name;
       history.replaceState(null, '', '?room=' + roomId);
-      localStorage.setItem('ron_lastRoom', roomId); localStorage.setItem('ron_lastName', name);
+      localStorage.setItem('ron_lastRoom', roomId); localStorage.setItem('ron_lastName', name); localStorage.setItem('ron_lastRole', 'p1');
       try {
         await db.ref(`rooms/${roomId}`).set({ p1Name: name, p2Name: '', p2Joined: false, state: null, createdAt: Date.now() });
         db.ref(`rooms/${roomId}/p2Joined`).on('value', snap => {
@@ -3802,16 +3804,60 @@
         const snap = await db.ref(`rooms/${code}`).get();
         if (!snap.val()) { lobbyState.error = 'ルームが見つかりません'; render(); return; }
         const roomData = snap.val();
-        // 再接続: p2Joined=true かつ presence/p2 が false(切断済み) なら再参加を許可
-        const isRejoin = roomData.p2Joined && roomData.presence?.p2 === false;
-        if (roomData.p2Joined && !isRejoin) { lobbyState.spectateCode = code; lobbyState.error = ''; render(); return; }
+
+        const savedRole = localStorage.getItem('ron_lastRole');
+        const savedRoom = localStorage.getItem('ron_lastRoom');
+
+        // ── p1 再接続: ローカルのロール記録 + Firebase の p1Name が一致 ──
+        const isP1Rejoin = savedRole === 'p1' && savedRoom === code && roomData.p1Name === name;
+        if (isP1Rejoin) {
+          myRole = 'p1'; myPlayerIdx = 0; roomId = code; G.players[0].name = name;
+          history.replaceState(null, '', '?room=' + code);
+          localStorage.setItem('ron_lastRoom', code); localStorage.setItem('ron_lastName', name); localStorage.setItem('ron_lastRole', 'p1');
+          if (roomData.p2Joined) {
+            // ゲーム進行中 → Firebase の現在状態をそのまま読み込んで復帰
+            G.players[1].name = roomData.p2Name || 'プレイヤー2';
+            listenToState(); setupPresence();
+          } else {
+            // p2未参加 → 待機画面に戻り p2Joined を監視
+            db.ref(`rooms/${code}/p2Joined`).on('value', snap => {
+              if (snap.val() === true) {
+                db.ref(`rooms/${code}/p2Joined`).off();
+                db.ref(`rooms/${code}/p2Name`).get().then(s2 => {
+                  G.players[1].name = s2.val() || 'プレイヤー2';
+                  listenToState(); setupPresence();
+                  G.gachaPickedIds = []; G.gachaCurrent = { playerIdx: 0, pickNum: 0, revealed: null }; G.screen = 'gacha';
+                  pushState(); render();
+                });
+              }
+            });
+            G.screen = 'waiting_connection'; render();
+          }
+          return;
+        }
+
+        // ── p2 再接続: Firebase の p2Name と名前が一致 ──
+        const isP2Rejoin = roomData.p2Joined && roomData.p2Name === name;
+        if (isP2Rejoin) {
+          myRole = 'p2'; myPlayerIdx = 1; roomId = code; G.players[1].name = name;
+          G.players[0].name = roomData.p1Name || 'プレイヤー1';
+          history.replaceState(null, '', '?room=' + code);
+          localStorage.setItem('ron_lastRoom', code); localStorage.setItem('ron_lastName', name); localStorage.setItem('ron_lastRole', 'p2');
+          listenToState(); setupPresence();
+          return;
+        }
+
+        // ── 満員 → 観戦オファー ──
+        if (roomData.p2Joined) { lobbyState.spectateCode = code; lobbyState.error = ''; render(); return; }
+
+        // ── 新規 p2 参加 ──
         myRole = 'p2'; myPlayerIdx = 1; roomId = code; G.players[1].name = name;
-        history.replaceState(null, '', '?room=' + roomId);
-        localStorage.setItem('ron_lastRoom', roomId); localStorage.setItem('ron_lastName', name);
+        G.players[0].name = roomData.p1Name || 'プレイヤー1';
+        history.replaceState(null, '', '?room=' + code);
+        localStorage.setItem('ron_lastRoom', code); localStorage.setItem('ron_lastName', name); localStorage.setItem('ron_lastRole', 'p2');
         await db.ref(`rooms/${roomId}/p2Name`).set(name);
-        if (!roomData.p2Joined) await db.ref(`rooms/${roomId}/p2Joined`).set(true);
-        listenToState();
-        setupPresence();
+        await db.ref(`rooms/${roomId}/p2Joined`).set(true);
+        listenToState(); setupPresence();
         G.screen = 'waiting_connection'; render();
       } catch (e) { lobbyState.error = '参加に失敗: ' + e.message; render(); }
     }
@@ -4085,17 +4131,17 @@
             const city = CITIES.find(c => c.id === z.id);
             if (city) {
               const attr = city.isCoastal ? '海岸都市' : city.isMountain ? '山間部都市' : '内陸都市';
-              infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${city.name}<span style="font-size:.78rem;color:var(--t2);font-weight:400;margin-left:8px">[${attr}]</span></div><div style="font-size:.83rem;color:var(--t2);line-height:1.7;background:var(--bg2);border-radius:10px;padding:12px 14px">${city.learn}</div>`;
+              infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${city.name}<span style="font-size:.78rem;color:var(--t1);font-weight:400;margin-left:8px">[${attr}]</span></div><div style="font-size:.83rem;color:var(--t1);line-height:1.7;background:var(--bg2);border-radius:10px;padding:12px 14px">${city.learn}</div>`;
             }
           } else {
             const card = [...POLICY_CARDS, ...DISASTER_CARDS].find(c => c.id === z.id);
             if (card) {
               if (card.type === 'policy') {
-                infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${card.name}</div><div style="font-size:.72rem;color:var(--t2);text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">対応する現実概念</div><div style="font-size:.83rem;color:var(--t2);line-height:1.7;background:var(--bg2);border-radius:10px;padding:12px 14px">${card.realConcept}</div>`;
+                infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${card.name}</div><div style="font-size:.72rem;color:var(--t1);text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">対応する現実概念</div><div style="font-size:.83rem;color:var(--t1);line-height:1.7;background:var(--bg2);border-radius:10px;padding:12px 14px">${card.realConcept}</div>`;
               } else {
                 const colHtml = card.column
-                  ? `<div style="font-size:.72rem;font-weight:700;color:var(--yellow);margin-bottom:6px;letter-spacing:.04em">コラム：${card.columnTitle}</div><div style="font-size:.83rem;color:var(--t2);line-height:1.7">${card.column}</div>`
-                  : `<div style="font-size:.82rem;color:var(--t3);text-align:center;padding:8px 0">コラムなし</div>`;
+                  ? `<div style="font-size:.72rem;font-weight:700;color:var(--yellow);margin-bottom:6px;letter-spacing:.04em">コラム：${card.columnTitle}</div><div style="font-size:.83rem;color:var(--t1);line-height:1.7">${card.column}</div>`
+                  : `<div style="font-size:.82rem;color:var(--t1);text-align:center;padding:8px 0">コラムなし</div>`;
                 infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${card.name}</div><div style="background:var(--bg2);border-radius:10px;padding:12px 14px">${colHtml}</div>`;
               }
             }
@@ -4108,7 +4154,7 @@
           } else if (lobbyState.galleryTab === 'policy') {
             const yellows = POLICY_CARDS.filter(c => c.color === 'yellow').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
             const greens  = POLICY_CARDS.filter(c => c.color === 'green').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
-            contentHtml = `<div class="gallery-grid">${yellows}</div><div style="border-top:1px solid var(--bg3);margin:6px 0"></div><div class="gallery-grid">${greens}</div>`;
+            contentHtml = `<div class="gallery-grid">${yellows}${greens}</div>`;
           } else if (lobbyState.galleryTab === 'disaster') {
             gridHtml = DISASTER_CARDS.map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
           }
@@ -4711,7 +4757,7 @@
       if (viewerDmg.length > 0) {
         const rows = viewerDmg.map(ev => { const tb = (ev.details||[]).some(d=>d.cat==='exposure')?`<span class="go-karte-badge">地形+</span>`:''; return `<div class="go-stats-row"><span style="font-size:1rem">${ev.cardIcon}</span><span class="go-stats-row-name">${ev.cardName}${tb}</span><span class="go-hp-dead" style="font-size:.85rem">−${ev.damage}</span></div>`; }).join('');
         const totalDmg = viewerDmg.reduce((s,ev)=>s+ev.damage,0);
-        karte = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header">📋 被害カルテ — ${G.players[_specTab].name} が受けたダメージ</div>${rows}<div class="go-stats-row" style="border-top:1px solid var(--bg3);margin-top:2px"><span class="go-stats-row-name" style="font-size:.78rem">合計</span><span class="go-hp-dead">−${totalDmg}</span></div></div>`;
+        karte = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_disaster.webp" style="width:20px;height:20px;object-fit:contain"> 被害カルテ — ${G.players[_specTab].name} が受けたダメージ</div>${rows}<div class="go-stats-row" style="border-top:1px solid var(--bg3);margin-top:2px"><span class="go-stats-row-name" style="font-size:.78rem">合計</span><span class="go-hp-dead">−${totalDmg}</span></div></div>`;
       }
 
       // 地形リスク
@@ -4719,7 +4765,7 @@
       let terrainStat = '';
       if (terrainHits.length > 0) {
         const tRows = terrainHits.map(ev=>{ const d=ev.details.find(d=>d.cat==='exposure'); return `<div class="go-stats-row"><span style="font-size:.9rem">${ev.cardIcon}</span><span class="go-stats-row-name" style="font-size:.82rem">${d.text}</span><span style="color:var(--red);font-weight:700;font-family:'Roboto Condensed',sans-serif;font-size:.82rem">+${d.delta}</span></div>`; }).join('');
-        terrainStat = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header">🗾 地形リスク発動 — ${terrainHits.length}回</div>${tRows}<div class="go-terrain-note">都市の地形によってダメージが増減します → カード図鑑で確認</div></div>`;
+        terrainStat = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_city.webp" style="width:20px;height:20px;object-fit:contain"> 地形リスク発動 — ${terrainHits.length}回</div>${tRows}<div class="go-terrain-note">都市の地形によってダメージが増減します → カード図鑑で確認</div></div>`;
       }
 
       // カウンター提案
@@ -4729,7 +4775,7 @@
         const counterCard = worst ? POLICY_CARDS.find(c=>c.id===(COUNTER_MAP[worst.cardId]||[])[0]) : null;
         if (counterCard && worst) {
           const ctColor = counterCard.color==='green'?'var(--green)':'var(--yellow)';
-          counterHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label">🛡 次はこのカードで備えよう</div><div class="go-counter-trigger"><span style="font-size:1.1rem">${worst.cardIcon}</span><span class="go-counter-arrow">→</span><span style="font-size:.82rem;color:var(--t1)">${worst.cardName} ${worst.damage}ダメージへの対策</span></div><div class="go-mvp-card-row" style="margin-top:10px"><img class="go-mvp-img" src="images/cards/${counterCard.id}.webp" alt="" onerror="this.style.display='none'"><div class="go-mvp-info"><div class="go-mvp-name" style="color:${ctColor}">${counterCard.icon} ${counterCard.name}</div><div class="go-mvp-type">${counterCard.desc}</div><div class="go-mvp-desc">${counterCard.realConcept}</div></div></div></div>`;
+          counterHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label"><img src="images/icons/neon_policy_shield.webp" style="width:20px;height:20px;object-fit:contain"> 次はこのカードで備えよう</div><div class="go-counter-trigger"><span style="font-size:1.1rem">${worst.cardIcon}</span><span class="go-counter-arrow">→</span><span style="font-size:.82rem;color:var(--t1)">${worst.cardName} ${worst.damage}ダメージへの対策</span></div><div class="go-mvp-card-row" style="margin-top:10px"><img class="go-mvp-img" src="images/cards/${counterCard.id}.webp" alt="" onerror="this.style.display='none'"><div class="go-mvp-info"><div class="go-mvp-name" style="color:${ctColor}">${counterCard.icon} ${counterCard.name}</div><div class="go-mvp-type">${counterCard.desc}</div><div class="go-mvp-desc">${counterCard.realConcept}</div></div></div></div>`;
         }
       }
 
@@ -4739,7 +4785,7 @@
         if (!p.cities || p.cities.length === 0) return '';
         return p.cities.filter(c=>c.learn).map(c => `<div class="spec-learn-box"><div class="spec-learn-city-header">${terrainImg(c,18)}<strong>${c.name}</strong><span class="terrain-badge">(${c.isCoastal?'海岸':c.isMountain?'山間部':'内陸'})</span></div><div class="spec-learn-text">${c.learn}</div></div>`).join('');
       }).join('');
-      const disasterLearn = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header">🗾 今試合の防災ポイント</div><div class="spec-learn-sub">この試合で使われた都市の防災知識（両プレイヤー分）</div>${learnBoxes}</div>`;
+      const disasterLearn = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_city.webp" style="width:20px;height:20px;object-fit:contain"> 今試合の防災ポイント</div>${learnBoxes}</div>`;
 
       // 観戦者限定: 試合ハイライト
       const allDmg = hist.filter(ev=>ev.type==='damage');
@@ -4748,11 +4794,11 @@
         const maxAtk = allDmg.reduce((m,ev)=>ev.damage>(m?.damage??0)?ev:m,null);
         const p0dealt = allDmg.filter(ev=>ev.playerIdx===1).reduce((s,ev)=>s+ev.damage,0);
         const p1dealt = allDmg.filter(ev=>ev.playerIdx===0).reduce((s,ev)=>s+ev.damage,0);
-        highlightHtml = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header">⚡ 試合ハイライト</div>${maxAtk?`<div class="go-stats-row"><span style="font-size:1rem">${maxAtk.cardIcon}</span><span class="go-stats-row-name">最大ダメージ：${maxAtk.cardName}</span><span class="go-hp-dead">−${maxAtk.damage}</span></div>`:''}<div class="go-stats-row"><span style="font-size:1rem">⚔️</span><span class="go-stats-row-name">${G.players[0].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p0dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">⚔️</span><span class="go-stats-row-name">${G.players[1].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p1dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">🕐</span><span class="go-stats-row-name">総ターン数</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${totalTurns}</span></div></div>`;
+        highlightHtml = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_disaster.webp" style="width:20px;height:20px;object-fit:contain"> 試合ハイライト</div>${maxAtk?`<div class="go-stats-row"><span style="font-size:1rem">${maxAtk.cardIcon}</span><span class="go-stats-row-name">最大ダメージ：${maxAtk.cardName}</span><span class="go-hp-dead">−${maxAtk.damage}</span></div>`:''}<div class="go-stats-row"><span style="font-size:1rem">⚔️</span><span class="go-stats-row-name">${G.players[0].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p0dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">⚔️</span><span class="go-stats-row-name">${G.players[1].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p1dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">🕐</span><span class="go-stats-row-name">総ターン数</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${totalTurns}</span></div></div>`;
       }
 
       // 観戦者限定: 観戦レポートコピー
-      const reportHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label">📝 観戦レポートをシェア</div><button class="go-gallery-btn" onclick="copySpecReport()">📋 観戦レポートをコピー</button></div>`;
+      const reportHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label"><img src="images/icons/neon_policy_instant.webp" style="width:20px;height:20px;object-fit:contain"> 観戦レポートをシェア</div><button class="go-gallery-btn" onclick="copySpecReport()">📋 観戦レポートをコピー</button></div>`;
 
       return `<div class="screen active go-screen ${themeCls}">
         <div class="go-hero">
@@ -4842,7 +4888,7 @@
         }).join('');
         const totalDmg = myDmgEvts.reduce((s, ev) => s + ev.damage, 0);
         karte = `<div class="go-inview go-stats-table">
-          <div class="go-stats-section-header go-karte-header">📋 被害カルテ — あなたが受けたダメージ</div>
+          <div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_disaster.webp" style="width:20px;height:20px;object-fit:contain"> 被害カルテ — あなたが受けたダメージ</div>
           ${rows}
           <div class="go-stats-row" style="border-top:1px solid var(--bg3);margin-top:2px">
             <span class="go-stats-row-name" style="font-size:.78rem">合計</span>
@@ -4864,7 +4910,7 @@
           </div>`;
         }).join('');
         terrainStat = `<div class="go-inview go-stats-table">
-          <div class="go-stats-section-header go-karte-header">🗾 地形リスク発動 — ${terrainHits.length}回</div>
+          <div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_city.webp" style="width:20px;height:20px;object-fit:contain"> 地形リスク発動 — ${terrainHits.length}回</div>
           ${tRows}
           <div class="go-terrain-note">都市の地形によってダメージが増減します → カード図鑑で確認</div>
         </div>`;
@@ -4879,7 +4925,7 @@
         if (counterCard && worst) {
           const ctColor = counterCard.color === 'green' ? 'var(--green)' : 'var(--yellow)';
           counterHtml = `<div class="go-inview go-counter-wrap">
-            <div class="go-mvp-label">🛡 次はこのカードで備えよう</div>
+            <div class="go-mvp-label"><img src="images/icons/neon_policy_shield.webp" style="width:20px;height:20px;object-fit:contain"> 次はこのカードで備えよう</div>
             <div class="go-counter-trigger">
               <span style="font-size:1.1rem">${worst.cardIcon}</span>
               <span class="go-counter-arrow">→</span>
@@ -5197,7 +5243,7 @@
         myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
         _rematchListenerSet = false; _rematchRequested = false;
         hideRematchRequestPopup();
-        localStorage.removeItem('ron_lastRoom');
+        localStorage.removeItem('ron_lastRoom'); localStorage.removeItem('ron_lastRole');
         history.replaceState(null, '', window.location.pathname);
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
         _hintOpen = false; tutorialState = null;
