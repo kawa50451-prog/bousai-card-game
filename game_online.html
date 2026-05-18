@@ -36,7 +36,7 @@
       --blue: #388bfd;
       --red: #f85149;
       --green: #3fb950;
-      --yellow: #d29922;
+      --yellow: #e3b341;
       --purple: #a371f7;
       --card-h: 140px;
       --card-w: 100px;
@@ -1175,6 +1175,8 @@
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, .7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1347,12 +1349,14 @@
     }
 
     /* TURN SUMMARY */
+    @keyframes ts-fade-in { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
     .turn-summary-box {
       flex: 1;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      padding: 16px
+      padding: 16px;
+      animation: ts-fade-in .35s cubic-bezier(.23,1,.32,1) both;
     }
 
     .ts-title {
@@ -1518,7 +1522,7 @@
     .gallery-btn-back:hover { background:rgba(250,42,78,.1); border-color:#fa2a4e; color:#fa2a4e }
     .sq-btn { background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:8px 14px; min-height:40px; display:inline-flex; align-items:center; justify-content:center; transition:.2s; white-space:nowrap }
     .sq-btn:hover { background:rgba(250,42,78,.1); border-color:#fa2a4e; color:#fa2a4e }
-    .sq-btn-r { background:transparent; border:1.5px solid #fff; border-radius:10px; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:10px 14px; width:100%; display:flex; align-items:center; justify-content:center; transition:.2s; margin-top:4px }
+    .sq-btn-r { background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:10px 14px; width:100%; display:flex; align-items:center; justify-content:center; transition:.2s; margin-top:4px }
     .sq-btn-r:hover { background:rgba(250,42,78,.1); border-color:#fa2a4e; color:#fa2a4e }
     .gallery-tabs { display:flex; flex-direction:column; gap:8px }
     .gallery-tab-btn { padding:12px 16px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:left; display:flex; align-items:center; gap:10px }
@@ -1590,7 +1594,7 @@
     /* ── 10. Hint overlay ── */
     .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:9100; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
     .hint-btn:hover { border-color:#fa2a4e; color:#fa2a4e; background:rgba(250,42,78,.1) }
-    .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:9200; display:flex; align-items:flex-end; justify-content:center; padding:12px }
+    .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:9200; display:flex; align-items:flex-end; justify-content:center; padding:12px }
     .hint-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:20px 18px; max-width:520px; width:100%; max-height:72vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px }
     .hint-box-header { display:flex; align-items:center; justify-content:space-between }
     .hint-title { font-size:.95rem; font-weight:700; color:var(--blue) }
@@ -2007,6 +2011,16 @@
     }
     .screen-shake { animation:yb-screen-shake .42s cubic-bezier(.36,.07,.19,.97) both; }
 
+    /* ── B-1: Card play-out ── */
+    @keyframes card-play-out {
+      0%   { transform:translateY(0) scale(1); opacity:1; }
+      100% { transform:translateY(-56px) scale(.82); opacity:0; }
+    }
+    .card-play-out { animation:card-play-out .22s cubic-bezier(.4,0,.6,1) both; pointer-events:none; }
+
+    /* ── B-2: Large damage red flash ── */
+    @keyframes red-flash-anim { 0%,100%{opacity:0} 18%{opacity:1} }
+
     /* ── B-1: Your turn clip-path banner ── */
     @keyframes yb-turn-banner {
       0%   { clip-path:inset(0 100% 0 0); opacity:1; }
@@ -2225,7 +2239,7 @@
     .go-stats-section-header {
       padding: 8px 16px;
       font-size: 0.88rem; font-weight: 700;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.1em;
       color: var(--t1); background: var(--bg2);
       border-bottom: 1px solid var(--bg3);
       display: flex; align-items: center; gap: 6px;
@@ -2261,7 +2275,7 @@
     }
     .go-mvp-label {
       font-size: 0.82rem; font-weight: 700;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.1em;
       color: var(--t1); margin-bottom: 10px;
       display: flex; align-items: center; gap: 6px;
     }
@@ -2313,8 +2327,8 @@
     .spec-offer-sub { font-size:.8rem; color:var(--t2); }
     .spec-offer-btn { width:100%; padding:12px 24px; border-radius:40px; border:none; background:var(--blue); color:#fff; font-size:.95rem; font-weight:700; cursor:pointer; font-family:'Roboto Condensed',sans-serif; letter-spacing:.06em; display:flex; align-items:center; justify-content:center; gap:8px; transition:.2s; }
     .spec-screen { display:flex; flex-direction:column; gap:12px; padding:12px; max-width:540px; margin:0 auto; }
-    .spec-header { display:flex; align-items:center; gap:8px; background:var(--bg2); border:1px solid var(--bg3); border-radius:12px; padding:10px 14px; }
-    .spec-badge { font-size:.78rem; font-weight:700; color:var(--blue); letter-spacing:.06em; }
+    .spec-header { position:sticky; top:8px; z-index:50; display:flex; align-items:center; gap:8px; background:rgba(22,27,34,.92); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:1px solid var(--bg3); border-radius:12px; padding:10px 14px; }
+    .spec-badge { font-size:.78rem; font-weight:700; color:var(--blue); letter-spacing:.08em; }
     .spec-turn-info { flex:1; font-size:.82rem; color:var(--t2); text-align:center; }
     .spec-exit-btn-small { font-size:.75rem; color:var(--t3); background:transparent; border:1px solid var(--bg3); border-radius:20px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
     .spec-zone { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:border-color .2s; }
@@ -2323,7 +2337,7 @@
     .spec-turn-dot { width:10px; height:10px; min-width:10px; border-radius:50%; background:var(--blue); animation:pulse-anim 1.4s ease-in-out infinite; }
     .spec-player-name { font-size:1rem; font-weight:700; color:var(--t1); }
     .spec-city-name { font-size:.9rem; color:var(--t1); }
-    .spec-vs-divider { text-align:center; font-size:.78rem; font-weight:700; color:var(--t3); letter-spacing:.1em; padding:2px 0; }
+    .spec-vs-divider { text-align:center; font-family:'Roboto Condensed',sans-serif; font-size:1.5rem; font-weight:900; color:#fa2a4e; letter-spacing:.18em; padding:2px 0; text-shadow:0 0 22px rgba(250,42,78,.4); }
     .spec-hands { display:flex; flex-direction:column; gap:12px; }
     .spec-hand-section { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:12px; }
     .spec-hand-label { font-size:.78rem; font-weight:700; color:var(--t2); margin-bottom:8px; letter-spacing:.04em; }
@@ -2662,6 +2676,7 @@
     let _cityInfoModal = null;
     let _hintOpen = false;
     let _lastDrawnCardUid = null;
+    let _playingCardUid = null;
     let _mainTutorialShown = false;
     let _tutStepSpotlights = new Set();
     let _tutBattleGateShown = false;
@@ -3431,10 +3446,17 @@
       if (isDamage) {
         fill.classList.remove('hp-flash'); fill.offsetWidth; fill.classList.add('hp-flash');
         fill.addEventListener('animationend', () => fill.classList.remove('hp-flash'), { once: true });
-        showDamageFloat(pi, fh - th, false);
+        const dmgAmt = fh - th;
+        showDamageFloat(pi, dmgAmt, false);
         if (ghost) setTimeout(() => { ghost.style.transition = 'width 1.2s ease'; ghost.style.width = Math.max(0, th / mxHp * 100) + '%'; }, 500);
-        document.body.classList.remove('screen-shake'); void document.body.offsetWidth; document.body.classList.add('screen-shake');
-        document.body.addEventListener('animationend', () => document.body.classList.remove('screen-shake'), { once: true });
+        if (dmgAmt >= 30) {
+          document.body.classList.remove('screen-shake'); void document.body.offsetWidth; document.body.classList.add('screen-shake');
+          document.body.addEventListener('animationend', () => document.body.classList.remove('screen-shake'), { once: true });
+          const _flash = document.createElement('div');
+          _flash.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9998;background:rgba(248,81,73,.26);animation:red-flash-anim .5s ease both';
+          document.body.appendChild(_flash);
+          _flash.addEventListener('animationend', () => _flash.remove(), { once: true });
+        }
       } else {
         if (ghost) { ghost.style.transition = 'none'; ghost.style.width = Math.max(0, th / mxHp * 100) + '%'; }
         if (th > fh) showDamageFloat(pi, th - fh, true);
@@ -4214,6 +4236,7 @@
     // ─── 接続待ち ───
     function renderWaitingConnection() {
       const _svgLink = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+      const _svgBack = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><polyline points="15 18 9 12 15 6"/></svg>`;
       if (myRole === 'p1') {
         return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
       <div style="text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;color:#e6edf3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span style="font-size:1.3rem;font-weight:700;color:#e6edf3">ホスト待機中</span></div><p style="color:var(--t1);font-size:.88rem">相手にルームコードまたはURLを共有してください</p></div>
@@ -4230,7 +4253,7 @@
         <span class="pulse-dot" style="background:#fa2a4e;min-width:12px"></span>
         <span style="font-size:.85rem;color:#fa2a4e">相手の接続を待っています...</span>
       </div>
-      <div style="color:var(--t1);font-size:.75rem;text-align:center">${G.players[0].name} としてホスト中</div>
+      <button class="sq-btn-r" onclick="restartGame()">${_svgBack} ロビーに戻る</button>
     </div></div></div>`;
       } else {
         return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
@@ -4243,7 +4266,7 @@
         <span class="pulse-dot" style="background:var(--green);min-width:12px"></span>
         <span style="font-size:.85rem;color:var(--green)">ホストの開始を待っています...</span>
       </div>
-      <div style="color:var(--t1);font-size:.75rem;text-align:center">${G.players[1].name} として参加中</div>
+      <button class="sq-btn-r" onclick="restartGame()">${_svgBack} ロビーに戻る</button>
     </div></div></div>`;
       }
     }
@@ -4359,7 +4382,8 @@
         let reason = ''; if (cantAfford) reason = '予算不足'; else if (ftBlk) reason = '先攻1ターン目は使用不可';
         const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
         const _isNew = card.uid === _lastDrawnCardUid;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span>${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
+        const _isPlaying = card.uid === _playingCardUid;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span>${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -4397,7 +4421,7 @@
     // ─── 手札描画（対応フェーズ） ───
     function renderResponseHand(p) {
       if (p.hand.length === 0) return `<div style="color:var(--t3);font-size:.85rem;padding:10px">手札なし</div>`;
-      function mkCard(card) { const dis = card.type !== 'policy'; const oc = dis ? '' : `requestConfirm('playResponseCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','対応に使用')`; return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${dis ? '災害（使用不可）' : '対応'}</span>${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`; }
+      function mkCard(card) { const dis = card.type !== 'policy'; const oc = dis ? '' : `requestConfirm('playResponseCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','対応に使用')`; const _isPlaying = card.uid === _playingCardUid; return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${dis ? '災害（使用不可）' : '対応'}</span>${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`; }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
       const s = [];
@@ -4525,7 +4549,7 @@
       if (c.fn === 'endTurn') {
         const left = getBudgetLeft(G.activePlayer);
         return `<div class="confirm-overlay" onclick="cancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
-          <div style="font-size:2.5rem;text-align:center;margin-bottom:4px">💰</div>
+          <div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div>
           <div class="confirm-card-preview"><strong>予算 ${left}pt が残っています</strong></div>
           <p>本当にターンを終了しますか？</p>
           <div class="confirm-btns"><button class="btn-ok" onclick="confirmWithAnim()">終了する</button><button class="btn-cancel" onclick="cancelConfirm()">キャンセル</button></div>
@@ -4722,7 +4746,7 @@
           ${specZone(0)}
           <div class="spec-hand-section"><div class="spec-hand-label">${p0.name} の手札</div>${specHand(0)}</div>
         </div>
-        <div class="spec-vs-divider">─── VS ───</div>
+        <div class="spec-vs-divider">VS</div>
         <div class="spec-player-block">
           ${specZone(1)}
           <div class="spec-hand-section"><div class="spec-hand-label">${p1.name} の手札</div>${specHand(1)}</div>
@@ -5049,7 +5073,14 @@
       G._turnSummary = null; setupTurnDraw(G.activePlayer); pushState(); render();
     }
     function requestConfirm(fn, uid, name, icon, cardType, actionLabel, danger = false) { G.confirm = { fn, uid, name, icon, cardType, actionLabel, danger }; render(); }
-    function doConfirm() { const c = G.confirm; G.confirm = null; if (c.fn === 'playCard') playCard(c.uid); else if (c.fn === 'playResponseCard') playResponseCard(c.uid); else if (c.fn === 'discardCard') discardCard(c.uid); else if (c.fn === 'endTurn') endTurn(); }
+    function doConfirm() {
+      const c = G.confirm; G.confirm = null;
+      if (c.fn === 'playCard' || c.fn === 'playResponseCard') {
+        _playingCardUid = c.uid; render();
+        setTimeout(() => { _playingCardUid = null; if (c.fn === 'playCard') playCard(c.uid); else playResponseCard(c.uid); }, 230);
+      } else if (c.fn === 'discardCard') { discardCard(c.uid); }
+      else if (c.fn === 'endTurn') { endTurn(); }
+    }
     function cancelConfirm() { G.confirm = null; render(); }
     function confirmWithAnim() {
       const box = document.querySelector('.confirm-box');
@@ -5099,7 +5130,7 @@
       const idx = def.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = def.hand[idx]; if (card.type !== 'policy') return;
       def.hand.splice(idx, 1); G.discard.push(card); addLog(`🛡️ ${def.name}が「${card.icon} ${card.name}」で対応！`, 'policy');
       resolveDamage(G.pendingAttack.card, defIdx, card); G.pendingAttack = null;
-      if (checkWin()) return; if (G.screen !== 'peek') G.screen = 'main'; pushState(); render();
+      if (checkWin()) return; if (G.screen !== 'peek' && G.screen !== 'turnDraw') G.screen = 'main'; pushState(); render();
     }
 
     function discardCard(uid) {
