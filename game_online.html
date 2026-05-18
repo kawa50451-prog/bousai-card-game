@@ -1974,12 +1974,20 @@
       65%  { background:rgba(255,255,255,.18); }
       100% { background:rgba(255,255,255,0);   }
     }
-    .card-just-drawn { position:relative; }
+    @keyframes card-flip-in {
+      0%   { transform:perspective(500px) rotateY(90deg) scale(.9); opacity:0; }
+      40%  { opacity:1; }
+      58%  { transform:perspective(500px) rotateY(-10deg) scale(1.06); }
+      80%  { transform:perspective(500px) rotateY(4deg)   scale(1.01); }
+      100% { transform:perspective(500px) rotateY(0deg)   scale(1);    opacity:1; }
+    }
+    .card-just-drawn { position:relative; animation:card-flip-in .5s cubic-bezier(.22,.68,0,1.2) forwards; }
     .card-just-drawn::after {
       content:''; position:absolute; inset:0; border-radius:inherit;
       pointer-events:none; z-index:10;
       animation:card-draw-flash .9s ease forwards;
     }
+    .card.card-spectator { cursor:default; }
 
     /* ── A-2: Confirm wipe-out on play ── */
     @keyframes yb-clip-out {
@@ -3738,6 +3746,15 @@
       db.ref(`rooms/${roomId}/state`).on('value', snap => {
         const data = snap.val(); if (!data || data === myLastPush) return;
         const prevScreen = G.screen;
+        // 観戦者: 手札に新しく加わったカードのUIDを検出してフリップアニメーションを発火
+        if (myRole === 'spectator') {
+          const prevUids = [0, 1].map(pi => new Set((G.players[pi].hand || []).map(c => c.uid)));
+          const next = JSON.parse(data);
+          for (let pi = 0; pi < 2; pi++) {
+            const newCard = (next.players[pi].hand || []).find(c => !prevUids[pi].has(c.uid));
+            if (newCard) { _lastDrawnCardUid = newCard.uid; break; }
+          }
+        }
         G = { ...JSON.parse(data), confirm: null };
         const newAp = G.activePlayer; const newScreen = G.screen;
         // メインフェーズ ターン切り替え
@@ -4317,6 +4334,20 @@
       return `<div class="hand-groups">${s.join('')}</div>`;
     }
 
+    // ─── 手札描画（観戦者神視点：黒レイヤーなし・フリップ対応） ───
+    function renderPlayerHandSpectator(p) {
+      function mkCard(card) {
+        const isNew = card.uid === _lastDrawnCardUid;
+        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span></div>`;
+      }
+      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
+      const dis  = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
+      const s = [];
+      if (pols.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label policy-label">政策</div><div class="hand-group-cards">${pols.map(mkCard).join('')}</div></div>`);
+      if (dis.length  > 0) s.push(`<div class="hand-group"><div class="hand-group-label disaster-label">災害</div><div class="hand-group-cards">${dis.map(mkCard).join('')}</div></div>`);
+      return `<div class="hand-groups">${s.join('')}</div>`;
+    }
+
     // ─── 手札描画（対応フェーズ） ───
     function renderResponseHand(p) {
       if (p.hand.length === 0) return `<div style="color:var(--t3);font-size:.85rem;padding:10px">手札なし</div>`;
@@ -4636,7 +4667,7 @@
       function specHand(idx) {
         const p = G.players[idx];
         if (!p.hand || p.hand.length === 0) return `<div style="color:var(--t3);font-size:.82rem;text-align:center;padding:4px">手札なし</div>`;
-        return renderPlayerHandReadOnly(p);
+        return renderPlayerHandSpectator(p);
       }
       const logHtml = G.log.slice(0, 8).map(e => `<div class="log-entry ${e.cls}">${e.msg}</div>`).join('') || '<div class="log-entry sys">ゲーム開始</div>';
       return `<div class="screen active spec-screen">
