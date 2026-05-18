@@ -2289,6 +2289,43 @@
     .go-defeat  .go-rematch-btn { background:var(--blue);  color:#fff; }
     .go-defeat  .go-rematch-btn:hover { background:#1f6fd0; }
     .go-rematch-btn:disabled { opacity:.45; cursor:default; }
+    .rematch-request-overlay { position:fixed; inset:0; z-index:9300; background:rgba(8,13,20,.82); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; }
+    .rematch-request-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:32px 24px; text-align:center; max-width:300px; width:90%; display:flex; flex-direction:column; align-items:center; gap:14px; }
+    .rematch-request-title { font-size:1.15rem; font-weight:700; color:var(--t1); }
+    .rematch-request-sub { font-size:.85rem; color:var(--t2); line-height:1.6; }
+    .rematch-accept-btn { width:100%; padding:13px 32px; border-radius:40px; border:none; background:var(--green); color:#000; font-size:1rem; font-weight:700; cursor:pointer; font-family:'Roboto Condensed',sans-serif; letter-spacing:.06em; transition:.2s; }
+    .rematch-accept-btn:hover { background:#2da843; }
+    .rematch-decline-btn { width:100%; padding:12px 32px; border-radius:40px; border:2px solid var(--bg3); background:transparent; color:var(--t2); font-size:.88rem; font-weight:700; cursor:pointer; font-family:'Roboto Condensed',sans-serif; letter-spacing:.06em; transition:.2s; }
+
+    /* ─── 観戦者 ─── */
+    .spec-offer-box { background:rgba(56,139,253,.1); border:1px solid rgba(56,139,253,.35); border-radius:12px; padding:16px; text-align:center; display:flex; flex-direction:column; gap:10px; }
+    .spec-offer-title { font-size:.95rem; font-weight:700; color:var(--t1); }
+    .spec-offer-sub { font-size:.8rem; color:var(--t2); }
+    .spec-offer-btn { width:100%; padding:12px 24px; border-radius:40px; border:none; background:var(--blue); color:#fff; font-size:.95rem; font-weight:700; cursor:pointer; font-family:'Roboto Condensed',sans-serif; letter-spacing:.06em; display:flex; align-items:center; justify-content:center; gap:8px; transition:.2s; }
+    .spec-screen { display:flex; flex-direction:column; gap:12px; padding:12px; max-width:540px; margin:0 auto; }
+    .spec-header { display:flex; align-items:center; gap:8px; background:var(--bg2); border:1px solid var(--bg3); border-radius:12px; padding:10px 14px; }
+    .spec-badge { font-size:.78rem; font-weight:700; color:var(--blue); letter-spacing:.06em; }
+    .spec-turn-info { flex:1; font-size:.82rem; color:var(--t2); text-align:center; }
+    .spec-exit-btn-small { font-size:.75rem; color:var(--t3); background:transparent; border:1px solid var(--bg3); border-radius:20px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
+    .spec-zone { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:border-color .2s; }
+    .spec-zone-active { border-color:var(--blue); }
+    .spec-zone-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .spec-turn-dot { width:10px; height:10px; min-width:10px; border-radius:50%; background:var(--blue); animation:pulse-anim 1.4s ease-in-out infinite; }
+    .spec-player-name { font-size:1rem; font-weight:700; color:var(--t1); }
+    .spec-city-name { font-size:.9rem; color:var(--t1); }
+    .spec-vs-divider { text-align:center; font-size:.78rem; font-weight:700; color:var(--t3); letter-spacing:.1em; padding:2px 0; }
+    .spec-hands { display:flex; flex-direction:column; gap:12px; }
+    .spec-hand-section { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:12px; }
+    .spec-hand-label { font-size:.78rem; font-weight:700; color:var(--t2); margin-bottom:8px; letter-spacing:.04em; }
+    .spec-log { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:4px; }
+    .spec-log-title { font-size:.75rem; font-weight:700; color:var(--t3); margin-bottom:4px; letter-spacing:.06em; }
+    .spec-exit-btn { width:100%; padding:13px; border-radius:40px; border:2px solid var(--bg3); background:transparent; color:var(--t2); font-size:.88rem; font-weight:700; cursor:pointer; font-family:'Roboto Condensed',sans-serif; letter-spacing:.06em; }
+    .spec-waiting { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:32px 16px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .spec-waiting-text { font-size:1rem; font-weight:700; color:var(--t1); }
+    .spec-player-names { font-size:.88rem; color:var(--t2); }
+    .spec-gameover-box { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:28px 16px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .spec-gameover-winner { font-size:1.2rem; font-weight:700; color:var(--green); }
+    .spec-gameover-loser { font-size:.88rem; color:var(--t2); }
 
     .go-share-btn {
       width:100%; padding:11px 32px;
@@ -2600,7 +2637,7 @@
     let myLastPush = null;   // 自分のpushが返ってきたとき無視する用
 
     // ══ LOBBY UI STATE ══
-    let lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
+    let lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, spectateCode: null };
     let _logExpanded = false;
     let _cityInfoModal = null;
     let _hintOpen = false;
@@ -3624,7 +3661,7 @@
 
     // ─── Firebase Presence（切断検知・自動ルーム削除） ───
     function setupPresence() {
-      if (!db || !roomId) return;
+      if (!db || !roomId || myRole === 'spectator') return;
       const myKey = myRole;
       const oppKey = myRole === 'p1' ? 'p2' : 'p1';
       const myPresRef = db.ref(`rooms/${roomId}/presence/${myKey}`);
@@ -3667,7 +3704,7 @@
     }
 
     function pushState() {
-      if (!db || !roomId) return;
+      if (!db || !roomId || myRole === 'spectator') return;
       const s = JSON.stringify({ ...G, confirm: null }); myLastPush = s;
       db.ref(`rooms/${roomId}/state`).set(s);
       db.ref(`rooms/${roomId}/lastActiveAt`).set(Date.now());
@@ -3727,7 +3764,7 @@
         const roomData = snap.val();
         // 再接続: p2Joined=true かつ presence/p2 が false(切断済み) なら再参加を許可
         const isRejoin = roomData.p2Joined && roomData.presence?.p2 === false;
-        if (roomData.p2Joined && !isRejoin) { lobbyState.error = 'このルームはすでに満員です'; render(); return; }
+        if (roomData.p2Joined && !isRejoin) { lobbyState.spectateCode = code; lobbyState.error = ''; render(); return; }
         myRole = 'p2'; myPlayerIdx = 1; roomId = code; G.players[1].name = name;
         history.replaceState(null, '', '?room=' + roomId);
         localStorage.setItem('ron_lastRoom', roomId); localStorage.setItem('ron_lastName', name);
@@ -3747,11 +3784,23 @@
       catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>`; }
     }
 
+    async function enterSpectator(code) {
+      roomId = code; myRole = 'spectator'; myPlayerIdx = 0;
+      history.replaceState(null, '', '?room=' + code);
+      try {
+        const snap = await db.ref(`rooms/${code}/state`).get();
+        if (snap.val()) { const parsed = JSON.parse(snap.val()); G = { ...G, ...parsed }; }
+      } catch (e) {}
+      listenToState();
+      render();
+    }
+
     // ═══════════════════════════════════════
     // VIEW DISPATCH
     // ═══════════════════════════════════════
     function myView() {
       if (!isFirebaseConfigured()) return 'setup_required';
+      if (myRole === 'spectator') return 'spectator';
       if (G.screen === 'lobby' || G.screen === 'waiting_connection' || G.screen === 'tutorial') return G.screen;
       const mi = myPlayerIdx;
       switch (G.screen) {
@@ -3921,6 +3970,7 @@
         case 'peek': html = renderPeek(); break;
         case 'gameover': html = renderGameOver(); break;
         case 'waiting': html = renderWaiting(); break;
+        case 'spectator': html = renderSpectator(); break;
       }
       if (G.confirm && (view === 'main' || view === 'response' || view === 'discard')) html += renderConfirmModal();
       const _cityModalViews = ['main', 'response', 'waiting', 'waiting_response'];
@@ -4031,6 +4081,8 @@
   </div></div></div>`;
       }
 
+      const _svgEye = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      const spectateOffer = lobbyState.spectateCode ? `<div class="spec-offer-box"><div class="spec-offer-title">このルームは対戦中です</div><div class="spec-offer-sub">観戦者として参加できます</div><button class="spec-offer-btn" onclick="enterSpectator('${lobbyState.spectateCode}')">${_svgEye}観戦する</button></div>` : '';
       let body = '';
       const _svgHouse = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>`;
       const _svgUsers = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
@@ -4051,7 +4103,7 @@
         body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 鈴木" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
     <div><label class="lobby-label">ルームコード（6文字）</label><input id="lobby-code" class="lobby-input code-input" type="text" placeholder="AB3K7X" maxlength="6" value="${jv}" oninput="lobbyState.joinCodeInput=this.value.toUpperCase();this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')handleJoinClick()"></div>
     <div style="font-size:.78rem;color:#fff;text-align:center;line-height:1.6;padding:2px 0">ホストの画面に表示されるQRコードはカメラから読み込んでください</div>
-    ${err}
+    ${err}${spectateOffer}
     <button class="lobby-btn-single" onclick="handleJoinClick()">参加する</button>
     <button class="sq-btn-r" onclick="lobbyState.mode='select';lobbyState.error='';render()">＜ ロビーに戻る</button>`;
       }
@@ -4195,7 +4247,7 @@
       if (p.cities.length < 2) return '';
       // 相手の2体目は両者が1体目の間は隠す。自分の2体目は常に見える
       const bothOnFirst = G.players[0].activeCityIdx === 0 && G.players[1].activeCityIdx === 0;
-      if (bothOnFirst && pi !== myPlayerIdx) return `<div class="backup-city-row"><span class="backup-label" style="color:var(--t3);font-style:italic">予備都市: 未登場</span></div>`;
+      if (bothOnFirst && pi !== myPlayerIdx && myRole !== 'spectator') return `<div class="backup-city-row"><span class="backup-label" style="color:var(--t3);font-style:italic">予備都市: 未登場</span></div>`;
       const bc = p.cities[1]; const bHp = p.cityHps[1]; const pct = Math.max(0, bHp / bc.hp * 100);
       return `<div class="backup-city-row"><span class="backup-label">予備: ${terrainImg(bc, 16)} ${bc.name}</span><div class="hp-bar-mini"><div class="hp-bar-mini-fill" style="width:${pct}%;background:${hpColor(bHp, bc.hp)}"></div></div><span class="backup-hp-text" style="color:${hpColor(bHp, bc.hp)}">${bHp}/${bc.hp}</span></div>`;
     }
@@ -4506,6 +4558,72 @@
   </div></div>`;
     }
 
+    // ─── 観戦者ビュー ───
+    function renderSpectator() {
+      const _svgEyeHd = `<svg style="width:16px;height:16px;color:var(--blue)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      const screen = G.screen;
+      const p0 = G.players[0]; const p1 = G.players[1];
+      const header = `<div class="spec-header">${_svgEyeHd}<span class="spec-badge">観戦中</span><span class="spec-turn-info">${G.players[G.activePlayer]?.name || ''} のターン</span><button class="spec-exit-btn-small" onclick="restartGame()">退出</button></div>`;
+
+      // ゲーム開始前（ガチャ・都市選択・ドラフト中）
+      const preGame = ['gacha','cityOrder','draft','turnDraw'];
+      if (preGame.includes(screen) || !p0.cities || p0.cities.length === 0) {
+        return `<div class="screen active spec-screen">${header}<div class="spec-waiting"><div style="font-size:2rem">⏳</div><div class="spec-waiting-text">対戦準備中...</div><div class="spec-player-names">${p0.name} vs ${p1.name}</div></div><button class="spec-exit-btn" onclick="restartGame()">ロビーに戻る</button></div>`;
+      }
+
+      // ゲームオーバー
+      if (screen === 'gameover' && G.winner !== null && G.winner !== undefined) {
+        const wi = G.winner; const w = G.players[wi]; const l = G.players[wi === 0 ? 1 : 0];
+        const wHp = Math.max(0, getActiveCityHp(wi));
+        return `<div class="screen active spec-screen">${header}<div class="spec-gameover-box"><div style="font-size:2.5rem">🏆</div><div class="spec-gameover-winner">${w.name} の勝利！</div><div class="spec-gameover-loser">${l.name} 敗北</div><div style="font-size:.82rem;color:var(--t2)">残HP: ${wHp}</div></div><button class="spec-exit-btn" onclick="restartGame()">ロビーに戻る</button></div>`;
+      }
+
+      // 試合中（神視点）
+      function specZone(idx) {
+        const p = G.players[idx];
+        if (!p.cities || p.cities.length === 0) return `<div class="spec-zone"><div style="color:var(--t3);text-align:center;padding:12px">準備中...</div></div>`;
+        const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
+        const isActive = G.activePlayer === idx;
+        return `<div class="spec-zone${isActive ? ' spec-zone-active' : ''}">
+          <div class="spec-zone-header">
+            ${isActive ? '<span class="spec-turn-dot"></span>' : ''}
+            <span class="spec-player-name">${p.name}</span>
+            ${c ? terrainImg(c, 26) : ''}
+            <span class="spec-city-name">${c ? c.name : '?'}</span>
+            ${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}
+          </div>
+          <div class="hp-section" id="hp-section-${idx}">
+            <div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${Math.max(0,hp/mxHp*100)}%"></div><div class="hp-bar-fill${hp<=10?' hp-warn':''}" id="hp-fill-${idx}" style="width:${Math.max(0,hp/mxHp*100)}%;background:${hpColor(hp,mxHp)}"></div></div>
+            <div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp,mxHp)}">${Math.max(0,hp)}/${mxHp}</div>
+            ${hp<=10?'<span class="hp-critical-badge">⚠️ 壊滅寸前</span>':hp<=30?'<span class="hp-danger-badge">危険</span>':''}
+          </div>
+          ${renderBackupCity(idx)}
+          <div class="effects-row">${renderEffectBadges(p.effects)}</div>
+        </div>`;
+      }
+
+      function specHand(idx) {
+        const p = G.players[idx];
+        if (!p.hand || p.hand.length === 0) return `<div style="color:var(--t3);font-size:.82rem;text-align:center;padding:4px">手札なし</div>`;
+        return renderPlayerHandReadOnly(p);
+      }
+
+      const logHtml = G.log.slice(0, 6).map(e => `<div class="log-entry ${e.cls}">${e.msg}</div>`).join('') || '<div class="log-entry sys">ゲーム開始</div>';
+
+      return `<div class="screen active spec-screen">
+        ${header}
+        ${specZone(0)}
+        <div class="spec-vs-divider">─── VS ───</div>
+        ${specZone(1)}
+        <div class="spec-hands">
+          <div class="spec-hand-section"><div class="spec-hand-label">${p0.name} の手札</div>${specHand(0)}</div>
+          <div class="spec-hand-section"><div class="spec-hand-label">${p1.name} の手札</div>${specHand(1)}</div>
+        </div>
+        <div class="spec-log"><div class="spec-log-title">ログ</div>${logHtml}</div>
+        <button class="spec-exit-btn" onclick="restartGame()">ロビーに戻る</button>
+      </div>`;
+    }
+
     // ─── ゲームオーバー ───
     function renderGameOver() {
       setupRematchListener();
@@ -4648,11 +4766,7 @@
     ${karte}
     ${terrainStat}
     ${counterHtml}
-    ${roomId
-      ? (myRole === 'p1'
-        ? `<button class="go-inview go-rematch-btn" onclick="doRematch()">⚔️ もう1戦</button>`
-        : `<button class="go-inview go-rematch-btn" onclick="requestRematch()" ${_rematchRequested ? 'disabled' : ''}>${_rematchRequested ? '⏳ ホスト待機中...' : '⚔️ もう1戦リクエスト'}</button>`)
-      : ''}
+    ${roomId ? `<button class="go-inview go-rematch-btn" onclick="requestRematch()" ${_rematchRequested ? 'disabled' : ''}>${_rematchRequested ? '⏳ 相手の返答待ち...' : '⚔️ もう1戦'}</button>` : ''}
     <button class="go-inview go-replay-btn" onclick="restartGame()">ロビーに戻る</button>
   </div>
 
@@ -4794,7 +4908,13 @@
     // ─── リマッチ ───
     function doRematch() {
       if (myRole !== 'p1') return;
-      if (db && roomId) db.ref(`rooms/${roomId}/rematch`).remove();
+      if (db && roomId) {
+        db.ref(`rooms/${roomId}/rematch`).off();
+        db.ref(`rooms/${roomId}/rematch`).remove();
+        db.ref(`rooms/${roomId}/rematchRequest`).off();
+        db.ref(`rooms/${roomId}/rematchRequest`).remove();
+      }
+      hideRematchRequestPopup();
       _rematchListenerSet = false; _rematchRequested = false;
       const p0name = G.players[0].name; const p1name = G.players[1].name;
       G = {
@@ -4815,20 +4935,56 @@
     function requestRematch() {
       if (!db || !roomId || _rematchRequested) return;
       _rematchRequested = true;
-      db.ref(`rooms/${roomId}/rematch`).set(true);
+      db.ref(`rooms/${roomId}/rematchRequest`).set(myRole);
       render();
     }
 
+    function acceptRematch() {
+      hideRematchRequestPopup();
+      if (db && roomId) db.ref(`rooms/${roomId}/rematch`).set(true);
+    }
+
+    function declineRematch() {
+      hideRematchRequestPopup();
+      if (db && roomId) db.ref(`rooms/${roomId}/rematchRequest`).remove();
+    }
+
+    function showRematchRequestPopup() {
+      if (document.getElementById('rematch-request-popup')) return;
+      const ov = document.createElement('div');
+      ov.id = 'rematch-request-popup'; ov.className = 'rematch-request-overlay';
+      const _svgSword = `<svg style="width:48px;height:48px;color:var(--yellow)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>`;
+      ov.innerHTML = `<div class="rematch-request-box">
+        ${_svgSword}
+        <div class="rematch-request-title">もう1戦リクエスト</div>
+        <div class="rematch-request-sub">相手がもう1戦を希望しています。<br>受けますか？</div>
+        <button class="rematch-accept-btn" onclick="acceptRematch()">⚔️ はい、やります！</button>
+        <button class="rematch-decline-btn" onclick="declineRematch()">いいえ</button>
+      </div>`;
+      document.body.appendChild(ov);
+    }
+
+    function hideRematchRequestPopup() {
+      const el = document.getElementById('rematch-request-popup'); if (el) el.remove();
+    }
+
     function setupRematchListener() {
-      if (_rematchListenerSet || !db || !roomId || myRole !== 'p1') return;
+      if (_rematchListenerSet || !db || !roomId) return;
       _rematchListenerSet = true;
-      db.ref(`rooms/${roomId}/rematch`).on('value', snap => {
-        if (snap.val() && G.screen === 'gameover') {
-          db.ref(`rooms/${roomId}/rematch`).off();
-          _rematchListenerSet = false;
-          doRematch();
+      db.ref(`rooms/${roomId}/rematchRequest`).on('value', snap => {
+        const requester = snap.val();
+        if (requester && requester !== myRole) {
+          showRematchRequestPopup();
+        } else if (!requester) {
+          hideRematchRequestPopup();
+          if (_rematchRequested) { _rematchRequested = false; render(); }
         }
       });
+      if (myRole === 'p1') {
+        db.ref(`rooms/${roomId}/rematch`).on('value', snap => {
+          if (snap.val() === true && G.screen === 'gameover') doRematch();
+        });
+      }
     }
 
     // ─── リザルト共有 ───
@@ -4879,6 +5035,7 @@
         if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
         myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
         _rematchListenerSet = false; _rematchRequested = false;
+        hideRematchRequestPopup();
         localStorage.removeItem('ron_lastRoom');
         history.replaceState(null, '', window.location.pathname);
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
