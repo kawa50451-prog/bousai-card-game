@@ -5,6 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ready or Not</title>
+  <link rel="icon" href="images/icons/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="images/icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d1117">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700;900&display=swap" rel="stylesheet">
@@ -3544,7 +3548,24 @@
     // FIREBASE
     // ═══════════════════════════════════════
     function isFirebaseConfigured() { return FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY'; }
-    function initFirebase() { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); }
+    function initFirebase() { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); cleanupOldRooms(); }
+
+    async function cleanupOldRooms() {
+      if (!db) return;
+      const EXPIRE_MS = 3 * 60 * 60 * 1000; // 3時間
+      const cutoff = Date.now() - EXPIRE_MS;
+      try {
+        const snap = await db.ref('rooms').once('value');
+        const rooms = snap.val();
+        if (!rooms) return;
+        const deletes = [];
+        for (const [id, room] of Object.entries(rooms)) {
+          const lastActive = room.lastActiveAt || room.createdAt || 0;
+          if (lastActive < cutoff) deletes.push(db.ref(`rooms/${id}`).remove());
+        }
+        await Promise.all(deletes);
+      } catch (e) {}
+    }
 
     function generateRoomCode() { const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++)c += chars[Math.random() * chars.length | 0]; return c; }
 
@@ -3649,6 +3670,7 @@
       if (!db || !roomId) return;
       const s = JSON.stringify({ ...G, confirm: null }); myLastPush = s;
       db.ref(`rooms/${roomId}/state`).set(s);
+      db.ref(`rooms/${roomId}/lastActiveAt`).set(Date.now());
     }
 
     function listenToState() {
@@ -3678,7 +3700,7 @@
       history.replaceState(null, '', '?room=' + roomId);
       localStorage.setItem('ron_lastRoom', roomId); localStorage.setItem('ron_lastName', name);
       try {
-        await db.ref(`rooms/${roomId}`).set({ p1Name: name, p2Name: '', p2Joined: false, state: null });
+        await db.ref(`rooms/${roomId}`).set({ p1Name: name, p2Name: '', p2Joined: false, state: null, createdAt: Date.now() });
         db.ref(`rooms/${roomId}/p2Joined`).on('value', snap => {
           if (snap.val() === true) {
             db.ref(`rooms/${roomId}/p2Joined`).off();
