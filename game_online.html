@@ -3194,6 +3194,29 @@
       else if (card.specialType === 'inland_bonus' && d && !d.isCoastal && !d.isMountain) e += 10;
       return e;
     }
+    // 防御側が把握できる全要素を込みにした精度の高い予測ダメージ（対応フェーズ用）
+    function computeFullDefenderEst(attackCard, defIdx, forceNegate) {
+      const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
+      let e = attackCard.baseDamage;
+      const negated = forceNegate || def.effects.negateSpecial;
+      if (negated) { e -= 10; }
+      else {
+        if (attackCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) e += 10;
+        else if (attackCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) e += 10;
+        else if (attackCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) e += 10;
+      }
+      if (defCity) {
+        if (defCity.abilityType === 'resist_compound' && attackCard.id === 'compound') e -= defCity.abilityValue;
+        if (defCity.abilityType === 'resist_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) e -= defCity.abilityValue;
+        if (defCity.abilityType === 'resist_landslide' && attackCard.id === 'landslide') e -= defCity.abilityValue;
+        if (defCity.abilityType === 'resist_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) e -= defCity.abilityValue;
+        if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) e -= defCity.abilityValue;
+      }
+      if (def.effects.damageReduceHits > 0) e -= 15;
+      if (def.effects.shieldQuakeFire && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) e -= 30;
+      if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) e -= 25;
+      return Math.max(0, e);
+    }
     function canPlayAny(pi) {
       const p = G.players[pi]; const left = getBudgetLeft(pi); const ft = (pi === 0 && G.turnsEach[0] === 0);
       return p.hand.some(c => { if (left < c.cost) return false; if (ft && c.type === 'disaster') return false; return true; });
@@ -3270,8 +3293,8 @@
       // 対応カード
       if (responseCard && responseCard.effectType !== 'negate_special' && responseCard.effectType !== 'heal') {
         applyPolicyEffect(responseCard, defIdx, true);
-        if (responseCard.effectType === 'shield_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= 30; def.effects.shieldQuakeFire = false; ld('shield_resp', '耐震補強（対応フェーズ）：発動・消費', -30); }
-        if (responseCard.effectType === 'shield_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 25; def.effects.shieldFlood = false; ld('shield_resp', '堤防建設（対応フェーズ）：発動・消費', -25); }
+        if (responseCard.effectType === 'shield_quake_fire') { def.effects.shieldQuakeFire = false; if (attackCard.id === 'earthquake' || attackCard.id === 'wildfire') { dmg -= 30; ld('shield_resp', '耐震補強（対応フェーズ）：発動・消費', -30); } }
+        if (responseCard.effectType === 'shield_flood') { def.effects.shieldFlood = false; if (attackCard.id === 'flood' || attackCard.id === 'tsunami') { dmg -= 25; ld('shield_resp', '堤防建設（対応フェーズ）：発動・消費', -25); } }
       }
       // ニューオーリンズ
       if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) {
@@ -3317,7 +3340,6 @@
     // ═══════════════════════════════════════
     function setupTurnDraw(pi) {
       const p = G.players[pi]; p.budgetUsed = 0; p.effects.disastersReceivedThisTurn = 0;
-      if (p.effects.floodBonusTurns > 0) p.effects.floodBonusTurns--;
       const target = Math.min(2, Math.max(0, 5 - p.hand.length));
       const isMyTurn = (pi === myPlayerIdx);
       setTimeout(() => showTurnSplash(isMyTurn), 50);
@@ -3330,6 +3352,7 @@
       if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
       if (city && city.abilityType === 'quake_regen' && p.effects.quakeHitThisTurn) { const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, city.hp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の能力（地震後回復）+${city.abilityValue}`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
       p.effects.quakeHitThisTurn = false;
+      if (p.effects.floodBonusTurns > 0) p.effects.floodBonusTurns--;
       G.turnsEach[G.activePlayer]++; const next = G.activePlayer === 0 ? 1 : 0; G.activePlayer = next;
       const evts = G._nextTurnEvents[next];
       if (evts.length > 0) { G._turnSummary = [...evts]; G._nextTurnEvents[next] = []; G.screen = 'turnSummary'; }
@@ -3429,6 +3452,8 @@
     let _lobbyEnter = true;
     let _lobbyTitleAnimDone = false;
     let _responseAnimatedPis = new Set();
+    let _waitNeonIntervalId = null;
+    let _specNeonIntervalId = null;
     function queueHpAnim(pi, fh, th) { _hpQ.push({ pi, fh, th }); if (G.screen === 'response') _responseAnimatedPis.add(pi); }
     function processHpAnims() {
       if (G.screen !== 'main' && G.screen !== 'response') return; if (G._turnSummary) return;
@@ -4100,9 +4125,27 @@
         if (lobbyState.mode === 'gallery' && lobbyState.galleryTab && !lobbyState.galleryZoom) setTimeout(initGalleryAnim, 30);
       }
       if (view === 'gameover') setTimeout(initGoObserver, 60);
-      if (view === 'waiting') setTimeout(initWaitNeonIcons, 60);
+      if (view === 'waiting') {
+        setTimeout(() => {
+          if (!_waitNeonIntervalId) {
+            initWaitNeonIcons();
+            _waitNeonIntervalId = setInterval(initWaitNeonIcons, 5000);
+          } else {
+            _NEON_GLOWS.forEach((g, i) => { const el = document.getElementById('wni-'+i); if (el) el.style.filter = `brightness(1) drop-shadow(0 0 8px rgba(${g},.85)) drop-shadow(0 0 3px rgba(${g},1))`; });
+          }
+        }, 60);
+      } else if (_waitNeonIntervalId) { clearInterval(_waitNeonIntervalId); _waitNeonIntervalId = null; }
       if (view === 'spectator' && G.screen === 'gameover') setTimeout(initGoObserver, 60);
-      if (view === 'spectator' && ['gacha','cityOrder','draft','turnDraw','turnSummary'].includes(G.screen)) setTimeout(initSpecNeonIcons, 60);
+      if (view === 'spectator' && ['gacha','cityOrder','draft','turnDraw','turnSummary'].includes(G.screen)) {
+        setTimeout(() => {
+          if (!_specNeonIntervalId) {
+            initSpecNeonIcons();
+            _specNeonIntervalId = setInterval(initSpecNeonIcons, 5000);
+          } else {
+            _NEON_GLOWS.forEach((g, i) => { const el = document.getElementById('sni-'+i); if (el) el.style.filter = `brightness(1) drop-shadow(0 0 8px rgba(${g},.85)) drop-shadow(0 0 3px rgba(${g},1))`; });
+          }
+        }, 60);
+      } else if (_specNeonIntervalId) { clearInterval(_specNeonIntervalId); _specNeonIntervalId = null; }
       if (view === 'main' && _pendingMainHpAnims.length > 0) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
       if (view === 'main' && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
@@ -4278,10 +4321,11 @@
         case 'cityOrder': msg = `${G.players[G.cityOrderState?.playerIdx ?? 0].name} が戦闘順を選んでいます`; break;
         case 'gacha': msg = `${G.players[G.gachaCurrent?.playerIdx ?? 0].name} が都市を選んでいます`; break;
         case 'draft': msg = `${G.players[G.draftState?.playerIdx ?? 0].name} が手札を引いています`; break;
-        case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? 0; msg = `${G.players[pi].name} がカードを引いています`; } break;
+        case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? 0; msg = G.turnDrawState?.isHazardMap ? `${G.players[pi].name} がハザードマップ整備でカードを引いています` : `${G.players[pi].name} がカードを引いています`; } break;
         case 'turnSummary': msg = `${G.players[G.activePlayer].name} がターンサマリーを確認しています`; break;
         case 'response': msg = `${G.players[G.pendingAttack?.defenderIdx ?? 0].name} が対応カードを選んでいます`; break;
         case 'discard': { const pi = G.discardNeeded?.pi ?? G.discardNeeded?.playerIdx ?? 0; msg = `${G.players[pi].name} が捨て札を選んでいます`; } break;
+        case 'peek': msg = `相手が防災協定を使用してあなたの手札を確認しています`; break;
         default: msg = `${G.players[G.activePlayer].name} のターンです`;
       }
       const showBoard = ['main', 'response'].includes(G.screen) && G.players[0].cities.length > 0;
@@ -4450,13 +4494,8 @@
       if (hasPending) {
         if (isResponsePhase) {
           const _rpbAtk = G.pendingAttack;
-          let _rpbEst = computeEstDmg(_rpbAtk.card, mi);
-          const _rpbEff = G.players[mi].effects;
-          if (_rpbEff.negateSpecial && _rpbAtk.card.specialType) _rpbEst -= 10;
-          if (_rpbEff.shieldQuakeFire && (_rpbAtk.card.id === 'earthquake' || _rpbAtk.card.id === 'wildfire')) _rpbEst -= 30;
-          if (_rpbEff.shieldFlood && (_rpbAtk.card.id === 'flood' || _rpbAtk.card.id === 'tsunami')) _rpbEst -= 25;
-          if (_rpbEff.damageReduceHits > 0) _rpbEst -= 15;
-          const _rpbHpAfter = Math.max(0, getActiveCityHp(mi) - Math.max(0, _rpbEst));
+          const _rpbEst = computeFullDefenderEst(_rpbAtk.card, mi);
+          const _rpbHpAfter = Math.max(0, getActiveCityHp(mi) - _rpbEst);
           const _dmgPreview = `<div class="response-dmg-preview"><span class="rdp-item rdp-skip">対応なし → HP <strong>${_rpbHpAfter}</strong></span></div>`;
           pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>${G.players[_rpbAtk.attackerIdx].name}が「${_rpbAtk.card.icon} ${_rpbAtk.card.name}」を使用！</strong><br>政策カードを1枚選んで対応、または「対応しない」を押してください。${_dmgPreview}</div><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
         } else if (isMyAttack) {
@@ -4572,13 +4611,26 @@
         const pi = (c.fn === 'playResponseCard') ? G.pendingAttack.defenderIdx : G.activePlayer; const card = G.players[pi].hand.find(cd => cd.uid === c.uid);
         if (card) {
           const p = G.players[pi]; const curHp = p.cityHps[p.activeCityIdx]; const mxHp = getActiveMaxHp(pi); let h = '';
-          if (card.effectType === 'heal') { const aH = Math.min(curHp + card.value, mxHp); h = `HP +${card.value} 回復　<strong style="color:var(--green)">${curHp} → ${aH}</strong>`; }
-          else if (card.effectType === 'shield_quake_fire') { if (G.pendingAttack && (G.pendingAttack.card.id === 'earthquake' || G.pendingAttack.card.id === 'wildfire')) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `この攻撃に適用：−30 → 予測 <strong style="color:var(--green)">${Math.max(0, e - 30)}</strong>`; } else h = '次の地震・大火災を −30（シールド設置）'; }
-          else if (card.effectType === 'shield_flood') { if (G.pendingAttack && (G.pendingAttack.card.id === 'flood' || G.pendingAttack.card.id === 'tsunami')) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `この攻撃に適用：−25 → 予測 <strong style="color:var(--green)">${Math.max(0, e - 25)}</strong>`; } else h = '次の洪水・津波を −25（シールド設置）'; }
-          else if (card.effectType === 'negate_special') h = G.pendingAttack ? '特殊効果を無効化＋ダメージ−10' : '次の災害の特殊効果を無効化＋ダメージ−10';
-          else if (card.effectType === 'damage_reduce_2t') { if (G.pendingAttack) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `全ダメージ −15（次2回）→ 予測 <strong style="color:var(--green)">${Math.max(0, e - 15)}</strong>`; } else h = '全ダメージ −15（次2回の攻撃）'; }
-          else if (card.effectType === 'draw') h = `山札から ${card.value} 枚ドロー`;
-          else if (card.effectType === 'peek_all') h = '相手の手札を全公開';
+          if (c.fn === 'playResponseCard' && G.pendingAttack) {
+            // 対応フェーズ：防御側が把握できる全要素を込みにした予測
+            const atk = G.pendingAttack.card; const est = computeFullDefenderEst(atk, pi);
+            if (card.effectType === 'heal') { const healResp = Math.floor(card.value / 2); h = `HP +${healResp} 回復（対応時半減）`; }
+            else if (card.effectType === 'shield_quake_fire') { if (atk.id === 'earthquake' || atk.id === 'wildfire') { h = `この攻撃に適用：−30 → 予測ダメージ <strong style="color:var(--green)">${Math.max(0, est - 30)}</strong>`; } else { h = 'この攻撃には不適用（次の地震・大火災に −30 設置）'; } }
+            else if (card.effectType === 'shield_flood') { if (atk.id === 'flood' || atk.id === 'tsunami') { h = `この攻撃に適用：−25 → 予測ダメージ <strong style="color:var(--green)">${Math.max(0, est - 25)}</strong>`; } else { h = 'この攻撃には不適用（次の洪水・津波に −25 設置）'; } }
+            else if (card.effectType === 'negate_special') { const withN = computeFullDefenderEst(atk, pi, true); h = `特殊効果を無効＋ダメージ−10 → 予測ダメージ <strong style="color:var(--green)">${withN}</strong>`; }
+            else if (card.effectType === 'damage_reduce_2t') { h = `全ダメージ −15（次2回）→ 予測ダメージ <strong style="color:var(--green)">${Math.max(0, est - 15)}</strong>`; }
+            else if (card.effectType === 'draw') { h = `山札から ${card.value} 枚ドロー`; }
+            else if (card.effectType === 'peek_all') { h = '相手の手札を全公開'; }
+          } else {
+            // 通常フェーズ：基礎ダメージ＋地形ボーナスのみ（攻撃側の視点）
+            if (card.effectType === 'heal') { const aH = Math.min(curHp + card.value, mxHp); h = `HP +${card.value} 回復　<strong style="color:var(--green)">${curHp} → ${aH}</strong>`; }
+            else if (card.effectType === 'shield_quake_fire') { if (G.pendingAttack && (G.pendingAttack.card.id === 'earthquake' || G.pendingAttack.card.id === 'wildfire')) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `この攻撃に適用：−30 → 予測 <strong style="color:var(--green)">${Math.max(0, e - 30)}</strong>`; } else h = '次の地震・大火災を −30（シールド設置）'; }
+            else if (card.effectType === 'shield_flood') { if (G.pendingAttack && (G.pendingAttack.card.id === 'flood' || G.pendingAttack.card.id === 'tsunami')) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `この攻撃に適用：−25 → 予測 <strong style="color:var(--green)">${Math.max(0, e - 25)}</strong>`; } else h = '次の洪水・津波を −25（シールド設置）'; }
+            else if (card.effectType === 'negate_special') h = G.pendingAttack ? '特殊効果を無効化＋ダメージ−10' : '次の災害の特殊効果を無効化＋ダメージ−10';
+            else if (card.effectType === 'damage_reduce_2t') { if (G.pendingAttack) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `全ダメージ −15（次2回）→ 予測 <strong style="color:var(--green)">${Math.max(0, e - 15)}</strong>`; } else h = '全ダメージ −15（次2回の攻撃）'; }
+            else if (card.effectType === 'draw') h = `山札から ${card.value} 枚ドロー`;
+            else if (card.effectType === 'peek_all') h = '相手の手札を全公開';
+          }
           if (h) hint = `<div style="margin:4px 0;padding:6px 10px;background:rgba(56,139,253,.12);border-radius:6px;font-size:.8rem;color:var(--t2);text-align:center">${h}</div>`;
         }
       }
