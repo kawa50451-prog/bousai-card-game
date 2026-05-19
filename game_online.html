@@ -2958,12 +2958,13 @@
 
       // ── 結果確認画面（ステップ 9）──
       if (step.isResultSummary) {
-        const chipOk  = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
-        const chipBad = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
-        const chips = `<span style="${chipBad}">基礎 30</span><span style="${chipBad}">地形 +10</span><span style="${chipOk}">シールド −25</span><span style="${chipOk}">対応 −15</span>`;
+        const cBad = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
+        const cOk  = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
+        const cYel = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(227,179,65,.15);color:var(--yellow);border:1px solid rgba(227,179,65,.35);white-space:nowrap';
+        const chips = `<span style="${cBad}">基礎 30</span><span style="${cBad}">海岸都市 +10</span><span style="${cOk}">堤防建設 −25</span><span style="${cYel}">相互支援協定 +15</span>`;
         return `<div class="screen active"><div class="turn-summary-box">
           <div class="ts-title">📋 仙台のターン — 対応結果</div>
-          <div class="ts-events"><div class="ts-ev heal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">🌧️ 洪水</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:var(--green)">0</span><span style="font-size:.68rem;font-weight:600;color:var(--green);margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t3);margin-bottom:3px"><span>HP</span><span>60 → 60（変化なし）</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:100%;background:var(--green);border-radius:4px"></div></div></div><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></div></div>
+          <div class="ts-events"><div class="ts-ev heal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">🌧️ 洪水</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:var(--green)">0</span><span style="font-size:.68rem;font-weight:600;color:var(--green);margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t3);margin-bottom:3px"><span>HP</span><span>60（変化なし）</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:100%;background:var(--green);border-radius:4px"></div></div></div><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></div></div>
           <div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="tutorialAction('next')">確認 →</button></div>
         </div></div>`;
       }
@@ -3307,11 +3308,18 @@
       // シールド（事前）
       if (def.effects.shieldQuakeFire && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= 30; def.effects.shieldQuakeFire = false; ld('shield_pre', '耐震補強（事前設置）：発動・消費', -30); }
       if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 25; def.effects.shieldFlood = false; ld('shield_pre', '堤防建設（事前設置）：発動・消費', -25); }
-      // 対応カード
+      // 対応カード（シールド系）
       if (responseCard && responseCard.effectType !== 'negate_special' && responseCard.effectType !== 'heal') {
         applyPolicyEffect(responseCard, defIdx, true);
         if (responseCard.effectType === 'shield_quake_fire') { def.effects.shieldQuakeFire = false; if (attackCard.id === 'earthquake' || attackCard.id === 'wildfire') { dmg -= 30; ld('shield_resp', '耐震補強（対応フェーズ）：発動・消費', -30); } }
         if (responseCard.effectType === 'shield_flood') { def.effects.shieldFlood = false; if (attackCard.id === 'flood' || attackCard.id === 'tsunami') { dmg -= 25; ld('shield_resp', '堤防建設（対応フェーズ）：発動・消費', -25); } }
+      }
+      // 対応カード（即時回復：ダメージ軽減として計算）
+      let healAmt = 0; let healName = null;
+      if (responseCard && responseCard.effectType === 'heal') {
+        const healVal = Math.floor(responseCard.value / 2); // 対応フェーズでは半減
+        healAmt = healVal; healName = responseCard.name;
+        dmg -= healVal;
       }
       // ニューオーリンズ
       if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) {
@@ -3321,18 +3329,11 @@
       // ダメージ確定
       dmg = Math.max(0, dmg); def.cityHps[def.activeCityIdx] -= dmg;
       let finalHp = def.cityHps[def.activeCityIdx]; const hpAD = finalHp;
-      // 回復（対応カード）
-      let healLog = null; let healAmt = 0; let healName = null;
-      if (responseCard && responseCard.effectType === 'heal') {
-        const healVal = Math.floor(responseCard.value / 2); // 対応フェーズでは回復半減
-        if (finalHp > 0) { const mxHp = getActiveMaxHp(defIdx); const bh = finalHp; finalHp = Math.min(finalHp + healVal, mxHp); def.cityHps[def.activeCityIdx] = finalHp; healAmt = finalHp - bh; healName = responseCard.name; healLog = { type: 'heal', msg: `💚 ${def.name}「${responseCard.name}」→ HP +${healAmt}（${bh} → ${finalHp}）【対応時半減】` }; }
-        else healLog = { type: 'sys', msg: `💔 ${def.name}：都市壊滅のため「${responseCard.name}」の回復は無効` };
-      }
       if (fromHp !== finalHp) queueHpAnim(defIdx, fromHp, finalHp);
       const aN = G.players[G.pendingAttack.attackerIdx].name;
       addLog(`💥 ${aN}が「${attackCard.name}」→ ${dmg}ダメージ（${def.name}残HP:${Math.max(0, finalHp)}）`, 'dmg');
       for (const l of log) addLog(l.delta != null ? `→ ${l.text}（${l.delta > 0 ? '+' : ''}${l.delta}）` : `→ ${l.text}`);
-      if (healLog) addLog(healLog.msg, healLog.type);
+      if (healAmt > 0) addLog(`💚 ${def.name}「${healName}」→ 回復軽減 ${healAmt}（対応時半減）`);
       G._nextTurnEvents[defIdx].push({ type: 'damage', cardId: attackCard.id, cardIcon: attackCard.icon, cardName: attackCard.name, baseDamage: attackCard.baseDamage, details: [...log], damage: dmg, hpBefore: fromHp, hpAfterDamage: Math.max(0, hpAD), hpAfter: Math.max(0, finalHp), healAmount: healAmt, healCardName: healName });
     }
 
@@ -4746,7 +4747,7 @@
           const pR=Math.max(0,Math.min(100,Math.round(hpAfterDmg/60*100)));
           const pD=isBlock?0:Math.max(0,Math.min(100-pR,Math.round(ev.damage/60*100)));
           const noChange=isBlock&&!ev.healAmount;
-          const hpLabel=noChange?`${hpBefore}（変化なし）`:`${hpBefore} → ${hpFinal}`;
+          const hpLabel=noChange?`${hpBefore}（変化なし）`:`${hpBefore} → ${hpAfterDmg}`;
           return `<div class="ts-ev ${isBlock?'heal':'damage'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">${ev.cardIcon} ${ev.cardName}</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:${dmgCol}">${ev.damage}</span><span style="font-size:.68rem;font-weight:600;color:${dmgCol};margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:${chipsHtml?'6px':'2px'}"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t3);margin-bottom:3px"><span>HP</span><span>${hpLabel}</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${pR}%;background:var(--green);border-radius:4px 0 0 4px"></div><div style="position:absolute;left:${pR}%;top:0;height:100%;width:${pD}%;background:rgba(248,81,73,0.75)"></div></div></div>${chipsHtml?`<div style="display:flex;flex-wrap:wrap;gap:4px">${chipsHtml}</div>`:''}</div>`;
         }
         if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −15 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −15</div></div>`; }
