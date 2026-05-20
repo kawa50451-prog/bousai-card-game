@@ -3727,6 +3727,7 @@
       const ov = document.createElement('div'); ov.id = 'disconnect-overlay'; ov.className = 'disconnect-overlay';
       const _warnSvg = `<svg style="width:52px;height:52px;color:var(--yellow)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
       const _svgLinkD = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+      const _svgQR = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M5 5h3v3H5zm11 0h3v3h-3zM5 16h3v3H5z" fill="currentColor" stroke="none"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2z" fill="currentColor" stroke="none"/></svg>`;
       ov.innerHTML = `<div class="disconnect-box">
         ${_warnSvg}
         <div class="disconnect-title">接続が切れました</div>
@@ -3736,7 +3737,7 @@
           <div class="room-code-value">${roomId}</div>
         </div>
         <button class="copy-url-btn" onclick="copyRoomUrl()">${_svgLinkD}招待URLをコピー</button>
-        <button class="copy-url-btn" id="disconnect-qr-btn" onclick="toggleDisconnectQR()">📷 QRコードを表示</button>
+        <button class="copy-url-btn" id="disconnect-qr-btn" onclick="toggleDisconnectQR()">${_svgQR}QRコードを表示</button>
         <div id="disconnect-qr-wrap" style="display:none;flex-direction:column;align-items:center;gap:6px;width:100%">
           <div id="disconnect-qr-container" style="background:#0d1117;padding:8px;border-radius:10px;display:inline-block"></div>
           <span style="font-size:.72rem;color:var(--t2)">相手にスキャンしてもらう</span>
@@ -3759,7 +3760,9 @@
       if (!wrap) return;
       const show = wrap.style.display === 'none';
       wrap.style.display = show ? 'flex' : 'none';
-      btn.textContent = show ? '✕ QRを閉じる' : '📷 QRコードを表示';
+      const _svgQR = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M5 5h3v3H5zm11 0h3v3h-3zM5 16h3v3H5z" fill="currentColor" stroke="none"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2z" fill="currentColor" stroke="none"/></svg>`;
+      const _svgX = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      btn.innerHTML = show ? `${_svgX}QRを閉じる` : `${_svgQR}QRコードを表示`;
       if (show) {
         const el = document.getElementById('disconnect-qr-container');
         if (!el || el.dataset.generated) return;
@@ -3883,13 +3886,16 @@
       } catch (e) { lobbyState.error = 'ルーム作成に失敗: ' + e.message; render(); }
     }
 
-    async function joinRoom() {
+    async function joinRoom({ silent = false } = {}) {
       const name = lobbyState.nameInput.trim(); const code = lobbyState.joinCodeInput.trim().toUpperCase();
       if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
       if (code.length !== 6) { lobbyState.error = 'ルームコードは6文字です'; render(); return; }
       try {
         const snap = await db.ref(`rooms/${code}`).get();
-        if (!snap.val()) { lobbyState.error = 'ルームが見つかりません'; render(); return; }
+        if (!snap.val()) {
+          if (silent) { lobbyState.mode = 'select'; lobbyState.joinCodeInput = ''; render(); return; }
+          lobbyState.error = 'ルームが見つかりません'; render(); return;
+        }
         const roomData = snap.val();
 
         const savedRole = localStorage.getItem('ron_lastRole');
@@ -5404,9 +5410,11 @@
       }
       if (isFirebaseConfigured()) initFirebase();
       render();
-      // 案A: ?room= あり + 名前保存済み → ボタン押し不要で自動参加（再接続含む）
-      if (isFirebaseConfigured() && roomParam && savedName) {
-        joinRoom();
+      // 案A: URLパラメータあり or localStorage両方あり → 自動参加（再接続含む）
+      // roomParam 経由はエラー表示あり、savedRoom のみの場合は silent でlobbyにフォールバック
+      if (isFirebaseConfigured() && savedName) {
+        if (roomParam) joinRoom();
+        else if (savedRoom) joinRoom({ silent: true });
       }
     });
   </script>
