@@ -3736,6 +3736,11 @@
           <div class="room-code-value">${roomId}</div>
         </div>
         <button class="copy-url-btn" onclick="copyRoomUrl()">${_svgLinkD}招待URLをコピー</button>
+        <button class="copy-url-btn" id="disconnect-qr-btn" onclick="toggleDisconnectQR()">📷 QRコードを表示</button>
+        <div id="disconnect-qr-wrap" style="display:none;flex-direction:column;align-items:center;gap:6px;width:100%">
+          <div id="disconnect-qr-container" style="background:#0d1117;padding:8px;border-radius:10px;display:inline-block"></div>
+          <span style="font-size:.72rem;color:var(--t2)">相手にスキャンしてもらう</span>
+        </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="pulse-dot" style="background:var(--yellow);min-width:12px"></span>
           <span style="font-size:.82rem;color:var(--yellow)">待機中</span>
@@ -3746,6 +3751,23 @@
     }
     function hideDisconnectOverlay() {
       const ov = document.getElementById('disconnect-overlay'); if (ov) ov.remove();
+    }
+
+    function toggleDisconnectQR() {
+      const wrap = document.getElementById('disconnect-qr-wrap');
+      const btn = document.getElementById('disconnect-qr-btn');
+      if (!wrap) return;
+      const show = wrap.style.display === 'none';
+      wrap.style.display = show ? 'flex' : 'none';
+      btn.textContent = show ? '✕ QRを閉じる' : '📷 QRコードを表示';
+      if (show) {
+        const el = document.getElementById('disconnect-qr-container');
+        if (!el || el.dataset.generated) return;
+        el.dataset.generated = 'true';
+        const url = window.location.href.split('?')[0] + '?room=' + roomId;
+        try { new QRCode(el, { text: url, width: 150, height: 150, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
+        catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>`; }
+      }
     }
 
     function showReconnectPopup() {
@@ -5382,6 +5404,10 @@
       }
       if (isFirebaseConfigured()) initFirebase();
       render();
+      // 案A: ?room= あり + 名前保存済み → ボタン押し不要で自動参加（再接続含む）
+      if (isFirebaseConfigured() && roomParam && savedName) {
+        joinRoom();
+      }
     });
   </script>
 </body>
