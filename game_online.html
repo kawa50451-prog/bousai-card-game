@@ -4975,6 +4975,7 @@
 
     // ─── ゲームオーバー ───
     function renderGameOver() {
+      localStorage.removeItem('ron_lastRoom');
       setupRematchListener();
       const wi = G.winner; const li = wi === 0 ? 1 : 0;
       const w = G.players[wi]; const l = G.players[li];
