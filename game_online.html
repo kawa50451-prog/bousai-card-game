@@ -239,6 +239,17 @@
       border-color: var(--green)
     }
 
+    .lobby-btn.cpu {
+      border-color: rgba(99, 102, 241, .5);
+      background: rgba(99, 102, 241, .08);
+      color: #a5b4fc
+    }
+
+    .lobby-btn.cpu:hover {
+      background: rgba(99, 102, 241, .18);
+      border-color: #6366f1
+    }
+
     .lobby-btn-single {
       width: 100%;
       background: linear-gradient(135deg, #1f6feb, #388bfd);
@@ -467,6 +478,40 @@
       font-size: .85rem;
       color: var(--t2);
       border-left: 3px solid var(--green)
+    }
+
+    .gacha-candidates {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      width: 100%;
+      max-width: 380px
+    }
+
+    .gacha-candidate-card {
+      background: linear-gradient(145deg, #1a2540, #0d1a2d);
+      border: 2px solid var(--bg3);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .15s, border-color .15s, box-shadow .15s
+    }
+
+    .gacha-candidate-card:hover, .gacha-candidate-card:active {
+      border-color: var(--yellow);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(210,153,34,.35)
+    }
+
+    .gacha-candidate-card img {
+      width: 100%;
+      aspect-ratio: 288/450;
+      object-fit: cover;
+      display: block
+    }
+
+    .gacha-cand-info {
+      padding: 6px 6px 8px
     }
 
     @keyframes gacha-reveal {
@@ -1515,6 +1560,8 @@
     /* ── カードギャラリー ── */
     .lobby-btn-gallery { width:100%; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; padding:11px; color:var(--t2); font-size:.88rem; cursor:pointer; transition:.2s; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:6px }
     .lobby-btn-gallery:hover { background:rgba(250,42,78,.1); border-color:#fa2a4e; color:#fa2a4e }
+    .lobby-btn-solo { width:100%; background:rgba(99,102,241,.08); border:1.5px solid rgba(99,102,241,.4); border-radius:10px; padding:11px; color:#a5b4fc; font-size:.88rem; cursor:pointer; transition:.2s; display:flex; align-items:center; justify-content:center; gap:6px }
+    .lobby-btn-solo:hover { background:rgba(99,102,241,.2); border-color:#6366f1 }
     .gallery-wrap { flex:1; display:flex; align-items:flex-start; justify-content:center; padding:16px }
     .gallery-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:22px 20px; max-width:640px; width:100%; display:flex; flex-direction:column; gap:14px; box-shadow:0 12px 40px rgba(0,0,0,.5) }
     .gallery-header { display:flex; align-items:center; justify-content:space-between }
@@ -2675,6 +2722,10 @@
 
     // ══ LOBBY UI STATE ══
     let lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, spectateCode: null };
+    // ══ CPU SOLO ══
+    let isCpuMode = false;
+    let cpuDifficulty = 'normal'; // 'easy' | 'normal' | 'hard'
+    let _cpuTimer = null;
     let _logExpanded = false;
     let _cityInfoModal = null;
     let _hintOpen = false;
@@ -3382,7 +3433,27 @@
     // ═══════════════════════════════════════
     // GACHA / DRAFT
     // ═══════════════════════════════════════
-    function pullGacha() { const rem = CITIES.filter(c => !G.gachaPickedIds.includes(c.id)); G.gachaCurrent.revealed = rem[Math.random() * rem.length | 0]; pushState(); render(); }
+    function pullGacha() {
+      const gc = G.gachaCurrent;
+      const rem = CITIES.filter(c => !G.gachaPickedIds.includes(c.id));
+      if (isCpuMode && gc.playerIdx === 0 && cpuDifficulty !== 'hard') {
+        const n = cpuDifficulty === 'easy' ? 3 : 2;
+        gc.candidates = shuffle([...rem]).slice(0, Math.min(n, rem.length));
+        gc.revealed = null;
+      } else {
+        gc.revealed = rem[Math.random() * rem.length | 0];
+        gc.candidates = null;
+      }
+      pushState(); render();
+    }
+
+    function acceptGachaCandidate(cityId) {
+      const gc = G.gachaCurrent;
+      const chosen = gc.candidates.find(c => c.id === cityId);
+      if (!chosen) return;
+      gc.revealed = chosen; gc.candidates = null;
+      acceptGachaCity();
+    }
 
     function acceptGachaCity() {
       const gc = G.gachaCurrent; const city = gc.revealed; const p = G.players[gc.playerIdx];
@@ -3836,6 +3907,7 @@
     }
 
     function pushState() {
+      if (isCpuMode) return;
       if (!db || !roomId || myRole === 'spectator') return;
       const s = JSON.stringify({ ...G, confirm: null }); myLastPush = s;
       db.ref(`rooms/${roomId}/state`).set(s);
@@ -4207,6 +4279,7 @@
         if (_ts === 2 && !_mainTutorialShown) setTimeout(showMainTutorial, 720);
         else if (_ts >= 3 && _ts <= 8 && !_tutStepSpotlights.has(_ts)) setTimeout(() => showStepSpotlight(_ts), 80);
       }
+      if (isCpuMode) _triggerCpuIfNeeded();
     }
 
     // ─── セットアップ必須 ───
@@ -4293,6 +4366,7 @@
       const _svgUsers = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
       const _svgGame = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="17" cy="13" r="1" fill="currentColor" stroke="none"/></svg>`;
       const _svgBook = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
+      const _svgCpu = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="15" x2="22" y2="15"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="15" x2="4" y2="15"/></svg>`;
       if (lobbyState.mode === 'select') {
         body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
     ${err}
@@ -4300,10 +4374,22 @@
       <button class="lobby-btn host" onclick="handleHostClick()">${_svgHouse}<strong>ルームを作成</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ホスト（先攻）</span></button>
       <button class="lobby-btn join" onclick="lobbyState.mode='join';lobbyState.error='';render()">${_svgUsers}<strong>ルームに参加</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ゲスト（後攻）</span></button>
     </div>
+    <button class="lobby-btn-solo" onclick="lobbyState.mode='cpu';lobbyState.error='';render()">${_svgCpu} ソロプレイ</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="lobby-btn-gallery" onclick="startTutorial()">${_svgGame} 1ターン体験</button>
       <button class="lobby-btn-gallery" onclick="lobbyState.mode='gallery';lobbyState.galleryTab=null;lobbyState.galleryZoom=null;render()">${_svgBook} カードを見る</button>
     </div>`;
+      } else if (lobbyState.mode === 'cpu') {
+        const _diffBtns = [
+          { key: 'easy',   label: 'EASY',   color: '#3fb950', rgb: '63,185,80',  desc: 'ランダム行動<br>練習向け' },
+          { key: 'normal', label: 'NORMAL', color: '#d29922', rgb: '210,153,34', desc: 'バランス型<br>標準的な読み' },
+          { key: 'hard',   label: 'HARD',   color: '#fa2a4e', rgb: '250,42,78',  desc: '戦略AI<br>全てを熟知' },
+        ].map(d => `<button onclick="startCpuGame('${d.key}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:10px;background:rgba(${d.rgb},.12);border:1.5px solid ${d.color};color:${d.color};font-weight:700;font-size:1rem;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(${d.rgb},.22)'" onmouseout="this.style.background='rgba(${d.rgb},.12)'">${d.label}<span style="font-size:.68rem;font-weight:400;opacity:.8;text-align:center;line-height:1.5">${d.desc}</span></button>`).join('');
+        body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
+    ${err}
+    <div style="text-align:center;color:var(--t2);font-size:.82rem;margin:4px 0 10px">CPUと一人で対戦できます。難易度を選んでください。</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${_diffBtns}</div>
+    <button class="sq-btn-r" style="margin-top:8px" onclick="lobbyState.mode='select';lobbyState.error='';render()">＜ ロビーに戻る</button>`;
       } else {
         body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 鈴木" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
     <div><label class="lobby-label">ルームコード（6文字）</label><input id="lobby-code" class="lobby-input code-input" type="text" placeholder="AB3K7X" maxlength="6" value="${jv}" oninput="lobbyState.joinCodeInput=this.value.toUpperCase();this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')handleJoinClick()"></div>
@@ -4442,8 +4528,16 @@
       let firstPickInfo = '';
       if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">✅ 1枚目：${terrainImg(fc, 18)} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
       let ca = '';
-      if (!gc.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullGacha()"><img src="images/cities/back.webp" alt=""></div><button class="btn-gacha" onclick="pullGacha()">🎲 ガチャを引く！</button>`; }
-      else { const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`; }
+      if (gc.candidates && gc.candidates.length) {
+        const cols = gc.candidates.length === 2 ? 'repeat(2,1fr)' : 'repeat(3,1fr)';
+        const cards = gc.candidates.map(c => `<div class="gacha-candidate-card" onclick="acceptGachaCandidate('${c.id}')"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="gacha-cand-info"><div style="font-weight:700;font-size:.85rem;line-height:1.2">${c.name}</div><div style="font-size:.7rem;color:var(--t2);margin-top:2px">${c.isCoastal ? '🌊 海岸' : c.isMountain ? '⛰️ 山間部' : '🏙️ 内陸'} · HP ${c.hp}</div><div style="font-size:.65rem;color:var(--t3);margin-top:3px;line-height:1.3">${c.abilityDesc}</div></div></div>`).join('');
+        ca = `<div class="gacha-candidates" style="grid-template-columns:${cols}">${cards}</div><div style="text-align:center;color:var(--t3);font-size:.75rem;margin-top:10px">都市をタップして選択</div>`;
+      } else if (!gc.revealed) {
+        const btnLabel = (isCpuMode && cpuDifficulty === 'hard') ? '🎲 ガチャを引く！' : isCpuMode ? (cpuDifficulty === 'easy' ? '🎲 3枚から選ぶ' : '🎲 2枚から選ぶ') : '🎲 ガチャを引く！';
+        ca = `<div class="gacha-card-reveal-area" onclick="pullGacha()"><img src="images/cities/back.webp" alt=""></div><button class="btn-gacha" onclick="pullGacha()">${btnLabel}</button>`;
+      } else {
+        const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`;
+      }
       return `<div class="screen active"><div class="section-title">🎲 ${p.name} — ${gc.pickNum === 0 ? '1枚目' : '2枚目'}の都市ガチャ</div>${firstPickInfo}<div class="gacha-stage">${ca}</div></div>`;
     }
 
@@ -5385,6 +5479,7 @@
 
     function restartGame() {
       _lobbyEnter = true;
+      isCpuMode = false; _cpuCancelTimer();
       cleanupPresence();
       const _rApp = document.getElementById('app');
       _rApp.style.transition = 'opacity .28s ease'; _rApp.style.opacity = '0';
@@ -5402,6 +5497,256 @@
         render();
         requestAnimationFrame(() => { _rApp.style.transition = ''; });
       }, 280);
+    }
+
+    // ═══════════════════════════════════════
+    // CPU SOLO PLAY
+    // ═══════════════════════════════════════
+    function _cpuCancelTimer() { if (_cpuTimer) { clearTimeout(_cpuTimer); _cpuTimer = null; } }
+
+    const _CPU_CITY_TIERS = {
+      kobe: 'S', tokyo: 'S',
+      kumamoto: 'A', osaka: 'A',
+      kagoshima: 'B', sendai: 'B',
+      hiroshima: 'C', niigata: 'C', istanbul: 'C', nagoya: 'C',
+      new_orleans: 'D', rotterdam: 'D'
+    };
+    const _CPU_GACHA_W = {
+      easy:   { S: 0.3, A: 0.6, B: 0.8, C: 1.0, D: 1.5 },
+      normal: { S: 0.6, A: 0.8, B: 0.9, C: 1.0, D: 1.2 },
+      hard:   { S: 1.0, A: 1.0, B: 1.0, C: 1.0, D: 1.0 }
+    };
+
+    function _cpuPullGacha() {
+      const gc = G.gachaCurrent;
+      const rem = CITIES.filter(c => !G.gachaPickedIds.includes(c.id));
+      const wt = _CPU_GACHA_W[cpuDifficulty];
+      const pool = rem.map(c => ({ c, w: wt[_CPU_CITY_TIERS[c.id] || 'C'] }));
+      const total = pool.reduce((s, x) => s + x.w, 0);
+      let r = Math.random() * total, chosen = rem[0];
+      for (const { c, w } of pool) { r -= w; if (r <= 0) { chosen = c; break; } }
+      gc.revealed = chosen; gc.candidates = null;
+      pushState(); render();
+    }
+
+    function startCpuGame(difficulty) {
+      const name = lobbyState.nameInput.trim() || 'プレイヤー';
+      isCpuMode = true; cpuDifficulty = difficulty;
+      myRole = 'p1'; myPlayerIdx = 0;
+      const cpuNames = { easy: 'CPU（EASY）', normal: 'CPU（NORMAL）', hard: 'CPU（HARD）' };
+      G = {
+        screen: 'gacha', activePlayer: 0, turnsEach: [0, 0],
+        players: [
+          { name, cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
+          { name: cpuNames[difficulty], cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }
+        ],
+        deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, peekByPlayerIdx: null,
+        winner: null, gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null, candidates: null },
+        draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
+        _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: []
+      };
+      localStorage.setItem('ron_lastName', name);
+      render();
+    }
+
+    function _triggerCpuIfNeeded() {
+      if (!isCpuMode) return;
+      _cpuCancelTimer();
+      const s = G.screen, ap = G.activePlayer;
+      const gc = G.gachaCurrent, ts = G.turnDrawState, ds = G.draftState, dn = G.discardNeeded;
+      const needAct =
+        (s === 'gacha' && gc?.playerIdx === 1) ||
+        (s === 'cityOrder' && G.cityOrderState?.playerIdx === 1) ||
+        (s === 'draft' && ds?.playerIdx === 1) ||
+        (s === 'turnDraw' && (ts?.pi ?? ts?.playerIdx) === 1) ||
+        (s === 'turnSummary' && ap === 1) ||
+        (s === 'main' && ap === 1 && !G.pendingAttack) ||
+        (s === 'main' && G.pendingAttack?.attackerIdx === 1 && !G._pendingAutoHandover) ||
+        (s === 'response' && G.pendingAttack?.defenderIdx === 1) ||
+        (s === 'discard' && (dn?.pi ?? dn?.playerIdx) === 1) ||
+        (s === 'peek' && G.peekByPlayerIdx === 1);
+      if (!needAct) return;
+      _cpuTimer = setTimeout(_cpuAct, 700 + (Math.random() * 700 | 0));
+    }
+
+    function _cpuAct() {
+      _cpuTimer = null;
+      if (!isCpuMode) return;
+      const s = G.screen, ap = G.activePlayer;
+      const gc = G.gachaCurrent, ts = G.turnDrawState, ds = G.draftState, dn = G.discardNeeded;
+      if (s === 'gacha' && gc?.playerIdx === 1) {
+        if (!gc.revealed && !gc.candidates) _cpuPullGacha(); else acceptGachaCity();
+      } else if (s === 'cityOrder' && G.cityOrderState?.playerIdx === 1) {
+        _cpuSelectCityOrder();
+      } else if (s === 'draft' && ds?.playerIdx === 1) {
+        if (!ds.revealed) pullDraftCard(); else acceptDraftCard();
+      } else if (s === 'turnDraw' && (ts?.pi ?? ts?.playerIdx) === 1) {
+        if (!ts.revealed) pullTurnCard(); else acceptTurnCard();
+      } else if (s === 'turnSummary' && ap === 1) {
+        dismissTurnSummary();
+      } else if (s === 'main' && ap === 1 && !G.pendingAttack) {
+        _cpuDoMainTurn();
+      } else if (s === 'main' && G.pendingAttack?.attackerIdx === 1 && !G._pendingAutoHandover) {
+        G._pendingAutoHandover = true;
+        setTimeout(() => { G._pendingAutoHandover = false; goResponseHandover(); }, 500);
+      } else if (s === 'response' && G.pendingAttack?.defenderIdx === 1) {
+        _cpuDoResponse();
+      } else if (s === 'discard' && (dn?.pi ?? dn?.playerIdx) === 1) {
+        _cpuDoDiscard();
+      } else if (s === 'peek' && G.peekByPlayerIdx === 1) {
+        closePeek();
+      }
+    }
+
+    function _cpuSelectCityOrder() {
+      const p = G.players[1]; const c0 = p.cities[0], c1 = p.cities[1];
+      if (cpuDifficulty === 'easy') { selectCityOrder(1, Math.random() < 0.5 ? 0 : 1); return; }
+      const prefer2nd = cpuDifficulty === 'hard'
+        ? ['kobe', 'osaka', 'sendai', 'kagoshima', 'new_orleans']
+        : ['kobe'];
+      if (prefer2nd.includes(c0.id)) selectCityOrder(1, 1);
+      else if (prefer2nd.includes(c1.id)) selectCityOrder(1, 0);
+      else if (cpuDifficulty === 'hard') selectCityOrder(1, c0.hp <= c1.hp ? 0 : 1);
+      else selectCityOrder(1, 0);
+    }
+
+    function _cpuEstimateDmg(card, defIdx) {
+      if (card.type !== 'disaster') return 0;
+      const def = G.players[defIdx]; const city = def.cities[def.activeCityIdx];
+      if (!city) return 0;
+      let dmg = card.baseDamage;
+      if (card.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain) dmg += 10;
+      if (card.specialType === 'coastal_bonus' && city.isCoastal) dmg += 10;
+      if (card.specialType === 'mountain_bonus' && city.isMountain) dmg += 10;
+      if (city.abilityType === 'resist_quake_fire' && (card.id === 'earthquake' || card.id === 'wildfire')) dmg -= city.abilityValue;
+      if (city.abilityType === 'resist_flood' && (card.id === 'flood' || card.id === 'tsunami')) dmg -= city.abilityValue;
+      if (city.abilityType === 'resist_landslide' && card.id === 'landslide') dmg -= city.abilityValue;
+      if (city.abilityType === 'resist_compound' && card.id === 'compound') dmg -= city.abilityValue;
+      if (city.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) dmg -= city.abilityValue;
+      if (city.abilityType === 'vulnerability_draw' && def.hand.length <= 2) dmg += city.abilityValue;
+      if (cpuDifficulty !== 'easy') {
+        if (def.effects.shieldQuakeFire && (card.id === 'earthquake' || card.id === 'wildfire')) dmg -= 30;
+        if (def.effects.shieldFlood && (card.id === 'flood' || card.id === 'tsunami')) dmg -= 25;
+        if (def.effects.negateSpecial && card.specialType === 'skip_response') dmg -= 10;
+        if (def.effects.damageReduceHits > 0) dmg -= 15;
+      }
+      return Math.max(0, dmg);
+    }
+
+    function _cpuDoMainTurn() {
+      if (cpuDifficulty === 'easy') _cpuDoMainEasy();
+      else if (cpuDifficulty === 'normal') _cpuDoMainNormal();
+      else _cpuDoMainHard();
+    }
+
+    function _cpuDoMainEasy() {
+      const budget = getBudgetLeft(1);
+      if (budget === 0 || Math.random() < 0.18) { endTurn(); return; }
+      const affordable = G.players[1].hand.filter(c => c.cost <= budget);
+      if (!affordable.length) { endTurn(); return; }
+      playCard(affordable[Math.random() * affordable.length | 0].uid);
+    }
+
+    function _cpuDoMainNormal() {
+      const budget = getBudgetLeft(1);
+      const cpu = G.players[1], opp = G.players[0];
+      const oppHp = opp.cityHps[opp.activeCityIdx];
+      const cpuHp = cpu.cityHps[cpu.activeCityIdx];
+      if (budget === 0) { endTurn(); return; }
+      const affordable = cpu.hand.filter(c => c.cost <= budget);
+      if (!affordable.length) { endTurn(); return; }
+      const ranked = affordable.filter(c => c.type === 'disaster')
+        .map(c => ({ c, dmg: _cpuEstimateDmg(c, 0) })).sort((a, b) => b.dmg - a.dmg);
+      if (ranked.length && ranked[0].dmg >= oppHp) { playCard(ranked[0].c.uid); return; }
+      if (cpuHp < 25) { const h = affordable.find(c => c.effectType === 'heal'); if (h) { playCard(h.uid); return; } }
+      if (ranked.length && ranked[0].dmg > 0) { playCard(ranked[0].c.uid); return; }
+      const sh = affordable.find(c => c.effectType === 'shield_quake_fire' || c.effectType === 'shield_flood' || c.effectType === 'damage_reduce_2t');
+      if (sh) { playCard(sh.uid); return; }
+      const dr = affordable.find(c => c.effectType === 'draw');
+      if (dr) { playCard(dr.uid); return; }
+      endTurn();
+    }
+
+    function _cpuDoMainHard() {
+      const budget = getBudgetLeft(1);
+      const cpu = G.players[1], opp = G.players[0];
+      const oppHp = opp.cityHps[opp.activeCityIdx];
+      const cpuHp = cpu.cityHps[cpu.activeCityIdx];
+      const oppCity = opp.cities[opp.activeCityIdx];
+      if (budget === 0) { endTurn(); return; }
+      const affordable = cpu.hand.filter(c => c.cost <= budget);
+      if (!affordable.length) { endTurn(); return; }
+      const ranked = affordable.filter(c => c.type === 'disaster')
+        .map(c => ({ c, dmg: _cpuEstimateDmg(c, 0) })).sort((a, b) => b.dmg - a.dmg);
+      // ① Killing blow / overkill avoidance (掟⑪)
+      if (oppHp <= 20) {
+        const fin = affordable.filter(c => c.type === 'disaster' && _cpuEstimateDmg(c, 0) >= oppHp)
+          .sort((a, b) => a.cost - b.cost)[0];
+        if (fin) { playCard(fin.uid); return; }
+      }
+      if (ranked.length && ranked[0].dmg >= oppHp) { playCard(ranked[0].c.uid); return; }
+      // ② Evacuation proactive (掟⑥, early game only)
+      if (!cpu.effects.negateSpecial && G.turnsEach[1] < 4 && cpu.budgetUsed === 0) {
+        const ev = affordable.find(c => c.id === 'evacuation'); if (ev) { playCard(ev.uid); return; }
+      }
+      // ③ bousai_cho early defense
+      if (!cpu.effects.damageReduceHits && G.turnsEach[1] < 5 && cpu.budgetUsed === 0) {
+        const bc = affordable.find(c => c.id === 'bousai_cho'); if (bc) { playCard(bc.uid); return; }
+      }
+      // ④ Heal if HP critical
+      if (cpuHp < 30) {
+        const h = affordable.filter(c => c.effectType === 'heal').sort((a, b) => b.value - a.value)[0];
+        if (h) { playCard(h.uid); return; }
+      }
+      // ⑤ Attack with best disaster (terrain-smart, 掟⑤⑥)
+      if (ranked.length && ranked[0].dmg > 0) { playCard(ranked[0].c.uid); return; }
+      // ⑥ Preemptive shield matching opponent terrain (掟⑧)
+      if (oppCity) {
+        if (!cpu.effects.shieldQuakeFire && !oppCity.isCoastal && !oppCity.isMountain) {
+          const qw = affordable.find(c => c.id === 'quake_wall'); if (qw) { playCard(qw.uid); return; }
+        }
+        if (!cpu.effects.shieldFlood && oppCity.isCoastal) {
+          const dm = affordable.find(c => c.id === 'dam'); if (dm) { playCard(dm.uid); return; }
+        }
+      }
+      // ⑦ Hazard map (use leftover budget)
+      const hm = affordable.find(c => c.id === 'hazard_map'); if (hm) { playCard(hm.uid); return; }
+      // ⑧ Heal moderately
+      if (cpuHp < 50) {
+        const h = affordable.filter(c => c.effectType === 'heal').sort((a, b) => b.value - a.value)[0];
+        if (h) { playCard(h.uid); return; }
+      }
+      endTurn();
+    }
+
+    function _cpuDoResponse() {
+      const atk = G.pendingAttack.card;
+      const policies = G.players[1].hand.filter(c => c.type === 'policy');
+      if (!policies.length) { skipResponse(); return; }
+      if (cpuDifficulty === 'easy') {
+        if (Math.random() < 0.55) { skipResponse(); return; }
+        playResponseCard(policies[Math.random() * policies.length | 0].uid); return;
+      }
+      let use = null;
+      if (atk.id === 'earthquake' || atk.id === 'wildfire') use = policies.find(c => c.id === 'quake_wall');
+      else if (atk.id === 'flood' || atk.id === 'tsunami') use = policies.find(c => c.id === 'dam');
+      if (!use) use = policies.find(c => c.id === 'agreement');
+      if (!use && cpuDifficulty === 'hard' && atk.baseDamage >= 30) use = policies.find(c => c.id === 'evacuation');
+      if (use) playResponseCard(use.uid); else skipResponse();
+    }
+
+    function _cpuDoDiscard() {
+      const cpu = G.players[1]; const hand = cpu.hand;
+      const oppCity = G.players[0].cities[G.players[0].activeCityIdx];
+      if (cpuDifficulty === 'easy') { discardCard(hand[Math.random() * hand.length | 0].uid); return; }
+      if (cpu.effects.shieldQuakeFire) { const c = hand.find(c => c.id === 'quake_wall'); if (c) { discardCard(c.uid); return; } }
+      if (cpu.effects.shieldFlood) { const c = hand.find(c => c.id === 'dam'); if (c) { discardCard(c.uid); return; } }
+      if (cpuDifficulty === 'hard' && oppCity && !oppCity.isMountain) {
+        const ls = hand.find(c => c.id === 'landslide'); if (ls) { discardCard(ls.uid); return; }
+      }
+      const order = ['drill', 'hazard_map', 'pact', 'typhoon', 'landslide', 'earthquake', 'flood', 'quake_wall', 'dam', 'evacuation', 'agreement', 'bousai_cho', 'compound', 'tsunami', 'wildfire'];
+      for (const id of order) { const c = hand.find(c => c.id === id); if (c) { discardCard(c.uid); return; } }
+      discardCard(hand[0].uid);
     }
 
     // ═══════════════════════════════════════
