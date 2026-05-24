@@ -2511,6 +2511,25 @@
       border-top:1px solid var(--bg3);
     }
 
+    /* 対戦都市バッジ */
+    .go-city-badges-outer { display:flex; align-items:center; gap:8px; padding:8px 14px 8px 0; }
+    .go-city-badges-clip { flex:1; overflow:hidden; }
+    .go-city-badges-track { display:flex; transition:transform .38s cubic-bezier(.4,0,.2,1); }
+    .go-city-badges-track.page2 { transform:translateX(-100%); }
+    .go-city-badges-page { min-width:100%; display:flex; align-items:flex-start; justify-content:center; gap:12px; }
+    .go-city-badge { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; background:var(--bg1); border:1.5px solid var(--bg3); border-radius:12px; padding:10px 8px; flex:1; max-width:130px; transition:.15s; }
+    .go-city-badge:hover, .go-city-badge:active { border-color:var(--blue); background:rgba(56,139,253,.08); }
+    .go-city-badge img { width:100%; max-width:72px; aspect-ratio:288/450; object-fit:cover; border-radius:8px; }
+    .go-city-badge-playerlabel { font-size:.62rem; color:#fff; text-transform:uppercase; letter-spacing:.06em; }
+    .go-city-badge-name { font-size:.82rem; font-weight:700; text-align:center; line-height:1.2; }
+    .go-city-badge-vs { font-size:1.1rem; font-weight:900; color:#fff; flex-shrink:0; align-self:center; }
+    @keyframes go-badge-next-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(56,139,253,0)} 50%{box-shadow:0 0 0 3px rgba(56,139,253,.18)} }
+    .go-city-badges-next { width:28px; height:28px; border-radius:50%; background:rgba(10,18,40,.9); border:1.5px solid rgba(56,139,253,.5); color:#7ab4fc; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0; transition:transform .15s,background .15s,border-color .15s; animation:go-badge-next-pulse 2.8s ease-in-out infinite; }
+    .go-city-badges-next:hover { background:rgba(56,139,253,.25); border-color:var(--blue); transform:scale(1.1); animation:none; }
+    .go-city-badges-next:active { transform:scale(.9); }
+    .go-city-badges-next svg { transition:transform .35s ease; }
+    .go-city-badges-next.page2 svg { transform:rotate(180deg); }
+
     /* カウンター提案 */
     .go-counter-wrap {
       background:var(--bg1);
@@ -2534,6 +2553,8 @@
     .go-gallery-btn:hover { background:var(--blue); color:#fff; }
 
     /* [DEV] プレビューボタン */
+    #dev-result-btn { position:fixed; bottom:12px; right:12px; z-index:9999; padding:6px 12px; background:#333; border:1px solid #666; border-radius:8px; color:#aaa; font-size:.72rem; cursor:pointer; opacity:.7; }
+    #dev-result-btn:hover { opacity:1; }
 
     /* ═══════════════════════════════════════════════════
        MOBILE BATTLE LAYOUT — comprehensive fix v2
@@ -2682,6 +2703,7 @@
 
 <body>
   <div id="app"></div>
+  <button id="dev-result-btn" onclick="devPreviewResult()">DEV: リザルト</button>
 
   <!-- Firebase Realtime Database SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -2721,7 +2743,7 @@
     let myLastPush = null;   // 自分のpushが返ってきたとき無視する用
 
     // ══ LOBBY UI STATE ══
-    let lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, spectateCode: null };
+    let lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, spectateCode: null, fromResult: false };
     // ══ CPU SOLO ══
     let isCpuMode = false;
     let cpuDifficulty = 'normal'; // 'easy' | 'normal' | 'hard'
@@ -3350,7 +3372,7 @@
         if (defCity.abilityType === 'resist_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：洪水・津波軽減（防災投資）`, -defCity.abilityValue); }
         if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：連続被弾軽減（適応力）`, -defCity.abilityValue); }
         if (defCity.abilityType === 'quake_regen' && attackCard.id === 'earthquake') def.effects.quakeHitThisTurn = true;
-        if (defCity.abilityType === 'flood_budget' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { def.effects.floodBonusTurns = 1; ld('city_effect', `${defCity.name}の都市能力：次ターン予算+1（洪水後の復旧）`, null); }
+        if (defCity.abilityType === 'flood_budget' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { def.effects.floodBonusTurns = 1; ld('city_effect', `${defCity.name}の都市能力：次ターン予算+1（洪水後の復旧）`, null); G._nextTurnEvents[defIdx].push({ type: 'flood_budget', cityIcon: terrainImg(defCity, 18), cityName: defCity.name }); }
         if (defCity.abilityType === 'flood_draw' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
         if (defCity.abilityType === 'quake_draw' && attackCard.id === 'earthquake') { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
       }
@@ -3425,7 +3447,7 @@
       if (p.effects.floodBonusTurns > 0) p.effects.floodBonusTurns--;
       G.turnsEach[G.activePlayer]++; const next = G.activePlayer === 0 ? 1 : 0; G.activePlayer = next;
       const evts = G._nextTurnEvents[next];
-      if (evts.length > 0) { G._turnSummary = [...evts]; G._nextTurnEvents[next] = []; G.screen = 'turnSummary'; }
+      if (evts.length > 0) { G._atkSummaryConfirmed = false; G._turnSummary = [...evts]; G._nextTurnEvents[next] = []; G.screen = 'turnSummary'; }
       else setupTurnDraw(next);
       pushState(); render();
     }
@@ -4068,7 +4090,9 @@
         case 'gacha': return G.gachaCurrent?.playerIdx === mi ? 'gacha' : 'waiting';
         case 'draft': return G.draftState?.playerIdx === mi ? 'draft' : 'waiting';
         case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx; return pi === mi ? 'turnDraw' : 'waiting'; }
-        case 'turnSummary': return G.activePlayer === mi ? 'turnSummary' : 'waiting';
+        case 'turnSummary':
+          if (G.activePlayer === mi) return 'turnSummary';
+          return G._atkSummaryConfirmed ? 'waiting' : 'attackerSummary';
         case 'main':
           if (G.pendingAttack) { if (G.pendingAttack.attackerIdx === mi) return 'main'; if (G.pendingAttack.defenderIdx === mi) return 'waiting_response'; }
           return G.activePlayer === mi ? 'main' : 'waiting';
@@ -4220,6 +4244,7 @@
         case 'draft': html = renderDraft(); break;
         case 'turnDraw': html = renderTurnDraw(); break;
         case 'turnSummary': html = renderTurnSummary(); break;
+        case 'attackerSummary': html = renderAttackerSummary(); break;
         case 'main': html = renderMain(false); break;
         case 'response': html = renderMain(true); break;
         case 'waiting_response': html = renderWaitingResponse(); break;
@@ -4295,6 +4320,29 @@
 
     // ─── ロビー ───
     function openGalleryZoom(type, id, name) { lobbyState.galleryZoom = { type, id, name }; render(); }
+    function toggleCityBadgePage() {
+      const track = document.getElementById('city-badges-track');
+      const btn = document.getElementById('city-badge-next-btn');
+      if (track) track.classList.toggle('page2');
+      if (btn) btn.classList.toggle('page2');
+    }
+    function goGalleryFromResult(type, id, name, tab) {
+      G.screen = 'lobby';
+      lobbyState.mode = 'gallery';
+      lobbyState.galleryTab = tab || (type === 'city' ? 'city' : 'policy');
+      lobbyState.galleryZoom = { type, id, name };
+      lobbyState.fromResult = true;
+      render();
+    }
+    function galleryBack() {
+      lobbyState.galleryZoom = null;
+      if (lobbyState.fromResult) {
+        G.screen = 'gameover'; lobbyState.mode = 'select'; lobbyState.fromResult = false;
+      } else {
+        lobbyState.mode = 'select';
+      }
+      render();
+    }
 
     function renderLobby() {
       const nv = lobbyState.nameInput.replace(/"/g, '&quot;'); const jv = lobbyState.joinCodeInput.replace(/"/g, '&quot;');
@@ -4353,7 +4401,7 @@
           contentHtml = '';
         }
         return `<div class="screen active"><div class="gallery-wrap"><div class="gallery-box">
-    <div class="gallery-header"><button class="gallery-btn-back" onclick="lobbyState.mode='select';lobbyState.galleryZoom=null;render()">＜</button><span class="gallery-title">カード一覧</span><span style="width:40px;flex-shrink:0"></span></div>
+    <div class="gallery-header"><button class="gallery-btn-back" onclick="galleryBack()">＜</button><span class="gallery-title">カード一覧</span><span style="width:40px;flex-shrink:0"></span></div>
     <div class="gallery-tabs">${tabHtml}</div>
     ${contentHtml}
   </div></div></div>`;
@@ -4879,7 +4927,7 @@
           const pD=isBlock?0:Math.max(0,Math.min(100-pR,Math.round(ev.damage/60*100)));
           const noChange=isBlock&&!ev.healAmount;
           const hpLabel=noChange?`${hpBefore}（変化なし）`:`${hpBefore} → ${hpAfterDmg}`;
-          return `<div class="ts-ev ${isBlock?'heal':'damage'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">${ev.cardIcon} ${ev.cardName}</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:${dmgCol}">${ev.damage}</span><span style="font-size:.68rem;font-weight:600;color:${dmgCol};margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:${chipsHtml?'6px':'2px'}"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t3);margin-bottom:3px"><span>HP</span><span>${hpLabel}</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${pR}%;background:var(--green);border-radius:4px 0 0 4px"></div><div style="position:absolute;left:${pR}%;top:0;height:100%;width:${pD}%;background:rgba(248,81,73,0.75)"></div></div></div>${chipsHtml?`<div style="display:flex;flex-wrap:wrap;gap:4px">${chipsHtml}</div>`:''}</div>`;
+          return `<div class="ts-ev ${isBlock?'heal':'damage'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">${ev.cardIcon} ${ev.cardName}</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:${dmgCol}">${ev.damage}</span><span style="font-size:.68rem;font-weight:600;color:${dmgCol};margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:${chipsHtml?'6px':'2px'}"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:#fff;margin-bottom:3px"><span>HP</span><span>${hpLabel}</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${pR}%;background:var(--green);border-radius:4px 0 0 4px"></div><div style="position:absolute;left:${pR}%;top:0;height:100%;width:${pD}%;background:rgba(248,81,73,0.75)"></div></div></div>${chipsHtml?`<div style="display:flex;flex-wrap:wrap;gap:4px">${chipsHtml}</div>`:''}</div>`;
         }
         if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −15 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −15</div></div>`; }
         if (ev.type === 'response_skipped') return `<div class="ts-ev warn" style="border-color:var(--red)"><div class="ts-ev-title">⚡ 複合災害：対応フェーズがスキップされました</div><div class="ts-ev-detail">${ev.cityName ? `「${ev.cityName}」` : 'あなた'}は政策カードを使用できませんでした</div></div>`;
@@ -4892,7 +4940,44 @@
       return `<div class="screen active"><div class="turn-summary-box">
     <div class="ts-title">📋 ${p.name}のターン — 前ターンの状況確認</div>
     <div class="ts-events">${items || '<div style="color:var(--t3);font-size:.85rem">特記なし</div>'}</div>
-    <div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="dismissTurnSummary()">✅ 確認してターン開始</button></div>
+    <div style="text-align:center;margin-top:12px">${!isCpuMode && !G._atkSummaryConfirmed ? `<button class="btn-ho" disabled style="opacity:.5;cursor:default">⏳ 相手の確認待ち...</button>` : `<button class="btn-ho" onclick="dismissTurnSummary()">✅ 確認してターン開始</button>`}</div>
+  </div></div>`;
+    }
+
+    function dismissAttackerSummary() { G._atkSummaryConfirmed = true; if (!isCpuMode) pushState(); render(); }
+
+    function renderAttackerSummary() {
+      const events = G._turnSummary || [];
+      const cpuName = G.players[1 - myPlayerIdx]?.name || 'CPU';
+      const _catLabel = { exposure: '地形リスク', city_policy: '都市対策', city_effect: '都市能力', shield_pre: 'シールド', shield_resp: '対応シールド', agency: '防災庁', negate: '特殊無効', vuln: '脆弱性', special: '特殊効果' };
+      const _catClass = { exposure: 'exposure', city_policy: 'policy', city_effect: 'policy', shield_pre: 'shield', shield_resp: 'shield', agency: 'agency', negate: 'negate', vuln: 'vuln', special: 'negate' };
+      const chipLbl = (d) => { const t = d.text || ''; if (d.cat === 'city_policy' || d.cat === 'city_effect') { const cm = t.match(/^(.+?)の都市/); const am = t.match(/：(.+?)（/); return cm && am ? `${cm[1]} ${am[1]}` : cm ? cm[1] : t.split(/[（：]/)[0].trim(); } return t.split(/[（：]/)[0].trim(); };
+      const cBad = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
+      const cOk  = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
+      const cYel = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(227,179,65,.15);color:var(--yellow);border:1px solid rgba(227,179,65,.35);white-space:nowrap';
+      const items = events.map(ev => {
+        if (ev.type === 'damage') {
+          const details = ev.details || [];
+          const baseChip = ev.baseDamage != null ? `<span style="${cBad}">基礎 ${ev.baseDamage}</span>` : '';
+          const atkChips = details.filter(d => typeof d === 'object' && d.cat && d.delta > 0).map(d => `<span style="${cBad}">${chipLbl(d)} +${d.delta}</span>`).join('');
+          const defChips = details.filter(d => typeof d === 'object' && d.cat && d.delta < 0).map(d => `<span style="${cOk}">${chipLbl(d)} ${d.delta}</span>`).join('');
+          const healChip = ev.healAmount > 0 ? `<span style="${cYel}">${ev.healCardName} +${ev.healAmount}</span>` : '';
+          const chipsHtml = baseChip + atkChips + defChips + healChip;
+          const isBlock = ev.damage === 0; const dmgCol = isBlock ? 'var(--green)' : 'var(--yellow)';
+          const hpBefore = ev.hpBefore ?? 60; const hpAfterDmg = ev.hpAfterDamage ?? hpBefore; const hpFinal = ev.hpAfter ?? hpAfterDmg;
+          const pR = Math.max(0, Math.min(100, Math.round(hpAfterDmg / 60 * 100)));
+          const pD = isBlock ? 0 : Math.max(0, Math.min(100 - pR, Math.round(ev.damage / 60 * 100)));
+          const hpLabel = isBlock ? `${hpBefore}（ブロック）` : `${hpBefore} → ${hpAfterDmg}`;
+          return `<div class="ts-ev ${isBlock ? 'heal' : 'damage'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">${ev.cardIcon} ${ev.cardName}</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:${dmgCol}">${ev.damage}</span><span style="font-size:.68rem;font-weight:600;color:${dmgCol};margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:${chipsHtml ? '6px' : '2px'}"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:#fff;margin-bottom:3px"><span>${cpuName} HP</span><span>${hpLabel}</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${pR}%;background:var(--green);border-radius:4px 0 0 4px"></div><div style="position:absolute;left:${pR}%;top:0;height:100%;width:${pD}%;background:rgba(248,81,73,0.75)"></div></div></div>${chipsHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${chipsHtml}</div>` : ''}</div>`;
+        }
+        if (ev.type === 'disaster_agency_remaining') { return ev.remaining === 0 ? `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ ${cpuName}の防災庁効果が終了</div><div class="ts-ev-detail">次の攻撃から軽減なし</div></div>` : `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ ${cpuName}の防災庁：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回は全ダメージ −15</div></div>`; }
+        if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">💥 ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が登場</div></div>`;
+        return '';
+      }).filter(Boolean).join('');
+      return `<div class="screen active"><div class="turn-summary-box">
+    <div class="ts-title">⚔️ 攻撃結果 — ${cpuName}に与えたダメージ</div>
+    <div class="ts-events">${items || '<div style="color:var(--t3);font-size:.85rem">ダメージなし（または対応により無効）</div>'}</div>
+    <div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="dismissAttackerSummary()">✅ 確認</button></div>
   </div></div>`;
     }
 
@@ -5111,6 +5196,20 @@
 
       // ── A: 被害カルテ（自分が受けたダメージ一覧） ──
       const hist = G._gameHistory || [];
+      const mi = myPlayerIdx, oi = mi === 0 ? 1 : 0;
+      const myCity = G.players[mi].cities[0];
+      const oppCity = G.players[oi].cities[0];
+      const myCity2 = G.players[mi].cities[1] || null;
+      const oppCity2 = G.players[oi].cities[1] || null;
+      const _svgChevron = `<svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,1 6.5,4.5 2.5,8"/></svg>`;
+      const _mkCityBadge = (city, label) => city
+        ? `<div class="go-city-badge" onclick="goGalleryFromResult('city','${city.id}','${city.name}','city')"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name">${city.name}</div></div>`
+        : `<div class="go-city-badge" style="opacity:.3;cursor:default;pointer-events:none"><div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name" style="font-size:.7rem">未使用</div></div>`;
+      const hasCity2 = !!(myCity2 || oppCity2);
+      const _page1 = `<div class="go-city-badges-page">${_mkCityBadge(myCity,'あなた')}<div class="go-city-badge-vs">VS</div>${_mkCityBadge(oppCity,'相手')}</div>`;
+      const _page2 = hasCity2 ? `<div class="go-city-badges-page">${_mkCityBadge(myCity2,'あなた2')}<div class="go-city-badge-vs">VS</div>${_mkCityBadge(oppCity2,'相手2')}</div>` : '';
+      const _nextBtn = hasCity2 ? `<button class="go-city-badges-next" id="city-badge-next-btn" onclick="toggleCityBadgePage()">${_svgChevron}</button>` : '';
+      const cityBadgesHtml = (myCity && oppCity) ? `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_city.webp" style="width:20px;height:20px;object-fit:contain"> 対戦都市 — タップしてカード図鑑へ</div><div class="go-city-badges-outer"><div class="go-city-badges-clip"><div class="go-city-badges-track" id="city-badges-track">${_page1}${_page2}</div></div>${_nextBtn}</div></div>` : '';
       const myDmgEvts = hist.filter(ev => ev.type === 'damage' && ev.playerIdx === myPlayerIdx);
       let karte = '';
       if (myDmgEvts.length > 0) {
@@ -5149,7 +5248,7 @@
         terrainStat = `<div class="go-inview go-stats-table">
           <div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_city.webp" style="width:20px;height:20px;object-fit:contain"> 地形リスク発動 — ${terrainHits.length}回</div>
           ${tRows}
-          <div class="go-terrain-note">都市の地形によってダメージが増減します → カード図鑑で確認</div>
+          ${myCity ? `<button class="go-gallery-btn" style="margin-top:8px" onclick="goGalleryFromResult('city','${myCity.id}','${myCity.name}','city')">${myCity.name}のカードを見る →</button>` : `<div class="go-terrain-note">都市の地形によってダメージが増減します</div>`}
         </div>`;
       }
 
@@ -5176,7 +5275,7 @@
                 <div class="go-mvp-desc">${counterCard.realConcept}</div>
               </div>
             </div>
-            <button class="go-gallery-btn" onclick="restartGame();setTimeout(()=>{lobbyState.mode='gallery';lobbyState.galleryTab=null;render();},200)">📖 カード図鑑で詳しく見る</button>
+            <button class="go-gallery-btn" onclick="goGalleryFromResult('card','${counterCard.id}','${counterCard.name}','policy')">カード図鑑で詳しく見る</button>
           </div>`;
         }
       }
@@ -5207,6 +5306,7 @@
       <div class="go-stats-section-header">LOSER ${l.name}</div>${lRows}
     </div>
     <div class="go-inview go-turns-badge">総ターン数 <strong>${totalTurns}</strong></div>
+    ${cityBadgesHtml}
     ${karte}
     ${terrainStat}
     ${counterHtml}
@@ -5225,7 +5325,24 @@
     }
 
     // ─── [DEV] 勝敗画面プレビュー ───
-// ─── 都市情報モーダル ───
+    function devPreviewResult() {
+      isCpuMode = true; myPlayerIdx = 0; roomId = null; myRole = 'p1';
+      const c0 = CITIES.find(c => c.id === 'new_orleans');
+      const c1 = CITIES.find(c => c.id === 'kobe');
+      const c0b = CITIES.find(c => c.id === 'niigata');
+      const c1b = CITIES.find(c => c.id === 'sendai');
+      G.players[0] = { name: 'あなた', cities: [c0, c0b], cityHps: [0, 0], activeCityIdx: 0, hand: [], budgetUsed: 6, effects: mkEffects() };
+      G.players[1] = { name: 'CPU', cities: [c1, c1b], cityHps: [25, 60], activeCityIdx: 0, hand: [], budgetUsed: 4, effects: mkEffects() };
+      G.winner = 1; G.turnsEach = [4, 4];
+      G._gameHistory = [
+        { type: 'damage', playerIdx: 0, cardId: 'flood', cardName: '洪水', cardIcon: '🌊', damage: 40, details: [{ cat: 'exposure', text: '海岸都市のため洪水ダメージ +10', delta: 10 }] },
+        { type: 'damage', playerIdx: 0, cardId: 'tsunami', cardName: '津波', cardIcon: '🌊', damage: 35, details: [{ cat: 'exposure', text: '海岸都市のため津波ダメージ +10', delta: 10 }] },
+        { type: 'damage', playerIdx: 1, cardId: 'quake', cardName: '地震', cardIcon: '🌋', damage: 15, details: [] },
+      ];
+      G.screen = 'gameover'; render();
+    }
+
+    // ─── 都市情報モーダル ───
     function showCityInfo(idx) { _cityInfoModal = idx; render(); }
     function hideCityInfo() { _cityInfoModal = null; render(); }
 
@@ -5269,6 +5386,7 @@
     function handleHostClick() { const name = lobbyState.nameInput.trim(); if (!name) { lobbyState.error = '名前を入力してください'; render(); return; } lobbyState.error = ''; createRoom(); }
     function handleJoinClick() { const name = lobbyState.nameInput.trim(); const code = lobbyState.joinCodeInput.trim(); if (!name) { lobbyState.error = '名前を入力してください'; render(); return; } if (code.length !== 6) { lobbyState.error = 'ルームコードは6文字で入力してください'; render(); return; } lobbyState.error = ''; joinRoom(); }
     function dismissTurnSummary() {
+      G._atkSummaryConfirmed = false;
       const _evts = G._turnSummary || []; const _ap = G.activePlayer;
       if (!G._gameHistory) G._gameHistory = [];
       G._gameHistory.push(..._evts.map(ev => ({ ...ev, playerIdx: _ap })));
@@ -5325,6 +5443,7 @@
         addLog(`⚡ 複合災害：${def.name}の対応フェーズを強制スキップ！`, 'sys');
         G._nextTurnEvents[atk.defenderIdx].push({ type: 'response_skipped', cityName: getActiveCity(atk.defenderIdx)?.name || '' });
         resolveDamage(atk.card, atk.defenderIdx, null);
+        _responseAnimatedPis.add(atk.defenderIdx);
         G.pendingAttack = null;
         if (checkWin()) return;
         G.screen = 'main'; pushState(); render();
@@ -5490,7 +5609,7 @@
         hideRematchRequestPopup();
         localStorage.removeItem('ron_lastRoom'); localStorage.removeItem('ron_lastRole');
         history.replaceState(null, '', window.location.pathname);
-        lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null };
+        lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, fromResult: false };
         _hintOpen = false; tutorialState = null;
         G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
@@ -5559,7 +5678,7 @@
         (s === 'cityOrder' && G.cityOrderState?.playerIdx === 1) ||
         (s === 'draft' && ds?.playerIdx === 1) ||
         (s === 'turnDraw' && (ts?.pi ?? ts?.playerIdx) === 1) ||
-        (s === 'turnSummary' && ap === 1) ||
+        (s === 'turnSummary' && ap === 1 && G._atkSummaryConfirmed) ||
         (s === 'main' && ap === 1 && !G.pendingAttack) ||
         (s === 'main' && G.pendingAttack?.attackerIdx === 1 && !G._pendingAutoHandover) ||
         (s === 'response' && G.pendingAttack?.defenderIdx === 1) ||
@@ -5582,7 +5701,7 @@
         if (!ds.revealed) pullDraftCard(); else acceptDraftCard();
       } else if (s === 'turnDraw' && (ts?.pi ?? ts?.playerIdx) === 1) {
         if (!ts.revealed) pullTurnCard(); else acceptTurnCard();
-      } else if (s === 'turnSummary' && ap === 1) {
+      } else if (s === 'turnSummary' && ap === 1 && G._atkSummaryConfirmed) {
         dismissTurnSummary();
       } else if (s === 'main' && ap === 1 && !G.pendingAttack) {
         _cpuDoMainTurn();
