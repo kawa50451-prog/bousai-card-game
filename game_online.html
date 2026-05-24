@@ -2553,8 +2553,6 @@
     .go-gallery-btn:hover { background:var(--blue); color:#fff; }
 
     /* [DEV] プレビューボタン */
-    #dev-result-btn { position:fixed; bottom:12px; right:12px; z-index:9999; padding:6px 12px; background:#333; border:1px solid #666; border-radius:8px; color:#aaa; font-size:.72rem; cursor:pointer; opacity:.7; }
-    #dev-result-btn:hover { opacity:1; }
 
     /* ═══════════════════════════════════════════════════
        MOBILE BATTLE LAYOUT — comprehensive fix v2
@@ -2703,7 +2701,6 @@
 
 <body>
   <div id="app"></div>
-  <button id="dev-result-btn" onclick="devPreviewResult()">DEV: リザルト</button>
 
   <!-- Firebase Realtime Database SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -5324,23 +5321,6 @@
       document.querySelectorAll('.go-inview').forEach(el => obs.observe(el));
     }
 
-    // ─── [DEV] 勝敗画面プレビュー ───
-    function devPreviewResult() {
-      isCpuMode = true; myPlayerIdx = 0; roomId = null; myRole = 'p1';
-      const c0 = CITIES.find(c => c.id === 'new_orleans');
-      const c1 = CITIES.find(c => c.id === 'kobe');
-      const c0b = CITIES.find(c => c.id === 'niigata');
-      const c1b = CITIES.find(c => c.id === 'sendai');
-      G.players[0] = { name: 'あなた', cities: [c0, c0b], cityHps: [0, 0], activeCityIdx: 0, hand: [], budgetUsed: 6, effects: mkEffects() };
-      G.players[1] = { name: 'CPU', cities: [c1, c1b], cityHps: [25, 60], activeCityIdx: 0, hand: [], budgetUsed: 4, effects: mkEffects() };
-      G.winner = 1; G.turnsEach = [4, 4];
-      G._gameHistory = [
-        { type: 'damage', playerIdx: 0, cardId: 'flood', cardName: '洪水', cardIcon: '🌊', damage: 40, details: [{ cat: 'exposure', text: '海岸都市のため洪水ダメージ +10', delta: 10 }] },
-        { type: 'damage', playerIdx: 0, cardId: 'tsunami', cardName: '津波', cardIcon: '🌊', damage: 35, details: [{ cat: 'exposure', text: '海岸都市のため津波ダメージ +10', delta: 10 }] },
-        { type: 'damage', playerIdx: 1, cardId: 'quake', cardName: '地震', cardIcon: '🌋', damage: 15, details: [] },
-      ];
-      G.screen = 'gameover'; render();
-    }
 
     // ─── 都市情報モーダル ───
     function showCityInfo(idx) { _cityInfoModal = idx; render(); }
