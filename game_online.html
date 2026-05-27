@@ -2386,7 +2386,7 @@
     .spec-turn-dot { width:10px; height:10px; min-width:10px; border-radius:50%; background:var(--blue); animation:pulse-anim 1.4s ease-in-out infinite; }
     .spec-player-name { font-size:1rem; font-weight:700; color:var(--t1); }
     .spec-city-name { font-size:.9rem; color:var(--t1); }
-    .spec-vs-divider { text-align:center; font-family:'Roboto Condensed',sans-serif; font-size:1.5rem; font-weight:900; color:#fa2a4e; letter-spacing:.18em; padding:2px 0; text-shadow:0 0 22px rgba(250,42,78,.4); }
+    .spec-vs-divider { display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center; font-family:'Roboto Condensed',sans-serif; font-size:1.5rem; font-weight:900; color:#fa2a4e; letter-spacing:.18em; padding:4px 0; text-shadow:0 0 22px rgba(250,42,78,.4); }
     .spec-hands { display:flex; flex-direction:column; gap:12px; }
     .spec-hand-section { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:12px; }
     .spec-hand-label { font-size:.78rem; font-weight:700; color:var(--t2); margin-bottom:8px; letter-spacing:.04em; }
@@ -2412,6 +2412,9 @@
     .spec-summary-title { font-size:.82rem; font-weight:700; color:var(--blue); margin-bottom:10px; letter-spacing:.04em; }
     .spec-summary-waiting { text-align:center; font-size:.78rem; color:var(--t3); padding:6px 0 2px; }
     .spec-response-badge { display:inline-flex; align-items:center; gap:4px; font-size:.72rem; font-weight:700; color:var(--yellow); background:rgba(227,179,65,.15); border:1px solid rgba(227,179,65,.35); border-radius:20px; padding:2px 8px; }
+    .spec-vs-sub { font-size:.68rem; font-weight:600; color:var(--t3); letter-spacing:.03em; font-family:'Roboto Condensed',sans-serif; text-shadow:none; }
+    .spec-vs-response-main { font-size:.88rem; font-weight:700; color:var(--red); letter-spacing:.04em; font-family:'Roboto Condensed',sans-serif; text-shadow:0 0 12px rgba(250,42,78,.3); }
+    .spec-budget-info { font-size:.72rem; font-weight:700; color:var(--blue); background:rgba(56,139,253,.12); border:1px solid rgba(56,139,253,.3); border-radius:20px; padding:2px 8px; margin-left:auto; }
 
     .go-share-btn {
       width:100%; padding:11px 32px;
@@ -5061,6 +5064,7 @@
             ${c ? terrainImg(c, 26) : ''}
             <span class="spec-city-name">${c ? c.name : '?'}</span>
             ${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}
+            ${isActive ? `<span class="spec-budget-info">${getBudgetLeft(idx)}/${getBudget(idx)} ポイント</span>` : ''}
           </div>
           <div class="hp-section" id="hp-section-${idx}">
             <div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${Math.max(0,hp/mxHp*100)}%"></div><div class="hp-bar-fill${hp<=10?' hp-warn':''}" id="hp-fill-${idx}" style="width:${Math.max(0,hp/mxHp*100)}%;background:${hpColor(hp,mxHp)}"></div></div>
@@ -5076,9 +5080,13 @@
         if (!p.hand || p.hand.length === 0) return `<div style="color:var(--t3);font-size:.82rem;text-align:center;padding:4px">手札なし</div>`;
         return renderPlayerHandSpectator(p);
       }
+      const _turnNum = G.turnsEach[ap] + 1;
+      const _turnSub = `<span class="spec-vs-sub">ターン${_turnNum}</span>`;
       const midSection = screen === 'turnSummary' && G._turnSummary
         ? `<div class="spec-summary-panel"><div class="spec-summary-title">📋 ターンサマリー — ${G.players[ap]?.name} のターン</div><div class="ts-events">${_buildTurnSummaryItems(G._turnSummary)}</div><div class="spec-summary-waiting">⏳ プレイヤーが確認中...</div></div>`
-        : `<div class="spec-vs-divider">VS</div>`;
+        : screen === 'response' && G.pendingAttack
+          ? `<div class="spec-vs-divider"><span class="spec-vs-response-main">⚔️ ${G.pendingAttack.card.icon} ${G.pendingAttack.card.name} → 対応フェーズ</span>${_turnSub}</div>`
+          : `<div class="spec-vs-divider"><span>VS</span>${_turnSub}</div>`;
       const logHtml = G.log.slice(0, 8).map(e => `<div class="log-entry ${e.cls}">${e.msg}</div>`).join('') || '<div class="log-entry sys">ゲーム開始</div>';
       return `<div class="screen active spec-screen">
         ${header}
