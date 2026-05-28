@@ -2734,6 +2734,7 @@
 
     // ══ ONLINE STATE (local, not synced) ══
     let myRole = null;   // 'p1' | 'p2'
+    let _specPv = null; let _specPvSavedG = null; let _specPvSavedRole = null;
     let myPlayerIdx = 0;      // 0 | 1
     let roomId = null;
     let _rematchListenerSet = false;
@@ -4085,6 +4086,7 @@
     // VIEW DISPATCH
     // ═══════════════════════════════════════
     function myView() {
+      if (_specPv) return 'spectator';
       if (!isFirebaseConfigured()) return 'setup_required';
       if (myRole === 'spectator') return 'spectator';
       if (G.screen === 'lobby' || G.screen === 'waiting_connection' || G.screen === 'tutorial') return G.screen;
@@ -4229,6 +4231,71 @@
       });
     }
 
+    // ─── 観戦プレビュー（デバッグ用） ───
+    function _specDummyG(scenario) {
+      const tokyo = CITIES.find(c=>c.id==='tokyo');
+      const osaka  = CITIES.find(c=>c.id==='osaka');
+      const quake   = DISASTER_CARDS.find(c=>c.id==='quake');
+      const typhoon = DISASTER_CARDS.find(c=>c.id==='typhoon');
+      const qw    = POLICY_CARDS.find(c=>c.id==='quake_wall');
+      const drill = POLICY_CARDS.find(c=>c.id==='drill');
+      const dam   = POLICY_CARDS.find(c=>c.id==='dam');
+      const evac  = POLICY_CARDS.find(c=>c.id==='evacuation');
+      const dg = {
+        screen: scenario, activePlayer: 0, turnsEach: [3, 3],
+        players: [
+          { name: 'プレイヤー1', cities: [tokyo, osaka], cityHps: [45, 60], activeCityIdx: 0,
+            hand: [{...qw, uid:'pv_qw'}, {...drill, uid:'pv_dr'}, {...quake, uid:'pv_qu'}],
+            budgetUsed: 1, effects: mkEffects() },
+          { name: 'プレイヤー2', cities: [osaka, tokyo], cityHps: [28, 60], activeCityIdx: 0,
+            hand: [{...dam, uid:'pv_dm'}, {...typhoon, uid:'pv_ty'}, {...evac, uid:'pv_ev'}],
+            budgetUsed: 0, effects: {...mkEffects(), shieldFlood: true} },
+        ],
+        deck: [], discard: [],
+        log: [
+          {msg:'プレイヤー1 が 地震 を 大阪 に使用 → 20ダメージ', cls:''},
+          {msg:'プレイヤー2 が 堤防建設 を使用（対応）', cls:'sys'},
+          {msg:'ターン3 開始', cls:'sys'},
+        ],
+        pendingAttack: null, peekCard: null, peekByPlayerIdx: null, winner: null,
+        gachaPickedIds: [], gachaCurrent: null, draftState: null,
+        discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
+        _nextTurnEvents: {0:[],1:[]}, _turnSummary: null, _gameHistory: [],
+      };
+      if (scenario === 'response') {
+        dg.pendingAttack = {card: {...quake}, attackerIdx: 0, defenderIdx: 1};
+      }
+      if (scenario === 'turnSummary') {
+        dg._turnSummary = [
+          { type:'damage', cardIcon:'🌋', cardName:'地震', baseDamage:30,
+            details:[
+              {cat:'exposure', text:'大阪の都市（海岸）：地震の地形リスク', delta:0},
+              {cat:'shield_resp', text:'堤防建設（対応）：ダメージ軽減', delta:-10},
+            ],
+            damage:20, hpBefore:48, hpAfterDamage:28, healAmount:0 },
+          { type:'opp_regen', cityIcon:'🏯', cityName:'大阪', amount:5, hpBefore:45, hpAfter:50 },
+        ];
+      }
+      return dg;
+    }
+    function specPreview(scenario) {
+      if (!scenario || scenario === 'exit') {
+        if (_specPvSavedG) { G = _specPvSavedG; myRole = _specPvSavedRole; }
+        _specPv = null; _specPvSavedG = null; _specPvSavedRole = null;
+        render(); return;
+      }
+      if (!_specPvSavedG) { _specPvSavedG = G; _specPvSavedRole = myRole; }
+      _specPv = scenario;
+      myRole = 'spectator';
+      G = _specDummyG(scenario);
+      render();
+    }
+    function _renderSpecPreviewBar() {
+      const sc = [{id:'main',lb:'通常フェーズ'},{id:'response',lb:'対応フェーズ'},{id:'turnSummary',lb:'サマリー'}];
+      const btns = sc.map(s=>`<button onclick="specPreview('${s.id}')" style="padding:4px 10px;border-radius:8px;border:none;cursor:pointer;font-size:.75rem;font-weight:700;background:${_specPv===s.id?'#388bfd':'#21262d'};color:${_specPv===s.id?'#fff':'#cdd9e5'}">${s.lb}</button>`).join('');
+      return `<div id="spec-pv-bar" style="position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#0d1117;border:1px solid #388bfd;border-radius:14px;padding:8px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(56,139,253,.3);white-space:nowrap"><span style="font-size:.7rem;color:#388bfd;font-weight:700">🔍 観戦プレビュー</span>${btns}<button onclick="specPreview('exit')" style="padding:4px 10px;border-radius:8px;border:none;cursor:pointer;font-size:.75rem;font-weight:700;background:#da3633;color:#fff">終了</button></div>`;
+    }
+
     // ═══════════════════════════════════════
     // RENDER
     // ═══════════════════════════════════════
@@ -4265,6 +4332,7 @@
       if (view !== 'setup_required') html += `<button class="hint-btn" onclick="toggleHint()" title="ヒント">？</button>`;
       if (_hintOpen) html += renderHintOverlay();
       app.innerHTML = html; processHpAnims();
+      if (_specPv) app.insertAdjacentHTML('beforeend', _renderSpecPreviewBar());
       if (_lastDrawnCardUid) { setTimeout(() => { _lastDrawnCardUid = null; }, 0); }
       if (view === 'lobby') {
         if (_wasLobbyEnter) {
@@ -5917,6 +5985,7 @@
         lobbyState.joinCodeInput = savedRoom; lobbyState.mode = 'join';
       }
       if (isFirebaseConfigured()) initFirebase();
+      if (params.get('spv')) { specPreview(params.get('spv') === '1' ? 'main' : params.get('spv')); return; }
       render();
       // 案A: URLパラメータあり or localStorage両方あり → 自動参加（再接続含む）
       // roomParam 経由はエラー表示あり、savedRoom のみの場合は silent でlobbyにフォールバック
