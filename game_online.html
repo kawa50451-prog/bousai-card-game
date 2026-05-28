@@ -1642,6 +1642,14 @@
     /* ── 10. Hint overlay ── */
     .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:9100; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
     .hint-btn:hover { border-color:#fa2a4e; color:#fa2a4e; background:rgba(250,42,78,.1) }
+    .spec-invite-btn { position:fixed; bottom:16px; right:64px; z-index:9100; padding:7px 12px; border-radius:20px; background:rgba(56,139,253,.15); border:1.5px solid #388bfd; color:#388bfd; font-size:.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(0,0,0,.4); transition:.2s; white-space:nowrap; }
+    .spec-invite-btn:hover { background:rgba(56,139,253,.3); }
+    .spec-invite-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:9200; display:flex; align-items:flex-end; justify-content:flex-end; padding:72px 12px; }
+    .spec-invite-panel { background:var(--bg1); border:1px solid rgba(56,139,253,.5); border-radius:18px; padding:18px; width:min(280px, 90vw); display:flex; flex-direction:column; gap:0; }
+    .spec-invite-hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .spec-invite-title { font-size:.9rem; font-weight:700; color:var(--t1); }
+    .spec-invite-close { background:transparent; border:none; color:var(--t3); font-size:1.1rem; cursor:pointer; padding:2px 6px; line-height:1; }
+    .spec-invite-copy-btn { width:100%; padding:10px; border-radius:10px; border:none; background:#388bfd; color:#fff; font-size:.85rem; font-weight:700; cursor:pointer; }
     .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:9200; display:flex; align-items:flex-end; justify-content:center; padding:12px }
     .hint-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:20px 18px; max-width:520px; width:100%; max-height:72vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px }
     .hint-box-header { display:flex; align-items:center; justify-content:space-between }
@@ -2667,6 +2675,10 @@
         right: calc(env(safe-area-inset-right, 0px) + 12px);
         bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
       }
+      .spec-invite-btn {
+        right: calc(env(safe-area-inset-right, 0px) + 12px + 40px + 8px);
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+      }
 
       /* ── 10. カードサイズ微調整 ── */
       :root {
@@ -2736,6 +2748,7 @@
     // ══ ONLINE STATE (local, not synced) ══
     let myRole = null;   // 'p1' | 'p2'
     let _specPv = null; let _specPvSavedG = null; let _specPvSavedRole = null;
+    let _specInviteOpen = false;
     let myPlayerIdx = 0;      // 0 | 1
     let roomId = null;
     let _rematchListenerSet = false;
@@ -4232,6 +4245,36 @@
       });
     }
 
+    // ─── 観戦招待ポップオーバー ───
+    function toggleSpecInvite() { _specInviteOpen = !_specInviteOpen; render(); if (_specInviteOpen) setTimeout(generateSpecInviteQR, 80); }
+    function generateSpecInviteQR() {
+      const el = document.getElementById('spec-invite-qr'); if (!el || el.dataset.generated) return; el.dataset.generated = 'true';
+      const url = window.location.href.split('?')[0] + '?room=' + roomId;
+      try { new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
+      catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>`; }
+    }
+    async function copySpecInviteLink() {
+      const url = window.location.href.split('?')[0] + '?room=' + roomId;
+      try {
+        await navigator.clipboard.writeText(url);
+        const btn = document.getElementById('spec-invite-copy-btn');
+        if (btn) { btn.textContent = '✅ コピーしました'; btn.disabled = true; setTimeout(() => { btn.textContent = 'リンクをコピー'; btn.disabled = false; }, 2000); }
+      } catch (e) {}
+    }
+    function renderSpecInviteOverlay() {
+      const url = window.location.href.split('?')[0] + '?room=' + roomId;
+      const _svgEyeInv = `<svg style="width:15px;height:15px;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      return `<div class="spec-invite-overlay" onclick="toggleSpecInvite()"><div class="spec-invite-panel" onclick="event.stopPropagation()">
+        <div class="spec-invite-hd"><span class="spec-invite-title">${_svgEyeInv} 観戦に招待する</span><button class="spec-invite-close" onclick="toggleSpecInvite()">✕</button></div>
+        <div style="text-align:center;margin-bottom:10px"><div id="spec-invite-qr" style="display:inline-block"></div></div>
+        <div style="font-size:.75rem;color:var(--t3);text-align:center;margin-bottom:12px">QRコードを読み取ると観戦者として参加できます</div>
+        <div style="display:flex;align-items:center;background:var(--bg3);border-radius:8px;padding:7px 10px;margin-bottom:10px;gap:6px">
+          <span style="font-size:.68rem;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${url}</span>
+        </div>
+        <button id="spec-invite-copy-btn" class="spec-invite-copy-btn" onclick="copySpecInviteLink()">リンクをコピー</button>
+      </div></div>`;
+    }
+
     // ─── 観戦プレビュー（デバッグ用） ───
     function _specDummyG(scenario) {
       const tokyo = CITIES.find(c=>c.id==='tokyo');
@@ -4333,8 +4376,15 @@
       else if (!_cityModalViews.includes(view)) _cityInfoModal = null;
       if (view !== 'setup_required') html += `<button class="hint-btn" onclick="toggleHint()" title="ヒント">？</button>`;
       if (_hintOpen) html += renderHintOverlay();
+      const _invBattleViews = ['main','response','turnSummary','discard','peek','waiting_response','waiting'];
+      if (!isCpuMode && roomId && _invBattleViews.includes(view)) {
+        const _svgInvBtn = `<svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+        html += `<button class="spec-invite-btn" onclick="toggleSpecInvite()">${_svgInvBtn}招待</button>`;
+      }
+      if (_specInviteOpen && roomId) html += renderSpecInviteOverlay();
       app.innerHTML = html; processHpAnims();
       if (_specPv) app.insertAdjacentHTML('beforeend', _renderSpecPreviewBar());
+      if (_specInviteOpen) setTimeout(generateSpecInviteQR, 80);
       if (_lastDrawnCardUid) { setTimeout(() => { _lastDrawnCardUid = null; }, 0); }
       if (view === 'lobby') {
         if (_wasLobbyEnter) {
