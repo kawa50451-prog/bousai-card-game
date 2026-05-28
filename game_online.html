@@ -2376,10 +2376,11 @@
     .spec-offer-sub { font-size:.8rem; color:var(--t2); }
     .spec-offer-btn { width:100%; padding:12px 24px; border-radius:40px; border:none; background:var(--blue); color:#fff; font-size:.95rem; font-weight:700; cursor:pointer; font-family:'Roboto Condensed',sans-serif; letter-spacing:.06em; display:flex; align-items:center; justify-content:center; gap:8px; transition:.2s; }
     .spec-screen { display:flex; flex-direction:column; gap:12px; padding:12px; max-width:540px; margin:0 auto; }
-    .spec-header { position:sticky; top:8px; z-index:50; display:flex; align-items:center; gap:8px; background:rgba(22,27,34,.92); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:1px solid var(--bg3); border-radius:12px; padding:10px 14px; }
-    .spec-badge { font-size:.78rem; font-weight:700; color:var(--blue); letter-spacing:.08em; }
-    .spec-turn-info { flex:1; font-size:.82rem; color:var(--t2); text-align:center; }
-    .spec-exit-btn-small { font-size:.75rem; color:var(--t3); background:transparent; border:1px solid var(--bg3); border-radius:20px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
+    .spec-header { position:sticky; top:8px; z-index:50; display:flex; align-items:center; gap:6px; background:#0d1117; border:1px solid #388bfd; border-radius:14px; padding:8px 12px; box-shadow:0 4px 24px rgba(56,139,253,.28); }
+    .spec-badge { font-size:.78rem; font-weight:700; color:var(--blue); letter-spacing:.08em; white-space:nowrap; }
+    .spec-phase-tab { font-size:.72rem; font-weight:700; color:#8b949e; background:#21262d; border-radius:8px; padding:3px 8px; white-space:nowrap; }
+    .spec-phase-tab-active { background:#388bfd; color:#fff; }
+    .spec-exit-btn-red { font-size:.75rem; font-weight:700; background:#da3633; color:#fff; border:none; border-radius:8px; padding:4px 10px; cursor:pointer; white-space:nowrap; margin-left:auto; }
     .spec-zone { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:border-color .2s; }
     .spec-zone-active { border-color:var(--blue); }
     .spec-zone-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -2412,7 +2413,7 @@
     .spec-summary-title { font-size:.82rem; font-weight:700; color:var(--blue); margin-bottom:10px; letter-spacing:.04em; }
     .spec-summary-waiting { text-align:center; font-size:.78rem; color:var(--t3); padding:6px 0 2px; }
     .spec-response-badge { display:inline-flex; align-items:center; gap:4px; font-size:.72rem; font-weight:700; color:var(--yellow); background:rgba(227,179,65,.15); border:1px solid rgba(227,179,65,.35); border-radius:20px; padding:2px 8px; }
-    .spec-vs-sub { font-size:.68rem; font-weight:600; color:var(--t3); letter-spacing:.03em; font-family:'Roboto Condensed',sans-serif; text-shadow:none; }
+    .spec-vs-sub { font-size:.68rem; font-weight:600; color:#fff; letter-spacing:.03em; font-family:'Roboto Condensed',sans-serif; text-shadow:none; }
     .spec-vs-response-main { font-size:.88rem; font-weight:700; color:var(--red); letter-spacing:.04em; font-family:'Roboto Condensed',sans-serif; text-shadow:0 0 12px rgba(250,42,78,.3); }
     .spec-budget-info { font-size:.72rem; font-weight:700; color:var(--blue); background:rgba(56,139,253,.12); border:1px solid rgba(56,139,253,.3); border-radius:20px; padding:2px 8px; margin-left:auto; }
 
@@ -4293,7 +4294,8 @@
     function _renderSpecPreviewBar() {
       const sc = [{id:'main',lb:'通常フェーズ'},{id:'response',lb:'対応フェーズ'},{id:'turnSummary',lb:'サマリー'}];
       const btns = sc.map(s=>`<button onclick="specPreview('${s.id}')" style="padding:4px 10px;border-radius:8px;border:none;cursor:pointer;font-size:.75rem;font-weight:700;background:${_specPv===s.id?'#388bfd':'#21262d'};color:${_specPv===s.id?'#fff':'#cdd9e5'}">${s.lb}</button>`).join('');
-      return `<div id="spec-pv-bar" style="position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#0d1117;border:1px solid #388bfd;border-radius:14px;padding:8px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(56,139,253,.3);white-space:nowrap"><span style="font-size:.7rem;color:#388bfd;font-weight:700">🔍 観戦プレビュー</span>${btns}<button onclick="specPreview('exit')" style="padding:4px 10px;border-radius:8px;border:none;cursor:pointer;font-size:.75rem;font-weight:700;background:#da3633;color:#fff">終了</button></div>`;
+      const _svgEyePv = `<svg style="width:14px;height:14px;color:var(--blue);flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      return `<div id="spec-pv-bar" style="position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9999;background:#0d1117;border:1px solid #388bfd;border-radius:14px;padding:8px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(56,139,253,.3);white-space:nowrap">${_svgEyePv}<span style="font-size:.78rem;font-weight:700;color:var(--blue);letter-spacing:.08em">観戦中</span>${btns}<button onclick="specPreview('exit')" style="padding:4px 10px;border-radius:8px;border:none;cursor:pointer;font-size:.75rem;font-weight:700;background:#da3633;color:#fff;margin-left:auto">退出</button></div>`;
     }
 
     // ═══════════════════════════════════════
@@ -5090,14 +5092,13 @@
       const screen = G.screen;
       const p0 = G.players[0]; const p1 = G.players[1];
       const ap = G.activePlayer;
-      const phaseLabel = ({
-        main:        `${G.players[ap]?.name || ''} が行動選択中`,
-        response:    `⚡ ${G.players[1-ap]?.name || ''} が対応中`,
-        turnSummary: `📋 ターンサマリー確認中`,
-        discard:     `${G.players[ap]?.name || ''} が手札整理中`,
-        peek:        `${G.players[ap]?.name || ''} がカード確認中`,
-      })[screen] || `${G.players[ap]?.name || ''} のターン`;
-      const header = `<div class="spec-header">${_svgEyeHd}<span class="spec-badge">観戦中</span><span class="spec-turn-info">${phaseLabel}</span><button class="spec-exit-btn-small" onclick="restartGame()">退出</button></div>`;
+      const _phaseKey = screen === 'response' ? 'response' : screen === 'turnSummary' ? 'turnSummary' : 'main';
+      const _phaseTabs = [
+        {id:'main', label:'通常フェーズ'},
+        {id:'response', label:'対応フェーズ'},
+        {id:'turnSummary', label:'サマリー'},
+      ].map(p=>`<span class="spec-phase-tab${_phaseKey===p.id?' spec-phase-tab-active':''}">${p.label}</span>`).join('');
+      const header = `<div class="spec-header">${_svgEyeHd}<span class="spec-badge">観戦中</span>${_phaseTabs}<button class="spec-exit-btn-red" onclick="restartGame()">退出</button></div>`;
 
       // ─ カード引き中・準備中 ─
       const drawingScreens = ['gacha','cityOrder','draft','turnDraw'];
