@@ -2758,6 +2758,9 @@
     let _presenceOppRef = null;
     let _onlineHandler = null;
     let _visibilityHandler = null;
+    let _spectatorCount = 0;
+    let _spectatorCountRef = null;
+    let _specPresRef = null;
     let db = null;
     let myLastPush = null;   // 自分のpushが返ってきたとき無視する用
 
@@ -3937,6 +3940,17 @@
           if (wasDisconnected) showReconnectPopup();
         }
       });
+      listenSpectatorCount();
+    }
+
+    function listenSpectatorCount() {
+      if (!db || !roomId || myRole === 'spectator') return;
+      _spectatorCountRef = db.ref(`rooms/${roomId}/spectators`);
+      _spectatorCountRef.on('value', snap => {
+        const v = snap.val();
+        _spectatorCount = v ? Object.keys(v).length : 0;
+        render();
+      });
     }
 
     function cleanupPresence() {
@@ -3944,6 +3958,8 @@
       if (_presenceOppRef) { _presenceOppRef.off(); _presenceOppRef = null; }
       if (_onlineHandler) { window.removeEventListener('online', _onlineHandler); _onlineHandler = null; }
       if (_visibilityHandler) { document.removeEventListener('visibilitychange', _visibilityHandler); _visibilityHandler = null; }
+      if (_spectatorCountRef) { _spectatorCountRef.off(); _spectatorCountRef = null; _spectatorCount = 0; }
+      if (_specPresRef) { try { _specPresRef.remove(); } catch(e) {} _specPresRef = null; }
       hideDisconnectOverlay();
     }
 
@@ -3960,7 +3976,7 @@
       db.ref(`rooms/${roomId}/state`).on('value', snap => {
         const data = snap.val(); if (!data || data === myLastPush) return;
         const prevScreen = G.screen;
-        // 観戦者: 手札に新しく加わったカードのUIDを検出してフリップアニメーションを発火
+        // 観戦者: 手札フリップ検出 & ターンサマリー解除時HPアニメキュー
         if (myRole === 'spectator') {
           const prevUids = [0, 1].map(pi => new Set((G.players[pi].hand || []).map(c => c.uid)));
           const next = JSON.parse(data);
@@ -3968,15 +3984,32 @@
             const newCard = (next.players[pi].hand || []).find(c => !prevUids[pi].has(c.uid));
             if (newCard) { _lastDrawnCardUid = newCard.uid; break; }
           }
+          // ターンサマリーが解除されたタイミングでHPアニメをキュー（Gが上書きされる前に取得）
+          if (prevScreen === 'turnSummary' && (next.screen === 'main' || next.screen === 'turnDraw') && G._turnSummary) {
+            const _ap = G.activePlayer;
+            const _evts = G._turnSummary;
+            const _hasSwitch = _evts.some(ev => ev.type === 'city_switch');
+            if (!_hasSwitch) {
+              for (const ev of _evts) {
+                if (ev.type === 'damage' && ev.hpBefore != null && ev.hpAfter != null && ev.hpBefore !== ev.hpAfter) {
+                  _pendingMainHpAnims.push({ pi: _ap, fh: ev.hpBefore, th: ev.hpAfter, delay: 80 });
+                }
+              }
+            } else {
+              _pendingCityEnterAnim = true;
+              const _np = next.players[_ap]; const _nh = _np.cityHps[_np.activeCityIdx];
+              if (_nh > 0) { _cityEnterAnimPi = _ap; _pendingMainHpAnims.push({ pi: _ap, fh: 0, th: _nh, delay: 480 }); }
+            }
+          }
         }
         G = { ...JSON.parse(data), confirm: null };
         const newAp = G.activePlayer; const newScreen = G.screen;
         // メインフェーズ ターン切り替え
-        if (_prevActivePlayer !== null && _prevActivePlayer !== newAp && (newScreen === 'main' || newScreen === 'turnDraw') && prevScreen !== 'turnSummary') {
+        if (myRole !== 'spectator' && _prevActivePlayer !== null && _prevActivePlayer !== newAp && (newScreen === 'main' || newScreen === 'turnDraw') && prevScreen !== 'turnSummary') {
           setTimeout(() => showTurnSplash(newAp === myPlayerIdx, false), 80);
         }
         // 対応フェーズ開始（ディフェンダー側デバイスでの検知）
-        if (_prevGScreen !== 'response' && newScreen === 'response' && G.pendingAttack?.defenderIdx === myPlayerIdx) {
+        if (myRole !== 'spectator' && _prevGScreen !== 'response' && newScreen === 'response' && G.pendingAttack?.defenderIdx === myPlayerIdx) {
           setTimeout(() => showTurnSplash(true, true), 120);
         }
         _prevActivePlayer = newAp; _prevGScreen = newScreen;
@@ -4092,6 +4125,13 @@
         const snap = await db.ref(`rooms/${code}/state`).get();
         if (snap.val()) { const parsed = JSON.parse(snap.val()); G = { ...G, ...parsed }; }
       } catch (e) {}
+      // 観戦者 presence 登録（onDisconnect で自動削除）
+      if (db) {
+        const _sUid = '_s' + Math.random().toString(36).slice(2, 8);
+        _specPresRef = db.ref(`rooms/${code}/spectators/${_sUid}`);
+        _specPresRef.set(true).catch(() => {});
+        _specPresRef.onDisconnect().remove();
+      }
       listenToState();
       render();
     }
@@ -4379,7 +4419,8 @@
       const _invBattleViews = ['main','response','turnSummary','discard','peek','waiting_response','waiting'];
       if (!isCpuMode && roomId && _invBattleViews.includes(view)) {
         const _svgInvBtn = `<svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-        html += `<button class="spec-invite-btn" onclick="toggleSpecInvite()">${_svgInvBtn}招待</button>`;
+        const _scntBadge = _spectatorCount > 0 ? `<span style="background:rgba(255,255,255,.22);border-radius:5px;padding:0 5px;font-size:.7rem;font-weight:800;line-height:1.7">${_spectatorCount}</span>` : '';
+        html += `<button class="spec-invite-btn" onclick="toggleSpecInvite()">${_svgInvBtn}招待${_scntBadge}</button>`;
       }
       if (_specInviteOpen && roomId) html += renderSpecInviteOverlay();
       app.innerHTML = html; processHpAnims();
@@ -4718,9 +4759,8 @@
       const p = G.players[pi];
       if (p.activeCityIdx !== 0) return `<div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">予備都市なし</div>`;
       if (p.cities.length < 2) return '';
-      // 相手の2体目は両者が1体目の間は隠す。自分の2体目は常に見える
-      const bothOnFirst = G.players[0].activeCityIdx === 0 && G.players[1].activeCityIdx === 0;
-      if (bothOnFirst && pi !== myPlayerIdx && myRole !== 'spectator') return `<div class="backup-city-row"><span class="backup-label" style="color:var(--t3);font-style:italic">予備都市: 未登場</span></div>`;
+      // 相手の2体目は1体目が壊滅するまで常に隠す。自分の2体目は常に見える
+      if (pi !== myPlayerIdx && myRole !== 'spectator') return `<div class="backup-city-row"><span class="backup-label" style="color:var(--t3);font-style:italic">予備都市: 未登場</span></div>`;
       const bc = p.cities[1]; const bHp = p.cityHps[1]; const pct = Math.max(0, bHp / bc.hp * 100);
       return `<div class="backup-city-row"><span class="backup-label">予備: ${terrainImg(bc, 16)} ${bc.name}</span><div class="hp-bar-mini"><div class="hp-bar-mini-fill" style="width:${pct}%;background:${hpColor(bHp, bc.hp)}"></div></div><span class="backup-hp-text" style="color:${hpColor(bHp, bc.hp)}">${bHp}/${bc.hp}</span></div>`;
     }
@@ -6038,11 +6078,18 @@
       if (isFirebaseConfigured()) initFirebase();
       if (params.get('spv')) { specPreview(params.get('spv') === '1' ? 'main' : params.get('spv')); return; }
       render();
-      // 案A: URLパラメータあり or localStorage両方あり → 自動参加（再接続含む）
+      // URLパラメータあり or localStorage両方あり → 自動参加（再接続含む）
       // roomParam 経由はエラー表示あり、savedRoom のみの場合は silent でlobbyにフォールバック
       if (isFirebaseConfigured() && savedName) {
         if (roomParam) joinRoom();
         else if (savedRoom) joinRoom({ silent: true });
+      }
+      // 名前未保存でも ?room= があれば満員チェック → 観戦オファーを先行表示（名前不要）
+      if (isFirebaseConfigured() && roomParam && !savedName) {
+        const _rc = roomParam.toUpperCase().slice(0, 6);
+        db.ref(`rooms/${_rc}/p2Joined`).get().then(snap => {
+          if (snap.val() === true && !lobbyState.spectateCode) { lobbyState.spectateCode = _rc; render(); }
+        }).catch(() => {});
       }
     });
   </script>
