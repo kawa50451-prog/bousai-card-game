@@ -1627,6 +1627,10 @@
     .response-dmg-preview { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px }
     .rdp-item { font-size:.76rem; padding:3px 8px; border-radius:5px; font-weight:600 }
     .rdp-skip { background:rgba(248,81,73,.15); color:var(--red) }
+    .rdp-breakdown { font-size:.74rem; color:var(--t2); margin-top:3px; }
+    .rdp-breakdown b { color:var(--red); font-weight:700; }
+    .card-ineffective { opacity:.35; }
+    .card-hp-band { position:absolute; bottom:18px; left:0; width:72%; padding:2px 10px 2px 4px; background:rgba(0,0,0,.6); clip-path:polygon(0 0,100% 0,82% 100%,0 100%); font-size:.58rem; font-weight:700; color:var(--green); z-index:2; }
 
     /* ── 8. Log critical/divider ── */
     .log-entry.critical { background:rgba(248,81,73,.18) !important; border-left:3px solid var(--red); color:var(--red) !important; font-weight:700; padding-left:8px }
@@ -3331,6 +3335,58 @@
       if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) e -= 25;
       return Math.max(0, e);
     }
+    // 対応カードを使った場合の推定ダメージ（④HP予測用）
+    function computeResponseEst(atkCard, defIdx, responseCard) {
+      const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
+      let e = atkCard.baseDamage;
+      let specialNegated = def.effects.negateSpecial;
+      if (specialNegated) e -= 10;
+      if (!specialNegated && responseCard && responseCard.effectType === 'negate_special') { specialNegated = true; e -= 10; }
+      if (!specialNegated && atkCard.specialType) {
+        if (atkCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) e += 10;
+        else if (atkCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) e += 10;
+        else if (atkCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) e += 10;
+      }
+      if (defCity) {
+        if (defCity.abilityType === 'resist_compound' && atkCard.id === 'compound') e -= defCity.abilityValue;
+        if (defCity.abilityType === 'resist_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) e -= defCity.abilityValue;
+        if (defCity.abilityType === 'resist_landslide' && atkCard.id === 'landslide') e -= defCity.abilityValue;
+        if (defCity.abilityType === 'resist_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= defCity.abilityValue;
+        if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) e -= defCity.abilityValue;
+      }
+      if (def.effects.damageReduceHits > 0) e -= 15;
+      if (def.effects.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) e -= 30;
+      if (def.effects.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= 25;
+      if (responseCard) {
+        if (responseCard.effectType === 'shield_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) e -= 30;
+        if (responseCard.effectType === 'shield_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= 25;
+        if (responseCard.effectType === 'heal') e -= Math.floor(responseCard.value / 2);
+      }
+      return Math.max(0, e);
+    }
+    // 対応バーのダメージ内訳を生成（①ダメージ内訳表示用）
+    function buildDmgBreakdown(atkCard, defIdx) {
+      const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
+      let e = atkCard.baseDamage; const mods = [];
+      const negated = def.effects.negateSpecial;
+      if (negated) { mods.push({label:'避難指示',delta:-10}); e -= 10; }
+      else if (atkCard.specialType) {
+        if (atkCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) { mods.push({label:'海岸',delta:+10}); e += 10; }
+        else if (atkCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) { mods.push({label:'山間部',delta:+10}); e += 10; }
+        else if (atkCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) { mods.push({label:'内陸',delta:+10}); e += 10; }
+      }
+      if (defCity) {
+        if (defCity.abilityType === 'resist_compound' && atkCard.id === 'compound') { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
+        if (defCity.abilityType === 'resist_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
+        if (defCity.abilityType === 'resist_landslide' && atkCard.id === 'landslide') { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
+        if (defCity.abilityType === 'resist_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
+        if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
+      }
+      if (def.effects.damageReduceHits > 0) { mods.push({label:'防災庁',delta:-15}); e -= 15; }
+      if (def.effects.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) { mods.push({label:'耐震',delta:-30}); e -= 30; }
+      if (def.effects.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) { mods.push({label:'堤防',delta:-25}); e -= 25; }
+      return { total: Math.max(0, e), base: atkCard.baseDamage, mods };
+    }
     function canPlayAny(pi) {
       const p = G.players[pi]; const left = getBudgetLeft(pi); const ft = (pi === 0 && G.turnsEach[0] === 0);
       return p.hand.some(c => { if (left < c.cost) return false; if (ft && c.type === 'disaster') return false; return true; });
@@ -4821,9 +4877,24 @@
     }
 
     // ─── 手札描画（対応フェーズ） ───
-    function renderResponseHand(p) {
+    function renderResponseHand(p, atkCard) {
       if (p.hand.length === 0) return `<div style="color:var(--t3);font-size:.85rem;padding:10px">手札なし</div>`;
-      function mkCard(card) { const dis = card.type !== 'policy'; const oc = dis ? '' : `requestConfirm('playResponseCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','対応に使用')`; const _isPlaying = card.uid === _playingCardUid; return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${dis ? '災害（使用不可）' : '対応'}</span>${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`; }
+      const mi = myPlayerIdx;
+      const curHp = getActiveCityHp(mi);
+      function mkCard(card) {
+        const dis = card.type !== 'policy';
+        // ③ シールドカードのディム：使っても0軽減になるカードを視覚的に減退させる
+        const ineff = !dis && atkCard && (
+          (card.effectType === 'shield_quake_fire' && atkCard.id !== 'earthquake' && atkCard.id !== 'wildfire') ||
+          (card.effectType === 'shield_flood' && atkCard.id !== 'flood' && atkCard.id !== 'tsunami')
+        );
+        const oc = dis ? '' : `requestConfirm('playResponseCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','対応に使用')`;
+        const _isPlaying = card.uid === _playingCardUid;
+        // ④ カードごとのHP予測をバッジに表示
+        const hpBand = (!dis && atkCard) ? `<div class="card-hp-band">予測HP<strong>${Math.max(0, curHp - computeResponseEst(atkCard, mi, card))}</strong></div>` : '';
+        const badge = dis ? `<span class="card-type-badge">災害（使用不可）</span>` : `<span class="card-type-badge">対応</span>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div>${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${badge}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`;
+      }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
       const s = [];
@@ -4844,7 +4915,7 @@
       function zoneHand(idx) {
         const isMe = (idx === mi);
         if (!isMe) return Array(G.players[idx].hand.length).fill('<div class="card-back"><img src="images/cards/back.webp" alt="" onerror="this.style.display=\'none\'"></div>').join('');
-        if (amIHolder) return isResponsePhase ? renderResponseHand(G.players[idx]) : renderPlayerHand(G.players[idx], idx);
+        if (amIHolder) return isResponsePhase ? renderResponseHand(G.players[idx], G.pendingAttack ? G.pendingAttack.card : null) : renderPlayerHand(G.players[idx], idx);
         return renderPlayerHandReadOnly(G.players[idx]);
       }
 
@@ -4852,10 +4923,12 @@
       if (hasPending) {
         if (isResponsePhase) {
           const _rpbAtk = G.pendingAttack;
-          const _rpbEst = computeFullDefenderEst(_rpbAtk.card, mi);
-          const _rpbHpAfter = Math.max(0, getActiveCityHp(mi) - _rpbEst);
+          const _rpbBreak = buildDmgBreakdown(_rpbAtk.card, mi);
+          const _rpbHpAfter = Math.max(0, getActiveCityHp(mi) - _rpbBreak.total);
+          const _modStr = _rpbBreak.mods.filter(m => m.delta !== 0).map(m => m.delta > 0 ? `<span style="color:var(--red)">+${m.delta}(${m.label})</span>` : `<span style="color:var(--green)">${m.delta}(${m.label})</span>`).join(' ');
+          const _breakHtml = `<div class="rdp-breakdown">推定 <b>${_rpbBreak.total}</b>ダメージ${_rpbBreak.mods.length ? `<span style="font-size:.68rem;color:var(--t3);margin-left:5px">基礎${_rpbBreak.base} ${_modStr}</span>` : ''}</div>`;
           const _dmgPreview = `<div class="response-dmg-preview"><span class="rdp-item rdp-skip">対応なし → HP <strong>${_rpbHpAfter}</strong></span></div>`;
-          pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>${G.players[_rpbAtk.attackerIdx].name}が「${_rpbAtk.card.icon} ${_rpbAtk.card.name}」を使用！</strong><br>政策カードを1枚選んで対応、または「対応しない」を押してください。${_dmgPreview}</div><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
+          pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>${G.players[_rpbAtk.attackerIdx].name}が「${_rpbAtk.card.icon} ${_rpbAtk.card.name}」を使用！</strong>${_breakHtml}${_dmgPreview}</div><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
         } else if (isMyAttack) {
           const _atk = G.pendingAttack;
           const _defHasNegate = G.players[_atk.defenderIdx].effects.negateSpecial;
