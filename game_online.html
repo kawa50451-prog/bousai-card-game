@@ -620,6 +620,279 @@
       border: 1px solid var(--bg3)
     }
 
+    /* DRAFT STACK */
+    .draft-stack-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .draft-stack-wrap {
+      position: relative;
+      width: 128px;
+      height: 196px;
+      margin: 20px auto 0;
+      flex-shrink: 0;
+    }
+
+    .draft-stack-card {
+      position: absolute;
+      width: 108px;
+      border-radius: 9px;
+      box-shadow: 0 6px 22px rgba(0,0,0,.55);
+      cursor: default;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .draft-stack-card img {
+      width: 100%;
+      display: block;
+      border-radius: 9px;
+    }
+
+    .draft-stack-card.top-card {
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .draft-stack-card.top-card:hover {
+      transform: translate(0,0) translateY(-8px) !important;
+      box-shadow: 0 16px 36px rgba(227,179,65,.5);
+    }
+
+    .draft-stack-card.top-card:active {
+      transform: translate(0,0) scale(.93) !important;
+    }
+
+    .draft-tap-hint-overlay {
+      position: absolute;
+      top: -26px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: .65rem;
+      font-weight: 700;
+      color: var(--yellow);
+      white-space: nowrap;
+      pointer-events: none;
+      animation: draft-hint-blink 1.6s ease-in-out infinite;
+    }
+
+    .draft-stack-card.spinning-out {
+      animation: draft-spin-out .38s cubic-bezier(.55,.06,.68,.19) forwards !important;
+      pointer-events: none;
+      cursor: default;
+    }
+
+    /* Full-screen reveal overlay */
+    .draft-reveal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      pointer-events: none;
+    }
+
+    .draft-large-card {
+      position: relative;
+      width: min(52vw, 180px);
+      border-radius: 12px;
+      box-shadow: 0 0 50px rgba(227,179,65,.45), 0 16px 48px rgba(0,0,0,.7);
+      animation: draft-card-enter .4s cubic-bezier(.22,1,.36,1) both;
+      z-index: 3;
+    }
+
+    .draft-large-card img {
+      width: 100%;
+      border-radius: 12px;
+      display: block;
+    }
+
+    .draft-large-flash {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      background: rgba(255,255,255,.85);
+      pointer-events: none;
+      animation: draft-flash .55s ease-out forwards;
+    }
+
+    .draft-reveal-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: .62rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .draft-reveal-badge.policy  { background: rgba(63,185,80,.92);  color: #000 }
+    .draft-reveal-badge.disaster{ background: rgba(248,81,73,.92); color: #fff }
+
+    /* Thumbnail row */
+    .draft-thumb-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: flex-end;
+      padding: 16px 8px 0;
+      min-height: 88px;
+    }
+
+    .draft-thumb-card {
+      position: relative;
+      width: 54px;
+      border-radius: 7px;
+      overflow: hidden;
+      box-shadow: 0 3px 12px rgba(0,0,0,.45);
+      animation: draft-thumb-appear .45s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    .draft-thumb-card img {
+      width: 100%;
+      display: block;
+      border-radius: 7px;
+    }
+
+    .draft-thumb-badge {
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: .5rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+
+    .draft-thumb-badge.policy  { background: rgba(63,185,80,.9);  color: #000 }
+    .draft-thumb-badge.disaster{ background: rgba(248,81,73,.9); color: #fff }
+
+    .draft-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0 8px;
+    }
+
+    .btn-flip-all {
+      padding: 9px 28px;
+      font-size: .88rem;
+      font-weight: 700;
+      background: var(--bg2);
+      border: 1.5px solid var(--yellow);
+      border-radius: 10px;
+      color: var(--yellow);
+      cursor: pointer;
+      transition: .18s;
+    }
+
+    .btn-flip-all:disabled { opacity: .5; cursor: default; }
+    .btn-flip-all:not(:disabled):hover { background: rgba(227,179,65,.15); }
+
+    .draft-confirm-appear {
+      animation: draft-confirm-pop .4s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    @keyframes draft-spin-out {
+      0%   { transform: translate(0,0) rotate(0deg)   scale(1);  opacity: 1; }
+      35%  { transform: translate(18px,-28px) rotate(390deg) scale(.55); opacity: .8; }
+      100% { transform: translate(36px,-14px) rotate(720deg) scale(0);  opacity: 0; }
+    }
+
+    @keyframes draft-card-enter {
+      0%   { transform: translateX(-115vw) scale(.82); opacity: 0; }
+      45%  { transform: translateX(-12vw)  scale(1.0);  opacity: 1; }
+      72%  { transform: translateX(2.5vw)  scale(1.04); opacity: 1; }
+      100% { transform: translateX(0)      scale(1);    opacity: 1; }
+    }
+
+    @keyframes draft-card-exit {
+      0%   { transform: translateX(0)      rotate(0deg) scale(1);   opacity: 1; }
+      100% { transform: translateX(120vw)  rotate(5deg) scale(.82); opacity: 0; }
+    }
+
+    .draft-large-card.exiting {
+      animation: draft-card-exit .28s cubic-bezier(.4,0,1,1) forwards !important;
+    }
+
+    .draft-advance-btn {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 201;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.45);
+      background: rgba(255,255,255,.13);
+      color: #fff;
+      font-size: 1.6rem;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      animation: draft-thumb-appear .35s cubic-bezier(.34,1.56,.64,1) both;
+      line-height: 1;
+      padding: 0;
+    }
+
+    @keyframes draft-flash {
+      0%   { opacity: 0; }
+      12%  { opacity: 1; }
+      45%  { opacity: .6; }
+      80%  { opacity: .75; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes draft-thumb-appear {
+      from { transform: translateY(-20px) scale(.5); opacity: 0; }
+      to   { transform: translateY(0)     scale(1);  opacity: 1; }
+    }
+
+    @keyframes draft-confirm-pop {
+      from { opacity: 0; transform: scale(.8); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes draft-hint-blink {
+      0%, 100% { opacity: .35; }
+      50%       { opacity: 1; }
+    }
+
+    /* Draft reveal neon background */
+    .draft-neon-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .draft-neon-icon-pos {
+      position: absolute;
+      object-fit: contain;
+      mix-blend-mode: screen;
+      will-change: filter;
+    }
+
     /* MAIN GAME */
     .battle-layout {
       display: flex;
@@ -3594,27 +3867,118 @@
     </div></div>`;
     }
 
-    function startDraft(pi) { G.draftState = { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, needPolicy: 2, needDisaster: 2 }; G.screen = 'draft'; }
-
-    function pullDraftCard() {
-      const ds = G.draftState; const needP = ds.needPolicy, needD = ds.needDisaster; let pool;
-      if (needP > 0 && needD > 0) pool = G.deck.filter(c => c.type === 'policy' || c.type === 'disaster');
-      else if (needP > 0) pool = G.deck.filter(c => c.type === 'policy');
-      else if (needD > 0) pool = G.deck.filter(c => c.type === 'disaster');
-      else pool = [...G.deck];
-      if (pool.length === 0) { if (G.discard.length === 0) return; G.deck = shuffle([...G.discard, ...G.deck]); G.discard = []; pullDraftCard(); return; }
-      const card = pool[Math.random() * pool.length | 0]; G.deck.splice(G.deck.indexOf(card), 1); ds.revealed = card; pushState(); render();
+    function startDraft(pi) {
+      const ds = { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, needPolicy: 2, needDisaster: 2, dealtCards: [], flippedUids: [], lastFlippedUid: null, animState: 'idle', revealingCard: null };
+      let needP = 2, needD = 2;
+      for (let i = 0; i < 4; i++) {
+        let pool;
+        if (needP > 0 && needD > 0) pool = G.deck.filter(c => c.type === 'policy' || c.type === 'disaster');
+        else if (needP > 0) pool = G.deck.filter(c => c.type === 'policy');
+        else if (needD > 0) pool = G.deck.filter(c => c.type === 'disaster');
+        else pool = [...G.deck];
+        if (!pool.length) {
+          if (!G.discard.length) break;
+          G.deck = shuffle([...G.discard, ...G.deck]); G.discard = [];
+          i--; continue;
+        }
+        const card = pool[Math.random() * pool.length | 0];
+        G.deck.splice(G.deck.indexOf(card), 1);
+        ds.dealtCards.push(card);
+        if (card.type === 'policy' && needP > 0) needP--;
+        else if (card.type === 'disaster' && needD > 0) needD--;
+      }
+      G.draftState = ds; G.screen = 'draft';
     }
 
-    function acceptDraftCard() {
-      const ds = G.draftState; if (!ds.revealed) return;
-      if (ds.revealed.type === 'policy' && ds.needPolicy > 0) ds.needPolicy--;
-      else if (ds.revealed.type === 'disaster' && ds.needDisaster > 0) ds.needDisaster--;
-      G.players[ds.playerIdx].hand.push(ds.revealed); ds.revealed = null; ds.picksDone++;
-      if (ds.picksDone >= ds.picksTarget) {
-        if (ds.playerIdx === 0) { startDraft(1); pushState(); render(); }
-        else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; pushState(); render(); }
-      } else { G.screen = 'draft'; pushState(); render(); }
+    function flipDraftCard(uid) {
+      const ds = G.draftState;
+      if (!ds || !ds.dealtCards || ds.flippedUids.includes(uid) || _draftAnimBusy) return;
+      const card = ds.dealtCards.find(c => c.uid === uid);
+      if (!card) return;
+      _draftAnimBusy = true;
+
+      // Phase 1: Spin-out
+      const cardEl = document.querySelector(`[data-draft-uid="${uid}"]`);
+      if (cardEl) {
+        cardEl.style.pointerEvents = 'none';
+        cardEl.classList.add('spinning-out');
+        const hintEl = cardEl.querySelector('.draft-tap-hint-overlay');
+        if (hintEl) hintEl.style.display = 'none';
+      }
+
+      // Phase 2a: neon icon
+      setTimeout(() => {
+        ds.flippedUids.push(uid);
+        ds.animState = 'revealing_neon';
+        ds.revealingCard = card;
+        render();
+      }, 360);
+
+      // Phase 2b: card slides in from left
+      setTimeout(() => {
+        ds.animState = 'revealing_card';
+        render();
+      }, 360 + 600);
+
+      // Phase 2c: card settled at center
+      setTimeout(() => {
+        if (ds.animState !== 'revealing_card') return;
+        if (ds.bulkMode) {
+          setTimeout(() => _exitDraftCard(), 340); // brief pause then auto-exit
+        } else {
+          ds.animState = 'card_paused';
+          render();
+        }
+      }, 360 + 600 + 420); // 420ms ≈ entry animation (.4s) + buffer
+    }
+
+    // 右矢印ボタン押下（1枚ずつモード）
+    function advanceDraftCard() {
+      const ds = G.draftState;
+      if (!ds || ds.animState !== 'card_paused') return;
+      _exitDraftCard();
+    }
+
+    // カードを右へ流して消す（手動・一括共通）
+    function _exitDraftCard() {
+      const ds = G.draftState;
+      if (!ds || !ds.revealingCard) return;
+      const exitedUid = ds.revealingCard.uid;
+      ds.animState = 'card_exiting';
+      render();
+
+      setTimeout(() => {
+        ds.animState = 'idle';
+        ds.revealingCard = null;
+        ds.lastFlippedUid = exitedUid;
+        _draftAnimBusy = false;
+        pushState();
+        render();
+        setTimeout(() => { if (G.draftState) G.draftState.lastFlippedUid = null; }, 500);
+
+        // 次の未開封カードを自動スタート
+        const next = ds.dealtCards.find(c => !ds.flippedUids.includes(c.uid));
+        if (next) setTimeout(() => flipDraftCard(next.uid), 120);
+      }, 300);
+    }
+
+    function flipAllDraftCards() {
+      const ds = G.draftState;
+      if (!ds || !ds.dealtCards) return;
+      const btn = document.getElementById('draft-flip-all-btn');
+      if (btn) btn.disabled = true;
+      const remaining = ds.dealtCards.filter(c => !ds.flippedUids.includes(c.uid));
+      if (!remaining.length) return;
+      ds.bulkMode = true;
+      flipDraftCard(remaining[0].uid); // チェーンで自動進行
+    }
+
+    function finalizeAllDraftCards() {
+      const ds = G.draftState;
+      if (!ds || !ds.dealtCards) return;
+      ds.dealtCards.forEach(c => G.players[ds.playerIdx].hand.push(c));
+      if (ds.playerIdx === 0) { startDraft(1); pushState(); render(); }
+      else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; pushState(); render(); }
     }
 
     function pullTurnCard() {
@@ -3635,6 +3999,8 @@
         if (!handleDiscardIfNeeded(pi, 'main')) goMain();
       } else { pushState(); render(); }
     }
+
+    let _draftAnimBusy = false;
 
     // ═══════════════════════════════════════
     // HP ANIMATION & BUDGET TOAST
@@ -3724,7 +4090,7 @@
       el.appendChild(inner); document.body.appendChild(el);
       setTimeout(() => el.remove(), 1700);
     }
-    function playNeonAnim(el, g, delay) {
+    function playNeonAnim(el, g, delay, dur) {
       if (!el) return;
       setTimeout(() => {
         const gf = `brightness(1) drop-shadow(0 0 8px rgba(${g},.85)) drop-shadow(0 0 3px rgba(${g},1))`;
@@ -3737,7 +4103,7 @@
           { filter: `brightness(1.4) drop-shadow(0 0 7px rgba(${g},.8))`,offset: .68 },
           { filter: 'brightness(0.65)',                                    offset: .78 },
           { filter: gf },
-        ], { duration: 900, easing: 'ease-in-out', fill: 'forwards' });
+        ], { duration: dur || 900, easing: 'ease-in-out', fill: 'forwards' });
       }, delay || 0);
     }
     const _NEON_GLOWS = ['248,81,73','210,153,34','63,185,80','56,139,253'];
@@ -3749,6 +4115,10 @@
     }
     function initSpecNeonIcons() {
       _NEON_GLOWS.forEach((g, i) => playNeonAnim(document.getElementById('sni-'+i), g, i*130));
+    }
+    function _initDraftNeonIcons(card) {
+      const glow = card.type === 'disaster' ? '248,81,73' : card.color === 'green' ? '63,185,80' : '210,153,34';
+      playNeonAnim(document.getElementById('drni-0'), glow, 0, 520);
     }
     function setSpecTab(n) { _specTab = n; render(); }
     function copySpecReport() {
@@ -4497,6 +4867,9 @@
         }
         if (lobbyState.mode === 'gallery' && lobbyState.galleryTab && !lobbyState.galleryZoom) setTimeout(initGalleryAnim, 30);
       }
+      if (view === 'draft' && G.draftState?.animState === 'revealing_neon' && G.draftState?.revealingCard) {
+        setTimeout(() => _initDraftNeonIcons(G.draftState.revealingCard), 20);
+      }
       if (view === 'gameover') setTimeout(initGoObserver, 60);
       if (view === 'waiting') {
         setTimeout(() => {
@@ -5108,15 +5481,90 @@
     // ─── 初期ドラフト ───
     function renderDraft() {
       const ds = G.draftState; const p = G.players[ds.playerIdx];
-      const pips = Array(ds.picksTarget).fill(0).map((_, i) => { const cls = i < ds.picksDone ? 'done' : i === ds.picksDone ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
-      const hp = p.hand.length > 0 ? p.hand.map(c => `<span class="draft-hand-tag">${c.icon} ${c.name}</span>`).join('') : `<span style="font-size:.75rem;color:var(--t3)">まだ引いていません</span>`;
-      let ca = '';
-      if (!ds.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullDraftCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullDraftCard()">🃏 山札から引く！</button>`; }
-      else { const c = ds.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptDraftCard()">✅ 手札に加える</button>`; }
-      return `<div class="screen active"><div class="section-title">🃏 ${p.name} — 初期手札を引いてください</div>
-    <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t1)">手札 </span><strong style="color:var(--yellow)">${ds.picksDone} / ${ds.picksTarget}</strong><span style="font-size:.8rem;color:var(--t1)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
-    <div class="draft-hand-preview"><div style="font-size:.7rem;color:var(--t2);margin-bottom:5px">現在の手札</div><div style="display:flex;gap:6px;flex-wrap:wrap">${hp}</div></div>
-    <div class="gacha-stage">${ca}</div></div>`;
+      if (!ds.dealtCards || !ds.dealtCards.length) return `<div class="screen active"><div style="text-align:center;padding:40px;color:var(--t2);font-size:.9rem">読み込み中…</div></div>`;
+      const allFlipped = ds.flippedUids.length >= ds.picksTarget;
+
+      // Reveal overlay (full-screen, fixed position)
+      const revealOverlay = (() => {
+        const rc = ds.revealingCard;
+        if (!rc) return '';
+        const neonSrc = rc.type === 'disaster' ? 'neon_disaster.webp'
+          : (rc.color === 'green' && (rc.effectType === 'shield_quake_fire' || rc.effectType === 'shield_flood')) ? 'neon_policy_shield.webp'
+          : 'neon_policy_instant.webp';
+        if (ds.animState === 'revealing_neon') {
+          return `<div class="draft-reveal-overlay">
+            <div class="draft-neon-bg">
+              <img class="draft-neon-icon-pos" id="drni-0" src="images/icons/${neonSrc}" alt="" style="top:50%;left:50%;transform:translate(-50%,-50%);width:min(85vw,320px);filter:brightness(0.04)">
+            </div>
+          </div>`;
+        }
+        if (ds.animState === 'revealing_card') {
+          return `<div class="draft-reveal-overlay">
+            <div class="draft-large-card">
+              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              <div class="draft-large-flash"></div>
+            </div>
+          </div>`;
+        }
+        if (ds.animState === 'card_paused') {
+          return `<div class="draft-reveal-overlay">
+            <div class="draft-large-card" style="animation:none">
+              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+            </div>
+            <button class="draft-advance-btn" onclick="advanceDraftCard()">›</button>
+          </div>`;
+        }
+        if (ds.animState === 'card_exiting') {
+          return `<div class="draft-reveal-overlay">
+            <div class="draft-large-card exiting">
+              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+            </div>
+          </div>`;
+        }
+        return '';
+      })();
+
+      // Stack (remaining face-down cards)
+      const unflipped = ds.dealtCards.filter(c => !ds.flippedUids.includes(c.uid));
+      const stackHtml = unflipped.length ? (() => {
+        const cards = unflipped.map((c, i) => {
+          const isTop = i === 0;
+          const offset = i * 6; // 0, 6, 12, 18 px — deeper cards shift right+down
+          const br = (1 - i * 0.16).toFixed(2); // brightness: 1.0, 0.84, 0.68, 0.52
+          return `<div class="draft-stack-card${isTop ? ' top-card' : ''}"
+            data-draft-uid="${c.uid}"
+            style="top:${offset}px;left:${offset}px;z-index:${unflipped.length - i};filter:brightness(${br})"
+            ${isTop ? `onclick="flipDraftCard('${c.uid}')"` : ''}>
+            <img src="images/cards/back.webp" alt="">
+            ${isTop && !allFlipped ? '<div class="draft-tap-hint-overlay">タップして開封</div>' : ''}
+          </div>`;
+        }).join('');
+        return `<div class="draft-stack-wrap">${cards}</div>`;
+      })() : `<div style="height:196px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:.82rem">✅ 全て開封済み</div>`;
+
+      // Thumbnails (revealed cards, small)
+      const flipped = ds.dealtCards.filter(c => ds.flippedUids.includes(c.uid));
+      const thumbsHtml = flipped.length ? flipped.map(c => {
+        const isNew = c.uid === ds.lastFlippedUid;
+        return `<div class="draft-thumb-card" style="${isNew ? '' : 'animation:none'}">
+          <img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'">
+        </div>`;
+      }).join('') : `<div style="font-size:.7rem;color:var(--t3);padding:8px">開封するとここに表示</div>`;
+
+      const flipAllBtn = (allFlipped || _draftAnimBusy) ? '' : `<button id="draft-flip-all-btn" class="btn-flip-all" onclick="flipAllDraftCards()">一括開封</button>`;
+      const confirmBtn = allFlipped
+        ? `<button class="btn-ho draft-confirm-appear" onclick="finalizeAllDraftCards()" style="padding:13px 44px;font-size:1rem">✅ 手札を確定する</button>`
+        : '';
+
+      return `<div class="screen active">${revealOverlay}
+        <div class="section-title" style="margin-bottom:2px">🃏 ${p.name} — 初期手札を開封</div>
+        <div style="text-align:center;color:var(--t2);font-size:.78rem">（${ds.flippedUids.length}／${ds.picksTarget}枚開封済み）</div>
+        <div class="draft-stack-area">
+          ${stackHtml}
+          <div class="draft-thumb-row">${thumbsHtml}</div>
+        </div>
+        <div class="draft-actions">${flipAllBtn}${confirmBtn}</div>
+      </div>`;
     }
 
     // ─── 防災協定（全公開） ───
@@ -5883,7 +6331,7 @@
         history.replaceState(null, '', window.location.pathname);
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, fromResult: false };
         _hintOpen = false; tutorialState = null;
-        _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0;
+        _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false;
         G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
@@ -5972,7 +6420,7 @@
       } else if (s === 'cityOrder' && G.cityOrderState?.playerIdx === 1) {
         _cpuSelectCityOrder();
       } else if (s === 'draft' && ds?.playerIdx === 1) {
-        if (!ds.revealed) pullDraftCard(); else acceptDraftCard();
+        finalizeAllDraftCards();
       } else if (s === 'turnDraw' && (ts?.pi ?? ts?.playerIdx) === 1) {
         if (!ts.revealed) pullTurnCard(); else acceptTurnCard();
       } else if (s === 'turnSummary' && ap === 1 && G._atkSummaryConfirmed) {
