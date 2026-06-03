@@ -631,15 +631,15 @@
 
     .draft-stack-wrap {
       position: relative;
-      width: 128px;
-      height: 196px;
-      margin: 20px auto 0;
+      width: 116px;
+      height: 168px;
+      margin: 8px auto 0;
       flex-shrink: 0;
     }
 
     .draft-stack-card {
       position: absolute;
-      width: 108px;
+      width: 96px;
       border-radius: 9px;
       box-shadow: 0 6px 22px rgba(0,0,0,.55);
       cursor: default;
@@ -747,8 +747,8 @@
       gap: 10px;
       justify-content: center;
       align-items: flex-end;
-      padding: 16px 8px 0;
-      min-height: 88px;
+      padding: 8px 8px 0;
+      min-height: 72px;
     }
 
     .draft-thumb-card {
@@ -785,8 +785,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
-      padding: 12px 0 8px;
+      gap: 8px;
+      padding: 6px 0 4px;
     }
 
     .btn-flip-all {
@@ -832,17 +832,17 @@
 
     .draft-advance-btn {
       position: fixed;
-      right: 20px;
+      right: 16px;
       top: 50%;
       transform: translateY(-50%);
       z-index: 201;
-      width: 54px;
-      height: 54px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       border: 2px solid rgba(255,255,255,.45);
       background: rgba(255,255,255,.13);
       color: #fff;
-      font-size: 1.6rem;
+      font-size: 1.25rem;
       cursor: pointer;
       backdrop-filter: blur(6px);
       display: flex;
@@ -852,6 +852,21 @@
       animation: draft-thumb-appear .35s cubic-bezier(.34,1.56,.64,1) both;
       line-height: 1;
       padding: 0;
+    }
+
+    .draft-card-label {
+      position: absolute;
+      top: calc(100% + 9px);
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      color: #fff;
+      font-size: .85rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      text-shadow: 0 1px 10px rgba(0,0,0,1), 0 0 24px rgba(0,0,0,.9);
+      pointer-events: none;
+      text-align: center;
     }
 
     @keyframes draft-flash {
@@ -5494,7 +5509,7 @@
         if (ds.animState === 'revealing_neon') {
           return `<div class="draft-reveal-overlay">
             <div class="draft-neon-bg">
-              <img class="draft-neon-icon-pos" id="drni-0" src="images/icons/${neonSrc}" alt="" style="top:50%;left:50%;transform:translate(-50%,-50%);width:min(85vw,320px);filter:brightness(0.04)">
+              <img class="draft-neon-icon-pos" id="drni-0" src="images/icons/${neonSrc}" alt="" style="top:50%;left:50%;transform:translate(-50%,-50%);width:min(55vw,180px);filter:brightness(0.04)">
             </div>
           </div>`;
         }
@@ -5503,6 +5518,7 @@
             <div class="draft-large-card">
               <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
               <div class="draft-large-flash"></div>
+              <div class="draft-card-label">${rc.name}</div>
             </div>
           </div>`;
         }
@@ -5510,6 +5526,7 @@
           return `<div class="draft-reveal-overlay">
             <div class="draft-large-card" style="animation:none">
               <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              <div class="draft-card-label">${rc.name}</div>
             </div>
             <button class="draft-advance-btn" onclick="advanceDraftCard()">›</button>
           </div>`;
@@ -5518,6 +5535,7 @@
           return `<div class="draft-reveal-overlay">
             <div class="draft-large-card exiting">
               <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              <div class="draft-card-label">${rc.name}</div>
             </div>
           </div>`;
         }
@@ -5540,7 +5558,7 @@
           </div>`;
         }).join('');
         return `<div class="draft-stack-wrap">${cards}</div>`;
-      })() : `<div style="height:196px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:.82rem">✅ 全て開封済み</div>`;
+      })() : `<div style="height:168px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:.82rem">✅ 全て開封済み</div>`;
 
       // Thumbnails (revealed cards, small)
       const flipped = ds.dealtCards.filter(c => ds.flippedUids.includes(c.uid));
@@ -5556,9 +5574,9 @@
         ? `<button class="btn-ho draft-confirm-appear" onclick="finalizeAllDraftCards()" style="padding:13px 44px;font-size:1rem">✅ 手札を確定する</button>`
         : '';
 
-      return `<div class="screen active">${revealOverlay}
-        <div class="section-title" style="margin-bottom:2px">🃏 ${p.name} — 初期手札を開封</div>
-        <div style="text-align:center;color:var(--t2);font-size:.78rem">（${ds.flippedUids.length}／${ds.picksTarget}枚開封済み）</div>
+      return `<div class="screen active" style="gap:6px">${revealOverlay}
+        <div class="section-title" style="margin-bottom:0">🃏 ${p.name} — 初期手札を開封</div>
+        <div style="text-align:center;color:var(--t2);font-size:.75rem;margin-top:-2px">（${ds.flippedUids.length}／${ds.picksTarget}枚開封済み）</div>
         <div class="draft-stack-area">
           ${stackHtml}
           <div class="draft-thumb-row">${thumbsHtml}</div>
