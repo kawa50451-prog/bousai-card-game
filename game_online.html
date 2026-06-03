@@ -904,7 +904,8 @@
       background: rgba(0, 0, 0, .52);
       border-radius: inherit;
       pointer-events: none;
-      z-index: 3
+      z-index: 3;
+      animation: none
     }
 
     .card.disaster {
@@ -1628,6 +1629,7 @@
     .response-dmg-preview { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px }
     .rdp-item { font-size:.76rem; padding:3px 8px; border-radius:5px; font-weight:600 }
     .rdp-skip { background:rgba(248,81,73,.15); color:var(--red) }
+    .rdp-special { background:rgba(227,179,65,.15); color:var(--yellow); border:1px solid rgba(227,179,65,.3) }
     .rdp-breakdown { font-size:.74rem; color:var(--t2); margin-top:3px; }
     .rdp-breakdown b { color:var(--red); font-weight:700; }
     .card-ineffective { opacity:.35; }
@@ -4928,7 +4930,10 @@
           const _rpbHpAfter = Math.max(0, getActiveCityHp(mi) - _rpbBreak.total);
           const _modStr = _rpbBreak.mods.filter(m => m.delta !== 0).map(m => m.delta > 0 ? `<span style="color:var(--red)">+${m.delta}(${m.label})</span>` : `<span style="color:var(--green)">${m.delta}(${m.label})</span>`).join(' ');
           const _breakHtml = `<div class="rdp-breakdown">推定 <b>${_rpbBreak.total}</b>ダメージ${_rpbBreak.mods.length ? `<span style="font-size:.68rem;color:var(--t3);margin-left:5px">基礎${_rpbBreak.base} ${_modStr}</span>` : ''}</div>`;
-          const _dmgPreview = `<div class="response-dmg-preview"><span class="rdp-item rdp-skip">対応なし → HP <strong>${_rpbHpAfter}</strong></span></div>`;
+          const _specialLabels = { 'discard_policy': '特殊効果：手札を1枚ランダム廃棄', 'coastal_bonus': '特殊効果：海岸・沿岸都市に +10', 'mountain_bonus': '特殊効果：山間部都市に +10', 'inland_bonus': '特殊効果：内陸都市に +10' };
+          const _specialLabel = _rpbAtk.card.specialType ? (_specialLabels[_rpbAtk.card.specialType] || '') : '';
+          const _specialSpan = _specialLabel ? `<span class="rdp-item rdp-special">${_specialLabel}</span>` : '';
+          const _dmgPreview = `<div class="response-dmg-preview"><span class="rdp-item rdp-skip">対応なし → HP <strong>${_rpbHpAfter}</strong></span>${_specialSpan}</div>`;
           pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>${G.players[_rpbAtk.attackerIdx].name}が「${_rpbAtk.card.icon} ${_rpbAtk.card.name}」を使用！</strong>${_breakHtml}${_dmgPreview}</div><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
         } else if (isMyAttack) {
           const _atk = G.pendingAttack;
@@ -5878,6 +5883,7 @@
         history.replaceState(null, '', window.location.pathname);
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, fromResult: false };
         _hintOpen = false; tutorialState = null;
+        _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0;
         G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
@@ -5932,6 +5938,7 @@
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: []
       };
       localStorage.setItem('ron_lastName', name);
+      _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0;
       render();
     }
 
