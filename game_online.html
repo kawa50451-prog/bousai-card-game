@@ -4892,7 +4892,7 @@
         const oc = dis ? '' : `requestConfirm('playResponseCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','対応に使用')`;
         const _isPlaying = card.uid === _playingCardUid;
         // ④ カードごとのHP予測をバッジに表示
-        const hpBand = (!dis && atkCard) ? `<div class="card-hp-band">予測HP<strong>${Math.max(0, curHp - computeResponseEst(atkCard, mi, card))}</strong></div>` : '';
+        const hpBand = (!dis && atkCard) ? `<div class="card-hp-band" style="white-space:nowrap">予測HP<strong>${Math.max(0, curHp - computeResponseEst(atkCard, mi, card))}</strong></div>` : '';
         const badge = dis ? `<span class="card-type-badge">災害（使用不可）</span>` : `<span class="card-type-badge">対応</span>`;
         return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div>${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${badge}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`;
       }
@@ -6166,6 +6166,14 @@
         }).catch(() => {});
       }
     });
+
+    // ダブルタップズーム防止（iOS Safari は CSS touch-action を html/body で無視するため JS で対応）
+    let _lastTouchEnd = 0;
+    document.addEventListener('touchend', function(e) {
+      const now = Date.now();
+      if (now - _lastTouchEnd <= 300) e.preventDefault();
+      _lastTouchEnd = now;
+    }, { passive: false });
   </script>
 </body>
 
