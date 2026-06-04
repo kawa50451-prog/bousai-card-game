@@ -4082,6 +4082,11 @@
     function pullTurnCard() {
       const ts = G.turnDrawState; if (ts.revealed) return;
       if (G.deck.length === 0) { if (G.discard.length === 0) return; G.deck = shuffle([...G.discard]); G.discard = []; addLog('山札をシャッフルしました', 'sys'); }
+      const pi = ts.pi ?? ts.playerIdx;
+      if (G.players[pi].hand.some(c => c.id === 'pact')) {
+        const altIdx = G.deck.findIndex(c => c.id !== 'pact');
+        if (altIdx > 0) G.deck.unshift(...G.deck.splice(altIdx, 1));
+      }
       ts.revealed = G.deck.shift(); pushState(); render();
     }
 
