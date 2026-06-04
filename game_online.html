@@ -3664,6 +3664,10 @@
       const p = G.players[pi];
       for (let i = 0; i < n; i++) {
         if (G.deck.length === 0) { if (G.discard.length === 0) break; G.deck = shuffle([...G.discard]); G.discard = []; addLog('山札をシャッフルしました', 'sys'); }
+        if (p.hand.some(c => c.id === 'pact')) {
+          const altIdx = G.deck.findIndex(c => c.id !== 'pact');
+          if (altIdx > 0) G.deck.unshift(...G.deck.splice(altIdx, 1));
+        }
         p.hand.push(G.deck.shift());
       }
     }
@@ -3964,9 +3968,10 @@
       const ds = { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, needPolicy: 2, needDisaster: 2, dealtCards: [], flippedUids: [], lastFlippedUid: null, animState: 'idle', revealingCard: null };
       let needP = 2, needD = 2;
       for (let i = 0; i < 4; i++) {
+        const hasPactDealt = ds.dealtCards.some(c => c.id === 'pact');
         let pool;
-        if (needP > 0 && needD > 0) pool = G.deck.filter(c => c.type === 'policy' || c.type === 'disaster');
-        else if (needP > 0) pool = G.deck.filter(c => c.type === 'policy');
+        if (needP > 0 && needD > 0) pool = G.deck.filter(c => (c.type === 'policy' || c.type === 'disaster') && !(hasPactDealt && c.id === 'pact'));
+        else if (needP > 0) pool = G.deck.filter(c => c.type === 'policy' && !(hasPactDealt && c.id === 'pact'));
         else if (needD > 0) pool = G.deck.filter(c => c.type === 'disaster');
         else pool = [...G.deck];
         if (!pool.length) {
