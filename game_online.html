@@ -632,15 +632,15 @@
 
     .draft-stack-wrap {
       position: relative;
-      width: 116px;
-      height: 168px;
-      margin: 8px auto 0;
+      width: 142px;
+      height: 204px;
+      margin: 0 auto;
       flex-shrink: 0;
     }
 
     .draft-stack-card {
       position: absolute;
-      width: 96px;
+      width: 118px;
       border-radius: 9px;
       box-shadow: 0 6px 22px rgba(0,0,0,.55);
       cursor: default;
@@ -781,6 +781,15 @@
 
     .draft-thumb-badge.policy  { background: rgba(63,185,80,.9);  color: #000 }
     .draft-thumb-badge.disaster{ background: rgba(248,81,73,.9); color: #fff }
+
+    .draft-tap-text {
+      color: rgba(255,255,255,.82);
+      font-size: .78rem;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 14px;
+      letter-spacing: .05em;
+    }
 
     .draft-actions {
       display: flex;
@@ -5531,7 +5540,7 @@
         const rc = ds.revealingCard;
         if (!rc) return '';
         const neonSrc = rc.type === 'disaster' ? 'neon_disaster.webp'
-          : (rc.color === 'green' && (rc.effectType === 'shield_quake_fire' || rc.effectType === 'shield_flood')) ? 'neon_policy_shield.webp'
+          : rc.color === 'green' ? 'neon_policy_shield.webp'
           : 'neon_policy_instant.webp';
         if (ds.animState === 'revealing_neon') {
           return `<div class="draft-reveal-overlay">
@@ -5584,10 +5593,16 @@
             ${isTop && !allFlipped ? '<div class="draft-tap-hint-overlay">タップして開封</div>' : ''}
           </div>`;
         }).join('');
-        return `<div class="draft-stack-wrap">${cards}</div>`;
-      })() : `<div class="draft-all-revealed">${ds.dealtCards.map((c, i) =>
-        `<div class="draft-all-card" style="animation-delay:${i * 85}ms"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div>`
-      ).join('')}</div>`;
+        return `<div class="draft-stack-wrap">${cards}</div><div class="draft-tap-text">カードをタップしよう</div>`;
+      })() : (() => {
+        const ordered = [
+          ...ds.dealtCards.filter(c => c.type === 'disaster'),
+          ...ds.dealtCards.filter(c => c.type === 'policy'),
+        ];
+        return `<div class="draft-all-revealed">${ordered.map((c, i) =>
+          `<div class="draft-all-card" style="animation-delay:${i * 85}ms"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div>`
+        ).join('')}</div>`;
+      })();
 
       // Thumbnails (revealed cards, small)
       const flipped = ds.dealtCards.filter(c => ds.flippedUids.includes(c.uid));
