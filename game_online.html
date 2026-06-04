@@ -625,6 +625,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       flex: 1;
       min-height: 0;
     }
@@ -706,7 +707,7 @@
       width: min(52vw, 180px);
       border-radius: 12px;
       box-shadow: 0 0 50px rgba(227,179,65,.45), 0 16px 48px rgba(0,0,0,.7);
-      animation: draft-card-enter .4s cubic-bezier(.22,1,.36,1) both;
+      animation: draft-card-enter .28s cubic-bezier(.12,0,.3,1) both;
       z-index: 3;
     }
 
@@ -815,9 +816,9 @@
     }
 
     @keyframes draft-card-enter {
-      0%   { transform: translateX(-115vw) scale(.82); opacity: 0; }
-      45%  { transform: translateX(-12vw)  scale(1.0);  opacity: 1; }
-      72%  { transform: translateX(2.5vw)  scale(1.04); opacity: 1; }
+      0%   { transform: translateX(-120vw) scale(.72); opacity: 0; }
+      20%  { transform: translateX(-6vw)   scale(1.03); opacity: 1; }
+      50%  { transform: translateX(4.5vw)  scale(1.06); opacity: 1; }
       100% { transform: translateX(0)      scale(1);    opacity: 1; }
     }
 
@@ -856,14 +857,14 @@
 
     .draft-card-label {
       position: absolute;
-      top: calc(100% + 9px);
+      top: calc(100% + 10px);
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
       color: #fff;
-      font-size: .85rem;
+      font-size: 1.05rem;
       font-weight: 700;
-      letter-spacing: .02em;
+      letter-spacing: .03em;
       text-shadow: 0 1px 10px rgba(0,0,0,1), 0 0 24px rgba(0,0,0,.9);
       pointer-events: none;
       text-align: center;
@@ -3939,12 +3940,12 @@
       setTimeout(() => {
         if (ds.animState !== 'revealing_card') return;
         if (ds.bulkMode) {
-          setTimeout(() => _exitDraftCard(), 340); // brief pause then auto-exit
+          setTimeout(() => _exitDraftCard(), 680); // longer pause so card is visible at center
         } else {
           ds.animState = 'card_paused';
           render();
         }
-      }, 360 + 600 + 420); // 420ms ≈ entry animation (.4s) + buffer
+      }, 360 + 600 + 300); // 300ms ≈ entry animation (.28s) + buffer
     }
 
     // 右矢印ボタン押下（1枚ずつモード）
@@ -5579,8 +5580,8 @@
         <div style="text-align:center;color:var(--t2);font-size:.75rem;margin-top:-2px">（${ds.flippedUids.length}／${ds.picksTarget}枚開封済み）</div>
         <div class="draft-stack-area">
           ${stackHtml}
-          <div class="draft-thumb-row">${thumbsHtml}</div>
         </div>
+        <div class="draft-thumb-row">${thumbsHtml}</div>
         <div class="draft-actions">${flipAllBtn}${confirmBtn}</div>
       </div>`;
     }
