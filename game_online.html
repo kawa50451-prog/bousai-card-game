@@ -748,8 +748,8 @@
       gap: 10px;
       justify-content: center;
       align-items: flex-end;
-      padding: 8px 8px 0;
-      min-height: 72px;
+      padding: 4px 8px 0;
+      min-height: 0;
     }
 
     .draft-thumb-card {
@@ -5563,21 +5563,20 @@
 
       // Thumbnails (revealed cards, small)
       const flipped = ds.dealtCards.filter(c => ds.flippedUids.includes(c.uid));
-      const thumbsHtml = flipped.length ? flipped.map(c => {
+      const thumbsHtml = flipped.map(c => {
         const isNew = c.uid === ds.lastFlippedUid;
         return `<div class="draft-thumb-card" style="${isNew ? '' : 'animation:none'}">
           <img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'">
         </div>`;
-      }).join('') : `<div style="font-size:.7rem;color:var(--t3);padding:8px">開封するとここに表示</div>`;
+      }).join('');
 
       const flipAllBtn = (allFlipped || _draftAnimBusy) ? '' : `<button id="draft-flip-all-btn" class="btn-flip-all" onclick="flipAllDraftCards()">一括開封</button>`;
       const confirmBtn = allFlipped
         ? `<button class="btn-ho draft-confirm-appear" onclick="finalizeAllDraftCards()" style="padding:13px 44px;font-size:1rem">✅ 手札を確定する</button>`
         : '';
 
-      return `<div class="screen active" style="gap:6px">${revealOverlay}
-        <div class="section-title" style="margin-bottom:0">🃏 ${p.name} — 初期手札を開封</div>
-        <div style="text-align:center;color:var(--t2);font-size:.75rem;margin-top:-2px">（${ds.flippedUids.length}／${ds.picksTarget}枚開封済み）</div>
+      return `<div class="screen active" style="gap:6px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);overflow:hidden">${revealOverlay}
+        <div class="section-title" style="margin-bottom:0">${p.name}｜初期手札のドロー <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${ds.flippedUids.length}／${ds.picksTarget}枚</span></div>
         <div class="draft-stack-area">
           ${stackHtml}
         </div>
