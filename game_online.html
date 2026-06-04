@@ -893,6 +893,32 @@
       50%       { opacity: 1; }
     }
 
+    /* All-revealed 2×2 grid */
+    .draft-all-revealed {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: min(80vw, 276px);
+    }
+
+    .draft-all-card {
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 22px rgba(0,0,0,.55);
+      animation: draft-card-rise .48s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    .draft-all-card img {
+      width: 100%;
+      display: block;
+      border-radius: 10px;
+    }
+
+    @keyframes draft-card-rise {
+      from { transform: translateY(72px) scale(.76); opacity: 0; }
+      to   { transform: translateY(0)    scale(1);   opacity: 1; }
+    }
+
     /* Draft reveal neon background */
     .draft-neon-bg {
       position: absolute;
@@ -5559,7 +5585,9 @@
           </div>`;
         }).join('');
         return `<div class="draft-stack-wrap">${cards}</div>`;
-      })() : `<div style="height:168px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:.82rem">✅ 全て開封済み</div>`;
+      })() : `<div class="draft-all-revealed">${ds.dealtCards.map((c, i) =>
+        `<div class="draft-all-card" style="animation-delay:${i * 85}ms"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div>`
+      ).join('')}</div>`;
 
       // Thumbnails (revealed cards, small)
       const flipped = ds.dealtCards.filter(c => ds.flippedUids.includes(c.uid));
@@ -5580,7 +5608,7 @@
         <div class="draft-stack-area">
           ${stackHtml}
         </div>
-        <div class="draft-thumb-row">${thumbsHtml}</div>
+        ${allFlipped ? '' : `<div class="draft-thumb-row">${thumbsHtml}</div>`}
         <div class="draft-actions">${flipAllBtn}${confirmBtn}</div>
       </div>`;
     }
