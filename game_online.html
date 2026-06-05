@@ -6,9 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ready or Not</title>
   <link rel="icon" href="images/icons/favicon.png" type="image/png">
-  <link rel="apple-touch-icon" href="images/icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="images/icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ready or Not">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700;900&display=swap" rel="stylesheet">
@@ -3704,6 +3707,7 @@
       if (def.effects.damageReduceHits > 0) e -= 15;
       if (def.effects.shieldQuakeFire && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) e -= 30;
       if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) e -= 25;
+      if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) e += defCity.abilityValue;
       return Math.max(0, e);
     }
     // 対応カードを使った場合の推定ダメージ（④HP予測用）
@@ -3733,6 +3737,10 @@
         if (responseCard.effectType === 'shield_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= 25;
         if (responseCard.effectType === 'heal') e -= Math.floor(responseCard.value / 2);
       }
+      if (defCity && defCity.abilityType === 'vulnerability_draw') {
+        const postRespLen = def.hand.length - (responseCard ? 1 : 0);
+        if (postRespLen <= 2) e += defCity.abilityValue;
+      }
       return Math.max(0, e);
     }
     // 対応バーのダメージ内訳を生成（①ダメージ内訳表示用）
@@ -3756,6 +3764,7 @@
       if (def.effects.damageReduceHits > 0) { mods.push({label:'防災庁',delta:-15}); e -= 15; }
       if (def.effects.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) { mods.push({label:'耐震',delta:-30}); e -= 30; }
       if (def.effects.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) { mods.push({label:'堤防',delta:-25}); e -= 25; }
+      if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) { mods.push({label:'脆弱性',delta:+defCity.abilityValue}); e += defCity.abilityValue; }
       return { total: Math.max(0, e), base: atkCard.baseDamage, mods };
     }
     function canPlayAny(pi) {
@@ -3844,9 +3853,10 @@
         healAmt = healVal; healName = responseCard.name;
         dmg -= healVal;
       }
-      // ニューオーリンズ
-      if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) {
-        dmg += defCity.abilityValue; ld('vuln', `ニューオーリンズ（社会的脆弱性：手札${def.hand.length}枚）`, +defCity.abilityValue);
+      // ニューオーリンズ（対応カードを使った場合は使用前の手札数で判定）
+      const _noHandLen = def.hand.length + (responseCard ? 1 : 0);
+      if (defCity && defCity.abilityType === 'vulnerability_draw' && _noHandLen <= 2) {
+        dmg += defCity.abilityValue; ld('vuln', `ニューオーリンズ（社会的脆弱性：手札${_noHandLen}枚）`, +defCity.abilityValue);
         drawCards(defIdx, 1); autoDiscard(defIdx); ld('city_effect', 'ニューオーリンズの底力：コミュニティ1枚ドロー', null);
       }
       // ダメージ確定
@@ -5059,8 +5069,8 @@
           }
         }, 60);
       } else if (_specNeonIntervalId) { clearInterval(_specNeonIntervalId); _specNeonIntervalId = null; }
-      if (view === 'main' && _pendingMainHpAnims.length > 0) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
-      if (view === 'main' && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
+      if (_pendingMainHpAnims.length > 0 && ['main','response','waiting','waiting_response'].includes(view)) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
+      if (['main','waiting','waiting_response'].includes(view) && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
       if (view === 'tutorial' && tutorialState) {
         const _ts = tutorialState.step;
