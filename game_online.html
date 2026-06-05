@@ -6,9 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ready or Not</title>
   <link rel="icon" href="images/icons/favicon.png" type="image/png">
-  <link rel="apple-touch-icon" href="images/icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="images/icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ready or Not">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700;900&display=swap" rel="stylesheet">
@@ -618,6 +621,370 @@
       padding: 3px 8px;
       font-size: .75rem;
       border: 1px solid var(--bg3)
+    }
+
+    /* DRAFT STACK */
+    .draft-stack-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .draft-stack-wrap {
+      position: relative;
+      width: 142px;
+      height: 204px;
+      margin: 0 auto;
+      flex-shrink: 0;
+    }
+
+    .draft-stack-card {
+      position: absolute;
+      width: 118px;
+      border-radius: 9px;
+      box-shadow: 0 6px 22px rgba(0,0,0,.55);
+      cursor: default;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .draft-stack-card img {
+      width: 100%;
+      display: block;
+      border-radius: 9px;
+    }
+
+    .draft-stack-card.top-card {
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .draft-stack-card.top-card:hover {
+      transform: translate(0,0) translateY(-8px) !important;
+      box-shadow: 0 16px 36px rgba(227,179,65,.5);
+    }
+
+    .draft-stack-card.top-card:active {
+      transform: translate(0,0) scale(.93) !important;
+    }
+
+    .draft-tap-hint-overlay {
+      position: absolute;
+      top: -26px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: .65rem;
+      font-weight: 700;
+      color: var(--yellow);
+      white-space: nowrap;
+      pointer-events: none;
+      animation: draft-hint-blink 1.6s ease-in-out infinite;
+    }
+
+    .draft-stack-card.spinning-out {
+      animation: draft-spin-out .38s cubic-bezier(.55,.06,.68,.19) forwards !important;
+      pointer-events: none;
+      cursor: default;
+    }
+
+    /* Full-screen reveal overlay */
+    .draft-reveal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      pointer-events: none;
+    }
+
+    .draft-large-card {
+      position: relative;
+      width: min(52vw, 180px);
+      border-radius: 12px;
+      box-shadow: 0 0 50px rgba(227,179,65,.45), 0 16px 48px rgba(0,0,0,.7);
+      animation: draft-card-enter .28s cubic-bezier(.12,0,.3,1) both;
+      z-index: 3;
+    }
+
+    .draft-large-card img {
+      width: 100%;
+      border-radius: 12px;
+      display: block;
+    }
+
+    .draft-large-flash {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      background: rgba(255,255,255,.85);
+      pointer-events: none;
+      animation: draft-flash .55s ease-out forwards;
+    }
+
+    .draft-reveal-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: .62rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .draft-reveal-badge.policy  { background: rgba(63,185,80,.92);  color: #000 }
+    .draft-reveal-badge.disaster{ background: rgba(248,81,73,.92); color: #fff }
+
+    /* Thumbnail row */
+    .draft-thumb-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: flex-end;
+      padding: 4px 8px 0;
+      min-height: 0;
+    }
+
+    .draft-thumb-card {
+      position: relative;
+      width: 54px;
+      border-radius: 7px;
+      overflow: hidden;
+      box-shadow: 0 3px 12px rgba(0,0,0,.45);
+      animation: draft-thumb-appear .45s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    .draft-thumb-card img {
+      width: 100%;
+      display: block;
+      border-radius: 7px;
+    }
+
+    .draft-thumb-badge {
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: .5rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+
+    .draft-thumb-badge.policy  { background: rgba(63,185,80,.9);  color: #000 }
+    .draft-thumb-badge.disaster{ background: rgba(248,81,73,.9); color: #fff }
+
+    .draft-tap-text {
+      color: rgba(255,255,255,.82);
+      font-size: .78rem;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 14px;
+      letter-spacing: .05em;
+    }
+
+    .draft-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0 4px;
+    }
+
+    .btn-flip-all {
+      padding: 9px 28px;
+      font-size: .88rem;
+      font-weight: 700;
+      background: var(--bg2);
+      border: 1.5px solid var(--yellow);
+      border-radius: 10px;
+      color: var(--yellow);
+      cursor: pointer;
+      transition: .18s;
+    }
+
+    .btn-flip-all:disabled { opacity: .5; cursor: default; }
+    .btn-flip-all:not(:disabled):hover { background: rgba(227,179,65,.15); }
+
+    .draft-confirm-appear {
+      animation: draft-confirm-pop .4s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    @keyframes draft-spin-out {
+      0%   { transform: translate(0,0) rotate(0deg)   scale(1);  opacity: 1; }
+      35%  { transform: translate(18px,-28px) rotate(390deg) scale(.55); opacity: .8; }
+      100% { transform: translate(36px,-14px) rotate(720deg) scale(0);  opacity: 0; }
+    }
+
+    @keyframes draft-card-enter {
+      0%   { transform: translateX(-120vw) scale(.72); opacity: 0; }
+      20%  { transform: translateX(-6vw)   scale(1.03); opacity: 1; }
+      50%  { transform: translateX(4.5vw)  scale(1.06); opacity: 1; }
+      100% { transform: translateX(0)      scale(1);    opacity: 1; }
+    }
+
+    @keyframes draft-card-exit {
+      0%   { transform: translateX(0)      rotate(0deg) scale(1);   opacity: 1; }
+      100% { transform: translateX(120vw)  rotate(5deg) scale(.82); opacity: 0; }
+    }
+
+    .draft-large-card.exiting {
+      animation: draft-card-exit .28s cubic-bezier(.4,0,1,1) forwards !important;
+    }
+
+    .draft-advance-btn {
+      position: fixed;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 201;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.45);
+      background: rgba(255,255,255,.13);
+      color: #fff;
+      font-size: 1.25rem;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      animation: draft-thumb-appear .35s cubic-bezier(.34,1.56,.64,1) both;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .draft-card-label {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-shadow: 0 1px 10px rgba(0,0,0,1), 0 0 24px rgba(0,0,0,.9);
+      pointer-events: none;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    @keyframes draft-flash {
+      0%   { opacity: 0; }
+      12%  { opacity: 1; }
+      45%  { opacity: .6; }
+      80%  { opacity: .75; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes draft-thumb-appear {
+      from { transform: translateY(-20px) scale(.5); opacity: 0; }
+      to   { transform: translateY(0)     scale(1);  opacity: 1; }
+    }
+
+    @keyframes draft-confirm-pop {
+      from { opacity: 0; transform: scale(.8); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes draft-hint-blink {
+      0%, 100% { opacity: .35; }
+      50%       { opacity: 1; }
+    }
+
+    /* All-revealed 2×2 grid */
+    .draft-all-revealed {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: min(80vw, 276px);
+    }
+
+    .draft-all-card {
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 22px rgba(0,0,0,.55);
+      animation: draft-card-rise .48s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    .draft-all-card img {
+      width: 100%;
+      display: block;
+      border-radius: 10px;
+    }
+
+    @keyframes draft-card-rise {
+      from { transform: translateY(72px) scale(.76); opacity: 0; }
+      to   { transform: translateY(0)    scale(1);   opacity: 1; }
+    }
+
+    /* Gacha city duo (2 cities side-by-side after random pick) */
+    .gacha-city-duo {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .gacha-city-duo-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      animation: draft-card-rise .48s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    .gacha-city-duo-card {
+      width: min(40vw, 150px);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 22px rgba(0,0,0,.55);
+    }
+
+    .gacha-city-duo-card img {
+      width: 100%;
+      display: block;
+      border-radius: 10px;
+    }
+
+    .gacha-city-duo-label {
+      color: rgba(255,255,255,.88);
+      font-size: .82rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: .02em;
+    }
+
+    /* Draft reveal neon background */
+    .draft-neon-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .draft-neon-icon-pos {
+      position: absolute;
+      object-fit: contain;
+      mix-blend-mode: screen;
+      will-change: filter;
     }
 
     /* MAIN GAME */
@@ -3300,6 +3667,10 @@
       const p = G.players[pi];
       for (let i = 0; i < n; i++) {
         if (G.deck.length === 0) { if (G.discard.length === 0) break; G.deck = shuffle([...G.discard]); G.discard = []; addLog('山札をシャッフルしました', 'sys'); }
+        if (p.hand.some(c => c.id === 'pact')) {
+          const altIdx = G.deck.findIndex(c => c.id !== 'pact');
+          if (altIdx > 0) G.deck.unshift(...G.deck.splice(altIdx, 1));
+        }
         p.hand.push(G.deck.shift());
       }
     }
@@ -3336,6 +3707,7 @@
       if (def.effects.damageReduceHits > 0) e -= 15;
       if (def.effects.shieldQuakeFire && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) e -= 30;
       if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) e -= 25;
+      if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) e += defCity.abilityValue;
       return Math.max(0, e);
     }
     // 対応カードを使った場合の推定ダメージ（④HP予測用）
@@ -3365,6 +3737,10 @@
         if (responseCard.effectType === 'shield_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= 25;
         if (responseCard.effectType === 'heal') e -= Math.floor(responseCard.value / 2);
       }
+      if (defCity && defCity.abilityType === 'vulnerability_draw') {
+        const postRespLen = def.hand.length - (responseCard ? 1 : 0);
+        if (postRespLen <= 2) e += defCity.abilityValue;
+      }
       return Math.max(0, e);
     }
     // 対応バーのダメージ内訳を生成（①ダメージ内訳表示用）
@@ -3388,6 +3764,7 @@
       if (def.effects.damageReduceHits > 0) { mods.push({label:'防災庁',delta:-15}); e -= 15; }
       if (def.effects.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) { mods.push({label:'耐震',delta:-30}); e -= 30; }
       if (def.effects.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) { mods.push({label:'堤防',delta:-25}); e -= 25; }
+      if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) { mods.push({label:'脆弱性',delta:+defCity.abilityValue}); e += defCity.abilityValue; }
       return { total: Math.max(0, e), base: atkCard.baseDamage, mods };
     }
     function canPlayAny(pi) {
@@ -3476,9 +3853,10 @@
         healAmt = healVal; healName = responseCard.name;
         dmg -= healVal;
       }
-      // ニューオーリンズ
-      if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) {
-        dmg += defCity.abilityValue; ld('vuln', `ニューオーリンズ（社会的脆弱性：手札${def.hand.length}枚）`, +defCity.abilityValue);
+      // ニューオーリンズ（対応カードを使った場合は使用前の手札数で判定）
+      const _noHandLen = def.hand.length + (responseCard ? 1 : 0);
+      if (defCity && defCity.abilityType === 'vulnerability_draw' && _noHandLen <= 2) {
+        dmg += defCity.abilityValue; ld('vuln', `ニューオーリンズ（社会的脆弱性：手札${_noHandLen}枚）`, +defCity.abilityValue);
         drawCards(defIdx, 1); autoDiscard(defIdx); ld('city_effect', 'ニューオーリンズの底力：コミュニティ1枚ドロー', null);
       }
       // ダメージ確定
@@ -3538,16 +3916,18 @@
     // ═══════════════════════════════════════
     function pullGacha() {
       const gc = G.gachaCurrent;
+      if (_gachaAnimState) return;
       const rem = CITIES.filter(c => !G.gachaPickedIds.includes(c.id));
       if (isCpuMode && gc.playerIdx === 0 && cpuDifficulty !== 'hard') {
         const n = cpuDifficulty === 'easy' ? 3 : 2;
         gc.candidates = shuffle([...rem]).slice(0, Math.min(n, rem.length));
         gc.revealed = null;
+        pushState(); render();
       } else {
-        gc.revealed = rem[Math.random() * rem.length | 0];
-        gc.candidates = null;
+        // Random mode (online or CPU HARD): animated reveal
+        const city = rem[Math.random() * rem.length | 0];
+        _startCityReveal(city);
       }
-      pushState(); render();
     }
 
     function acceptGachaCandidate(cityId) {
@@ -3594,32 +3974,129 @@
     </div></div>`;
     }
 
-    function startDraft(pi) { G.draftState = { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, needPolicy: 2, needDisaster: 2 }; G.screen = 'draft'; }
-
-    function pullDraftCard() {
-      const ds = G.draftState; const needP = ds.needPolicy, needD = ds.needDisaster; let pool;
-      if (needP > 0 && needD > 0) pool = G.deck.filter(c => c.type === 'policy' || c.type === 'disaster');
-      else if (needP > 0) pool = G.deck.filter(c => c.type === 'policy');
-      else if (needD > 0) pool = G.deck.filter(c => c.type === 'disaster');
-      else pool = [...G.deck];
-      if (pool.length === 0) { if (G.discard.length === 0) return; G.deck = shuffle([...G.discard, ...G.deck]); G.discard = []; pullDraftCard(); return; }
-      const card = pool[Math.random() * pool.length | 0]; G.deck.splice(G.deck.indexOf(card), 1); ds.revealed = card; pushState(); render();
+    function startDraft(pi) {
+      const ds = { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, needPolicy: 2, needDisaster: 2, dealtCards: [], flippedUids: [], lastFlippedUid: null, animState: 'idle', revealingCard: null };
+      let needP = 2, needD = 2;
+      for (let i = 0; i < 4; i++) {
+        const hasPactDealt = ds.dealtCards.some(c => c.id === 'pact');
+        let pool;
+        if (needP > 0 && needD > 0) pool = G.deck.filter(c => (c.type === 'policy' || c.type === 'disaster') && !(hasPactDealt && c.id === 'pact'));
+        else if (needP > 0) pool = G.deck.filter(c => c.type === 'policy' && !(hasPactDealt && c.id === 'pact'));
+        else if (needD > 0) pool = G.deck.filter(c => c.type === 'disaster');
+        else pool = [...G.deck];
+        if (!pool.length) {
+          if (!G.discard.length) break;
+          G.deck = shuffle([...G.discard, ...G.deck]); G.discard = [];
+          i--; continue;
+        }
+        const card = pool[Math.random() * pool.length | 0];
+        G.deck.splice(G.deck.indexOf(card), 1);
+        ds.dealtCards.push(card);
+        if (card.type === 'policy' && needP > 0) needP--;
+        else if (card.type === 'disaster' && needD > 0) needD--;
+      }
+      G.draftState = ds; G.screen = 'draft';
     }
 
-    function acceptDraftCard() {
-      const ds = G.draftState; if (!ds.revealed) return;
-      if (ds.revealed.type === 'policy' && ds.needPolicy > 0) ds.needPolicy--;
-      else if (ds.revealed.type === 'disaster' && ds.needDisaster > 0) ds.needDisaster--;
-      G.players[ds.playerIdx].hand.push(ds.revealed); ds.revealed = null; ds.picksDone++;
-      if (ds.picksDone >= ds.picksTarget) {
-        if (ds.playerIdx === 0) { startDraft(1); pushState(); render(); }
-        else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; pushState(); render(); }
-      } else { G.screen = 'draft'; pushState(); render(); }
+    function flipDraftCard(uid) {
+      const ds = G.draftState;
+      if (!ds || !ds.dealtCards || ds.flippedUids.includes(uid) || _draftAnimBusy) return;
+      const card = ds.dealtCards.find(c => c.uid === uid);
+      if (!card) return;
+      _draftAnimBusy = true;
+
+      // Phase 1: Spin-out
+      const cardEl = document.querySelector(`[data-draft-uid="${uid}"]`);
+      if (cardEl) {
+        cardEl.style.pointerEvents = 'none';
+        cardEl.classList.add('spinning-out');
+        const hintEl = cardEl.querySelector('.draft-tap-hint-overlay');
+        if (hintEl) hintEl.style.display = 'none';
+      }
+
+      // Phase 2a: neon icon
+      setTimeout(() => {
+        ds.flippedUids.push(uid);
+        ds.animState = 'revealing_neon';
+        ds.revealingCard = card;
+        render();
+      }, 360);
+
+      // Phase 2b: card slides in from left
+      setTimeout(() => {
+        ds.animState = 'revealing_card';
+        render();
+      }, 360 + 600);
+
+      // Phase 2c: card settled at center
+      setTimeout(() => {
+        if (ds.animState !== 'revealing_card') return;
+        if (ds.bulkMode) {
+          setTimeout(() => _exitDraftCard(), 680); // longer pause so card is visible at center
+        } else {
+          ds.animState = 'card_paused';
+          render();
+        }
+      }, 360 + 600 + 300); // 300ms ≈ entry animation (.28s) + buffer
+    }
+
+    // 右矢印ボタン押下（1枚ずつモード）
+    function advanceDraftCard() {
+      const ds = G.draftState;
+      if (!ds || ds.animState !== 'card_paused') return;
+      _exitDraftCard();
+    }
+
+    // カードを右へ流して消す（手動・一括共通）
+    function _exitDraftCard() {
+      const ds = G.draftState;
+      if (!ds || !ds.revealingCard) return;
+      const exitedUid = ds.revealingCard.uid;
+      ds.animState = 'card_exiting';
+      render();
+
+      setTimeout(() => {
+        ds.animState = 'idle';
+        ds.revealingCard = null;
+        ds.lastFlippedUid = exitedUid;
+        _draftAnimBusy = false;
+        pushState();
+        render();
+        setTimeout(() => { if (G.draftState) G.draftState.lastFlippedUid = null; }, 500);
+
+        // 次の未開封カードを自動スタート
+        const next = ds.dealtCards.find(c => !ds.flippedUids.includes(c.uid));
+        if (next) setTimeout(() => flipDraftCard(next.uid), 120);
+      }, 300);
+    }
+
+    function flipAllDraftCards() {
+      const ds = G.draftState;
+      if (!ds || !ds.dealtCards) return;
+      const btn = document.getElementById('draft-flip-all-btn');
+      if (btn) btn.disabled = true;
+      const remaining = ds.dealtCards.filter(c => !ds.flippedUids.includes(c.uid));
+      if (!remaining.length) return;
+      ds.bulkMode = true;
+      flipDraftCard(remaining[0].uid); // チェーンで自動進行
+    }
+
+    function finalizeAllDraftCards() {
+      const ds = G.draftState;
+      if (!ds || !ds.dealtCards) return;
+      ds.dealtCards.forEach(c => G.players[ds.playerIdx].hand.push(c));
+      if (ds.playerIdx === 0) { startDraft(1); pushState(); render(); }
+      else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; pushState(); render(); }
     }
 
     function pullTurnCard() {
       const ts = G.turnDrawState; if (ts.revealed) return;
       if (G.deck.length === 0) { if (G.discard.length === 0) return; G.deck = shuffle([...G.discard]); G.discard = []; addLog('山札をシャッフルしました', 'sys'); }
+      const pi = ts.pi ?? ts.playerIdx;
+      if (G.players[pi].hand.some(c => c.id === 'pact')) {
+        const altIdx = G.deck.findIndex(c => c.id !== 'pact');
+        if (altIdx > 0) G.deck.unshift(...G.deck.splice(altIdx, 1));
+      }
       ts.revealed = G.deck.shift(); pushState(); render();
     }
 
@@ -3634,6 +4111,69 @@
         else addLog(`─── ${G.players[pi].name}のターン開始（予算${getBudget(pi)}・${ts.target}枚ドロー）`, 'sys');
         if (!handleDiscardIfNeeded(pi, 'main')) goMain();
       } else { pushState(); render(); }
+    }
+
+    let _draftAnimBusy = false;
+    let _gachaAnimState = null;   // null | 'revealing_neon' | 'revealing_card' | 'card_paused' | 'card_exiting' | 'all_revealed'
+    let _gachaRevealingCity = null;
+    let _gachaAllCities = null;
+    let _gachaBulkMode = false;
+
+    function _startCityReveal(city) {
+      _gachaRevealingCity = city;
+      _gachaAnimState = 'revealing_neon';
+      render();
+      setTimeout(() => {
+        _gachaAnimState = 'revealing_card';
+        render();
+      }, 600);
+      setTimeout(() => {
+        if (_gachaAnimState !== 'revealing_card') return;
+        _gachaAnimState = 'card_paused';
+        render();
+        if (_gachaBulkMode) setTimeout(() => advanceGachaCard(), 500);
+      }, 600 + 300);
+    }
+
+    function _initGachaNeonIcons() {
+      playNeonAnim(document.getElementById('gcni-0'), '200,170,80', 0, 520);
+    }
+
+    function advanceGachaCard() {
+      if (_gachaAnimState !== 'card_paused') return;
+      _gachaAnimState = 'card_exiting';
+      render();
+      setTimeout(() => {
+        const city = _gachaRevealingCity;
+        _gachaAnimState = null;
+        _gachaRevealingCity = null;
+        const gc = G.gachaCurrent;
+        const p = G.players[gc.playerIdx];
+        p.cities.push(city); p.cityHps.push(city.hp); G.gachaPickedIds.push(city.id);
+        gc.revealed = null;
+        if (gc.pickNum === 0) {
+          gc.pickNum = 1;
+          pushState(); render();
+          if (_gachaBulkMode) setTimeout(() => pullGacha(), 120);
+        } else {
+          _gachaBulkMode = false;
+          proceedToCityOrder();
+        }
+      }, 300);
+    }
+
+    function flipAllGachaCities() {
+      if (_gachaAnimState) return;
+      _gachaBulkMode = true;
+      pullGacha();
+    }
+
+    function proceedToCityOrder() {
+      _gachaAnimState = null;
+      _gachaAllCities = null;
+      G.screen = 'cityOrder';
+      G.cityOrderState = { playerIdx: G.gachaCurrent.playerIdx };
+      pushState(); render();
     }
 
     // ═══════════════════════════════════════
@@ -3724,7 +4264,7 @@
       el.appendChild(inner); document.body.appendChild(el);
       setTimeout(() => el.remove(), 1700);
     }
-    function playNeonAnim(el, g, delay) {
+    function playNeonAnim(el, g, delay, dur) {
       if (!el) return;
       setTimeout(() => {
         const gf = `brightness(1) drop-shadow(0 0 8px rgba(${g},.85)) drop-shadow(0 0 3px rgba(${g},1))`;
@@ -3737,7 +4277,7 @@
           { filter: `brightness(1.4) drop-shadow(0 0 7px rgba(${g},.8))`,offset: .68 },
           { filter: 'brightness(0.65)',                                    offset: .78 },
           { filter: gf },
-        ], { duration: 900, easing: 'ease-in-out', fill: 'forwards' });
+        ], { duration: dur || 900, easing: 'ease-in-out', fill: 'forwards' });
       }, delay || 0);
     }
     const _NEON_GLOWS = ['248,81,73','210,153,34','63,185,80','56,139,253'];
@@ -3749,6 +4289,10 @@
     }
     function initSpecNeonIcons() {
       _NEON_GLOWS.forEach((g, i) => playNeonAnim(document.getElementById('sni-'+i), g, i*130));
+    }
+    function _initDraftNeonIcons(card) {
+      const glow = card.type === 'disaster' ? '248,81,73' : card.color === 'green' ? '63,185,80' : '210,153,34';
+      playNeonAnim(document.getElementById('drni-0'), glow, 0, 520);
     }
     function setSpecTab(n) { _specTab = n; render(); }
     function copySpecReport() {
@@ -4497,6 +5041,12 @@
         }
         if (lobbyState.mode === 'gallery' && lobbyState.galleryTab && !lobbyState.galleryZoom) setTimeout(initGalleryAnim, 30);
       }
+      if (view === 'draft' && G.draftState?.animState === 'revealing_neon' && G.draftState?.revealingCard) {
+        setTimeout(() => _initDraftNeonIcons(G.draftState.revealingCard), 20);
+      }
+      if (view === 'gacha' && _gachaAnimState === 'revealing_neon') {
+        setTimeout(() => _initGachaNeonIcons(), 20);
+      }
       if (view === 'gameover') setTimeout(initGoObserver, 60);
       if (view === 'waiting') {
         setTimeout(() => {
@@ -4519,8 +5069,8 @@
           }
         }, 60);
       } else if (_specNeonIntervalId) { clearInterval(_specNeonIntervalId); _specNeonIntervalId = null; }
-      if (view === 'main' && _pendingMainHpAnims.length > 0) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
-      if (view === 'main' && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
+      if (_pendingMainHpAnims.length > 0 && ['main','response','waiting','waiting_response'].includes(view)) { const _tp = _pendingMainHpAnims.splice(0); for (const a of _tp) setTimeout(() => _animateHp(a.pi, a.fh, a.th), a.delay || 80); }
+      if (['main','waiting','waiting_response'].includes(view) && _pendingCityEnterAnim) { _pendingCityEnterAnim = false; setTimeout(() => { const pz = document.querySelector('.player-zone'); if (pz) pz.classList.add('city-appear-anim'); }, 120); }
       if (view === 'waiting_connection' && myRole === 'p1') setTimeout(generateQR, 80);
       if (view === 'tutorial' && tutorialState) {
         const _ts = tutorialState.step;
@@ -4797,20 +5347,82 @@
     // ─── ガチャ ───
     function renderGacha() {
       const gc = G.gachaCurrent; const p = G.players[gc.playerIdx];
+
+      // All revealed: show 2 picked cities side by side
+      if (_gachaAnimState === 'all_revealed') {
+        return `<div class="screen active" style="gap:8px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);overflow:hidden">
+          <div class="section-title" style="margin-bottom:0">${p.name}｜引いた都市 <span style="font-size:.7rem;font-weight:400;color:var(--t2)">2枚</span></div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center">
+            <div class="gacha-city-duo">
+              ${(_gachaAllCities||[]).map((c,i) => `<div class="gacha-city-duo-item" style="animation-delay:${i*120}ms"><div class="gacha-city-duo-card"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><div class="gacha-city-duo-label">${c.name}</div></div>`).join('')}
+            </div>
+          </div>
+          <div style="display:flex;justify-content:center;padding:6px 0"><button class="btn-ho draft-confirm-appear" onclick="proceedToCityOrder()" style="padding:13px 44px;font-size:1rem">⚔️ 戦闘順を選ぶ</button></div>
+        </div>`;
+      }
+
+      // Reveal overlay (neon → slide → pause → exit)
+      const overlay = (() => {
+        const city = _gachaRevealingCity;
+        if (!city) return '';
+        if (_gachaAnimState === 'revealing_neon') {
+          return `<div class="draft-reveal-overlay"><div class="draft-neon-bg"><img class="draft-neon-icon-pos" id="gcni-0" src="images/icons/neon_city.webp" alt="" style="top:50%;left:50%;transform:translate(-50%,-50%);width:min(55vw,180px);filter:brightness(0.04)"></div></div>`;
+        }
+        if (_gachaAnimState === 'revealing_card') {
+          return `<div class="draft-reveal-overlay"><div class="draft-large-card"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="draft-large-flash"></div><div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div></div>`;
+        }
+        if (_gachaAnimState === 'card_paused') {
+          const advBtn = _gachaBulkMode ? '' : `<button class="draft-advance-btn" onclick="advanceGachaCard()">›</button>`;
+          return `<div class="draft-reveal-overlay"><div class="draft-large-card" style="animation:none"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div>${advBtn}</div>`;
+        }
+        if (_gachaAnimState === 'card_exiting') {
+          return `<div class="draft-reveal-overlay"><div class="draft-large-card exiting"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div></div>`;
+        }
+        return '';
+      })();
+
       let firstPickInfo = '';
       if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">✅ 1枚目：${terrainImg(fc, 18)} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
+
+      const isRandomMode = !isCpuMode || cpuDifficulty === 'hard';
+      const pickLabel = gc.pickNum === 0 ? '1枚目' : '2枚目';
+
+      // Random mode (online / CPU HARD) and player's turn: show stacked cards like draft
+      if (isRandomMode && gc.playerIdx === myPlayerIdx && !gc.candidates && !gc.revealed) {
+        const remaining = 2 - gc.pickNum; // 2 or 1 cards left in stack
+        const stackCards = Array.from({ length: remaining }, (_, i) => {
+          const isTop = i === 0;
+          const offset = i * 6;
+          const br = (1 - i * 0.16).toFixed(2);
+          return `<div class="draft-stack-card${isTop ? ' top-card' : ''}" style="top:${offset}px;left:${offset}px;z-index:${remaining - i};filter:brightness(${br})"${isTop ? ' onclick="pullGacha()"' : ''}><img src="images/cities/back.webp" alt=""></div>`;
+        }).join('');
+        const wrapW = 118 + (remaining > 1 ? 6 : 0) + 12;
+        const flipAllBtn = _gachaAnimState ? '' : `<button class="btn-flip-all" onclick="flipAllGachaCities()">一括開封</button>`;
+        return `<div class="screen active" style="gap:6px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);overflow:hidden">
+          ${overlay}
+          <div class="section-title" style="margin-bottom:0">${p.name}｜都市ガチャ <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${pickLabel}</span></div>
+          ${firstPickInfo}
+          <div class="draft-stack-area">
+            <div class="draft-stack-wrap" style="width:${wrapW}px;height:192px">${stackCards}</div>
+            <div class="draft-tap-text">カードをタップしよう</div>
+          </div>
+          <div class="draft-actions">${flipAllBtn}</div>
+        </div>`;
+      }
+
+      // Non-random (CPU EASY/NORMAL): candidate selection, already revealed, or awaiting opponent
       let ca = '';
       if (gc.candidates && gc.candidates.length) {
         const cols = gc.candidates.length === 2 ? 'repeat(2,1fr)' : 'repeat(3,1fr)';
         const cards = gc.candidates.map(c => `<div class="gacha-candidate-card" onclick="acceptGachaCandidate('${c.id}')"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="gacha-cand-info"><div style="font-weight:700;font-size:.85rem;line-height:1.2">${c.name}</div><div style="font-size:.7rem;color:var(--t2);margin-top:2px">${c.isCoastal ? '🌊 海岸' : c.isMountain ? '⛰️ 山間部' : '🏙️ 内陸'} · HP ${c.hp}</div><div style="font-size:.65rem;color:var(--t3);margin-top:3px;line-height:1.3">${c.abilityDesc}</div></div></div>`).join('');
         ca = `<div class="gacha-candidates" style="grid-template-columns:${cols}">${cards}</div><div style="text-align:center;color:var(--t3);font-size:.75rem;margin-top:10px">都市をタップして選択</div>`;
       } else if (!gc.revealed) {
-        const btnLabel = (isCpuMode && cpuDifficulty === 'hard') ? '🎲 ガチャを引く！' : isCpuMode ? (cpuDifficulty === 'easy' ? '🎲 3枚から選ぶ' : '🎲 2枚から選ぶ') : '🎲 ガチャを引く！';
+        const btnLabel = cpuDifficulty === 'easy' ? '🎲 3枚から選ぶ' : '🎲 2枚から選ぶ';
         ca = `<div class="gacha-card-reveal-area" onclick="pullGacha()"><img src="images/cities/back.webp" alt=""></div><button class="btn-gacha" onclick="pullGacha()">${btnLabel}</button>`;
       } else {
         const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`;
       }
-      return `<div class="screen active"><div class="section-title">🎲 ${p.name} — ${gc.pickNum === 0 ? '1枚目' : '2枚目'}の都市ガチャ</div>${firstPickInfo}<div class="gacha-stage">${ca}</div></div>`;
+      return `<div class="screen active">${overlay}<div class="section-title" style="margin-bottom:0">${p.name}｜都市ガチャ <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${pickLabel}</span></div>${firstPickInfo}<div class="gacha-stage">${ca}</div></div>`;
     }
 
     // ─── 予備都市 ───
@@ -5015,6 +5627,7 @@
       let src;
       if (type === 'policy') src = color === 'green' ? 'images/icons/icon_policy_green.webp' : 'images/icons/icon_policy_yellow.webp';
       else if (type === 'disaster') src = 'images/icons/icon_disaster.webp';
+      else if (type === 'city') src = 'images/icons/icon_city.webp';
       else return '';
       return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;vertical-align:middle;flex-shrink:0" onerror="this.style.display='none'">`;
     }
@@ -5100,7 +5713,8 @@
       let ca = '';
       if (!ts.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullTurnCard()">🃏 カードを引く！</button>`; }
       else { const c = ts.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptTurnCard()">✅ 手札に加える</button>`; }
-      return `<div class="screen active"><div class="section-title">${ts.isHazardMap ? `🗺️ ${p.name} — ハザードマップ整備（${ts.drawn + 1}枚目／${ts.target}枚）` : `🃏 ${p.name} — ターン開始ドロー（${ts.drawn + 1}枚目／${ts.target}枚）`}</div>
+      const titleLabel = ts.isHazardMap ? 'ハザードマップ整備' : 'ターン開始ドロー';
+      return `<div class="screen active"><div class="section-title" style="margin-bottom:0">${p.name}｜${titleLabel} <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${ts.drawn + 1}／${ts.target}枚</span></div>
     <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t1)">ドロー </span><strong style="color:var(--yellow)">${ts.drawn} / ${ts.target}</strong><span style="font-size:.8rem;color:var(--t1)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
     <div class="gacha-stage">${ca}</div></div>`;
     }
@@ -5108,15 +5722,100 @@
     // ─── 初期ドラフト ───
     function renderDraft() {
       const ds = G.draftState; const p = G.players[ds.playerIdx];
-      const pips = Array(ds.picksTarget).fill(0).map((_, i) => { const cls = i < ds.picksDone ? 'done' : i === ds.picksDone ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
-      const hp = p.hand.length > 0 ? p.hand.map(c => `<span class="draft-hand-tag">${c.icon} ${c.name}</span>`).join('') : `<span style="font-size:.75rem;color:var(--t3)">まだ引いていません</span>`;
-      let ca = '';
-      if (!ds.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullDraftCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullDraftCard()">🃏 山札から引く！</button>`; }
-      else { const c = ds.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptDraftCard()">✅ 手札に加える</button>`; }
-      return `<div class="screen active"><div class="section-title">🃏 ${p.name} — 初期手札を引いてください</div>
-    <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t1)">手札 </span><strong style="color:var(--yellow)">${ds.picksDone} / ${ds.picksTarget}</strong><span style="font-size:.8rem;color:var(--t1)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
-    <div class="draft-hand-preview"><div style="font-size:.7rem;color:var(--t2);margin-bottom:5px">現在の手札</div><div style="display:flex;gap:6px;flex-wrap:wrap">${hp}</div></div>
-    <div class="gacha-stage">${ca}</div></div>`;
+      if (!ds.dealtCards || !ds.dealtCards.length) return `<div class="screen active"><div style="text-align:center;padding:40px;color:var(--t2);font-size:.9rem">読み込み中…</div></div>`;
+      const allFlipped = ds.flippedUids.length >= ds.picksTarget;
+
+      // Reveal overlay (full-screen, fixed position)
+      const revealOverlay = (() => {
+        const rc = ds.revealingCard;
+        if (!rc) return '';
+        const neonSrc = rc.type === 'disaster' ? 'neon_disaster.webp'
+          : rc.color === 'green' ? 'neon_policy_shield.webp'
+          : 'neon_policy_instant.webp';
+        if (ds.animState === 'revealing_neon') {
+          return `<div class="draft-reveal-overlay">
+            <div class="draft-neon-bg">
+              <img class="draft-neon-icon-pos" id="drni-0" src="images/icons/${neonSrc}" alt="" style="top:50%;left:50%;transform:translate(-50%,-50%);width:min(55vw,180px);filter:brightness(0.04)">
+            </div>
+          </div>`;
+        }
+        if (ds.animState === 'revealing_card') {
+          return `<div class="draft-reveal-overlay">
+            <div class="draft-large-card">
+              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              <div class="draft-large-flash"></div>
+              <div class="draft-card-label">${cardTypeIconHtml(rc.type, rc.color, 22)}<span>${rc.name}</span></div>
+            </div>
+          </div>`;
+        }
+        if (ds.animState === 'card_paused') {
+          return `<div class="draft-reveal-overlay">
+            <div class="draft-large-card" style="animation:none">
+              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              <div class="draft-card-label">${cardTypeIconHtml(rc.type, rc.color, 22)}<span>${rc.name}</span></div>
+            </div>
+            <button class="draft-advance-btn" onclick="advanceDraftCard()">›</button>
+          </div>`;
+        }
+        if (ds.animState === 'card_exiting') {
+          return `<div class="draft-reveal-overlay">
+            <div class="draft-large-card exiting">
+              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              <div class="draft-card-label">${cardTypeIconHtml(rc.type, rc.color, 22)}<span>${rc.name}</span></div>
+            </div>
+          </div>`;
+        }
+        return '';
+      })();
+
+      // Stack (remaining face-down cards)
+      const unflipped = ds.dealtCards.filter(c => !ds.flippedUids.includes(c.uid));
+      const stackHtml = unflipped.length ? (() => {
+        const cards = unflipped.map((c, i) => {
+          const isTop = i === 0;
+          const offset = i * 6; // 0, 6, 12, 18 px — deeper cards shift right+down
+          const br = (1 - i * 0.16).toFixed(2); // brightness: 1.0, 0.84, 0.68, 0.52
+          return `<div class="draft-stack-card${isTop ? ' top-card' : ''}"
+            data-draft-uid="${c.uid}"
+            style="top:${offset}px;left:${offset}px;z-index:${unflipped.length - i};filter:brightness(${br})"
+            ${isTop ? `onclick="flipDraftCard('${c.uid}')"` : ''}>
+            <img src="images/cards/back.webp" alt="">
+            ${isTop && !allFlipped ? '<div class="draft-tap-hint-overlay">タップして開封</div>' : ''}
+          </div>`;
+        }).join('');
+        return `<div class="draft-stack-wrap">${cards}</div><div class="draft-tap-text">カードをタップしよう</div>`;
+      })() : (() => {
+        const ordered = [
+          ...ds.dealtCards.filter(c => c.type === 'disaster'),
+          ...ds.dealtCards.filter(c => c.type === 'policy'),
+        ];
+        return `<div class="draft-all-revealed">${ordered.map((c, i) =>
+          `<div class="draft-all-card" style="animation-delay:${i * 85}ms"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div>`
+        ).join('')}</div>`;
+      })();
+
+      // Thumbnails (revealed cards, small)
+      const flipped = ds.dealtCards.filter(c => ds.flippedUids.includes(c.uid));
+      const thumbsHtml = flipped.map(c => {
+        const isNew = c.uid === ds.lastFlippedUid;
+        return `<div class="draft-thumb-card" style="${isNew ? '' : 'animation:none'}">
+          <img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'">
+        </div>`;
+      }).join('');
+
+      const flipAllBtn = (allFlipped || _draftAnimBusy) ? '' : `<button id="draft-flip-all-btn" class="btn-flip-all" onclick="flipAllDraftCards()">一括開封</button>`;
+      const confirmBtn = allFlipped
+        ? `<button class="btn-ho draft-confirm-appear" onclick="finalizeAllDraftCards()" style="padding:13px 44px;font-size:1rem">✅ 手札を確定する</button>`
+        : '';
+
+      return `<div class="screen active" style="gap:6px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);overflow:hidden">${revealOverlay}
+        <div class="section-title" style="margin-bottom:0">${p.name}｜初期手札のドロー <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${ds.flippedUids.length}／${ds.picksTarget}枚</span></div>
+        <div class="draft-stack-area">
+          ${stackHtml}
+        </div>
+        ${allFlipped ? '' : `<div class="draft-thumb-row">${thumbsHtml}</div>`}
+        <div class="draft-actions">${flipAllBtn}${confirmBtn}</div>
+      </div>`;
     }
 
     // ─── 防災協定（全公開） ───
@@ -5599,7 +6298,7 @@
     ${karte}
     ${terrainStat}
     ${counterHtml}
-    ${roomId ? `<button class="go-inview go-rematch-btn" onclick="requestRematch()" ${_rematchRequested ? 'disabled' : ''}>${_rematchRequested ? '⏳ 相手の返答待ち...' : '⚔️ もう1戦'}</button>` : ''}
+    ${isCpuMode ? `<button class="go-inview go-rematch-btn" onclick="replayCpuGame()">⚔️ もう一度戦う</button>` : roomId ? `<button class="go-inview go-rematch-btn" onclick="requestRematch()" ${_rematchRequested ? 'disabled' : ''}>${_rematchRequested ? '⏳ 相手の返答待ち...' : '⚔️ もう1戦'}</button>` : ''}
     <button class="go-inview go-replay-btn" onclick="restartGame()">ロビーに戻る</button>
   </div>
 
@@ -5883,7 +6582,29 @@
         history.replaceState(null, '', window.location.pathname);
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, fromResult: false };
         _hintOpen = false; tutorialState = null;
-        _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0;
+        _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
+        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
+        _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
+        render();
+        requestAnimationFrame(() => { _rApp.style.transition = ''; });
+      }, 280);
+    }
+
+    function replayCpuGame() {
+      _lobbyEnter = true;
+      _cpuCancelTimer();
+      const _rApp = document.getElementById('app');
+      _rApp.style.transition = 'opacity .28s ease'; _rApp.style.opacity = '0';
+      setTimeout(() => {
+        myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
+        _rematchListenerSet = false; _rematchRequested = false;
+        hideRematchRequestPopup();
+        localStorage.removeItem('ron_lastRoom'); localStorage.removeItem('ron_lastRole');
+        history.replaceState(null, '', window.location.pathname);
+        lobbyState = { mode: 'cpu', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, fromResult: false };
+        _hintOpen = false; tutorialState = null;
+        _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
+        isCpuMode = false;
         G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
@@ -5938,7 +6659,7 @@
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: []
       };
       localStorage.setItem('ron_lastName', name);
-      _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0;
+      _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
       render();
     }
 
@@ -5972,7 +6693,7 @@
       } else if (s === 'cityOrder' && G.cityOrderState?.playerIdx === 1) {
         _cpuSelectCityOrder();
       } else if (s === 'draft' && ds?.playerIdx === 1) {
-        if (!ds.revealed) pullDraftCard(); else acceptDraftCard();
+        finalizeAllDraftCards();
       } else if (s === 'turnDraw' && (ts?.pi ?? ts?.playerIdx) === 1) {
         if (!ts.revealed) pullTurnCard(); else acceptTurnCard();
       } else if (s === 'turnSummary' && ap === 1 && G._atkSummaryConfirmed) {
