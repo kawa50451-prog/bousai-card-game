@@ -3586,7 +3586,7 @@
       { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', color: 'yellow', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
       { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', color: 'green', effectType: 'negate_special', value: 10, desc: '特殊効果を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップも事前設置で無効化できる汎用性の高い政策。' },
       { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', color: 'green', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回）', realConcept: '包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。2回分のダメージ軽減という持続型効果が、制度投資の長期的な価値を示す。' },
-      { id: 'pact', name: '防災協定', icon: '📋', cost: 2, type: 'policy', color: 'yellow', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開＋任意で手札1枚を捨てられる', realConcept: '自治体・企業間の防災情報共有体制。相手の手札を知る（情報収集）ことが効果的な備えの前提になることを示す。' },
+      { id: 'pact', name: '防災協定', icon: '📋', cost: 1, type: 'policy', color: 'yellow', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開＋任意で手札1枚を捨てられる', realConcept: '自治体・企業間の防災情報共有体制。相手の手札を知る（情報収集）ことが効果的な備えの前提になることを示す。' },
     ];
 
     const DISASTER_CARDS = [
@@ -3643,6 +3643,13 @@
     function getActiveMaxHp(pi) { return G.players[pi].cities[G.players[pi].activeCityIdx].hp; }
     function getBudget(pi) { const p = G.players[pi]; const c = getActiveCity(pi); let b = 3; if (c && c.abilityType === 'extra_budget') b += c.abilityValue; if (c && c.abilityType === 'flood_budget' && p.effects.floodBonusTurns > 0) b += 1; return b; }
     function getBudgetLeft(pi) { return getBudget(pi) - G.players[pi].budgetUsed; }
+    function getEffectiveCostToAttack(card, pi) {
+      if (card.type !== 'disaster') return card.cost;
+      const defIdx = pi === 0 ? 1 : 0;
+      const defCity = getActiveCity(defIdx);
+      if (defCity && defCity.abilityType === 'flood_cost_raise' && (card.id === 'flood' || card.id === 'tsunami')) return card.cost + defCity.abilityValue;
+      return card.cost;
+    }
     function addLog(msg, cls = '') {
       let finalCls = cls;
       if (msg.includes('壊滅')) finalCls = (cls ? cls + ' critical' : 'critical');
@@ -3831,7 +3838,7 @@
         if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：連続被弾軽減（適応力）`, -defCity.abilityValue); }
         if (defCity.abilityType === 'quake_regen' && attackCard.id === 'earthquake') def.effects.quakeHitThisTurn = true;
         if (defCity.abilityType === 'flood_budget' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { def.effects.floodBonusTurns = 1; ld('city_effect', `${defCity.name}の都市能力：次ターン予算+1（洪水後の復旧）`, null); G._nextTurnEvents[defIdx].push({ type: 'flood_budget', cityIcon: terrainImg(defCity, 18), cityName: defCity.name }); }
-        if (defCity.abilityType === 'flood_cost_raise' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { const atkIdx = G.activePlayer; G.players[atkIdx].budgetUsed += defCity.abilityValue; ld('city_effect', `${defCity.name}の都市能力：洪水・津波防衛インフラ（攻撃側コスト+${defCity.abilityValue}）`, null); }
+        if (defCity.abilityType === 'flood_cost_raise' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { ld('city_effect', `${defCity.name}の都市能力：洪水・津波防衛インフラ（攻撃側コスト+${defCity.abilityValue}）`, null); }
         if (defCity.abilityType === 'flood_draw' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
         if (defCity.abilityType === 'quake_draw' && attackCard.id === 'earthquake') { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
       }
@@ -5453,12 +5460,17 @@
     function renderPlayerHand(p, pi) {
       const isFirstTurn = (pi === 0 && G.turnsEach[0] === 0); const left = getBudgetLeft(pi);
       function mkCard(card) {
-        const cantAfford = left < card.cost; const ftBlk = isFirstTurn && card.type === 'disaster'; const dis = cantAfford || ftBlk;
-        let reason = ''; if (cantAfford) reason = '予算不足'; else if (ftBlk) reason = '先攻1ターン目は使用不可';
+        const ec = getEffectiveCostToAttack(card, pi);
+        const costRaise = ec - card.cost;
+        const cantAfford = left < ec; const ftBlk = isFirstTurn && card.type === 'disaster'; const dis = cantAfford || ftBlk;
+        let reason = '';
+        if (cantAfford) reason = costRaise > 0 ? `ロッテルダム能力：実コスト${ec}（+${costRaise}）` : '予算不足';
+        else if (ftBlk) reason = '先攻1ターン目は使用不可';
         const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
         const _isNew = card.uid === _lastDrawnCardUid;
         const _isPlaying = card.uid === _playingCardUid;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span>${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
+        const costHtml = costRaise > 0 ? `${ec}<span style="font-size:.55em;color:var(--red)"> (+${costRaise})</span>` : `${card.cost}`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${costHtml}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : '災害'}</span>${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -5581,7 +5593,7 @@
         const p = G.players[ap]; if (ap !== mi) return true;
         const bl = getBudgetLeft(ap);
         return p.hand.some(c => {
-          if (c.cost > bl) return false;
+          if (getEffectiveCostToAttack(c, ap) > bl) return false;
           if (isFirstTurn && c.type === 'disaster') return false;
           return true;
         });
@@ -6439,9 +6451,10 @@
     function playCard(uid) {
       const p = G.players[G.activePlayer]; const idx = p.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = p.hand[idx];
       if (G.activePlayer === 0 && G.turnsEach[0] === 0 && card.type === 'disaster') { alert('先攻1ターン目は災害カードを使えません。'); return; }
-      if (getBudgetLeft(G.activePlayer) < card.cost) return;
-      p.hand.splice(idx, 1); G.discard.push(card); p.budgetUsed += card.cost;
-      showBudgetToast(card.cost, getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
+      const _ec = getEffectiveCostToAttack(card, G.activePlayer);
+      if (getBudgetLeft(G.activePlayer) < _ec) return;
+      p.hand.splice(idx, 1); G.discard.push(card); p.budgetUsed += _ec;
+      showBudgetToast(_ec, getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
       if (card.type === 'policy') {
         applyPolicyEffect(card, G.activePlayer, false);
         if (G.screen === 'peek') { pushState(); render(); return; }
@@ -6802,7 +6815,7 @@
     function _cpuDoMainEasy() {
       const budget = getBudgetLeft(1);
       if (budget === 0 || Math.random() < 0.18) { endTurn(); return; }
-      const affordable = G.players[1].hand.filter(c => c.cost <= budget);
+      const affordable = G.players[1].hand.filter(c => getEffectiveCostToAttack(c, 1) <= budget);
       if (!affordable.length) { endTurn(); return; }
       playCard(affordable[Math.random() * affordable.length | 0].uid);
     }
@@ -6813,7 +6826,7 @@
       const oppHp = opp.cityHps[opp.activeCityIdx];
       const cpuHp = cpu.cityHps[cpu.activeCityIdx];
       if (budget === 0) { endTurn(); return; }
-      const affordable = cpu.hand.filter(c => c.cost <= budget);
+      const affordable = cpu.hand.filter(c => getEffectiveCostToAttack(c, 1) <= budget);
       if (!affordable.length) { endTurn(); return; }
       const ranked = affordable.filter(c => c.type === 'disaster')
         .map(c => ({ c, dmg: _cpuEstimateDmg(c, 0) })).sort((a, b) => b.dmg - a.dmg);
@@ -6834,7 +6847,7 @@
       const cpuHp = cpu.cityHps[cpu.activeCityIdx];
       const oppCity = opp.cities[opp.activeCityIdx];
       if (budget === 0) { endTurn(); return; }
-      const affordable = cpu.hand.filter(c => c.cost <= budget);
+      const affordable = cpu.hand.filter(c => getEffectiveCostToAttack(c, 1) <= budget);
       if (!affordable.length) { endTurn(); return; }
       const ranked = affordable.filter(c => c.type === 'disaster')
         .map(c => ({ c, dmg: _cpuEstimateDmg(c, 0) })).sort((a, b) => b.dmg - a.dmg);
