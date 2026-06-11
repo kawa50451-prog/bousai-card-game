@@ -3255,7 +3255,7 @@
         sections: [
           '「防災協定」の効果で相手の手札が全公開されています。',
           'どんな攻撃が来るか・どんな防御を持っているかを把握して次の手を組み立てましょう。',
-          '「<strong>確認</strong>」を押すと次のアクションに進みます。',
+          '確認後、自分の手札から<strong>1枚だけ任意で捨てる</strong>ことができます。スキップして捨てなくてもかまいません。',
         ]
       },
       gameover: {
@@ -3573,7 +3573,7 @@
       { id: 'kumamoto', name: '熊本', icon: '🌸', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。', learn: '2016年熊本地震は前震（M6.5）→本震（M7.3）という連続地震で、想定を超えた適応力が求められた。同ターン2枚目の災害への耐性がその経験を示す。' },
       { id: 'niigata', name: '新潟', icon: '❄️', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10', concept: '1964年新潟地震。液状化研究の原点。', learn: '1964年新潟地震（M7.5）で液状化現象が大規模に初めて記録され、防災学の重要な研究対象となった。地震を受けたターン後のHP回復は科学的蓄積と学習を象徴する。' },
       { id: 'kagoshima', name: '鹿児島', icon: '🌋', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。', learn: '日本有数の活火山・桜島と共生する都市。「ゼロリスクを目指さない」防災哲学のもと、日常的な火山活動への対応力が複合災害への耐性として表れている。' },
-      { id: 'rotterdam', name: 'ロッテルダム', icon: '🌷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 1, abilityDesc: '洪水・津波後、次ターン予算+1', concept: '水と共存するオランダ型防災哲学。', learn: '国土の4分の1が海面以下のオランダの港湾都市。「水を制御するのではなく水と共存する」防災哲学を世界に発信。洪水・津波後に次ターンの予算が増えるのがその回復力。' },
+      { id: 'rotterdam', name: 'ロッテルダム', icon: '🌷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_cost_raise', abilityValue: 2, abilityDesc: '洪水・津波被弾時、攻撃側コスト+2', concept: '水と共存するオランダ型防災哲学。', learn: '国土の4分の1が海面以下のオランダの港湾都市。「水を制御するのではなく水と共存する」防災哲学を世界に発信。洪水・津波で攻撃すると攻撃側のコストが追加でかかるのはその堅牢な防衛インフラを示す。' },
       { id: 'istanbul', name: 'イスタンブール', icon: '🕌', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_draw', abilityValue: 1, abilityDesc: '地震を受けたとき1枚ドロー', concept: '北アナトリア断層直上。事後学習型防災。', learn: '北アナトリア断層直上に位置し高確率でM7超の地震が予測されるが、耐震化は遅れている。地震後にカードを引く能力は「被災して初めて学ぶ事後学習型防災」の現実を示す。' },
       { id: 'new_orleans', name: 'ニューオーリンズ', icon: '🎷', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。', learn: '2005年ハリケーン・カトリーナで被害が社会的弱者に集中したことが「社会的脆弱性」概念を世界に知らしめた。手札が少ない（準備不足の）状態でさらに被害が増える。' },
     ];
@@ -3586,7 +3586,7 @@
       { id: 'agreement', name: '相互支援協定', icon: '🤝', cost: 2, type: 'policy', color: 'yellow', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
       { id: 'evacuation', name: '広域避難指示', icon: '📢', cost: 2, type: 'policy', color: 'green', effectType: 'negate_special', value: 10, desc: '特殊効果を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップも事前設置で無効化できる汎用性の高い政策。' },
       { id: 'bousai_cho', name: '防災庁設置', icon: '🏛️', cost: 3, type: 'policy', color: 'green', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回）', realConcept: '包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。2回分のダメージ軽減という持続型効果が、制度投資の長期的な価値を示す。' },
-      { id: 'pact', name: '防災協定', icon: '📋', cost: 2, type: 'policy', color: 'yellow', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開', realConcept: '自治体・企業間の防災情報共有体制。相手の手札を知る（情報収集）ことが効果的な備えの前提になることを示す。' },
+      { id: 'pact', name: '防災協定', icon: '📋', cost: 2, type: 'policy', color: 'yellow', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開＋任意で手札1枚を捨てられる', realConcept: '自治体・企業間の防災情報共有体制。相手の手札を知る（情報収集）ことが効果的な備えの前提になることを示す。' },
     ];
 
     const DISASTER_CARDS = [
@@ -3831,6 +3831,7 @@
         if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：連続被弾軽減（適応力）`, -defCity.abilityValue); }
         if (defCity.abilityType === 'quake_regen' && attackCard.id === 'earthquake') def.effects.quakeHitThisTurn = true;
         if (defCity.abilityType === 'flood_budget' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { def.effects.floodBonusTurns = 1; ld('city_effect', `${defCity.name}の都市能力：次ターン予算+1（洪水後の復旧）`, null); G._nextTurnEvents[defIdx].push({ type: 'flood_budget', cityIcon: terrainImg(defCity, 18), cityName: defCity.name }); }
+        if (defCity.abilityType === 'flood_cost_raise' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { const atkIdx = G.activePlayer; G.players[atkIdx].budgetUsed += defCity.abilityValue; ld('city_effect', `${defCity.name}の都市能力：洪水・津波防衛インフラ（攻撃側コスト+${defCity.abilityValue}）`, null); }
         if (defCity.abilityType === 'flood_draw' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
         if (defCity.abilityType === 'quake_draw' && attackCard.id === 'earthquake') { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
       }
@@ -4183,6 +4184,7 @@
     let _pendingMainHpAnims = [];
     let _pendingCityEnterAnim = false;
     let _cityEnterAnimPi = -1; // 城入場アニメ保留中のプレイヤーindex（-1=なし）
+    let _peekDiscardMode = false;
     let _lobbyEnter = true;
     let _lobbyTitleAnimDone = false;
     let _responseAnimatedPis = new Set();
@@ -5818,24 +5820,68 @@
       </div>`;
     }
 
-    // ─── 防災協定（全公開） ───
+    // ─── 防災協定（全公開＋任意捨て） ───
     function renderPeek() {
-      const cards = G.peekCards || (G.peekCard ? [G.peekCard] : []);
-      const cardsHtml = cards.map(c => {
+      const pi = G.peekByPlayerIdx ?? G.activePlayer;
+      const oppCards = G.peekCards || (G.peekCard ? [G.peekCard] : []);
+      const oppHtml = oppCards.map(c => {
         const ct = cardCtype(c);
         const borderColor = ct === 'disaster' ? 'var(--red)' : ct === 'shield' ? 'var(--green)' : 'var(--yellow)';
-        const costColor = ct === 'disaster' ? 'var(--red)' : ct === 'shield' ? 'var(--green)' : 'var(--yellow)';
+        const costColor = borderColor;
         return `<div class="peek-card-big" style="flex-shrink:0;border-color:${borderColor}">
           <img src="images/cards/${c.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'">
           <div class="pk-icon">${cardTypeIconHtml(c.type, c.color, 32)}</div><div class="pk-name">${c.name}</div>
           <div class="pk-cost" style="color:${costColor}">コスト: ${c.cost}</div>
           <div class="pk-desc">${c.desc}</div></div>`;
       }).join('');
+
+      let actionHtml;
+      if (_peekDiscardMode) {
+        const myHand = G.players[pi].hand;
+        if (myHand.length === 0) {
+          actionHtml = `<div style="text-align:center;color:var(--t2);font-size:.85rem;padding:8px">手札がありません</div>
+            <div style="text-align:center;margin-top:8px"><button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">閉じる</button></div>`;
+        } else {
+          const handHtml = myHand.map(c => {
+            const ct = cardCtype(c);
+            const borderColor = ct === 'disaster' ? 'var(--red)' : ct === 'shield' ? 'var(--green)' : 'var(--yellow)';
+            return `<div class="peek-card-big" style="flex-shrink:0;border-color:${borderColor};cursor:pointer;opacity:.9" onclick="peekDiscard('${c.uid}')">
+              <img src="images/cards/${c.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'">
+              <div class="pk-icon">${cardTypeIconHtml(c.type, c.color, 32)}</div><div class="pk-name">${c.name}</div>
+              <div class="pk-cost" style="color:${borderColor}">コスト: ${c.cost}</div>
+              <div class="pk-desc">${c.desc}</div>
+              <div style="margin-top:6px;font-size:.73rem;color:var(--red);font-weight:700">タップで捨てる</div>
+            </div>`;
+          }).join('');
+          actionHtml = `<div style="text-align:center;padding:8px 12px 4px;color:var(--yellow);font-size:.82rem;font-weight:700">📤 捨てるカードを選んでください</div>
+            <div style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px;padding:6px 12px 16px;justify-content:flex-start">${handHtml}</div>
+            <div style="text-align:center"><button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">やめる（捨てない）</button></div>`;
+        }
+      } else {
+        actionHtml = `<div style="display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap">
+          <button class="btn-ho" onclick="startPeekDiscard()" style="font-size:.9rem;border-color:var(--red);color:var(--red);background:rgba(248,81,73,.12)">📤 手札を1枚捨てる</button>
+          <button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">スキップ（捨てない）</button>
+        </div>`;
+      }
+
       return `<div class="screen active"><div class="peek-wrap">
-    <div style="text-align:center;padding:12px;color:var(--t2);font-size:.85rem">🔒 相手の手札（${cards.length}枚）</div>
-    <div class="peek-card-display" style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px;padding:8px 12px 16px;justify-content:flex-start">${cardsHtml}</div>
-    <div style="text-align:center;margin-top:8px"><button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">確認した（閉じる）</button></div>
+    <div style="text-align:center;padding:12px;color:var(--t2);font-size:.85rem">🔒 相手の手札（${oppCards.length}枚）</div>
+    <div class="peek-card-display" style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px;padding:8px 12px 16px;justify-content:flex-start">${oppHtml}</div>
+    ${actionHtml}
   </div></div>`;
+    }
+
+    function startPeekDiscard() { _peekDiscardMode = true; render(); }
+
+    function peekDiscard(uid) {
+      const pi = G.peekByPlayerIdx ?? G.activePlayer;
+      const p = G.players[pi];
+      const idx = p.hand.findIndex(c => c.uid === uid);
+      if (idx === -1) return;
+      const card = p.hand.splice(idx, 1)[0];
+      G.discard.push(card);
+      addLog(`📤 ${p.name}が防災協定で手札1枚を捨てた（${card.icon} ${card.name}）`, 'sys');
+      closePeek();
     }
 
     // ─── ターンサマリー ───
@@ -6444,7 +6490,7 @@
       pushState(); render();
     }
 
-    function closePeek() { G.peekCard = null; G.peekCards = null; G.peekByPlayerIdx = null; G.screen = 'main'; pushState(); render(); }
+    function closePeek() { _peekDiscardMode = false; G.peekCard = null; G.peekCards = null; G.peekByPlayerIdx = null; G.screen = 'main'; pushState(); render(); }
 
     // ─── リマッチ ───
     function doRematch() {
