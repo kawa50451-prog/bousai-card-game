@@ -4057,16 +4057,16 @@
 
     function startDraft(pi) {
       const ds = { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, dealtCards: [], flippedUids: [], lastFlippedUid: null, animState: 'idle', revealingCard: null };
-      // 改良A：自然災害2枚 + 政策1枚保証 + フレックス1枚（政策 or 人為災害）
-      let needD = 2;     // 自然災害
-      let needP = 1;     // 政策の保証枠
-      let needFlex = 1;  // フレックス枠（政策 or 人為災害）
+      // ★一時ルール（2026-06-14・5色手札デモ用。後で下の「改良A」に戻す）：
+      //   政策 緑1+黄1 + 自然災害1 + フレックス1（自然 or 人為）
+      let needGreen = 1, needYellow = 1, needD = 1, needFlex = 1;
       for (let i = 0; i < 4; i++) {
         const hasPactDealt = ds.dealtCards.some(c => c.id === 'pact');
         const allow = (c) => {
           if (hasPactDealt && c.id === 'pact') return false;
-          if (c.type === 'disaster') return needD > 0;
-          if (c.type === 'policy') return needP > 0 || needFlex > 0;
+          if (c.type === 'policy' && c.color === 'green') return needGreen > 0;
+          if (c.type === 'policy' && c.color === 'yellow') return needYellow > 0;
+          if (c.type === 'disaster') return needD > 0 || needFlex > 0;
           if (c.type === 'jinzai') return needFlex > 0;
           return false;
         };
@@ -4079,11 +4079,17 @@
         const card = pool[Math.random() * pool.length | 0];
         G.deck.splice(G.deck.indexOf(card), 1);
         ds.dealtCards.push(card);
-        if (card.type === 'disaster') needD--;
-        else if (card.type === 'policy') { if (needP > 0) needP--; else needFlex--; }
+        if (card.type === 'policy' && card.color === 'green') needGreen--;
+        else if (card.type === 'policy' && card.color === 'yellow') needYellow--;
+        else if (card.type === 'disaster') { if (needD > 0) needD--; else needFlex--; }
         else if (card.type === 'jinzai') needFlex--;
       }
       G.draftState = ds; G.screen = 'draft';
+      /* ▼▼▼ 通常時の「改良A」（戻すときはこの中身で上のループを置き換える）：
+         let needD = 2, needP = 1, needFlex = 1;
+         allow: disaster→needD>0 / policy→needP>0||needFlex>0 / jinzai→needFlex>0
+         decrement: disaster→needD-- / policy→needP>0?needP--:needFlex-- / jinzai→needFlex--
+      ▲▲▲ */
     }
 
     function flipDraftCard(uid) {
