@@ -4057,17 +4057,20 @@
 
     function startDraft(pi) {
       const ds = { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, dealtCards: [], flippedUids: [], lastFlippedUid: null, animState: 'idle', revealingCard: null };
-      // ★一時ルール（2026-06-14・5色手札デモ用。後で下の「改良A」に戻す）：
-      //   政策 緑1+黄1 + 自然災害1 + フレックス1（自然 or 人為）
-      let needGreen = 1, needYellow = 1, needD = 1, needFlex = 1;
+      // 初期手札（4枚）：自然災害1（確定）＋ フレックス1（自然 or 人為）＋ 政策2（色・即時/シールド不問）
+      //   フレックス枠は JINZAI_DRAFT_RATE の確率で人為災害、それ以外は自然災害になる。
+      //   事前判定でフレックスの種別を確定させるため、人為災害の出現率はデッキ枚数比に依存せず常に一定。
+      const JINZAI_DRAFT_RATE = 0.10; // 初期手札に人為災害が混ざる確率（調整はこの値のみ）
+      let needP = 2, needD, needJinzai;
+      if (Math.random() < JINZAI_DRAFT_RATE) { needD = 1; needJinzai = 1; } // フレックス＝人為
+      else { needD = 2; needJinzai = 0; }                                   // フレックス＝自然
       for (let i = 0; i < 4; i++) {
         const hasPactDealt = ds.dealtCards.some(c => c.id === 'pact');
         const allow = (c) => {
           if (hasPactDealt && c.id === 'pact') return false;
-          if (c.type === 'policy' && c.color === 'green') return needGreen > 0;
-          if (c.type === 'policy' && c.color === 'yellow') return needYellow > 0;
-          if (c.type === 'disaster') return needD > 0 || needFlex > 0;
-          if (c.type === 'jinzai') return needFlex > 0;
+          if (c.type === 'policy') return needP > 0;
+          if (c.type === 'disaster') return needD > 0;
+          if (c.type === 'jinzai') return needJinzai > 0;
           return false;
         };
         let pool = G.deck.filter(allow);
@@ -4079,17 +4082,11 @@
         const card = pool[Math.random() * pool.length | 0];
         G.deck.splice(G.deck.indexOf(card), 1);
         ds.dealtCards.push(card);
-        if (card.type === 'policy' && card.color === 'green') needGreen--;
-        else if (card.type === 'policy' && card.color === 'yellow') needYellow--;
-        else if (card.type === 'disaster') { if (needD > 0) needD--; else needFlex--; }
-        else if (card.type === 'jinzai') needFlex--;
+        if (card.type === 'policy') needP--;
+        else if (card.type === 'disaster') needD--;
+        else if (card.type === 'jinzai') needJinzai--;
       }
       G.draftState = ds; G.screen = 'draft';
-      /* ▼▼▼ 通常時の「改良A」（戻すときはこの中身で上のループを置き換える）：
-         let needD = 2, needP = 1, needFlex = 1;
-         allow: disaster→needD>0 / policy→needP>0||needFlex>0 / jinzai→needFlex>0
-         decrement: disaster→needD-- / policy→needP>0?needP--:needFlex-- / jinzai→needFlex--
-      ▲▲▲ */
     }
 
     function flipDraftCard(uid) {
