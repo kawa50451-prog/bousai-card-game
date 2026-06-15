@@ -4060,7 +4060,7 @@
       // 初期手札（4枚）：自然災害1（確定）＋ フレックス1（自然 or 人為）＋ 政策2（色・即時/シールド不問）
       //   フレックス枠は JINZAI_DRAFT_RATE の確率で人為災害、それ以外は自然災害になる。
       //   事前判定でフレックスの種別を確定させるため、人為災害の出現率はデッキ枚数比に依存せず常に一定。
-      const JINZAI_DRAFT_RATE = 0.10; // 初期手札に人為災害が混ざる確率（調整はこの値のみ）
+      const JINZAI_DRAFT_RATE = 0.50; // フレックス枠で人為災害になる確率（自然50%・人為50%。調整はこの値のみ）
       let needP = 2, needD, needJinzai;
       if (Math.random() < JINZAI_DRAFT_RATE) { needD = 1; needJinzai = 1; } // フレックス＝人為
       else { needD = 2; needJinzai = 0; }                                   // フレックス＝自然
