@@ -7269,7 +7269,7 @@
         policyDeck: coopBuildPolicyDeck(), policyDiscard: [],
         natureDeck: coopBuildNatureDeck(), natureDiscard: [],
         hand: [], log: [], incoming: [], confirm: null, responseBlocked: false,
-        result: null, intel: null, intelPopup: false,
+        result: null, intel: null, intelPopup: false, drawState: null,
       };
       try { localStorage.setItem('ron_lastName', name); } catch (e) { }
       renderCoop();
@@ -7310,7 +7310,7 @@
       if (!CO.confirm) return; const c = CO.hand.find(x => x.uid === CO.confirm.uid); if (!c) { CO.confirm = null; renderCoop(); return; }
       CO.budgetUsed += c.cost; CO.hand.splice(CO.hand.indexOf(c), 1); CO.policyDiscard.push(c);
       if (i < 0) {
-        if (c.effectType === 'draw') { coopDraw(c.value); _coLog(`🗺️ ${c.name}：${c.value}枚ドロー`); }
+        if (c.effectType === 'draw') { CO.drawState = { remaining: c.value, drawn: 0, total: c.value, revealed: null }; CO.phase = 'draw'; _coLog(`🗺️ ${c.name}：カードを引きます`); }
         else if (c.effectType === 'peek_all') { coopEnsureNature(); CO.intel = CO.natureDeck.slice(0, 3); CO.intelPopup = true; _coLog('📋 防災協定（情報共有）：次に来る災害を確認した'); }
       } else {
         const cs = CO.cities[i]; coopApplyPolicyToCity(c, cs); _coLog(`🔵 ${c.name} → ${cs.city.name}（共助）`);
@@ -7318,6 +7318,20 @@
       CO.confirm = null; renderCoop();
     }
     function coopEndCityTurn() { CO.confirm = null; coopNatureTurn(); }
+    // ── ハザードマップ整備：カードを引く画面（対戦モードの turnDraw に合わせ、引いたカードを1枚ずつ公開） ──
+    function coopPullDrawCard() {
+      const ds = CO.drawState; if (!ds || ds.revealed) return;
+      if (CO.policyDeck.length === 0) { if (CO.policyDiscard.length === 0) { coopFinishDraw(); return; } CO.policyDeck = shuffle([...CO.policyDiscard]); CO.policyDiscard = []; }
+      ds.revealed = CO.policyDeck.shift(); renderCoop();
+    }
+    function coopAcceptDrawCard() {
+      const ds = CO.drawState; if (!ds || !ds.revealed) return;
+      if (CO.hand.length >= 5) { CO.policyDiscard.push(ds.revealed); _coLog(`📤 手札が上限のため「${ds.revealed.name}」は捨て札へ`); }
+      else CO.hand.push(ds.revealed);
+      ds.revealed = null; ds.drawn++; ds.remaining--;
+      if (ds.remaining <= 0) coopFinishDraw(); else renderCoop();
+    }
+    function coopFinishDraw() { CO.drawState = null; CO.phase = 'city'; renderCoop(); }
     // 対戦モードの requestEndTurn と同じく、予算が残っている時のみ確認ポップを出す
     function coopRequestEndTurn() {
       if (CO.phase !== 'city') return;
@@ -7344,29 +7358,44 @@
       if (cand.length > 1) { const terr = cand.filter(x => coopTerrainMatch(card, x.cs.city)); if (terr.length) cand = terr; }
       return cand[Math.random() * cand.length | 0].i;
     }
-    function coopEstimate(card, cs) {
-      let e = card.baseDamage; const c = cs.city, ef = cs.effects;
-      if (card.specialType === 'coastal_bonus' && c.isCoastal) e += 10;
-      else if (card.specialType === 'mountain_bonus' && c.isMountain) e += 10;
-      else if (card.specialType === 'inland_bonus' && !c.isCoastal && !c.isMountain) e += 10;
-      if (c.abilityType === 'resist_quake_fire' && (card.id === 'earthquake' || card.id === 'wildfire')) e -= c.abilityValue;
-      if (c.abilityType === 'resist_flood' && (card.id === 'flood' || card.id === 'tsunami')) e -= c.abilityValue;
-      if (c.abilityType === 'resist_landslide' && card.id === 'landslide') e -= c.abilityValue;
-      if (c.abilityType === 'resist_compound' && card.id === 'compound') e -= c.abilityValue;
-      if (ef.shieldQuakeFire && (card.id === 'earthquake' || card.id === 'wildfire')) e -= 30;
-      if (ef.shieldFlood && (card.id === 'flood' || card.id === 'tsunami')) e -= 25;
-      if (ef.damageReduceHits > 0) e -= 15;
-      return Math.max(0, e);
+    // 予測ダメージ（read-only。coopResolveAttack の主要計算を再現。resp を渡すと対応カード適用後の予測）
+    function coopPredictDamage(atkCard, cs, resp) {
+      const city = cs.city, e = cs.effects;
+      let dmg = atkCard.baseDamage; let neg = false;
+      if (e.negateSpecial) { neg = true; dmg -= 10; }
+      else if (resp && resp.effectType === 'negate_special') { neg = true; dmg -= 10; }
+      if (!neg && atkCard.specialType) {
+        if (atkCard.specialType === 'coastal_bonus' && city.isCoastal) dmg += 10;
+        else if (atkCard.specialType === 'mountain_bonus' && city.isMountain) dmg += 10;
+        else if (atkCard.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain) dmg += 10;
+      }
+      if (city.abilityType === 'resist_compound' && atkCard.id === 'compound') dmg -= city.abilityValue;
+      if (city.abilityType === 'resist_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= city.abilityValue;
+      if (city.abilityType === 'resist_landslide' && atkCard.id === 'landslide') dmg -= city.abilityValue;
+      if (city.abilityType === 'resist_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= city.abilityValue;
+      if (city.abilityType === 'second_hit_reduce' && e.disastersReceivedThisTurn >= 1) dmg -= city.abilityValue;
+      if (e.damageReduceHits > 0) dmg -= 15;
+      if (e.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= 30;
+      if (e.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= 25;
+      if (resp) {
+        if (resp.effectType === 'shield_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= 30;
+        if (resp.effectType === 'shield_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= 25;
+        if (resp.effectType === 'heal') dmg -= Math.floor(resp.value / 2);
+      }
+      if (city.abilityType === 'vulnerability_draw' && CO.hand.length <= 2) dmg += city.abilityValue;
+      return Math.max(0, dmg);
     }
+    function coopEstimate(card, cs) { return coopPredictDamage(card, cs, null); }
     function coopNatureTurn() {
       _coCancelTimer();
       CO.phase = 'nature'; CO.confirm = null; CO.responseBlocked = false;
       coopSplashNature();
+      CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
       if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) coopEventPollution();
       if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; _coLog('💣 テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); }
       const cards = []; for (let i = 0; i < CO.diff.draw; i++) { const c = coopDrawNature(); if (c) cards.push(c); }
       CO.incoming = cards.map(card => { const idx = coopPickTarget(card); return { card, idx, est: coopEstimate(card, CO.cities[idx]) }; });
-      if (cards.length === 0) { _coLog('🌪️ 自然山札が尽きた。今回の攻撃なし'); coopAfterNature(); return; }
+      if (cards.length === 0) { _coLog('🌪️ 自然山札が尽きた。今回の攻撃なし'); coopApplyRegen(null); coopDismissSummary(); return; }
       _coLog(`🌪️ 自然の攻撃：${cards.map(c => c.name).join('・')}`);
       if (CO.responseBlocked) { CO.phase = 'resolving'; renderCoop(); _coTimer = setTimeout(() => coopResolveRound(null, -1), 1100); }
       else { CO.phase = 'coopResponse'; renderCoop(); }
@@ -7429,26 +7458,33 @@
       CO.phase = 'resolving'; CO.confirm = null;
       const resp = (respUid != null) ? CO.hand.find(c => c.uid === respUid) : null;
       if (resp) { CO.hand.splice(CO.hand.indexOf(resp), 1); CO.policyDiscard.push(resp); }
+      const summary = { attacks: [], regens: [], cityStart: CO.cities.map(cs => ({ name: cs.city.name, hp: cs._turnStartHp ?? cs.hp, maxHp: cs.maxHp })) };
       CO.incoming.forEach((atk, ai) => {
         const cs = CO.cities[atk.idx];
-        if (cs.hp <= 0) { _coLog(`　${atk.card.name}：${cs.city.name}は既に壊滅`); return; }
+        if (cs.hp <= 0) { summary.attacks.push({ cardIcon: atk.card.icon, cardName: atk.card.name, cityName: cs.city.name, dead: true }); _coLog(`　${atk.card.name}：${cs.city.name}は既に壊滅`); return; }
         const r = coopResolveAttack(atk.card, cs, (ai === respIdx) ? resp : null);
         _coLog(`💥 ${atk.card.name} → ${cs.city.name}：${r.dmg}ダメージ（残${Math.max(0, cs.hp)}）`);
         r.lines.forEach(l => _coLog(`　↳ ${l.t}${l.d != null ? `（${l.d > 0 ? '+' : ''}${l.d}）` : ''}`));
         const chain = coopApplyChain(atk.card, cs);
         chain.forEach(c => _coLog(`　⚡ 連鎖：${c.label} +${c.dmg}（残${Math.max(0, cs.hp)}）`));
+        summary.attacks.push({ cardId: atk.card.id, cardIcon: atk.card.icon, cardName: atk.card.name, cityName: cs.city.name, maxHp: cs.maxHp, base: atk.card.baseDamage, hpBefore: r.fromHp, damage: r.dmg, lines: r.lines, chain, hpAfter: cs.hp });
       });
       CO.incoming = [];
-      if (CO.cities.every(cs => cs.hp <= 0)) { CO.result = 'lose'; CO.phase = 'over'; renderCoop(); return; }
-      coopAfterNature();
+      if (CO.cities.every(cs => cs.hp <= 0)) { CO.result = 'lose'; CO.phase = 'over'; CO.summary = summary; renderCoop(); return; }
+      coopApplyRegen(summary);
+      summary.cityEnd = CO.cities.map(cs => ({ name: cs.city.name, hp: cs.hp, maxHp: cs.maxHp, dead: cs.hp <= 0 }));
+      CO.summary = summary; CO.phase = 'summary'; renderCoop();
     }
-    function coopAfterNature() {
+    function coopApplyRegen(summary) {
       CO.cities.forEach(cs => {
-        const c = cs.city; if (cs.hp <= 0) return;
-        if (c.abilityType === 'regen') { cs.hp = Math.min(cs.maxHp, cs.hp + c.abilityValue); }
-        if (c.abilityType === 'quake_regen' && cs.effects.quakeHitThisTurn) { cs.hp = Math.min(cs.maxHp, cs.hp + c.abilityValue); _coLog(`💚 ${c.name}：地震後の回復 +${c.abilityValue}`); }
+        const c = cs.city; if (cs.hp <= 0) return; const before = cs.hp;
+        if (c.abilityType === 'regen') cs.hp = Math.min(cs.maxHp, cs.hp + c.abilityValue);
+        if (c.abilityType === 'quake_regen' && cs.effects.quakeHitThisTurn) cs.hp = Math.min(cs.maxHp, cs.hp + c.abilityValue);
         cs.effects.quakeHitThisTurn = false;
+        if (cs.hp !== before) { _coLog(`💚 ${c.name}：回復 +${cs.hp - before}`); if (summary) summary.regens.push({ cityName: c.name, amount: cs.hp - before, hpBefore: before, hpAfter: cs.hp }); }
       });
+    }
+    function coopDismissSummary() {
       if (CO.turn >= CO.diff.maxTurns) { CO.result = 'win'; CO.phase = 'over'; renderCoop(); return; }
       CO.turn++;
       CO.phase = 'city'; CO.confirm = null; CO.intel = null; CO.intelPopup = false;
@@ -7481,6 +7517,8 @@
       let html;
       if (CO.phase === 'setup') html = coopRenderSetup();
       else if (CO.phase === 'over') html = coopRenderOver();
+      else if (CO.phase === 'summary') html = coopRenderSummary();
+      else if (CO.phase === 'draw') html = coopRenderDraw();
       else html = coopRenderBoard();
       app.innerHTML = html;
     }
@@ -7534,15 +7572,21 @@
       const hint = coopCardEffectHint(c, resp);
       const hintHtml = hint ? `<div style="margin:4px 0;padding:6px 10px;background:rgba(56,139,253,.12);border-radius:6px;font-size:.8rem;color:#fff;text-align:center">${hint}</div>` : '';
       const actBtn = 'background:var(--blue);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:.92rem;cursor:pointer;padding:11px;margin:5px 0;width:100%;display:flex;align-items:center;justify-content:center;gap:6px';
+      const actBtnTall = 'background:var(--blue);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;padding:9px 11px;margin:5px 0;width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.35';
       const cancelBtn = 'background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:#fff;font-size:.9rem;cursor:pointer;padding:10px;margin-top:5px;width:100%';
       let actions;
       if (resp) {
-        const btns = CO.incoming.map((a, ai) => `<button style="${actBtn}" onclick="coopConfirmRespApply(${ai})">${a.card.icon} ${a.card.name} → ${CO.cities[a.idx].city.name}（約${a.est}）に対応</button>`).join('');
-        actions = `<p style="margin:6px 0;color:#fff">どの攻撃に対応しますか？</p>${btns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
+        const btns = CO.incoming.map((a, ai) => { const cs = CO.cities[a.idx]; const before = a.est; const after = coopPredictDamage(a.card, cs, c); const eff = after < before; return `<button style="${actBtnTall}" onclick="coopConfirmRespApply(${ai})"><span style="display:flex;align-items:center;gap:5px">${a.card.icon} ${a.card.name} → ${cs.city.name}</span><span style="font-size:.78rem;font-weight:600">予測ダメージ ${before} → <span style="color:${eff ? '#9ff0a8' : '#fff'};font-weight:800">${after}</span></span></button>`; }).join('');
+        actions = `<p style="margin:6px 0;color:#fff">どの攻撃に対応しますか？（対応は1回）</p>${btns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
       } else if (c.effectType === 'draw' || c.effectType === 'peek_all') {
         actions = `<p style="margin:6px 0;color:#fff">この政策を使用しますか？</p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlay(-1)">使用する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
       } else {
-        const cityBtns = CO.cities.map((cs, i) => cs.hp > 0 ? `<button style="${actBtn}" onclick="coopConfirmPlay(${i})">${terrainImg(cs.city, 18)} ${cs.city.name} に適用</button>` : '').join('');
+        const isHeal = c.effectType === 'heal';
+        const cityBtns = CO.cities.map((cs, i) => {
+          if (cs.hp <= 0) return '';
+          if (isHeal) { const after = Math.min(cs.maxHp, cs.hp + c.value); const full = cs.hp >= cs.maxHp; return `<button style="${actBtnTall}" onclick="coopConfirmPlay(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name} に適用</span><span style="font-size:.78rem;font-weight:600">${full ? 'HP満タン（回復なし）' : `HP ${cs.hp} → <span style="color:#9ff0a8;font-weight:800">${after}</span>`}</span></button>`; }
+          return `<button style="${actBtn}" onclick="coopConfirmPlay(${i})">${terrainImg(cs.city, 18)} ${cs.city.name} に適用</button>`;
+        }).join('');
         actions = `<p style="margin:6px 0;color:#fff">どちらの都市に適用しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
       }
       return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><img class="confirm-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div>${hintHtml}${actions}</div></div>`;
@@ -7552,6 +7596,13 @@
     function coopRenderIntelPopup() {
       const tiles = (CO.intel || []).map((c, i) => `<div class="peek-card-big" style="flex-shrink:0;border-color:var(--red)"><div style="font-size:.66rem;color:var(--t2);font-weight:700;margin-bottom:2px">${i + 1}番目</div><img src="images/cards/${c.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'"><div class="pk-icon">${cardTypeIconHtml('disaster', null, 32)}</div><div class="pk-name">${c.name}</div><div class="pk-desc">${c.desc}</div></div>`).join('');
       return `<div class="confirm-overlay" onclick="coopCloseIntel()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:480px"><div style="text-align:center;font-weight:800;color:#fff;font-size:1.05rem">📋 防災協定（情報共有）</div><div style="text-align:center;color:#fff;font-size:.8rem;margin:4px 0 12px">次に来る自然災害が判明した。今のうちに備えを選ぼう</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div class="confirm-btns" style="margin-top:14px"><button class="btn-ok" onclick="coopCloseIntel()">確認した</button></div></div></div>`;
+    }
+    function coopRenderDraw() {
+      const ds = CO.drawState;
+      let ca;
+      if (!ds.revealed) ca = `<div class="gacha-card-reveal-area" onclick="coopPullDrawCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="coopPullDrawCard()">🃏 カードを引く！</button>`;
+      else { const c = ds.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="coopAcceptDrawCard()">✅ 手札に加える</button>`; }
+      return `<div class="screen active"><div class="section-title" style="margin-bottom:0">🗺️ ハザードマップ整備 <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${Math.min(ds.drawn + 1, ds.total)}／${ds.total}枚</span></div><div class="gacha-stage">${ca}</div></div>`;
     }
     function coopRenderCityHand() {
       const cards = CO.hand.map(c => coopMkCard(c, 'city')).join('');
@@ -7573,6 +7624,37 @@
       else area = `<div style="text-align:center;padding:18px;color:#fff">解決中…</div>`;
       const overlay = CO.confirm ? coopRenderConfirm() : (CO.intelPopup ? coopRenderIntelPopup() : '');
       return `<div class="screen active" style="padding:12px;max-width:560px;margin:0 auto">${coopStatusBar()}<div style="display:flex;gap:8px;margin-top:8px">${cityPanels}</div>${intel}${area}${log}<button onclick="coopQuit()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:#fff;font-size:.76rem;cursor:pointer">ロビーに戻る（中断）</button></div>${overlay}`;
+    }
+    // 自然の攻撃まとめ（対戦モードの renderTurnSummary に合わせる。2都市＋残りターン対応）
+    function coopRenderSummary() {
+      const s = CO.summary, d = CO.diff;
+      const isFinal = CO.turn >= d.maxTurns;
+      const remain = Math.max(0, d.maxTurns - CO.turn);
+      const cBad = 'display:inline-flex;align-items:center;font-size:.74rem;font-weight:600;padding:3px 9px;border-radius:11px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
+      const cOk = 'display:inline-flex;align-items:center;font-size:.74rem;font-weight:600;padding:3px 9px;border-radius:11px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
+      const remainBanner = isFinal
+        ? `<div style="text-align:center;background:rgba(63,185,80,.14);border:1px solid #3fb950;border-radius:10px;padding:12px;margin-bottom:12px"><div style="font-size:1.2rem;font-weight:900;color:#3fb950">🎉 最終ターンを耐え抜いた！</div></div>`
+        : `<div style="text-align:center;background:rgba(56,139,253,.12);border:1px solid #388bfd;border-radius:10px;padding:10px;margin-bottom:12px"><span style="font-size:.8rem;color:#fff">生存まで </span><span style="font-size:1.4rem;font-weight:900;color:#388bfd">あと ${remain} ターン</span><div style="font-size:.72rem;color:rgba(255,255,255,.7);margin-top:2px">ターン ${CO.turn} / ${d.maxTurns} 終了</div></div>`;
+      const cityFinal = (s.cityEnd || s.cityStart).map((ce, i) => {
+        const start = s.cityStart[i]; const took = Math.max(0, start.hp - ce.hp);
+        const col = ce.dead ? '#f85149' : (ce.hp / ce.maxHp > 0.3 ? '#3fb950' : '#d29922');
+        return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:8px;padding:8px;text-align:center;border:1px solid var(--bg3,#21262d)"><div style="font-weight:700;color:#fff;font-size:.82rem">${ce.name}</div><div style="font-size:1.1rem;font-weight:900;color:${col}">${ce.dead ? '壊滅' : ce.hp + '/' + ce.maxHp}</div><div style="font-size:.68rem;color:#fff;opacity:.7">このターン -${took}</div></div>`;
+      }).join('');
+      const atkCards = s.attacks.map(a => {
+        if (a.dead) return `<div class="ts-ev warn"><div class="ts-ev-title">${a.cardIcon} ${a.cardName} → ${a.cityName}</div><div class="ts-ev-detail">すでに壊滅していたため被害なし</div></div>`;
+        const totalDrop = Math.max(0, a.hpBefore - a.hpAfter);
+        const isBlock = totalDrop === 0;
+        const dmgCol = isBlock ? 'var(--green)' : 'var(--red)';
+        const baseChip = a.base != null ? `<span style="${cBad}">基礎 ${a.base}</span>` : '';
+        const lineChips = (a.lines || []).filter(l => l.d != null).map(l => `<span style="${l.d > 0 ? cBad : cOk}">${l.t.split(/[：（(]/)[0]} ${l.d > 0 ? '+' : ''}${l.d}</span>`).join('');
+        const chainChips = (a.chain || []).map(c => `<span style="${cBad}">⚡${c.label} +${c.dmg}</span>`).join('');
+        const pAfter = Math.max(0, Math.round(a.hpAfter / a.maxHp * 100));
+        const pDrop = Math.max(0, Math.min(100 - pAfter, Math.round(totalDrop / a.maxHp * 100)));
+        return `<div class="ts-ev ${isBlock ? 'heal' : 'damage'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.86rem;color:var(--t1)">${a.cardIcon} ${a.cardName} <span style="font-size:.72rem;color:#fff;opacity:.7">→ ${a.cityName}</span></div><div style="text-align:right;line-height:1"><span style="font-size:1.5rem;font-weight:900;color:${dmgCol}">${totalDrop}</span><span style="font-size:.66rem;font-weight:600;color:${dmgCol};margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:#fff;margin-bottom:3px"><span>HP</span><span>${a.hpBefore} → ${a.hpAfter}</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${pAfter}%;background:var(--green);border-radius:4px 0 0 4px"></div><div style="position:absolute;left:${pAfter}%;top:0;height:100%;width:${pDrop}%;background:rgba(248,81,73,.75)"></div></div></div><div style="display:flex;flex-wrap:wrap;gap:4px">${baseChip}${lineChips}${chainChips}</div></div>`;
+      }).join('');
+      const regenCards = (s.regens || []).map(r => `<div class="ts-ev heal"><div class="ts-ev-title">💚 ${r.cityName}：HP +${r.amount} 回復</div><div class="ts-ev-detail">HP ${r.hpBefore} → ${r.hpAfter}（ターン終了時の都市能力）</div></div>`).join('');
+      const empty = (!atkCards && !regenCards) ? '<div style="color:var(--t3);font-size:.85rem;text-align:center;padding:8px">このターンの被害はなし</div>' : '';
+      return `<div class="screen active"><div class="turn-summary-box"><div class="ts-title">🌪️ 自然の攻撃まとめ（ターン ${CO.turn}）</div>${remainBanner}<div style="display:flex;gap:8px;margin-bottom:10px">${cityFinal}</div><div class="ts-events">${atkCards}${regenCards}${empty}</div><div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="coopDismissSummary()">${isFinal ? '結果を見る' : '✅ 確認して次のターンへ'}</button></div></div></div>`;
     }
     function coopRenderOver() {
       const win = CO.result === 'win', d = CO.diff;
