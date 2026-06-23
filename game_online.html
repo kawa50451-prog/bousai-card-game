@@ -5368,7 +5368,7 @@
       <button class="lobby-btn join" onclick="lobbyState.mode='join';lobbyState.error='';render()">${_svgUsers}<strong>ルームに参加</strong><span style="font-size:.72rem;color:rgba(255,255,255,.6)">ゲスト（後攻）</span></button>
     </div>
     <button class="lobby-btn-solo" onclick="lobbyState.mode='cpu';lobbyState.error='';render()">${_svgCpu} ソロプレイ（CPU対戦）</button>
-    <button class="lobby-btn-solo" onclick="lobbyState.mode='coop';lobbyState.error='';render()"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg> 協力モード<span style="font-size:.62rem;color:rgba(255,255,255,.5);margin-left:6px;font-weight:700">ベータ版</span></button>
+    <button class="lobby-btn-solo" onclick="lobbyState.mode='coop';lobbyState.coopStep=1;lobbyState.coopNet=null;lobbyState.error='';render()"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg> 協力モード<span style="font-size:.62rem;color:rgba(255,255,255,.5);margin-left:6px;font-weight:700">ベータ版</span></button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="lobby-btn-gallery" onclick="startTutorial()">${_svgGame} 1ターン体験</button>
       <button class="lobby-btn-gallery" onclick="lobbyState.mode='gallery';lobbyState.galleryTab=null;lobbyState.galleryZoom=null;render()">${_svgBook} カードを見る</button>
@@ -5385,45 +5385,83 @@
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${_diffBtns}</div>
     <button class="sq-btn-r" style="margin-top:8px" onclick="lobbyState.mode='select';lobbyState.error='';render()">＜ ロビーに戻る</button>`;
       } else if (lobbyState.mode === 'coop') {
-        const side = lobbyState.coopSide || 'city';
-        const net = lobbyState.coopNet || 'solo';   // solo / host / join
-        // ネットモード切替（ソロ / オンライン作成 / オンライン参加）
-        const netBtn = (key, label) => `<button onclick="lobbyState.coopNet='${key}';lobbyState.error='';render()" style="flex:1;padding:8px 4px;border-radius:9px;border:1.5px solid ${net === key ? '#3fb950' : 'var(--bg3,#30363d)'};background:${net === key ? 'rgba(63,185,80,.18)' : 'transparent'};color:#fff;font-weight:700;font-size:.74rem;cursor:pointer">${label}</button>`;
-        const netToggle = `<div style="display:flex;gap:6px;margin-bottom:10px">${netBtn('solo', '🤖 ソロ')}${netBtn('host', '🌐 部屋を作る')}${netBtn('join', '🔗 参加')}</div>`;
-        const sideBtn = (key, label, desc, color) => `<button onclick="lobbyState.coopSide='${key}';render()" style="flex:1;padding:10px 8px;border-radius:10px;border:1.5px solid ${color};background:${side === key ? color : 'transparent'};color:${side === key ? '#0d1117' : '#fff'};font-weight:700;font-size:.9rem;cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:center"><span>${label}</span><span style="font-size:.62rem;font-weight:400;opacity:.85">${desc}</span></button>`;
-        const soloSideDescs = { city: '防衛側（CPU=自然）', nature: '攻撃側（CPU=都市）' };
-        const netSideDescs = { city: 'あなたが守る／相手が自然', nature: 'あなたが攻める／相手が都市' };
-        const sd = net === 'solo' ? soloSideDescs : netSideDescs;
-        const sideToggle = `<div style="display:flex;gap:8px;margin-bottom:10px">${sideBtn('city', '🛡️ 都市を守る', sd.city, '#388bfd')}${sideBtn('nature', '🌪️ 自然を操る', sd.nature, '#f85149')}</div>`;
-        // 自然の担当（ホスト＋都市側のときのみ）：CPU か 人間参加か
-        const natMode = lobbyState.coopNatureMode || 'cpu';
-        const natBtn = (key, label) => `<button onclick="lobbyState.coopNatureMode='${key}';render()" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid ${natMode === key ? '#f85149' : 'var(--bg3,#30363d)'};background:${natMode === key ? 'rgba(248,81,73,.18)' : 'transparent'};color:#fff;font-weight:700;font-size:.72rem;cursor:pointer">${label}</button>`;
-        const natToggle = (net === 'host' && side === 'city') ? `<div style="font-size:.7rem;color:var(--t2);margin:2px 0 4px;text-align:left">自然側の担当</div><div style="display:flex;gap:6px;margin-bottom:10px">${natBtn('cpu', '🤖 CPU自然')}${natBtn('human', '🧑 人間が参加')}</div>` : '';
-        const _coopBtns = ['easy', 'normal', 'hard'].map(k => { const d = COOP_DIFF[k]; const sc = d[side]; const act = net === 'host' ? `coopMPCreateRoom('${k}','${side}','${natMode}')` : `startCoopGame('${k}','${side}')`; return `<button onclick="${act}" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:10px;background:rgba(${d.rgb},.12);border:1.5px solid ${d.color};color:${d.color};font-weight:700;font-size:1rem;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(${d.rgb},.22)'" onmouseout="this.style.background='rgba(${d.rgb},.12)'">${d.label}<span style="font-size:.66rem;font-weight:400;opacity:.85;text-align:center;line-height:1.5">${sc.desc}</span></button>`; }).join('');
-        let coopBody;
-        if (net === 'join') {
+        // ── ステップ式ウィザード：1画面に1つの問いだけを出す ──
+        const step = lobbyState.coopStep || 1;
+        const net = lobbyState.coopNet;            // solo / host / join（step1で確定）
+        const nameField = `<div style="margin-bottom:12px"><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>`;
+        // 大きめの選択カード（左アイコン＋見出し＋説明）
+        const bigCard = (onclick, icon, title, desc, color) => `<button onclick="${onclick}" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:1.5px solid ${color || 'var(--bg3,#30363d)'};background:rgba(255,255,255,.02);color:#fff;cursor:pointer;text-align:left;margin-bottom:8px;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='rgba(255,255,255,.02)'"><span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:32px;height:32px">${icon}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:.98rem">${title}</span><span style="font-size:.72rem;color:var(--t2);font-weight:400;line-height:1.4">${desc}</span></span></button>`;
+        // アイコン：ホーム画面・中断ポップと同じSVGライン調（stroke=currentColor / width 2）
+        const _wSvg = (paths, col) => `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px">${paths}</svg>`;
+        const icoUser = c => _wSvg('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', c);
+        const icoUsers = c => _wSvg('<path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>', c);
+        const icoLink = c => _wSvg('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>', c);
+        const icoCpu = c => _wSvg('<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>', c);
+        const icoZap = c => _wSvg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>', c);
+        // 通常の都市・自然災害カードアイコン（ギャラリー等と同じ画像。グローなし）
+        const _cardIco = (file, sz) => `<img src="images/icons/${file}" alt="" style="width:${sz || 30}px;height:${sz || 30}px;object-fit:contain">`;
+        const icoCity = _cardIco('icon_city.webp');
+        const icoDisaster = _cardIco('icon_disaster.webp');
+        const icoCitySide = `<span style="display:inline-flex;vertical-align:middle;margin-right:5px">${_cardIco('icon_city.webp', 20)}</span>`;
+        const icoDisasterSide = `<span style="display:inline-flex;vertical-align:middle;margin-right:5px">${_cardIco('icon_disaster.webp', 20)}</span>`;
+        const backBtn = (toStep, extra) => `<button class="lobby-btn-back" style="width:auto;padding:8px 16px;margin:0 0 10px;align-self:flex-start" onclick="${extra || ''}lobbyState.coopStep=${toStep};lobbyState.error='';render()">← 前に戻る</button>`;
+        const stepHead = t => `<div style="text-align:center;color:var(--t1);font-weight:800;font-size:1.02rem;margin:2px 0 12px">${t}</div>`;
+        // 選択中の内容（パンくず）：どのモードを選んでいるか常に分かるように
+        const hn = lobbyState.coopHostNature || 'cpu';
+        const crumbParts = [];
+        if (net === 'solo') crumbParts.push('ソロ');
+        else if (net === 'host') crumbParts.push('部屋を作る');
+        else if (net === 'join') crumbParts.push('参加');
+        if (step >= 3) {
+          if (net === 'solo') crumbParts.push(lobbyState.coopSide === 'nature' ? '自然側' : '都市側');
+          else if (net === 'host') crumbParts.push(hn === 'cpu' ? '自然=CPU' : hn === 'self' ? '自分が自然' : '自然=人間が参加');
+        }
+        const crumb = crumbParts.length ? `<div style="text-align:center;color:var(--t3);font-size:.72rem;margin-bottom:10px">${crumbParts.join(' › ')}</div>` : '';
+
+        let wiz;
+        if (step === 1 || !net) {
+          // STEP 1：どう遊ぶ？
+          wiz = `${nameField}${stepHead('どう遊ぶ？')}
+    ${bigCard("lobbyState.coopNet='solo';lobbyState.coopStep=2;lobbyState.error='';render()", icoUser('#3fb950'), 'ひとりで（ソロ）', 'CPUと対戦して練習する', '#3fb950')}
+    ${bigCard("lobbyState.coopNet='host';lobbyState.coopStep=2;lobbyState.error='';render()", icoUsers('#388bfd'), '部屋を作る（ホスト）', 'みんなを招待してオンラインで', '#388bfd')}
+    ${bigCard("lobbyState.coopNet='join';lobbyState.coopStep=2;lobbyState.error='';render()", icoLink('#a371f7'), '部屋に参加', 'コード・QR・リンクで参加する', '#a371f7')}
+    <button class="sq-btn-r" style="margin-top:6px" onclick="lobbyState.mode='select';lobbyState.error='';render()">＜ ロビーに戻る</button>`;
+        } else if (step === 2 && net === 'solo') {
+          // STEP 2（ソロ）：役割
+          wiz = `${backBtn(1, "lobbyState.coopNet=null;")}${crumb}${stepHead('あなたの役割は？')}
+    ${bigCard("lobbyState.coopSide='city';lobbyState.coopStep=3;render()", icoCity, '都市を守る', 'CPUの自然災害から街を守り抜く', '#388bfd')}
+    ${bigCard("lobbyState.coopSide='nature';lobbyState.coopStep=3;render()", icoDisaster, '自然を操る', 'CPUが守る都市を攻め落とす', '#f85149')}`;
+        } else if (step === 2 && net === 'host') {
+          // STEP 2（ホスト）：自然側は誰が？（自分のサイドもここで決まる）
+          wiz = `${backBtn(1, "lobbyState.coopNet=null;")}${crumb}${stepHead('自然側は誰がやる？')}
+    ${bigCard("lobbyState.coopHostNature='cpu';lobbyState.coopStep=3;render()", icoCpu('#3fb950'), 'CPU にまかせる', 'あなたを含め全員で街を守る（都市側）', '#3fb950')}
+    ${bigCard("lobbyState.coopHostNature='humanJoin';lobbyState.coopStep=3;render()", icoUser('#388bfd'), '参加者の誰かが攻撃役', 'あなたは都市側。1人が自然側で参加', '#388bfd')}
+    ${bigCard("lobbyState.coopHostNature='self';lobbyState.coopStep=3;render()", icoZap('#f85149'), '自分が攻撃役になる', 'あなたが自然側。参加者が都市を守る', '#f85149')}`;
+        } else if (step === 2 && net === 'join') {
+          // STEP 2（参加）：コード＋サイド＋参加（1画面で完結）
           const jc = lobbyState.coopJoinInput || '';
           const jSide = lobbyState.coopJoinSide || 'city';
-          const jSideBtn = (key, label, color) => `<button onclick="lobbyState.coopJoinSide='${key}';render()" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid ${color};background:${jSide === key ? color : 'transparent'};color:${jSide === key ? '#0d1117' : '#fff'};font-weight:700;font-size:.82rem;cursor:pointer">${label}</button>`;
-          coopBody = `<div style="text-align:center;color:var(--t3);font-size:.74rem;line-height:1.6;margin-bottom:10px">ホストのルームコードを入力（QR・招待リンクからも参加できます）。1〜4人の都市側で参加できます。</div>
-    <div style="display:flex;gap:8px;margin-bottom:6px">${jSideBtn('city', '🛡️ 都市側で参加', '#388bfd')}${jSideBtn('nature', '🌪️ 自然側で参加', '#f85149')}</div>
-    <div style="font-size:.66rem;color:var(--t3);margin-bottom:8px;text-align:left">※ 自然側はホストが「人間」に設定し、まだ誰も入っていない場合のみ参加できます。</div>
+          const jSideBtn = (key, label, color) => `<button onclick="lobbyState.coopJoinSide='${key}';render()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid ${color};background:${jSide === key ? color : 'transparent'};color:${jSide === key ? '#0d1117' : '#fff'};font-weight:700;font-size:.84rem;cursor:pointer">${label}</button>`;
+          wiz = `${backBtn(1, "lobbyState.coopNet=null;")}${crumb}${stepHead('部屋に参加')}${nameField}
+    <label class="lobby-label">参加するサイド</label>
+    <div style="display:flex;gap:8px;margin-bottom:6px">${jSideBtn('city', icoCitySide + '都市側', '#388bfd')}${jSideBtn('nature', icoDisasterSide + '自然側', '#f85149')}</div>
+    <div style="font-size:.66rem;color:var(--t3);margin-bottom:10px">※ 自然側はホストが「人間」に設定し、まだ誰も入っていない場合のみ参加できます。</div>
     <div><label class="lobby-label">ルームコード（6文字）</label><input id="coop-code" class="lobby-input code-input" type="text" placeholder="AB3K7X" maxlength="6" value="${jc}" oninput="lobbyState.coopJoinInput=this.value.toUpperCase();this.value=this.value.toUpperCase()"></div>
     <button class="lobby-btn-single" onclick="coopMPJoinRoom('','${jSide}')">参加する</button>`;
         } else {
-          const head = net === 'host'
-            ? '1つのコードを全員で共有して協力プレイ。あなたのサイドと難易度を選ぶと待機ロビーが開きます。最大で都市4人＋自然1人。'
-            : (side === 'nature' ? 'あなたは自然側。CPUが守る2都市を制限ターン内に壊滅させよう。難易度を選択：' : 'あなたは都市側。CPUの自然災害から2都市を守り抜こう。難易度を選択：');
-          coopBody = `${sideToggle}${natToggle}
-    <div style="text-align:center;color:var(--t3);font-size:.74rem;line-height:1.6;margin-bottom:10px">${head}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${_coopBtns}</div>`;
+          // STEP 3：難易度（ソロ＝開始／ホスト＝部屋を作る）
+          const sideForDesc = net === 'solo' ? (lobbyState.coopSide || 'city') : (hn === 'self' ? 'nature' : 'city');
+          const hostSide = hn === 'self' ? 'nature' : 'city';
+          const natMode = hn === 'cpu' ? 'cpu' : 'human';
+          const diffBtns = ['easy', 'normal', 'hard'].map(k => { const d = COOP_DIFF[k]; const sc = d[sideForDesc]; const act = net === 'host' ? `coopMPCreateRoom('${k}','${hostSide}','${natMode}')` : `startCoopGame('${k}','${lobbyState.coopSide || 'city'}')`; return `<button onclick="${act}" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:10px;background:rgba(${d.rgb},.12);border:1.5px solid ${d.color};color:${d.color};font-weight:700;font-size:1rem;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(${d.rgb},.22)'" onmouseout="this.style.background='rgba(${d.rgb},.12)'">${d.label}<span style="font-size:.66rem;font-weight:400;opacity:.85;text-align:center;line-height:1.5">${sc.desc}</span></button>`; }).join('');
+          const note = net === 'host' ? '難易度を選ぶと待機ロビーが開きます（参加人数は入った人数で自動。最大 都市4＋自然1）。' : '難易度を選ぶとゲームが始まります。';
+          wiz = `${backBtn(2)}${crumb}${nameField}${stepHead('難易度を選ぶ')}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${diffBtns}</div>
+    <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">${note}</div>`;
         }
-        body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
-    ${err}
-    <div style="text-align:center;color:var(--t1);font-size:.86rem;margin:4px 0 8px;font-weight:700">🤝 協力モード（ベータ版）</div>
-    ${netToggle}
-    ${coopBody}
-    <button class="sq-btn-r" style="margin-top:8px" onclick="lobbyState.mode='select';lobbyState.error='';render()">＜ ロビーに戻る</button>`;
+        body = `${err}
+    <div style="text-align:center;color:var(--t1);font-size:.86rem;margin:2px 0 10px;font-weight:700">🤝 協力モード（ベータ版）</div>
+    ${wiz}`;
       } else {
         body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 鈴木" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
     <div><label class="lobby-label">ルームコード（6文字）</label><input id="lobby-code" class="lobby-input code-input" type="text" placeholder="AB3K7X" maxlength="6" value="${jv}" oninput="lobbyState.joinCodeInput=this.value.toUpperCase();this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')handleJoinClick()"></div>
@@ -7303,7 +7341,7 @@
       const savedName = localStorage.getItem('ron_lastName');
       if (savedName) lobbyState.nameInput = savedName;
       if (coopParam) {
-        lobbyState.mode = 'coop'; lobbyState.coopNet = 'join';
+        lobbyState.mode = 'coop'; lobbyState.coopNet = 'join'; lobbyState.coopStep = 2;
         lobbyState.coopJoinSide = lobbyState.coopJoinSide || 'city';
         lobbyState.coopJoinInput = coopParam.toUpperCase().slice(0, 6);
       } else if (roomParam) {
