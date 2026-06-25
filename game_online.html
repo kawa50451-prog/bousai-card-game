@@ -8352,7 +8352,28 @@
       if (city.abilityType === 'vulnerability_draw' && CO.hand.length <= 2) dmg += city.abilityValue;
       return Math.max(0, dmg);
     }
-    function coopEstimate(card, cs) { return coopPredictDamage(card, cs, null); }
+    // 連鎖（二次災害）の予測。read-only。本体攻撃が先に消費するシールド・防災庁を考慮して追加ダメージを返す。
+    // coopApplyChain と同じ判定をミラーする（連鎖は広域避難指示の特殊無効の影響を受けず、地形が合えば必ず発生する）。
+    function coopPredictChain(atkCard, cs) {
+      const chains = COOP_CHAINS[atkCard.id]; if (!chains) return [];
+      const e = cs.effects;
+      let hitsLeft = e.damageReduceHits > 0 ? e.damageReduceHits - 1 : 0; // 防災庁は本体攻撃が1回消費した残りを連鎖に適用
+      let floodShield = e.shieldFlood && !(atkCard.id === 'flood' || atkCard.id === 'tsunami');         // 本体が同種でなければ堤防は連鎖まで残る
+      let quakeShield = e.shieldQuakeFire && !(atkCard.id === 'earthquake' || atkCard.id === 'wildfire'); // 大火災は本体が耐震を消費するため延焼には残らない
+      const out = [];
+      for (const ch of chains) {
+        const m = ch.cond === 'coastal' ? cs.city.isCoastal : ch.cond === 'mountain' ? cs.city.isMountain : (!cs.city.isCoastal && !cs.city.isMountain);
+        if (!m) continue;
+        let d = ch.dmg;
+        if (ch.shield === 'shieldFlood' && floodShield) { d = Math.max(0, d - 25); floodShield = false; }
+        if (ch.shield === 'shieldQuakeFire' && quakeShield) { d = Math.max(0, d - 30); quakeShield = false; }
+        if (hitsLeft > 0) { d = Math.max(0, d - 15); hitsLeft--; }
+        out.push({ label: ch.label, icon: ch.icon, dmg: Math.max(0, d) });
+      }
+      return out;
+    }
+    // 予測総ダメージ＝本体＋連鎖（表示用。実ダメージは coopResolveAttack＋coopApplyChain が算出する）
+    function coopEstimate(card, cs) { return coopPredictDamage(card, cs, null) + coopPredictChain(card, cs).reduce((s, x) => s + x.dmg, 0); }
     function coopNatureTurn() {
       _coCancelTimer();
       CO.phase = 'nature'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
@@ -8770,14 +8791,21 @@
       if (CO.confirm.attack) {
         const c = DISASTER_CARDS.find(x => x.id === CO.confirm.attackId); if (!c) return '';
         const icon = cardTypeIconHtml('disaster', null, 22);
+        const cChain = 'display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:11px;background:rgba(255,184,77,.14);color:#ffd9a0;border:1px solid rgba(255,184,77,.34);white-space:nowrap';
         const cityBtns = CO.cities.map((cs, i) => {
           if (cs.hp <= 0) return '';
           const cap = CO.maxHits || COOP_MAX_HITS;
           const capped = CO.mp && (((CO.atkCityHits && CO.atkCityHits[i]) || 0) >= cap);
           if (capped) return `<button disabled style="${actBtnTall};opacity:.45;cursor:not-allowed"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name}</span><span style="font-size:.74rem;font-weight:600">今ターンの攻撃上限（${cap}回）に到達</span></button>`;
-          return `<button style="${actBtnTall}" onclick="coopConfirmAttack(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name} を攻撃</span><span style="font-size:.78rem;font-weight:600">予測ダメージ <span style="color:#ff9b9b;font-weight:800">${coopPredictDamage(c, cs, null)}</span>（残HP ${cs.hp}）</span></button>`;
+          const chain = coopPredictChain(c, cs).filter(x => x.dmg > 0);
+          const total = coopPredictDamage(c, cs, null) + chain.reduce((s, x) => s + x.dmg, 0);
+          const chainLine = chain.length ? `<span style="${cChain};margin-top:4px">${coopZapIco(12)}二次災害 ${chain.map(x => `${x.label} +${x.dmg}`).join('・')}</span>` : '';
+          return `<button style="${actBtnTall}" onclick="coopConfirmAttack(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name} を攻撃</span><span style="font-size:.78rem;font-weight:600">予測ダメージ <span style="color:#ff9b9b;font-weight:800">${total}</span>（残HP ${cs.hp}）</span>${chainLine}</button>`;
         }).join('');
-        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><img class="confirm-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div><div style="margin:4px 0;padding:6px 10px;background:rgba(248,81,73,.12);border-radius:6px;font-size:.8rem;color:#fff;text-align:center">${c.desc}</div><p style="margin:6px 0;color:#fff">どの都市を攻撃しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button></div></div>`;
+        const _chainCondLabel = { coastal: '海岸', mountain: '山間', inland: '内陸' };
+        const _chainDefs = COOP_CHAINS[c.id];
+        const chainInfoHtml = _chainDefs ? `<div style="margin:6px 0 8px;padding:8px 10px;background:rgba(255,184,77,.07);border:1px solid rgba(255,184,77,.26);border-radius:8px"><div style="display:flex;align-items:center;gap:5px;font-size:.74rem;font-weight:800;color:#ffb84d;margin-bottom:6px">${coopZapIco(15)}二次災害が連鎖する</div><div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center">${_chainDefs.map(ch => `<span style="${cChain}">${_chainCondLabel[ch.cond]}の都市 → ${ch.label} +${ch.dmg}</span>`).join('')}</div></div>` : '';
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><img class="confirm-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div><div style="margin:4px 0;padding:6px 10px;background:rgba(248,81,73,.12);border-radius:6px;font-size:.8rem;color:#fff;text-align:center">${c.desc}</div>${chainInfoHtml}<p style="margin:6px 0;color:#fff">どの都市を攻撃しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button></div></div>`;
       }
       const c = CO.hand.find(x => x.uid === CO.confirm.uid); if (!c) return '';
       const resp = !!CO.confirm.resp;
@@ -8840,6 +8868,11 @@
         : '<div style="text-align:center;color:#fff;font-size:.76rem;margin:8px 0">政策カードをタップして都市を守ろう</div>';
       const btnLabel = support ? '支援を終える ▶ 次へ' : 'ターン終了 ▶ 自然の攻撃へ';
       return `${head}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cards || '<span style="color:#fff">手札なし</span>'}</div><button onclick="coopRequestEndTurn()" style="width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#21262d;border:1px solid #30363d;color:#fff;font-weight:700;cursor:pointer">${btnLabel}</button>`;
+    }
+    // 連鎖（二次災害）表示用の稲妻アイコン。協力モード選択ウィザードの icoZap と同じSVGラインデザインで統一。
+    function coopZapIco(size, col) {
+      const s = size || 13;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || '#ffb84d'}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-2px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
     }
     // 人間=自然側：災害カードのタイル（画像＋残り枚数）。プールから選んで攻撃する
     function coopMkAttackTile(c) {
@@ -8935,7 +8968,7 @@
         const dmgCol = isBlock ? 'var(--green)' : 'var(--red)';
         const baseChip = a.base != null ? `<span style="${cBad}">基礎 ${a.base}</span>` : '';
         const lineChips = (a.lines || []).filter(l => l.d != null).map(l => `<span style="${l.d > 0 ? cBad : cOk}">${l.t.split(/[：（(]/)[0]} ${l.d > 0 ? '+' : ''}${l.d}</span>`).join('');
-        const chainChips = (a.chain || []).map(c => `<span style="${cBad}">⚡${c.label} +${c.dmg}</span>`).join('');
+        const chainChips = (a.chain || []).map(c => `<span style="${cBad}">${coopZapIco(12, 'var(--red)')}<span style="margin-left:2px">二次災害 ${c.label} +${c.dmg}</span></span>`).join('');
         const noteLines = (a.lines || []).filter(l => l.d == null).map(l => `<div style="font-size:.68rem;color:rgba(255,255,255,.75);margin-top:3px">• ${l.t}</div>`).join('');
         const pAfter = Math.max(0, Math.round(a.hpAfter / a.maxHp * 100));
         const pDrop = Math.max(0, Math.min(100 - pAfter, Math.round(totalDrop / a.maxHp * 100)));
