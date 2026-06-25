@@ -3216,9 +3216,9 @@
     // 1次災害カード → 続けて撃つと増幅する2次災害カードの逆引き（UIヒント用）
     const COOP_COMBO_FOLLOW = {};
     for (const _sec in COOP_COMBO) { const _t = COOP_COMBO[_sec].trigger; (COOP_COMBO_FOLLOW[_t] = COOP_COMBO_FOLLOW[_t] || []).push({ cardId: _sec, cond: COOP_COMBO[_sec].cond }); }
-    // 防災協定（協力モード・案B＝共助支援）：味方都市に1回分の汎用シールド（次の被害−COOP_PACT_SHIELD）＋次ターン予算+COOP_PACT_BUDGET
-    const COOP_PACT_SHIELD = 15; // 共助シールドの軽減量（暫定値）
-    const COOP_PACT_BUDGET = 2;  // 次ターン予算ボーナス（暫定値）
+    // 防災協定（協力モード・即時＝予算の緊急融通）：対象都市（自分/味方）の「このターンの予算」を即座に +COOP_PACT_BUDGET（今すぐ使える）。
+    // 即時カテゴリ（黄）の性質どおり使った瞬間に効果が完結する。コスト1で自分対象なら実質+1のランプ、味方の大型カードの後押しで強くなる状況依存カード。
+    const COOP_PACT_BUDGET = 2; // 即時に融通する予算（暫定値・要プレイテスト）
     // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
     const COOP_EVENT_INFO = {
       rumor:     { id: 'rumor',     icon: '📱', name: 'デマ拡散',   effectCity: 'このターンの予算 −1',                  effectNature: 'CPU都市の予算 −1（攻めの好機）',           desc: 'SNS上の偽情報が初動対応を混乱させる' },
@@ -8287,10 +8287,10 @@
         case 'negate_special': e.negateSpecial = true; break;
         case 'damage_reduce_2t': e.damageReduceHits = 2; break;
         case 'heal': cs.hp = Math.min(cs.maxHp, cs.hp + card.value); break;
-        case 'peek_all': // 防災協定（協力モード・案B＝共助支援）：汎用シールド1回分＋次ターン予算ボーナス
-          e.aidShield = true;
-          if (CO.mp) cs.nextBudgetBonus = (cs.nextBudgetBonus || 0) + COOP_PACT_BUDGET; // MPは都市ごとに予算が独立
-          else CO.nextBudgetBonus = (CO.nextBudgetBonus || 0) + COOP_PACT_BUDGET;       // ソロは共有予算
+        case 'peek_all': // 防災協定（協力モード・即時＝予算の緊急融通）：対象都市のこのターンの予算を即座に +COOP_PACT_BUDGET（今すぐ使える）
+          if (!CO.mp) CO.budget = (CO.budget || 0) + COOP_PACT_BUDGET;                  // ソロ＝共有予算
+          else if (cs.hand === CO.hand) CO.budget = (CO.budget || 0) + COOP_PACT_BUDGET; // MP・自分＝スクラッチ（coopSaveActorでスロットへ反映）
+          else cs.budget = (cs.budget || 0) + COOP_PACT_BUDGET;                          // MP・味方＝対象スロットへ直接付与
           break;
       }
     }
@@ -8307,7 +8307,7 @@
         if (c.effectType === 'draw') { CO.drawState = { remaining: c.value, drawn: 0, total: c.value, revealed: null }; CO.phase = 'draw'; _coLog(`🗺️ ${c.name}：カードを引きます`); }
       } else {
         const cs = CO.cities[i]; coopApplyPolicyToCity(c, cs);
-        if (c.effectType === 'peek_all') _coLog(`🤝 ${c.name} → ${cs.city.name}（共助支援：シールド＋次ターン予算+${COOP_PACT_BUDGET}）`);
+        if (c.effectType === 'peek_all') _coLog(`🤝 ${c.name} → ${cs.city.name}（予算+${COOP_PACT_BUDGET}を即時融通）`);
         else _coLog(`🔵 ${c.name} → ${cs.city.name}（共助）`);
       }
       CO.confirm = null; renderCoop();
@@ -8396,7 +8396,6 @@
       if (city.abilityType === 'resist_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= city.abilityValue;
       if (city.abilityType === 'second_hit_reduce' && e.disastersReceivedThisTurn >= 1) dmg -= city.abilityValue;
       if (e.damageReduceHits > 0) dmg -= 15;
-      if (e.aidShield) dmg -= COOP_PACT_SHIELD;
       if (e.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= 30;
       if (e.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= 25;
       if (resp) {
@@ -8490,7 +8489,6 @@
       if (city.abilityType === 'quake_draw' && atk.id === 'earthquake') { coopDraw(city.abilityValue); ld(`${city.name}：被災後の学習で${city.abilityValue}枚ドロー`, null); }
       e.disastersReceivedThisTurn++;
       if (e.damageReduceHits > 0) { dmg -= 15; e.damageReduceHits--; ld(`防災庁設置：全ダメージ軽減（残${e.damageReduceHits}）`, -15); }
-      if (e.aidShield) { dmg -= COOP_PACT_SHIELD; e.aidShield = false; ld('防災協定（共助シールド）発動・消費', -COOP_PACT_SHIELD); }
       if (e.shieldQuakeFire && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; e.shieldQuakeFire = false; ld('耐震補強（シールド）発動・消費', -30); }
       if (e.shieldFlood && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= 25; e.shieldFlood = false; ld('堤防建設（シールド）発動・消費', -25); }
       if (resp && resp.effectType === 'shield_quake_fire' && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; ld('耐震補強（対応）発動', -30); }
@@ -8845,7 +8843,7 @@
         case 'negate_special': return '特殊効果・テロ攻撃を無効＋ダメージ −10';
         case 'damage_reduce_2t': return '全ダメージ −15（次の2回）';
         case 'draw': return `山札から ${card.value} 枚ドロー`;
-        case 'peek_all': return `共助支援：味方都市に共助シールド（次の被害 −${COOP_PACT_SHIELD}）＋次ターン予算 +${COOP_PACT_BUDGET}`;
+        case 'peek_all': return `緊急融通：選んだ都市のこのターンの予算を +${COOP_PACT_BUDGET}（今すぐ使える）`;
         default: return '';
       }
     }
@@ -8902,12 +8900,14 @@
         actions = `<p style="margin:6px 0;color:#fff">この政策を使用しますか？</p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlay(-1)">使用する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
       } else {
         const isHeal = c.effectType === 'heal';
+        const isBudget = c.effectType === 'peek_all'; // 防災協定（即時＝予算の緊急融通）
         const cityBtns = CO.cities.map((cs, i) => {
           if (cs.hp <= 0) return '';
           if (isHeal) { const after = Math.min(cs.maxHp, cs.hp + c.value); const full = cs.hp >= cs.maxHp; return `<button style="${actBtnTall}" onclick="coopConfirmPlay(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name} に適用</span><span style="font-size:.78rem;font-weight:600">${full ? 'HP満タン（回復なし）' : `HP ${cs.hp} → <span style="color:#9ff0a8;font-weight:800">${after}</span>`}</span></button>`; }
+          if (isBudget) { const cur = CO.mp ? ((cs.budget || 0) - (cs.budgetUsed || 0)) : null; return `<button style="${actBtnTall}" onclick="coopConfirmPlay(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name} に融通</span><span style="font-size:.78rem;font-weight:600">このターンの予算 <span style="color:#9ff0a8;font-weight:800">+${COOP_PACT_BUDGET}</span>（今すぐ使える）${CO.mp ? `<span style="opacity:.7"> ／ 残${cur}→${cur + COOP_PACT_BUDGET}</span>` : ''}</span></button>`; }
           return `<button style="${actBtn}" onclick="coopConfirmPlay(${i})">${terrainImg(cs.city, 18)} ${cs.city.name} に適用</button>`;
         }).join('');
-        actions = `<p style="margin:6px 0;color:#fff">どちらの都市に適用しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
+        actions = `<p style="margin:6px 0;color:#fff">${isBudget ? 'どの都市に予算を融通しますか？' : 'どちらの都市に適用しますか？'}</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
       }
       return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><img class="confirm-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div>${hintHtml}${actions}</div></div>`;
     }
