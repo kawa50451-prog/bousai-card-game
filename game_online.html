@@ -3169,6 +3169,8 @@
     // ══ 協力モード（ソロ：人間=都市側 / CPU=自然側）状態。対戦エンジン(G)とは完全独立 ══
     let CO = null;
     let _coTimer = null;
+    let _coAutoEndTimer = null; // 都市プレイヤーの予算切れ自動ターン終了用
+    let _coAutoEndedTurn = -1;  // 自動終了を送った最後のターン（ゲストの状態エコー待ち中の二重送信・ログ重複を防ぐ）
     // 難易度は「人間にとっての難しさ」で統一。都市側／自然側で立場が逆なので side ごとに設定を分ける。
     const _COOP_EVENTS_ALL = [{ t: 3, id: 'rumor' }, { t: 6, id: 'pollution' }, { t: 9, id: 'terror' }];
     // オンライン多人数：1ターンの即死を防ぐ攻撃制限（同種は1ターン1回／1都市への攻撃は最大この回数）
@@ -3197,11 +3199,26 @@
       },
     };
     // 協力モード専用：災害連鎖テーブル（共有データ DISASTER_CARDS は変更しない）
+    // 連鎖（二次災害）の自動ベース値。ハイブリッド方式：自動連鎖は控えめなベース（教育の最低保証）にとどめ、
+    // プレイヤーが対応する実カード（津波・洪水・土砂崩れ）を同一ターン・同一都市に続けて撃つと COOP_COMBO_BONUS で増幅する。
     const COOP_CHAINS = {
-      earthquake: [{ cond: 'coastal', dmg: 15, label: '二次津波', icon: '🌊', shield: 'shieldFlood' }, { cond: 'mountain', dmg: 10, label: '土砂崩れ', icon: '⛰️', shield: null }],
-      typhoon:    [{ cond: 'coastal', dmg: 12, label: '随伴洪水', icon: '🌧️', shield: 'shieldFlood' }],
-      wildfire:   [{ cond: 'inland',  dmg: 10, label: '延焼',     icon: '🔥', shield: 'shieldQuakeFire' }],
+      earthquake: [{ cond: 'coastal', dmg: 5, label: '二次津波', icon: '🌊', shield: 'shieldFlood' }, { cond: 'mountain', dmg: 5, label: '土砂崩れ', icon: '⛰️', shield: null }],
+      typhoon:    [{ cond: 'coastal', dmg: 5, label: '随伴洪水', icon: '🌧️', shield: 'shieldFlood' }],
+      wildfire:   [{ cond: 'inland',  dmg: 10, label: '延焼',     icon: '🔥', shield: 'shieldQuakeFire' }], // 延焼は対応する実カードが無いためベースのみ（増幅なし）
     };
+    // 連鎖コンボ：2次災害の実カード（key）を、同一ターンに同じ都市へ撃った1次災害（trigger）に重ねると増幅。地形ゲートつき。
+    const COOP_COMBO_BONUS = 10; // 増幅ボーナス（暫定値・要プレイテスト調整）
+    const COOP_COMBO = {
+      tsunami:   { trigger: 'earthquake', cond: 'coastal'  }, // 地震 → 津波（海岸）
+      landslide: { trigger: 'earthquake', cond: 'mountain' }, // 地震 → 土砂崩れ（山間）
+      flood:     { trigger: 'typhoon',    cond: 'coastal'  }, // 台風 → 洪水（海岸）
+    };
+    // 1次災害カード → 続けて撃つと増幅する2次災害カードの逆引き（UIヒント用）
+    const COOP_COMBO_FOLLOW = {};
+    for (const _sec in COOP_COMBO) { const _t = COOP_COMBO[_sec].trigger; (COOP_COMBO_FOLLOW[_t] = COOP_COMBO_FOLLOW[_t] || []).push({ cardId: _sec, cond: COOP_COMBO[_sec].cond }); }
+    // 防災協定（協力モード・案B＝共助支援）：味方都市に1回分の汎用シールド（次の被害−COOP_PACT_SHIELD）＋次ターン予算+COOP_PACT_BUDGET
+    const COOP_PACT_SHIELD = 15; // 共助シールドの軽減量（暫定値）
+    const COOP_PACT_BUDGET = 2;  // 次ターン予算ボーナス（暫定値）
     // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
     const COOP_EVENT_INFO = {
       rumor:     { id: 'rumor',     icon: '📱', name: 'デマ拡散',   effectCity: 'このターンの予算 −1',                  effectNature: 'CPU都市の予算 −1（攻めの好機）',           desc: 'SNS上の偽情報が初動対応を混乱させる' },
@@ -7411,6 +7428,15 @@
     function coopBuildPolicyDeck() { const d = []; for (const c of POLICY_CARDS) for (let i = 0; i < 3; i++) d.push({ ...c, uid: 'cp_' + c.id + '_' + i }); return shuffle(d); }
     // compoundCount を渡すと複合災害だけ枚数を変えられる（MPで人数別に削減。未指定＝従来の各3枚でソロ不変）
     function coopBuildNatureDeck(compoundCount) { const d = []; for (const c of DISASTER_CARDS) { const n = (c.id === 'compound' && compoundCount != null) ? compoundCount : 3; for (let i = 0; i < n; i++) d.push({ ...c, uid: 'cn_' + c.id + '_' + i }); } return shuffle(d); }
+    // 人間=自然側プールの1種あたり枚数（MP）。CPU自然はデッキ再シャッフルで無限供給だが、人間自然は naturePool が有限で
+    // 都市が増えると弾切れする（例：3都市は4枚/ターン×10＝40発に対し従来21枚で約5ターンで枯渇）。
+    // ゲーム全体の攻撃回数（coopMPAttackCount×maxTurns）を非複合6種でまかなえる枚数にスケールする。
+    // 同種は1ターン1回ゆえ1種が必要になる最大回数は maxTurns なので、それを上限にする（無駄に持たせない）。
+    function coopNaturePoolPer(n, draw, maxTurns) {
+      if (n <= 2) return 3; // 2都市は従来どおり（攻撃2枚×10ターン=20 ≦ 非複合6種×3＋複合）
+      const totalAttacks = (draw + (n - 1)) * maxTurns; // = coopMPAttackCount × ターン数
+      return Math.max(3, Math.min(maxTurns, Math.ceil(totalAttacks / 6) + 1));
+    }
     function coopShieldBadges(e) { const b = []; if (e.shieldQuakeFire) b.push('🏗️'); if (e.shieldFlood) b.push('🌊'); if (e.negateSpecial) b.push('📢'); if (e.damageReduceHits > 0) b.push('🏛️' + e.damageReduceHits); return b.join(' '); }
     function coopTerrainMatch(card, city) { return (card.specialType === 'coastal_bonus' && city.isCoastal) || (card.specialType === 'mountain_bonus' && city.isMountain) || (card.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain); }
 
@@ -7713,7 +7739,7 @@
         natureId: naturePlayer ? naturePlayer.id : null,
         natureName: naturePlayer ? naturePlayer.name : (opts.natureIsCpu ? 'CPU自然' : '自然'),
         cities,
-        naturePool: Object.fromEntries(DISASTER_CARDS.map(c => [c.id, c.id === 'compound' ? compoundCount : 3])), attacksLeft: 0,
+        naturePool: Object.fromEntries(DISASTER_CARDS.map(c => [c.id, c.id === 'compound' ? compoundCount : coopNaturePoolPer(cityPlayers.length, d.draw, d.maxTurns)])), attacksLeft: 0,
         natureDeck: coopBuildNatureDeck(compoundCount), natureDiscard: [],
         incoming: [], responseBlocked: false, blockReason: '',
         // CO スクラッチ（実体は各スロット。描画・既存エンジンが参照）
@@ -7752,6 +7778,7 @@
 
     // 都市ターン開始（MP）：全スロットの予算・ドロー・各種フラグをリセット
     function coopStartCityTurnMP(initial) {
+      if (_coAutoEndTimer) { clearTimeout(_coAutoEndTimer); _coAutoEndTimer = null; } // 前ターンの自動終了タイマーを破棄
       CO.phase = 'city'; CO.confirm = null; CO.intel = null; CO.intelPopup = false; CO.eventPopup = null;
       CO.cities.forEach(cs => { cs.effects.disastersReceivedThisTurn = 0; cs.ready = false; cs.ack = false; cs.resp = undefined; });
       coopApplyBudgetMP();
@@ -7838,7 +7865,7 @@
           if (respCard) { CO.hand.splice(CO.hand.indexOf(respCard), 1); CO.policyDiscard.push(respCard); }
           respConsumed[atk.idx] = true;
         }
-        const r = coopResolveAttack(atk.card, cs, respCard);
+        const r = coopResolveAttack(atk.card, cs, respCard, coopComboBonus(atk.card, atk.idx));
         _coLog(`💥 ${atk.card.name} → ${cs.city.name}：${r.dmg}ダメージ（残${Math.max(0, cs.hp)}）`);
         r.lines.forEach(l => _coLog(`　↳ ${l.t}${l.d != null ? `（${l.d > 0 ? '+' : ''}${l.d}）` : ''}`));
         const chain = coopApplyChain(atk.card, cs);
@@ -7890,12 +7917,12 @@
           case 'confirmPlay': {
             if (CO.phase !== 'city') break;
             const slot = slotOf(pid); if (!slot || slot.ready) break;
-            // 壊滅都市（後方支援）：自己完結カード（ドロー・防災協定）と自己対象は不可。生存する別都市への回復・シールドのみ
+            // 壊滅都市（後方支援）：自己完結カード（ドロー）と自己対象は不可。生存する別都市への回復・シールド・共助支援（防災協定）のみ
             if (slot.hp <= 0) {
               const card = slot.hand.find(x => x.uid === p.uid);
               const selfIdx = CO.cities.indexOf(slot);
               const tgt = CO.cities[p.i];
-              const SUPPORT_OK = ['heal', 'shield_quake_fire', 'shield_flood', 'negate_special', 'damage_reduce_2t'];
+              const SUPPORT_OK = ['heal', 'shield_quake_fire', 'shield_flood', 'negate_special', 'damage_reduce_2t', 'peek_all'];
               if (!card || p.i < 0 || p.i === selfIdx || !tgt || tgt.hp <= 0 || !SUPPORT_OK.includes(card.effectType)) break;
             }
             coopLoadActor(slot); CO.confirm = { uid: p.uid }; coopConfirmPlay(p.i);
@@ -8260,6 +8287,11 @@
         case 'negate_special': e.negateSpecial = true; break;
         case 'damage_reduce_2t': e.damageReduceHits = 2; break;
         case 'heal': cs.hp = Math.min(cs.maxHp, cs.hp + card.value); break;
+        case 'peek_all': // 防災協定（協力モード・案B＝共助支援）：汎用シールド1回分＋次ターン予算ボーナス
+          e.aidShield = true;
+          if (CO.mp) cs.nextBudgetBonus = (cs.nextBudgetBonus || 0) + COOP_PACT_BUDGET; // MPは都市ごとに予算が独立
+          else CO.nextBudgetBonus = (CO.nextBudgetBonus || 0) + COOP_PACT_BUDGET;       // ソロは共有予算
+          break;
       }
     }
     // i < 0 は対象都市なし（ドロー・情報共有）
@@ -8273,13 +8305,35 @@
       CO.budgetUsed += c.cost; CO.hand.splice(CO.hand.indexOf(c), 1); CO.policyDiscard.push(c);
       if (i < 0) {
         if (c.effectType === 'draw') { CO.drawState = { remaining: c.value, drawn: 0, total: c.value, revealed: null }; CO.phase = 'draw'; _coLog(`🗺️ ${c.name}：カードを引きます`); }
-        else if (c.effectType === 'peek_all') { coopEnsureNature(); CO.intel = CO.natureDeck.slice(0, 3); CO.intelPopup = true; _coLog('📋 防災協定（情報共有）：次に来る災害を確認した'); }
       } else {
-        const cs = CO.cities[i]; coopApplyPolicyToCity(c, cs); _coLog(`🔵 ${c.name} → ${cs.city.name}（共助）`);
+        const cs = CO.cities[i]; coopApplyPolicyToCity(c, cs);
+        if (c.effectType === 'peek_all') _coLog(`🤝 ${c.name} → ${cs.city.name}（共助支援：シールド＋次ターン予算+${COOP_PACT_BUDGET}）`);
+        else _coLog(`🔵 ${c.name} → ${cs.city.name}（共助）`);
       }
       CO.confirm = null; renderCoop();
     }
     function coopEndCityTurn() { if (CO.mp && !CO._applying) return coopMPCommit('endTurn', {}); if (CO.online && !CO.host) return coopClientCommit('endTurn', {}); CO.confirm = null; coopAfterCityTurn(); }
+    // 予算不足などで使える政策カードが無くなった都市プレイヤーは、ボタンを押さずに自動でターン終了する（MP）。
+    // 描画のたびに renderCoop から呼ぶ。少し待ってから判定して「カードが無い」状態を一瞬見せてから終了する。
+    function coopScheduleAutoEndCity() {
+      if (_coAutoEndTimer) return; // 多重スケジュール防止
+      _coAutoEndTimer = setTimeout(() => { _coAutoEndTimer = null; coopMaybeAutoEndCity(); }, 650);
+    }
+    function coopMaybeAutoEndCity() {
+      if (!CO || !CO.mp || CO._applying) return;
+      if (CO.phase !== 'city') return;          // ドロー中・対応中などは対象外
+      if (CO.eventPopup || CO.confirm) return;  // ポップ表示中は待つ
+      if (!coopMyPhaseMP()) return;             // 自分の都市手番でない／既に終了済み
+      const slot = coopMySlot(); if (!slot) return;
+      const left = (slot.budget || 0) - (slot.budgetUsed || 0);
+      const support = slot.hp <= 0; // 後方支援役は自己完結カード（ドロー）を支援に使えない
+      const hasPlayable = (slot.hand || []).some(c => c.cost <= left && !(support && c.effectType === 'draw'));
+      if (hasPlayable) return; // まだ使えるカードがある＝自動終了しない（手控えは本人の判断）
+      if (_coAutoEndedTurn === CO.turn) return; // このターンは既に自動終了を送信済み（エコー待ち）
+      _coAutoEndedTurn = CO.turn;
+      _coLog('🪙 使えるカードがないため自動でターンを終了しました');
+      coopEndCityTurn();
+    }
     // ── ハザードマップ整備：カードを引く画面（対戦モードの turnDraw に合わせ、引いたカードを1枚ずつ公開） ──
     function coopPullDrawCard() {
       if (CO.online && !CO.host) return coopClientCommit('pullDraw', {});
@@ -8342,6 +8396,7 @@
       if (city.abilityType === 'resist_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= city.abilityValue;
       if (city.abilityType === 'second_hit_reduce' && e.disastersReceivedThisTurn >= 1) dmg -= city.abilityValue;
       if (e.damageReduceHits > 0) dmg -= 15;
+      if (e.aidShield) dmg -= COOP_PACT_SHIELD;
       if (e.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= 30;
       if (e.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= 25;
       if (resp) {
@@ -8372,8 +8427,21 @@
       }
       return out;
     }
-    // 予測総ダメージ＝本体＋連鎖（表示用。実ダメージは coopResolveAttack＋coopApplyChain が算出する）
-    function coopEstimate(card, cs) { return coopPredictDamage(card, cs, null) + coopPredictChain(card, cs).reduce((s, x) => s + x.dmg, 0); }
+    // 連鎖コンボ増幅の判定（read-only）。2次災害の実カードを、同一ターンに同じ都市へ撃った1次災害（trigger）に重ねた時のボーナス。
+    // 地形が合い、かつ現在の予約攻撃（CO.incoming）に trigger 災害が同都市へ入っている場合のみ COOP_COMBO_BONUS を返す。
+    function coopComboBonus(atkCard, cityIdx) {
+      const cmb = COOP_COMBO[atkCard.id]; if (!cmb) return 0;
+      const cs = CO.cities && CO.cities[cityIdx]; if (!cs) return 0;
+      const terrOk = cmb.cond === 'coastal' ? cs.city.isCoastal : cmb.cond === 'mountain' ? cs.city.isMountain : (!cs.city.isCoastal && !cs.city.isMountain);
+      if (!terrOk) return 0;
+      const hasTrigger = (CO.incoming || []).some(a => a.card.id === cmb.trigger && a.idx === cityIdx);
+      return hasTrigger ? COOP_COMBO_BONUS : 0;
+    }
+    // 予測総ダメージ＝本体＋連鎖＋コンボ増幅（表示用。実ダメージは coopResolveAttack＋coopApplyChain が算出する）
+    function coopEstimate(card, cs) {
+      const idx = CO.cities ? CO.cities.indexOf(cs) : -1;
+      return coopPredictDamage(card, cs, null) + coopPredictChain(card, cs).reduce((s, x) => s + x.dmg, 0) + (idx >= 0 ? coopComboBonus(card, idx) : 0);
+    }
     function coopNatureTurn() {
       _coCancelTimer();
       CO.phase = 'nature'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
@@ -8393,7 +8461,7 @@
     }
 
     // ── ダメージ解決（協力版：対戦の式を踏襲しつつ CO 状態で計算） ──
-    function coopResolveAttack(atk, cs, resp) {
+    function coopResolveAttack(atk, cs, resp, comboBonus) {
       const city = cs.city, e = cs.effects; const fromHp = cs.hp;
       let dmg = atk.baseDamage; const lines = [];
       const ld = (t, d) => lines.push({ t, d: d == null ? null : d });
@@ -8409,6 +8477,8 @@
           else ld('台風：手札なし（効果なし）', null);
         }
       }
+      // 連鎖コンボ増幅：同一ターンに trigger 災害を撃った都市へ2次災害の実カードを重ねた時の追い打ち。広域避難（特殊無効）の影響は受けない。
+      if (comboBonus > 0) { dmg += comboBonus; ld('連鎖増幅（前の災害への追い打ち）', +comboBonus); }
       if (city.abilityType === 'resist_compound' && atk.id === 'compound') { dmg -= city.abilityValue; ld(`${city.name}：複合災害軽減`, -city.abilityValue); }
       if (city.abilityType === 'resist_quake_fire' && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= city.abilityValue; ld(`${city.name}：地震・大火災軽減`, -city.abilityValue); }
       if (city.abilityType === 'resist_landslide' && atk.id === 'landslide') { dmg -= city.abilityValue; ld(`${city.name}：土砂崩れ軽減`, -city.abilityValue); }
@@ -8420,6 +8490,7 @@
       if (city.abilityType === 'quake_draw' && atk.id === 'earthquake') { coopDraw(city.abilityValue); ld(`${city.name}：被災後の学習で${city.abilityValue}枚ドロー`, null); }
       e.disastersReceivedThisTurn++;
       if (e.damageReduceHits > 0) { dmg -= 15; e.damageReduceHits--; ld(`防災庁設置：全ダメージ軽減（残${e.damageReduceHits}）`, -15); }
+      if (e.aidShield) { dmg -= COOP_PACT_SHIELD; e.aidShield = false; ld('防災協定（共助シールド）発動・消費', -COOP_PACT_SHIELD); }
       if (e.shieldQuakeFire && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; e.shieldQuakeFire = false; ld('耐震補強（シールド）発動・消費', -30); }
       if (e.shieldFlood && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= 25; e.shieldFlood = false; ld('堤防建設（シールド）発動・消費', -25); }
       if (resp && resp.effectType === 'shield_quake_fire' && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; ld('耐震補強（対応）発動', -30); }
@@ -8453,7 +8524,7 @@
       CO.incoming.forEach((atk, ai) => {
         const cs = CO.cities[atk.idx];
         if (cs.hp <= 0) { summary.attacks.push({ cardIcon: atk.card.icon, cardName: atk.card.name, cityName: cs.city.name, dead: true }); _coLog(`　${atk.card.name}：${cs.city.name}は既に壊滅`); return; }
-        const r = coopResolveAttack(atk.card, cs, (ai === respIdx) ? resp : null);
+        const r = coopResolveAttack(atk.card, cs, (ai === respIdx) ? resp : null, coopComboBonus(atk.card, atk.idx));
         _coLog(`💥 ${atk.card.name} → ${cs.city.name}：${r.dmg}ダメージ（残${Math.max(0, cs.hp)}）`);
         r.lines.forEach(l => _coLog(`　↳ ${l.t}${l.d != null ? `（${l.d > 0 ? '+' : ''}${l.d}）` : ''}`));
         const chain = coopApplyChain(atk.card, cs);
@@ -8649,6 +8720,7 @@
       if (CO.phase === 'over' && typeof initGoObserver === 'function') setTimeout(initGoObserver, 60);
       if (CO.phase === 'lobby' && CO.host) setTimeout(coopGenLobbyQR, 30);
       if (CO.online && CO.host && !CO._applying) coopPushState(); // ホストは状態変化のたびに配信（dedupで重複writeは抑止／_applying中はインテント処理側で一括push）
+      if (CO.mp && CO.phase === 'city' && !CO._applying) coopScheduleAutoEndCity(); // 予算切れの都市プレイヤーは自動でターン終了
     }
     // オンライン待機画面（ホスト＝コード表示でゲスト参加待ち／ゲスト＝接続中）
     function coopRenderWaitOnline() {
@@ -8758,7 +8830,7 @@
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
     function coopMkCard(card, mode, support) {
       const left = CO.budget - CO.budgetUsed;
-      const noTarget = support && (card.effectType === 'draw' || card.effectType === 'peek_all'); // 後方支援は自分にしか効かないカードを使えない
+      const noTarget = support && card.effectType === 'draw'; // 後方支援は自己完結カード（ドロー）だけ使えない。防災協定は味方支援なので可
       const dis = (mode === 'city') && (card.cost > left || noTarget);
       const click = dis ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopSelectResponse('${card.uid}')`);
       const costLabel = mode === 'resp' ? '無料' : card.cost;
@@ -8773,7 +8845,7 @@
         case 'negate_special': return '特殊効果・テロ攻撃を無効＋ダメージ −10';
         case 'damage_reduce_2t': return '全ダメージ −15（次の2回）';
         case 'draw': return `山札から ${card.value} 枚ドロー`;
-        case 'peek_all': return '次に来る災害を3枚確認（情報共有）';
+        case 'peek_all': return `共助支援：味方都市に共助シールド（次の被害 −${COOP_PACT_SHIELD}）＋次ターン予算 +${COOP_PACT_BUDGET}`;
         default: return '';
       }
     }
@@ -8798,13 +8870,21 @@
           const capped = CO.mp && (((CO.atkCityHits && CO.atkCityHits[i]) || 0) >= cap);
           if (capped) return `<button disabled style="${actBtnTall};opacity:.45;cursor:not-allowed"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name}</span><span style="font-size:.74rem;font-weight:600">今ターンの攻撃上限（${cap}回）に到達</span></button>`;
           const chain = coopPredictChain(c, cs).filter(x => x.dmg > 0);
-          const total = coopPredictDamage(c, cs, null) + chain.reduce((s, x) => s + x.dmg, 0);
+          const combo = coopComboBonus(c, i);
+          const total = coopPredictDamage(c, cs, null) + chain.reduce((s, x) => s + x.dmg, 0) + combo;
           const chainLine = chain.length ? `<span style="${cChain};margin-top:4px">${coopZapIco(12)}二次災害 ${chain.map(x => `${x.label} +${x.dmg}`).join('・')}</span>` : '';
-          return `<button style="${actBtnTall}" onclick="coopConfirmAttack(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name} を攻撃</span><span style="font-size:.78rem;font-weight:600">予測ダメージ <span style="color:#ff9b9b;font-weight:800">${total}</span>（残HP ${cs.hp}）</span>${chainLine}</button>`;
+          const comboLine = combo > 0 ? `<span style="${cChain};margin-top:4px;background:rgba(248,81,73,.16);color:#ff9b9b;border-color:rgba(248,81,73,.4)">${coopZapIco(12, 'var(--red)')}連鎖増幅 +${combo}</span>` : '';
+          return `<button style="${actBtnTall}" onclick="coopConfirmAttack(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name} を攻撃</span><span style="font-size:.78rem;font-weight:600">予測ダメージ <span style="color:#ff9b9b;font-weight:800">${total}</span>（残HP ${cs.hp}）</span>${chainLine}${comboLine}</button>`;
         }).join('');
         const _chainCondLabel = { coastal: '海岸', mountain: '山間', inland: '内陸' };
         const _chainDefs = COOP_CHAINS[c.id];
-        const chainInfoHtml = _chainDefs ? `<div style="margin:6px 0 8px;padding:8px 10px;background:rgba(255,184,77,.07);border:1px solid rgba(255,184,77,.26);border-radius:8px"><div style="display:flex;align-items:center;gap:5px;font-size:.74rem;font-weight:800;color:#ffb84d;margin-bottom:6px">${coopZapIco(15)}二次災害が連鎖する</div><div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center">${_chainDefs.map(ch => `<span style="${cChain}">${_chainCondLabel[ch.cond]}の都市 → ${ch.label} +${ch.dmg}</span>`).join('')}</div></div>` : '';
+        const _follow = COOP_COMBO_FOLLOW[c.id];   // この災害は trigger（続けて撃つと増幅できる）
+        const _asSecondary = COOP_COMBO[c.id];     // この災害は2次（trigger済みの都市で増幅される）
+        const _nm = id => { const d = DISASTER_CARDS.find(x => x.id === id); return d ? d.name : id; };
+        let _comboHint = '';
+        if (_follow) _comboHint = `<div style="font-size:.7rem;color:#ffd9a0;margin-top:6px;line-height:1.45">${coopZapIco(12)} 同じ都市に ${_follow.map(f => `${_chainCondLabel[f.cond]}で${_nm(f.cardId)}`).join('・')} を続けて撃つと <b>連鎖増幅 +${COOP_COMBO_BONUS}</b></div>`;
+        else if (_asSecondary) _comboHint = `<div style="font-size:.7rem;color:#ffd9a0;margin-top:6px;line-height:1.45">${coopZapIco(12)} ${_chainCondLabel[_asSecondary.cond]}の都市で <b>${_nm(_asSecondary.trigger)}</b> に重ねて撃つと <b>連鎖増幅 +${COOP_COMBO_BONUS}</b></div>`;
+        const chainInfoHtml = (_chainDefs || _comboHint) ? `<div style="margin:6px 0 8px;padding:8px 10px;background:rgba(255,184,77,.07);border:1px solid rgba(255,184,77,.26);border-radius:8px"><div style="display:flex;align-items:center;gap:5px;font-size:.74rem;font-weight:800;color:#ffb84d">${coopZapIco(15)}二次災害（連鎖）</div>${_chainDefs ? `<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:6px">${_chainDefs.map(ch => `<span style="${cChain}">${_chainCondLabel[ch.cond]}の都市 → ${ch.label} +${ch.dmg}</span>`).join('')}</div>` : ''}${_comboHint}</div>` : '';
         return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><img class="confirm-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div><div style="margin:4px 0;padding:6px 10px;background:rgba(248,81,73,.12);border-radius:6px;font-size:.8rem;color:#fff;text-align:center">${c.desc}</div>${chainInfoHtml}<p style="margin:6px 0;color:#fff">どの都市を攻撃しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button></div></div>`;
       }
       const c = CO.hand.find(x => x.uid === CO.confirm.uid); if (!c) return '';
@@ -8818,7 +8898,7 @@
         const list = CO.mp ? CO.incoming.map((a, ai) => ({ a, ai })).filter(x => x.a.idx === myIdx) : CO.incoming.map((a, ai) => ({ a, ai }));
         const btns = list.map(({ a, ai }) => { const cs = CO.cities[a.idx]; const before = a.est; const after = coopPredictDamage(a.card, cs, c); const eff = after < before; return `<button style="${actBtnTall}" onclick="coopConfirmRespApply(${ai})"><span style="display:flex;align-items:center;gap:5px">${a.card.icon} ${a.card.name} → ${cs.city.name}</span><span style="font-size:.78rem;font-weight:600">予測ダメージ ${before} → <span style="color:${eff ? '#9ff0a8' : '#fff'};font-weight:800">${after}</span></span></button>`; }).join('');
         actions = `<p style="margin:6px 0;color:#fff">${CO.mp ? '自分の都市への攻撃に対応します（対応は1回）' : 'どの攻撃に対応しますか？（対応は1回）'}</p>${btns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
-      } else if (c.effectType === 'draw' || c.effectType === 'peek_all') {
+      } else if (c.effectType === 'draw') {
         actions = `<p style="margin:6px 0;color:#fff">この政策を使用しますか？</p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlay(-1)">使用する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
       } else {
         const isHeal = c.effectType === 'heal';
@@ -8910,13 +8990,22 @@
     // オンラインで自分の手番でないときの待機表示
     function coopWaitingArea() {
       if (CO.mp) {
+        // まだ操作が終わっていない都市プレイヤーを抽出（誰を待っているか可視化）
+        let pending = [];
+        if (CO.phase === 'city' || CO.phase === 'draw') pending = CO.cities.filter(cs => !cs.ready);
+        else if (CO.phase === 'summary') pending = CO.cities.filter(cs => cs.hp > 0 && !cs.ack);
+        else if (CO.phase === 'coopResponse') pending = CO.cities.filter(cs => cs.resp === null);
+        const names = pending.map(cs => cs.ownerName || cs.city.name);
         const t = (CO.phase === 'resolving') ? '災害を解決中…'
           : (CO.phase === 'coopResponse') ? '他のプレイヤーが対応を選んでいます…'
           : (CO.phase === 'natureHuman') ? '自然側が攻撃を選んでいます…'
           : (CO.phase === 'summary') ? '他のプレイヤーの確認を待っています…'
           : (CO.phase === 'city' || CO.phase === 'draw') ? '他の都市プレイヤーが行動中…'
           : '他のプレイヤーが行動中…';
-        return `<div style="text-align:center;padding:30px 18px;color:#fff"><div style="font-size:2rem;margin-bottom:8px">⏳</div><div style="font-size:.92rem;font-weight:700">${t}</div><div style="font-size:.74rem;color:rgba(255,255,255,.6);margin-top:6px">全員の操作が終わると自動で進みます</div></div>`;
+        const sub = names.length
+          ? `<div style="font-size:.78rem;color:#fff;margin-top:8px;line-height:1.5"><span style="color:rgba(255,255,255,.6)">操作待ち（残り${names.length}人）</span><br>${names.map(nm => `<span style="display:inline-block;background:rgba(56,139,253,.18);border:1px solid #388bfd;border-radius:10px;padding:2px 10px;margin:3px 3px 0;font-weight:700">${nm}</span>`).join('')}</div>`
+          : `<div style="font-size:.74rem;color:rgba(255,255,255,.6);margin-top:6px">全員の操作が終わると自動で進みます</div>`;
+        return `<div style="text-align:center;padding:30px 18px;color:#fff"><div style="font-size:2rem;margin-bottom:8px">⏳</div><div style="font-size:.92rem;font-weight:700">${t}</div>${sub}</div>`;
       }
       const turnSide = (CO.phase === 'natureHuman') ? '自然側' : (CO.phase === 'city' || CO.phase === 'draw' || CO.phase === 'coopResponse') ? '都市側' : '';
       const txt = (CO.phase === 'resolving') ? '災害を解決中…'
