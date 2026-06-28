@@ -2047,6 +2047,8 @@
     .hint-close { background:none; border:none; color:var(--t3); font-size:1.2rem; cursor:pointer; padding:0 4px; line-height:1 }
     .hint-section { font-size:.83rem; color:var(--t2); line-height:1.8 }
     .hint-section strong { color:var(--t1) }
+    .coop-tip-row { display:flex; align-items:center; gap:10px; color:var(--t1); font-size:.86rem; line-height:1.6 }
+    .coop-tip-num { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; flex-shrink:0; border-radius:50%; background:rgba(56,139,253,.16); border:1px solid rgba(56,139,253,.5); color:var(--blue); font-weight:700; font-size:.82rem; font-family:'Roboto Condensed',sans-serif }
     .hint-divider { border:none; border-top:1px solid var(--bg3); margin:2px 0 }
     .hint-tag { display:inline-block; padding:1px 7px; border-radius:5px; font-size:.72rem; font-weight:700; margin-right:3px }
     .hint-tag.green { background:rgba(63,185,80,.18); color:var(--green); border:1px solid rgba(63,185,80,.25) }
@@ -3172,7 +3174,7 @@
     let _coAutoEndTimer = null; // 都市プレイヤーの予算切れ自動ターン終了用
     let _coAutoEndedTurn = -1;  // 自動終了を送った最後のターン（ゲストの状態エコー待ち中の二重送信・ログ重複を防ぐ）
     // 難易度は「人間にとっての難しさ」で統一。都市側／自然側で立場が逆なので side ごとに設定を分ける。
-    const _COOP_EVENTS_ALL = [{ t: 3, id: 'rumor' }, { t: 6, id: 'pollution' }, { t: 9, id: 'terror' }];
+    const _COOP_EVENTS_ALL = [{ t: 2, id: 'rumor' }, { t: 5, id: 'pollution' }, { t: 7, id: 'terror' }];
     // オンライン多人数：1ターンの即死を防ぐ攻撃制限（同種は1ターン1回／1都市への攻撃は最大この回数）
     // ここは既定値。実際の上限は人数別に CO.maxHits へ格納する（都市3人以上で3、それ未満で2）
     const COOP_MAX_HITS = 2;
@@ -3184,17 +3186,17 @@
     const COOP_DIFF = {
       easy: {
         key: 'easy', label: 'EASY', color: '#3fb950', rgb: '63,185,80',
-        city:   { hp: 150, maxTurns: 12, draw: 1, events: [],                desc: 'HP150・12ターン<br>イベントなし' },
+        city:   { hp: 120, maxTurns: 10, draw: 1, events: [],                desc: 'HP120・10ターン<br>イベントなし' },
         nature: { hp: 100, maxTurns: 10, draw: 2, events: _COOP_EVENTS_ALL, cpuSkip: 0.5,  desc: '都市が脆い・社会も混乱<br>攻めやすい' },
       },
       normal: {
         key: 'normal', label: 'NORMAL', color: '#d29922', rgb: '210,153,34',
-        city:   { hp: 120, maxTurns: 10, draw: 2, events: [{ t: 3, id: 'rumor' }], desc: 'HP120・10ターン<br>T3デマ拡散' },
+        city:   { hp: 95, maxTurns: 8, draw: 2, events: [{ t: 3, id: 'rumor' }], desc: 'HP95・8ターン<br>T3デマ拡散' },
         nature: { hp: 120, maxTurns: 10, draw: 2, events: [{ t: 3, id: 'rumor' }], cpuSkip: 0.15, desc: '標準的な守り<br>互角の攻防' },
       },
       hard: {
         key: 'hard', label: 'HARD', color: '#fa2a4e', rgb: '250,42,78',
-        city:   { hp: 100, maxTurns: 10, draw: 2, events: _COOP_EVENTS_ALL, desc: 'HP100・10ターン<br>3イベント' },
+        city:   { hp: 80, maxTurns: 8, draw: 2, events: _COOP_EVENTS_ALL, desc: 'HP80・8ターン<br>3イベント' },
         nature: { hp: 150, maxTurns: 10, draw: 2, events: [], cpuSkip: 0, desc: '都市が頑強・盤石の守り<br>攻略困難' },
       },
     };
@@ -3207,7 +3209,7 @@
       wildfire:   [{ cond: 'inland',  dmg: 10, label: '延焼',     icon: '🔥', shield: 'shieldQuakeFire' }], // 延焼は対応する実カードが無いためベースのみ（増幅なし）
     };
     // 連鎖コンボ：2次災害の実カード（key）を、同一ターンに同じ都市へ撃った1次災害（trigger）に重ねると増幅。地形ゲートつき。
-    const COOP_COMBO_BONUS = 10; // 増幅ボーナス（暫定値・要プレイテスト調整）
+    const COOP_COMBO_BONUS = 5; // 増幅ボーナス（低HP化に伴い10→5へ調整・要プレイテスト調整）
     const COOP_COMBO = {
       tsunami:   { trigger: 'earthquake', cond: 'coastal'  }, // 地震 → 津波（海岸）
       landslide: { trigger: 'earthquake', cond: 'mountain' }, // 地震 → 土砂崩れ（山間）
@@ -3228,6 +3230,7 @@
     let _logExpanded = false;
     let _cityInfoModal = null;
     let _hintOpen = false;
+    let _coopTipOpen = false;
     let _lastDrawnCardUid = null;
     let _playingCardUid = null;
     let _mainTutorialShown = false;
@@ -3359,6 +3362,7 @@
     };
 
     function toggleHint() { _hintOpen = !_hintOpen; render(); }
+    function toggleCoopTip() { _coopTipOpen = !_coopTipOpen; renderCoop(); }
 
     function renderHintOverlay() {
       const view = myView();
@@ -7429,11 +7433,11 @@
     // compoundCount を渡すと複合災害だけ枚数を変えられる（MPで人数別に削減。未指定＝従来の各3枚でソロ不変）
     function coopBuildNatureDeck(compoundCount) { const d = []; for (const c of DISASTER_CARDS) { const n = (c.id === 'compound' && compoundCount != null) ? compoundCount : 3; for (let i = 0; i < n; i++) d.push({ ...c, uid: 'cn_' + c.id + '_' + i }); } return shuffle(d); }
     // 人間=自然側プールの1種あたり枚数（MP）。CPU自然はデッキ再シャッフルで無限供給だが、人間自然は naturePool が有限で
-    // 都市が増えると弾切れする（例：3都市は4枚/ターン×10＝40発に対し従来21枚で約5ターンで枯渇）。
+    // 都市が増えると弾切れする（例：3都市は4枚/ターン×8＝32発に対し従来21枚で約5ターンで枯渇）。
     // ゲーム全体の攻撃回数（coopMPAttackCount×maxTurns）を非複合6種でまかなえる枚数にスケールする。
     // 同種は1ターン1回ゆえ1種が必要になる最大回数は maxTurns なので、それを上限にする（無駄に持たせない）。
     function coopNaturePoolPer(n, draw, maxTurns) {
-      if (n <= 2) return 3; // 2都市は従来どおり（攻撃2枚×10ターン=20 ≦ 非複合6種×3＋複合）
+      if (n <= 2) return 3; // 2都市は従来どおり（攻撃2枚×8ターン=16 ≦ 非複合6種×3＋複合）
       const totalAttacks = (draw + (n - 1)) * maxTurns; // = coopMPAttackCount × ターン数
       return Math.max(3, Math.min(maxTurns, Math.ceil(totalAttacks / 6) + 1));
     }
@@ -7456,6 +7460,7 @@
     // ── ゲーム開始・セットアップ ──
     function startCoopGame(diffKey, side) {
       _coCancelTimer();
+      _coopTipOpen = false;
       const D = COOP_DIFF[diffKey]; const sideKey = (side === 'nature') ? 'nature' : 'city'; const sc = D[sideKey];
       const d = { key: D.key, label: D.label, color: D.color, rgb: D.rgb, hp: sc.hp, maxTurns: sc.maxTurns, draw: sc.draw, events: sc.events, cpuSkip: sc.cpuSkip };
       const name = lobbyState.nameInput.trim() || 'プレイヤー';
@@ -8830,14 +8835,15 @@
       return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:10px;${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}"><div style="display:flex;align-items:center;gap:6px"><span class="city-icon-sm">${terrainImg(c, 22)}</span><strong style="color:#fff">${c.name}</strong></div>${owner}<div style="font-size:.64rem;color:#fff;opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px">${c.abilityDesc}</div><div style="background:#0d1117;border-radius:6px;height:16px;overflow:hidden;position:relative"><div style="width:${pct}%;height:100%;background:${col};transition:width .4s"></div><span style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:16px;color:#fff;text-shadow:0 0 2px #000">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div><div style="font-size:.85rem;margin-top:5px;min-height:18px">${badges}</div></div>`;
     }
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
-    function coopMkCard(card, mode, support) {
+    function coopMkCard(card, mode, support, readOnly) {
       const left = CO.budget - CO.budgetUsed;
       const noTarget = support && card.effectType === 'draw'; // 後方支援は自己完結カード（ドロー）だけ使えない。防災協定は味方支援なので可
-      const dis = (mode === 'city') && (card.cost > left || noTarget);
-      const click = dis ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopSelectResponse('${card.uid}')`);
+      const dis = !readOnly && (mode === 'city') && (card.cost > left || noTarget);
+      const click = (readOnly || dis) ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopSelectResponse('${card.uid}')`);
       const costLabel = mode === 'resp' ? '無料' : card.cost;
-      const reason = noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : '');
-      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="${cardCtype(card)}" onclick="${click}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">政策</span>${reason}</div>`;
+      const reason = readOnly ? '' : (noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : ''));
+      const _roExtra = readOnly ? ';pointer-events:none' : '';
+      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="${cardCtype(card)}" onclick="${click}" style="cursor:${readOnly ? 'default' : (dis ? 'not-allowed' : 'pointer')}${_roExtra}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">政策</span>${reason}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
@@ -8943,15 +8949,45 @@
       else { const c = ds.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="coopAcceptDrawCard()">✅ 手札に加える</button>`; }
       return `<div class="screen active"><div class="section-title" style="margin-bottom:0">🗺️ ハザードマップ整備 <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${Math.min(ds.drawn + 1, ds.total)}／${ds.total}枚</span></div><div class="gacha-stage">${ca}</div></div>`;
     }
-    function coopRenderCityHand() {
+    function coopRenderCityHand(readOnly) {
       const myslot = CO.mp ? coopMySlot() : null;
       const support = !!(myslot && myslot.hp <= 0); // 壊滅都市は後方支援役
-      const cards = CO.hand.map(c => coopMkCard(c, 'city', support)).join('');
+      const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly)).join('');
       const supCap = support ? (COOP_SUPPORT_CAP + (myslot.city.abilityType === 'extra_budget' ? myslot.city.abilityValue : 0)) : 0;
       const _buoy = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>`;
-      const head = support
-        ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 0;color:#9ff0a8;font-size:.74rem;line-height:1.35;text-align:center">${_buoy}<span>予算は毎ターン +1（最大${supCap}）。仲間の都市に政策カードを使える</span></div>`
-        : '<div style="text-align:center;color:#fff;font-size:.76rem;margin:8px 0">政策カードをタップして都市を守ろう</div>';
+      let head;
+      if (readOnly) {
+        const _roPending = (CO.cities || []).filter(cs => !cs.ready);
+        const _roNames = _roPending.map(cs => cs.ownerName || cs.city.name);
+        const _roChips = _roNames.map(nm => `<span style="display:inline-block;background:rgba(56,139,253,.18);border:1px solid #388bfd;border-radius:10px;padding:1px 8px;margin:2px;font-weight:700;font-size:.71rem">${nm}</span>`).join('');
+        const _roWait = _roNames.length
+          ? `<span style="font-size:.72rem;color:rgba(255,255,255,.55);margin-right:2px">操作待ち（残り${_roNames.length}人）：</span>${_roChips}`
+          : `<span style="font-size:.72rem;color:rgba(255,255,255,.55)">全員の操作が終わると自動で進みます</span>`;
+        head = `<div style="text-align:center;margin:8px 0;padding:6px 10px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px"><div style="font-size:.74rem;font-weight:700;color:#9ff0a8;margin-bottom:4px">✅ ターン終了済み — 手札（参考表示）</div><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px">${_roWait}</div></div>`;
+      } else {
+        head = support
+          ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 0;color:#9ff0a8;font-size:.74rem;line-height:1.35;text-align:center">${_buoy}<span>予算は毎ターン +1（最大${supCap}）。仲間の都市に政策カードを使える</span></div>`
+          : '<div style="text-align:center;color:#fff;font-size:.76rem;margin:8px 0">政策カードをタップして都市を守ろう</div>';
+      }
+      let allyBar = '';
+      if (CO.mp) {
+        const others = (CO.cities || []).filter(s => s !== myslot && s.ownerName);
+        if (others.length) {
+          const pills = others.map(s => {
+            const left = (s.budget || 0) - (s.budgetUsed || 0);
+            const dead = s.hp <= 0;
+            const readyDot = s.ready
+              ? '<span style="color:#9ff0a8;font-weight:700;font-size:.68rem">✓</span>'
+              : '<span style="color:rgba(255,255,255,.3);font-size:.68rem">…</span>';
+            const budgetStr = dead
+              ? '<span style="color:#9ff0a8;font-size:.63rem">後方支援</span>'
+              : `<span style="font-size:.63rem">予算<span style="color:#fff;font-weight:700">${left}</span></span>`;
+            return `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:2px 6px;white-space:nowrap"><span style="font-size:.68rem;font-weight:700;color:#e6edf3">${s.ownerName}</span>${budgetStr}<span style="font-size:.63rem;color:rgba(255,255,255,.45)">手札${(s.hand||[]).length}</span>${readyDot}</span>`;
+          }).join('');
+          allyBar = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;align-items:center"><span style="font-size:.62rem;color:rgba(255,255,255,.35);flex-shrink:0">仲間</span>${pills}</div>`;
+        }
+      }
+      if (readOnly) return `${head}${allyBar}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cards || '<span style="color:#fff">手札なし</span>'}</div>`;
       const btnLabel = support ? '支援を終える ▶ 次へ' : 'ターン終了 ▶ 自然の攻撃へ';
       const _leftBudget = CO.budget - CO.budgetUsed;
       const _hasPlayable = CO.hand.some(c => c.cost <= _leftBudget);
@@ -8959,7 +8995,7 @@
       const _endStyle = _endReady
         ? 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#3fb950;border:none;color:#0d1117;font-weight:800;cursor:pointer;box-shadow:0 0 0 3px rgba(63,185,80,.25)'
         : 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:transparent;border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer';
-      return `${head}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cards || '<span style="color:#fff">手札なし</span>'}</div><button onclick="coopRequestEndTurn()" style="${_endStyle}">${btnLabel}</button>`;
+      return `${head}${allyBar}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cards || '<span style="color:#fff">手札なし</span>'}</div><button onclick="coopRequestEndTurn()" style="${_endStyle}">${btnLabel}</button>`;
     }
     // 連鎖（二次災害）表示用の稲妻アイコン。協力モード選択ウィザードの icoZap と同じSVGラインデザインで統一。
     function coopZapIco(size, col) {
@@ -9113,7 +9149,13 @@
       const infoPanel = coopInfoPanel();
       const waiting = CO.online && !coopMyPhase();
       let area = '';
-      if (waiting) area = coopWaitingArea();
+      if (waiting) {
+        const _mySlot = coopMySlot();
+        const _showReadOnlyHand = CO.mp && CO.mySide === 'city' &&
+          (CO.phase === 'city' || CO.phase === 'draw') &&
+          !!_mySlot && !!_mySlot.ready;
+        area = _showReadOnlyHand ? coopRenderCityHand(true) : coopWaitingArea();
+      }
       else if (CO.phase === 'natureHuman') area = coopRenderNaturePool();
       else if (CO.phase === 'city') area = (CO.humanSide === 'city') ? coopRenderCityHand() : `<div style="text-align:center;padding:18px;color:#fff"><img src="images/icons/icon_city.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block"> CPU都市が防衛中…</div>`;
       else if (CO.phase === 'coopResponse') area = coopRenderResponse();
@@ -9289,6 +9331,23 @@
       const switchBtn = CO.online ? '' : `<button class="go-inview go-rematch-btn" onclick="coopPlayOtherSide('${otherSide}')" style="background:var(--bg2);color:#fff;border:1px solid var(--bg3)">${otherLabel}</button>`;
       const rematchBtn = CO.online ? '' : `<button class="go-inview go-rematch-btn" onclick="coopRestart()">🔁 もう一度（${d.label}）</button>`;
 
+      // 戦略ティップ（都市側・リザルト画面専用。自分視点の勝敗で出し分け）
+      const isCityDefeat = !natureMode && !win;
+      const tipBtnLabel = isCityDefeat ? '次は勝つためのヒントを見る' : '今回の戦い方を振り返る';
+      const tipBtnStyle = isCityDefeat ? 'font-weight:700' : '';
+      const tipBtnHtml = `<button class="go-inview go-replay-btn" onclick="toggleCoopTip()" style="${tipBtnStyle}">${_coopTipOpen ? '▲ 閉じる' : `${_icoC16} ${tipBtnLabel}`}</button>`;
+      const tipPanelHtml = _coopTipOpen ? `<div class="go-inview hint-box" style="margin-bottom:4px">
+  <div class="hint-box-header"><span class="hint-title">都市を守る戦い方のヒント</span><button class="hint-close" onclick="toggleCoopTip()">✕</button></div>
+  <hr class="hint-divider">
+  <div class="coop-tip-row"><span class="coop-tip-num">1</span><span>シールドは1都市に集中させず、2都市へ分けて備えよう</span></div>
+  <hr class="hint-divider">
+  <div class="coop-tip-row"><span class="coop-tip-num">2</span><span>1都市を盾にして時間を稼ぐのも有効。全滅さえ防げば勝てる</span></div>
+  <hr class="hint-divider">
+  <div class="coop-tip-row"><span class="coop-tip-num">3</span><span>大ダメージは、出てから動くより事前にシールドで防ぐ</span></div>
+  <hr class="hint-divider">
+  <div class="coop-tip-row"><span class="coop-tip-num">4</span><span>HPは満タンにしなくていい。「全滅させない」配分を意識しよう</span></div>
+</div>` : '';
+
       return `<div class="screen active go-screen ${themeCls}">
 
   <div class="go-hero">
@@ -9317,6 +9376,7 @@
     ${statsHtml}
     ${rematchBtn}
     ${switchBtn}
+    ${tipPanelHtml}${tipBtnHtml}
     <button class="go-inview go-replay-btn" onclick="coopQuit()">ロビーに戻る</button>
   </div>
 
