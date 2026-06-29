@@ -3114,6 +3114,13 @@
         border-radius: 0 0 8px 8px;
       }
     }
+
+    /* ── iOSスイッチ（協力MPホスト設定） ── */
+    .ios-switch { display:inline-flex; cursor:pointer; }
+    .ios-switch .track { width:51px; height:31px; border-radius:16px; background:#39393d; position:relative; transition:background .2s; }
+    .ios-switch.on .track { background:#34C759; }
+    .ios-switch .knob { width:27px; height:27px; border-radius:50%; background:#fff; position:absolute; top:2px; left:2px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+    .ios-switch.on .knob { transform:translateX(20px); }
   </style>
 </head>
 
@@ -5502,11 +5509,58 @@
           const assign = hn === 'random' ? 'random' : 'fixed';
           const hostSide = hn === 'self' ? 'nature' : 'city'; // ランダム時は暫定city（開始時に再割当）
           const natMode = hn === 'cpu' ? 'cpu' : 'human';
-          const diffBtns = ['easy', 'normal', 'hard'].map(k => { const d = COOP_DIFF[k]; const sc = d[sideForDesc]; const act = net === 'host' ? `coopMPCreateRoom('${k}','${hostSide}','${natMode}','${assign}')` : `startCoopGame('${k}','${lobbyState.coopSide || 'city'}')`; return `<button onclick="${act}" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:10px;background:rgba(${d.rgb},.12);border:1.5px solid ${d.color};color:${d.color};font-weight:700;font-size:1rem;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(${d.rgb},.22)'" onmouseout="this.style.background='rgba(${d.rgb},.12)'">${d.label}<span style="font-size:.66rem;font-weight:400;opacity:.85;text-align:center;line-height:1.5">${sc.desc}</span></button>`; }).join('');
-          const note = net === 'host' ? (assign === 'random' ? '難易度を選ぶと待機ロビーが開きます。参加者が揃ったら開始時に自然役を抽選します（最大5人）。' : '難易度を選ぶと待機ロビーが開きます（参加人数は入った人数で自動。最大 都市4＋自然1）。') : '難易度を選ぶとゲームが始まります。';
-          wiz = `${backBtn(2)}${crumb}${nameField}${stepHead('難易度を選ぶ')}
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${diffBtns}</div>
+          const _svOn = lobbyState.coopSocialVuln !== false;
+          const _cityHp = lobbyState.coopCityHp || 95;
+          if (net === 'host') {
+            // ホスト専用：HPスライダー＋iOSスイッチ＋部屋を作るボタン
+            const svClass = _svOn ? 'ios-switch on' : 'ios-switch';
+            const note = assign === 'random'
+              ? '設定を決めて「部屋を作る」を押すと待機ロビーが開きます。参加者が揃ったら開始時に自然役を抽選します（最大5人）。'
+              : '設定を決めて「部屋を作る」を押すと待機ロビーが開きます（参加人数は入った人数で自動。最大 都市4＋自然1）。';
+            wiz = `${backBtn(2)}${crumb}${nameField}${stepHead('ゲーム設定')}
+    <div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <img src="images/icons/neon_city.webp" alt="" style="width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(56,139,253,.7))">
+        <span style="font-size:.84rem;color:#fff;font-weight:700">都市HP</span>
+        <span id="coop-hp-label" style="color:#388bfd;font-weight:700;font-size:.84rem">${_cityHp}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#388bfd" style="filter:drop-shadow(0 0 4px rgba(56,139,253,.6));flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <div style="flex:1;display:flex;flex-direction:column">
+          <input type="range" min="80" max="120" step="5" value="${_cityHp}" style="width:100%;accent-color:#388bfd" oninput="lobbyState.coopCityHp=+this.value;document.getElementById('coop-hp-label').textContent=this.value">
+          <div style="display:flex;justify-content:space-between;margin-top:3px">
+            ${['80','90','100','110','120'].map(v=>`<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(255,255,255,.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('')}
+          </div>
+        </div>
+        <div style="display:flex;gap:2px;flex-shrink:0">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#388bfd" style="filter:drop-shadow(0 0 4px rgba(56,139,253,.6))"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#388bfd" style="filter:drop-shadow(0 0 4px rgba(56,139,253,.6))"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#388bfd" style="filter:drop-shadow(0 0 4px rgba(56,139,253,.6))"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;margin-bottom:12px">
+      <div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <img src="images/icons/neon_jinzai.webp" alt="" style="width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(168,85,247,.7))">
+          <span style="font-size:.84rem;color:#fff;font-weight:700">社会的脆弱性イベント</span>
+        </div>
+        <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">デマ拡散・公害・テロが固定ターンで発動</div>
+      </div>
+      <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');this.classList.toggle('on')" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid #fff;border-radius:0;color:#fff;cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='#fa2a4e';this.style.color='#fa2a4e'" onmouseout="this.style.borderColor='#fff';this.style.color='#fff'" onclick="lobbyState.coopCityHp=95;lobbyState.coopSocialVuln=true;render()">デフォルト設定に戻す</button>
+    </div>
+    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||95)">部屋を作る</button>
     <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">${note}</div>`;
+          } else {
+            // ソロ：難易度3ボタン（変更なし）
+            const diffBtns = ['easy', 'normal', 'hard'].map(k => { const d = COOP_DIFF[k]; const sc = d[sideForDesc]; const descText = sc.desc; const act = `startCoopGame('${k}','${lobbyState.coopSide || 'city'}')`; return `<button onclick="${act}" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:10px;background:rgba(${d.rgb},.12);border:1.5px solid ${d.color};color:${d.color};font-weight:700;font-size:1rem;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(${d.rgb},.22)'" onmouseout="this.style.background='rgba(${d.rgb},.12)'">${d.label}<span style="font-size:.66rem;font-weight:400;opacity:.85;text-align:center;line-height:1.5">${descText}</span></button>`; }).join('');
+            wiz = `${backBtn(2)}${crumb}${nameField}${stepHead('難易度を選ぶ')}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${diffBtns}</div>
+    <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">難易度を選ぶとゲームが始まります。</div>`;
+          }
         }
         body = `${err}
     <div style="text-align:center;color:var(--t1);font-size:.86rem;margin:2px 0 10px;font-weight:700">🤝 協力モード（ベータ版）</div>
@@ -7723,6 +7777,8 @@
       _coCancelTimer();
       const D = COOP_DIFF[opts.diffKey]; const sc = D.city;
       const d = { key: D.key, label: D.label, color: D.color, rgb: D.rgb, hp: sc.hp, maxTurns: sc.maxTurns, draw: sc.draw, events: sc.events, cpuSkip: sc.cpuSkip };
+      d.events = (opts.socialVuln === false) ? [] : _COOP_EVENTS_ALL;
+      if (opts.cityHp != null) d.hp = Math.max(80, Math.min(120, opts.cityHp));
       const cityPlayers = opts.players.filter(p => p.side === 'city');
       const naturePlayer = opts.players.find(p => p.side === 'nature') || null;
       const pool = shuffle([...CITIES]);
@@ -8020,11 +8076,13 @@
     }
 
     // ホスト：ルーム作成 → 待機ロビーへ。natureMode: 'cpu'|'human'（自分が都市のときのみ意味を持つ）
-    function coopMPCreateRoom(diffKey, hostSide, natureMode, assign) {
+    function coopMPCreateRoom(diffKey, hostSide, natureMode, assign, socialVuln, cityHp) {
       const name = (lobbyState.nameInput || '').trim();
       if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
       if (!db) { lobbyState.error = 'オンライン機能が利用できません'; render(); return; }
       assign = assign || 'fixed';
+      const sv = socialVuln !== false;
+      const hp = (cityHp != null) ? Math.max(80, Math.min(120, cityHp)) : 95;
       const code = generateRoomCode();
       const hostId = _coNewPid();
       const natMode = (assign === 'random') ? 'human' : (hostSide === 'nature' ? 'human' : (natureMode || 'cpu'));
@@ -8033,12 +8091,12 @@
       CO = {
         mp: true, online: true, host: true, phase: 'lobby',
         roomId: code, myId: hostId, mySide: mySideStored, humanSide: mySideStored,
-        name, diff: COOP_DIFF[diffKey], diffKey, natureMode: natMode, assign,
+        name, diff: COOP_DIFF[diffKey], diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp,
         lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
       };
       renderCoop();
       db.ref(`coopRooms/${code}`).set({
-        hostId, hostName: name, diff: diffKey, natureMode: natMode, assign, started: false,
+        hostId, hostName: name, diff: diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, started: false,
         players, createdAt: Date.now(), lastActiveAt: Date.now(),
       }).then(() => { coopMPListenRoom(); coopMPSetupPresence(); _coSaveSession(); renderCoop(); })
         .catch(e => { lobbyState.error = 'ルーム作成に失敗: ' + (e && e.message); CO = null; render(); });
@@ -8076,6 +8134,7 @@
           mp: true, online: true, host: false, phase: 'lobby',
           roomId: code, myId, mySide: side, humanSide: side,
           name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign,
+          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 95,
           lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
         };
         renderCoop();
@@ -8124,7 +8183,7 @@
       const natureIsCpu = !natureHuman; // 自然プレイヤーがいなければ CPU
       if (CO.natureMode === 'human' && CO.assign !== 'random' && !natureHuman) { CO.lobbyMsg = '自然側の参加を待っています（または CPU で開始してください）'; renderCoop(); return; }
       const code = CO.roomId, hostId = CO.myId, hostName = CO.name, diffKey = CO.diffKey;
-      coopBuildMPState({ diffKey, players: arr, natureIsCpu, myId: hostId });
+      coopBuildMPState({ diffKey, players: arr, natureIsCpu, myId: hostId, socialVuln: CO.socialVuln, cityHp: CO.cityHp });
       CO.host = true; CO.roomId = code; CO.name = hostName; CO.myId = hostId;
       CO.mySide = (CO.myId === CO.natureId) ? 'nature' : 'city'; CO.humanSide = CO.mySide;
       CO.lobby = { players: playersObj, presence: (CO.lobby && CO.lobby.presence) || {} };
@@ -8201,6 +8260,7 @@
             mp: true, online: true, host: isHost, phase: 'lobby',
             roomId: code, myId, mySide: side, humanSide: side,
             name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
+            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 95,
             lobby: { players: room.players || {}, presence: room.presence || {} }, oppPresent: true, cities: [], log: [],
           };
           _coRoleShown = true; // ロビーでは配役未発表でよい
@@ -8786,8 +8846,11 @@
         <div style="text-align:center;margin:8px 0"><div id="coop-lobby-qr" style="display:inline-block;background:#0d1117;padding:8px;border-radius:10px"></div><div style="font-size:.72rem;color:var(--t2);margin-top:4px">スマホのカメラで読み取って参加</div></div>
         <button onclick="coopCopyLobbyLink()" style="width:100%;max-width:340px;padding:11px;border-radius:10px;background:rgba(56,139,253,.15);border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer">🔗 招待リンクをコピー</button>` : '';
       const natLabel = natureP ? '1（人間）' : (CO.natureMode === 'cpu' ? 'CPU' : '0（参加待ち）');
+      const _svOn3 = CO.socialVuln !== false;
       return `<div class="screen active" style="padding:20px;max-width:460px;margin:0 auto;text-align:center">
         <h2 style="color:${d.color};margin:4px 0">協力ロビー（${d.label}）</h2>
+        <div style="font-size:.75rem;color:var(--t2);margin:2px 0 4px">社会的脆弱性イベント：<span style="color:${_svOn3 ? '#388bfd' : 'var(--t1)'};font-weight:700">${_svOn3 ? 'あり（全イベント）' : 'なし'}</span></div>
+        <div style="font-size:.75rem;color:var(--t2);margin:0 0 8px">都市HP：<span style="color:#388bfd;font-weight:700">${CO.cityHp || 95}</span></div>
         ${codeBlock}
         <div style="text-align:left;margin:14px 0"><div style="font-size:.78rem;color:var(--t2);margin-bottom:6px">${isRandom ? `参加者 ${arr.length}人（配役は開始時に抽選）・最大5人` : `参加者 ${arr.length}人（都市${cityCount}／自然${natLabel}）・最大 都市4＋自然1`}</div>${roster}</div>
         ${ctrl}
@@ -8879,11 +8942,29 @@
           if (capped) return `<button disabled style="${actBtnTall};opacity:.45;cursor:not-allowed"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name}</span><span style="font-size:.74rem;font-weight:600">今ターンの攻撃上限（${cap}回）に到達</span></button>`;
           const chain = coopPredictChain(c, cs).filter(x => x.dmg > 0);
           const combo = coopComboBonus(c, i);
-          const total = coopPredictDamage(c, cs, null) + chain.reduce((s, x) => s + x.dmg, 0) + combo;
-          const chainLine = chain.length ? `<span style="${cChain};margin-top:4px">${coopZapIco(12)}二次災害 ${chain.map(x => `${x.label} +${x.dmg}`).join('・')}</span>` : '';
-          const comboLine = combo > 0 ? `<span style="${cChain};margin-top:4px;background:rgba(248,81,73,.16);color:#ff9b9b;border-color:rgba(248,81,73,.4)">${coopZapIco(12, 'var(--red)')}連鎖増幅 +${combo}</span>` : '';
+          const predictBodyDmg = coopPredictDamage(c, cs, null);
+          const chainTotal = chain.reduce((s, x) => s + x.dmg, 0);
+          const total = predictBodyDmg + chainTotal + combo;
+          // A-1: ダメージ内訳パーツ（合計は coopEstimate と一致）
+          const _isNeg = cs.effects.negateSpecial;
+          const _tBonus = (!_isNeg && c.specialType) ? (c.specialType === 'coastal_bonus' && cs.city.isCoastal ? 10 : c.specialType === 'mountain_bonus' && cs.city.isMountain ? 10 : c.specialType === 'inland_bonus' && !cs.city.isCoastal && !cs.city.isMountain ? 10 : 0) : 0;
+          const _tLabel = c.specialType === 'coastal_bonus' ? '海岸' : c.specialType === 'mountain_bonus' ? '山間' : '内陸';
+          const _redux = (c.baseDamage + _tBonus) - predictBodyDmg; // >0=軽減, <0=脆弱性
+          const _cA = 'color:#ff9b9b;font-weight:700'; const _cS = 'color:#9ff0a8;font-weight:700';
+          const _bk = [`<span>本体${c.baseDamage}</span>`];
+          if (_tBonus > 0) _bk.push(`<span style="${_cA}">＋${_tLabel}+${_tBonus}</span>`);
+          if (_redux > 0) _bk.push(`<span style="${_cS}">−備え${_redux}</span>`);
+          else if (_redux < 0) _bk.push(`<span style="${_cA}">＋脆弱性+${-_redux}</span>`);
+          if (chainTotal > 0) _bk.push(`<span style="${_cA}">＋連鎖+${chainTotal}</span>`);
+          if (combo > 0) _bk.push(`<span style="${_cA}">${coopZapIco(11,'var(--red)')}増幅+${combo}</span>`);
+          _bk.push(`<span style="font-weight:800;color:#fff">＝${total}</span>`);
+          const breakdownLine = `<span style="display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px;font-size:.68rem;margin-top:3px">${_bk.join('')}</span>`;
+          // A-2: コンボ成立都市ボタンの強調
+          const hasCombo = combo > 0;
+          const btnStyle = hasCombo ? `${actBtnTall};box-shadow:0 0 0 1.5px var(--red),0 0 12px rgba(248,81,73,.4)` : actBtnTall;
+          const comboBadge = hasCombo ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:800;padding:2px 8px;border-radius:9px;background:rgba(248,81,73,.22);color:#ff9b9b;border:1px solid rgba(248,81,73,.5)">${coopZapIco(12,'var(--red)')}コンボ成立！+${combo}</span>` : '';
           const ownerPfx = CO.mp && cs.ownerName ? `<span style="font-size:.64rem;font-weight:700;opacity:.75;background:rgba(255,255,255,.1);border-radius:8px;padding:1px 6px;border:1px solid rgba(255,255,255,.2)">${cs.ownerName}</span> ` : '';
-          return `<button style="${actBtnTall}" onclick="coopConfirmAttack(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${ownerPfx}${cs.city.name} を攻撃</span><span style="font-size:.78rem;font-weight:600">予測ダメージ <span style="color:#ff9b9b;font-weight:800">${total}</span>（残HP ${cs.hp}）</span>${chainLine}${comboLine}</button>`;
+          return `<button style="${btnStyle}" onclick="coopConfirmAttack(${i})">${comboBadge}<span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${ownerPfx}${cs.city.name} を攻撃</span><span style="font-size:.78rem;font-weight:600">予測ダメージ <span style="color:#ff9b9b;font-weight:800">${total}</span>（残HP ${cs.hp}）</span>${breakdownLine}</button>`;
         }).join('');
         const _chainCondLabel = { coastal: '海岸', mountain: '山間', inland: '内陸' };
         const _chainDefs = COOP_CHAINS[c.id];
@@ -9184,6 +9265,8 @@
       const remain = Math.max(0, d.maxTurns - CO.turn);
       const cBad = 'display:inline-flex;align-items:center;font-size:.74rem;font-weight:600;padding:3px 9px;border-radius:11px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
       const cOk = 'display:inline-flex;align-items:center;font-size:.74rem;font-weight:600;padding:3px 9px;border-radius:11px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
+      // A-3: 連鎖増幅チップ専用スタイル（確認画面の comboLine と同系統）
+      const cCombo = 'display:inline-flex;align-items:center;gap:3px;font-size:.74rem;font-weight:700;padding:3px 9px;border-radius:11px;background:rgba(248,81,73,.16);color:#ff9b9b;border:1px solid rgba(248,81,73,.4);white-space:nowrap';
       const natureMode = CO.humanSide === 'nature';
       const remainBanner = isFinal
         ? (natureMode
@@ -9206,7 +9289,11 @@
         const isBlock = totalDrop === 0;
         const dmgCol = isBlock ? 'var(--green)' : 'var(--red)';
         const baseChip = a.base != null ? `<span style="${cBad}">基礎 ${a.base}</span>` : '';
-        const lineChips = (a.lines || []).filter(l => l.d != null).map(l => `<span style="${l.d > 0 ? cBad : cOk}">${l.t.split(/[：（(]/)[0]} ${l.d > 0 ? '+' : ''}${l.d}</span>`).join('');
+        // A-3: 連鎖増幅行は専用スタイルで強調、それ以外は従来どおり
+        const lineChips = (a.lines || []).filter(l => l.d != null).map(l => {
+          if (l.t.startsWith('連鎖増幅')) return `<span style="${cCombo}">${coopZapIco(12,'var(--red)')}<span style="margin-left:2px">${l.t.split(/[：（(]/)[0]} +${l.d}</span></span>`;
+          return `<span style="${l.d > 0 ? cBad : cOk}">${l.t.split(/[：（(]/)[0]} ${l.d > 0 ? '+' : ''}${l.d}</span>`;
+        }).join('');
         const chainChips = (a.chain || []).map(c => `<span style="${cBad}">${coopZapIco(12, 'var(--red)')}<span style="margin-left:2px">二次災害 ${c.label} +${c.dmg}</span></span>`).join('');
         const noteLines = (a.lines || []).filter(l => l.d == null).map(l => `<div style="font-size:.68rem;color:rgba(255,255,255,.75);margin-top:3px">• ${l.t}</div>`).join('');
         const pAfter = Math.max(0, Math.round(a.hpAfter / a.maxHp * 100));
