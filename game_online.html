@@ -7554,7 +7554,8 @@
     let _coSeq = 0, _coHeartbeat = null, _coLastRecv = null; // seq付きpush＋ハートビート再配信で欠落更新からゲストを自己修復
     let _coRoomPlayersRef = null, _coRoomPresRef = null, _coStartedRef = null; // MP：ロビーのロスター・在席・開始フラグ購読
     let _coRoleShown = false; // MP：配役発表スプラッシュを1度だけ出す
-    let _coReconnOpen = false; // 盤面：再接続パネルの開閉状態
+    let _coReconnOpen = false; // 盤面：再接続オーバーレイの開閉状態
+    let _coAllyHandId = null;  // 仲間手札タブで選択中の都市スロットインデックス
 
     // 勝敗を中立 outcome から自分視点に変換（オンライン用）
     function coopResultFor(side) {
@@ -9049,12 +9050,53 @@
       else { const c = ds.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="coopAcceptDrawCard()">✅ 手札に加える</button>`; }
       return `<div class="screen active"><div class="section-title" style="margin-bottom:0">🗺️ ハザードマップ整備 <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${Math.min(ds.drawn + 1, ds.total)}／${ds.total}枚</span></div><div class="gacha-stage">${ca}</div></div>`;
     }
+    function coopAllyStatusPanel() {
+      if (!CO.mp) return '';
+      const myslot = coopMySlot();
+      const allies = (CO.cities || []).filter(s => s !== myslot && s.ownerName);
+      if (!allies.length) return '';
+      const _svgBuoy = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>';
+      const rows = allies.map(s => {
+        const dead = s.hp <= 0;
+        const cidx = CO.cities.indexOf(s);
+        const readyBadge = s.ready
+          ? `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>`
+          : `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(56,139,253,.15);color:#388bfd;border:1px solid rgba(56,139,253,.4)">行動中 …</span>`;
+        let budgetBlock;
+        if (dead) {
+          budgetBlock = `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">${_svgBuoy}後方支援</span>`;
+        } else {
+          const total = s.budget || 0;
+          const used = s.budgetUsed || 0;
+          const left = total - used;
+          const pips = Array(total).fill(0).map((_, i) => `<div class="pip ${i < used ? 'used' : 'avail'}"></div>`).join('');
+          budgetBlock = `<div class="budget-display" style="margin:0"><span class="budget-label" style="color:#fff">予算</span><div class="budget-pips">${pips}</div><span style="font-size:.78rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
+        }
+        const hc = (s.hand||[]).length;
+        const stackN = Math.min(hc, 8);
+        let _stackCards = '';
+        for (let i = 0; i < stackN; i++) {
+          const bgA = (0.1 + i * 0.12).toFixed(2);
+          _stackCards += `<div style="width:11px;height:15px;border-radius:2px;border:1px solid rgba(56,139,253,.6);background:rgba(56,139,253,${bgA});${i > 0 ? 'margin-left:-6px;' : ''}position:relative;z-index:${i};flex-shrink:0"></div>`;
+        }
+        if (!_stackCards) _stackCards = `<div style="width:11px;height:15px;border-radius:2px;border:1px solid rgba(56,139,253,.3);background:rgba(56,139,253,.06)"></div>`;
+        const handCount = `<div style="display:flex;align-items:center;gap:4px"><div style="display:flex;align-items:center">${_stackCards}</div><span style="font-size:.62rem;color:rgba(255,255,255,.5)">${hc}</span></div>`;
+        const incoming = (CO.incoming || []).filter(a => a.idx === cidx);
+        const incomingBadge = incoming.length > 0
+          ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(248,81,73,.15);color:#f85149;border:1px solid rgba(248,81,73,.4)">被弾予定${incoming.length > 1 ? ` ×${incoming.length}` : ''}</span>`
+          : '';
+        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:#e6edf3;flex-shrink:0">${s.ownerName} · ${s.city.name}</span>${readyBadge}${budgetBlock}${handCount}${incomingBadge}</div>`;
+      }).join('');
+      return `<div style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px"><div style="font-size:.64rem;font-weight:700;color:rgba(255,255,255,.35);margin-bottom:6px">仲間の状況</div>${rows}</div>`;
+    }
     function coopRenderCityHand(readOnly) {
       const myslot = CO.mp ? coopMySlot() : null;
       const support = !!(myslot && myslot.hp <= 0); // 壊滅都市は後方支援役
       const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly)).join('');
       const supCap = support ? (COOP_SUPPORT_CAP + (myslot.city.abilityType === 'extra_budget' ? myslot.city.abilityValue : 0)) : 0;
       const _buoy = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>`;
+      // 丸チェックSVGアイコン（ターン終了済み見出し用）
+      const _svgCheck = `<svg viewBox="0 0 24 24" fill="none" stroke="#9ff0a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>`;
       let head;
       if (readOnly) {
         const _roPending = (CO.cities || []).filter(cs => !cs.ready);
@@ -9063,31 +9105,36 @@
         const _roWait = _roNames.length
           ? `<span style="font-size:.72rem;color:rgba(255,255,255,.55);margin-right:2px">操作待ち（残り${_roNames.length}人）：</span>${_roChips}`
           : `<span style="font-size:.72rem;color:rgba(255,255,255,.55)">全員の操作が終わると自動で進みます</span>`;
-        head = `<div style="text-align:center;margin:8px 0;padding:6px 10px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px"><div style="font-size:.74rem;font-weight:700;color:#9ff0a8;margin-bottom:4px">✅ ターン終了済み — 手札（参考表示）</div><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px">${_roWait}</div></div>`;
+        head = `<div style="margin:8px 0;padding:6px 10px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">${_svgCheck}<span style="font-size:.78rem;font-weight:700;color:#9ff0a8">ターン終了済｜仲間の手札</span></div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">${_roWait}</div></div>`;
       } else {
         head = support
           ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 0;color:#9ff0a8;font-size:.74rem;line-height:1.35;text-align:center">${_buoy}<span>予算は毎ターン +1（最大${supCap}）。仲間の都市に政策カードを使える</span></div>`
           : '<div style="text-align:center;color:#fff;font-size:.76rem;margin:8px 0">政策カードをタップして都市を守ろう</div>';
       }
-      let allyBar = '';
-      if (CO.mp) {
-        const others = (CO.cities || []).filter(s => s !== myslot && s.ownerName);
-        if (others.length) {
-          const pills = others.map(s => {
-            const left = (s.budget || 0) - (s.budgetUsed || 0);
-            const dead = s.hp <= 0;
-            const readyDot = s.ready
-              ? '<span style="color:#9ff0a8;font-weight:700;font-size:.68rem">✓</span>'
-              : '<span style="color:rgba(255,255,255,.3);font-size:.68rem">…</span>';
-            const budgetStr = dead
-              ? '<span style="color:#9ff0a8;font-size:.63rem">後方支援</span>'
-              : `<span style="font-size:.63rem">予算<span style="color:#fff;font-weight:700">${left}</span></span>`;
-            return `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:2px 6px;white-space:nowrap"><span style="font-size:.68rem;font-weight:700;color:#e6edf3">${s.ownerName}</span>${budgetStr}<span style="font-size:.63rem;color:rgba(255,255,255,.45)">手札${(s.hand||[]).length}</span>${readyDot}</span>`;
+      if (readOnly) {
+        // 仲間リスト（自分以外の ownerName を持つスロット）
+        const allies = (CO.cities || []).filter(s => s !== myslot && s.ownerName);
+        // 選択中スロットの解決：IDが無効なら先頭にフォールバック
+        let selAlly = allies.find(s => CO.cities.indexOf(s) === _coAllyHandId) || allies[0] || null;
+        if (selAlly) _coAllyHandId = CO.cities.indexOf(selAlly);
+        // タブ（仲間が2人以上のとき）
+        let allyTabHtml = '';
+        if (allies.length >= 2) {
+          const tabs = allies.map(s => {
+            const i = CO.cities.indexOf(s);
+            const active = i === _coAllyHandId;
+            return `<button onclick="coopSelectAllyHand(${i})" style="padding:3px 12px;border-radius:10px;font-size:.72rem;font-weight:700;cursor:pointer;transition:.12s;${active ? 'background:#388bfd;color:#fff;border:1px solid #388bfd' : 'background:transparent;color:#388bfd;border:1px solid rgba(56,139,253,.5)'}">${s.ownerName}</button>`;
           }).join('');
-          allyBar = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;align-items:center"><span style="font-size:.62rem;color:rgba(255,255,255,.35);flex-shrink:0">仲間</span>${pills}</div>`;
+          allyTabHtml = `<div style="display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 4px">${tabs}</div>`;
         }
+        // 表示するカード群（選択中の仲間 or 空）
+        let allyCards = '<span style="color:rgba(255,255,255,.45);font-size:.76rem">仲間はいません</span>';
+        if (selAlly) {
+          const ac = (selAlly.hand || []).map(c => coopMkCard(c, 'city', false, true)).join('');
+          allyCards = ac || '<span style="color:rgba(255,255,255,.45);font-size:.76rem">手札なし</span>';
+        }
+        return `${head}${allyTabHtml}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${allyCards}</div>${coopAllyStatusPanel()}`;
       }
-      if (readOnly) return `${head}${allyBar}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cards || '<span style="color:#fff">手札なし</span>'}</div>`;
       const btnLabel = support ? '支援を終える ▶ 次へ' : 'ターン終了 ▶ 自然の攻撃へ';
       const _leftBudget = CO.budget - CO.budgetUsed;
       const _hasPlayable = CO.hand.some(c => c.cost <= _leftBudget);
@@ -9095,7 +9142,7 @@
       const _endStyle = _endReady
         ? 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#3fb950;border:none;color:#0d1117;font-weight:800;cursor:pointer;box-shadow:0 0 0 3px rgba(63,185,80,.25)'
         : 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:transparent;border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer';
-      return `${head}${allyBar}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cards || '<span style="color:#fff">手札なし</span>'}</div><button onclick="coopRequestEndTurn()" style="${_endStyle}">${btnLabel}</button>`;
+      return `${head}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cards || '<span style="color:#fff">手札なし</span>'}</div>${coopAllyStatusPanel()}<button onclick="coopRequestEndTurn()" style="${_endStyle}">${btnLabel}</button>`;
     }
     // 連鎖（二次災害）表示用の稲妻アイコン。協力モード選択ウィザードの icoZap と同じSVGラインデザインで統一。
     function coopZapIco(size, col) {
@@ -9214,53 +9261,31 @@
       if (hints.length === 0) hints.push({ col: 'rgba(63,185,80,.9)', t: '備えができています。ターンを終了しましょう' });
       return hints;
     }
-    function coopAllyStatusPanel() {
-      const mySlot = coopMySlot();
-      const others = (CO.cities || []).filter(slot => slot !== mySlot && slot.ownerName);
-      const showPhase = CO.phase === 'city' || CO.phase === 'draw';
-      let rows = '';
-      if (others.length) {
-        rows = others.map(slot => {
-          const left = (slot.budget || 0) - (slot.budgetUsed || 0);
-          const dead = slot.hp <= 0;
-          const readyBadge = showPhase ? (slot.ready ? '<span style="color:#9ff0a8;font-size:.64rem;font-weight:700">✓完了</span>' : '<span style="color:rgba(255,255,255,.4);font-size:.64rem">行動中</span>') : '';
-          const budgetInfo = dead ? '<span style="font-size:.66rem;color:#9ff0a8">後方支援</span>' : `<span style="font-size:.66rem">予算 <span style="color:#fff;font-weight:700">${left}</span><span style="opacity:.5">/${slot.budget||0}</span></span>`;
-          const handInfo = `<span style="font-size:.66rem;color:rgba(255,255,255,.6)">手札${(slot.hand||[]).length}枚</span>`;
-          return `<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="font-weight:700;color:#fff;font-size:.72rem;min-width:48px;flex-shrink:0">${slot.ownerName}</span><span style="font-size:.64rem;color:rgba(255,255,255,.5);flex-shrink:0">${slot.city.name}</span><span style="flex:1"></span>${budgetInfo}<span style="color:rgba(255,255,255,.2);padding:0 2px">·</span>${handInfo}${readyBadge ? `<span style="color:rgba(255,255,255,.2);padding:0 2px">·</span>${readyBadge}` : ''}</div>`;
-        }).join('');
-      }
-      const hints = coopContextHints();
-      const hintHtml = `<div style="margin-top:${rows ? 6 : 0}px">${hints.slice(0,2).map(h => `<div style="font-size:.7rem;color:${h.col};line-height:1.5">${h.t}</div>`).join('')}</div>`;
-      return `<div style="margin-top:10px;background:var(--bg1,#0d1117);border:1px solid #21262d;border-radius:8px;padding:8px 10px">` +
-        (rows ? `<div style="font-size:.66rem;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:4px">仲間の状況</div>${rows}` : '') +
-        hintHtml + `</div>`;
-    }
     function coopInfoPanel() {
       if (!['city', 'draw', 'natureHuman', 'coopResponse'].includes(CO.phase)) return '';
       if (CO.humanSide === 'nature') return coopChainGuidePanel();
-      if (CO.mp) return coopAllyStatusPanel();
       const hints = coopContextHints();
       return `<div style="margin-top:10px;background:var(--bg1,#0d1117);border:1px solid #21262d;border-radius:8px;padding:8px 10px"><div style="font-size:.66rem;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:4px">ヒント</div>${hints.slice(0,2).map(h => `<div style="font-size:.7rem;color:${h.col};line-height:1.5">${h.t}</div>`).join('')}</div>`;
     }
-    // 盤面内の再接続情報パネル（QR＋コード）。全プレイヤーに表示
+    // 再接続オーバーレイの開閉
     function coopToggleReconn() { _coReconnOpen = !_coReconnOpen; renderCoop(); }
-    function coopOpenReconn() { _coReconnOpen = true; renderCoop(); }
-    function coopReconnPanel() {
-      if (!CO || !CO.online || !CO.roomId) return '';
-      const _svgQRico = `<svg style="width:14px;height:14px;vertical-align:middle;display:inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M5 5h3v3H5zm11 0h3v3h-3zM5 16h3v3H5z" fill="currentColor" stroke="none"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2z" fill="currentColor" stroke="none"/></svg>`;
-      const btnBg = _coReconnOpen ? 'rgba(56,139,253,.2)' : 'rgba(56,139,253,.08)';
-      const btn = `<button onclick="coopToggleReconn()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;background:${btnBg};border:1.5px solid rgba(56,139,253,.45);color:#388bfd;font-size:.74rem;cursor:pointer;transition:.12s">${_svgQRico}再接続QR${_coReconnOpen ? '　▲' : '　▼'}</button>`;
-      if (!_coReconnOpen) return btn;
+    function coopOpenReconn()   { _coReconnOpen = true;  renderCoop(); }
+    // 仲間手札タブの切り替え
+    function coopSelectAllyHand(idx) { _coAllyHandId = idx; renderCoop(); }
+    // 再接続用QRオーバーレイ（ハテナボタンまたは切断バナーから開く）
+    function coopRenderReconnOverlay() {
+      if (!_coReconnOpen || !CO || !CO.online || !CO.roomId) return '';
       const qrId = 'coop-reconn-qr';
       setTimeout(() => {
         const el = document.getElementById(qrId);
         if (!el || el.dataset.generated) return;
         el.dataset.generated = 'true';
         const url = window.location.href.split('?')[0] + '?coop=' + CO.roomId;
-        try { new QRCode(el, { text: url, width: 130, height: 130, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
+        try { new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
         catch (e) { el.innerHTML = '<div style="color:var(--t3);font-size:.72rem;padding:8px">QR生成失敗</div>'; }
       }, 0);
-      return `${btn}<div style="background:rgba(56,139,253,.07);border:1px solid rgba(56,139,253,.28);border-radius:8px;padding:8px 10px;margin-top:5px"><div onclick="coopCopyLobbyCode()" style="font-size:1.1rem;font-weight:900;color:#388bfd;letter-spacing:.12em;text-align:center;cursor:pointer;padding:6px;border-radius:6px;border:1px solid rgba(56,139,253,.3);background:rgba(56,139,253,.08);margin-bottom:6px">${CO.roomId} <span style="font-size:.64rem;font-weight:400;color:var(--t3)">タップでコピー</span></div><div style="text-align:center;margin-bottom:6px"><div id="${qrId}" style="display:inline-block;background:#0d1117;padding:6px;border-radius:8px"></div></div><div style="font-size:.65rem;color:var(--t3);text-align:center;line-height:1.5">前回と同じ名前を入力して参加ボタンを押すと再接続できる</div></div>`;
+      const _svgQRico = `<svg style="width:18px;height:18px;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M5 5h3v3H5zm11 0h3v3h-3zM5 16h3v3H5z" fill="currentColor" stroke="none"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2z" fill="currentColor" stroke="none"/></svg>`;
+      return `<div class="confirm-overlay" onclick="coopToggleReconn()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:340px;padding:20px 18px;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="display:flex;align-items:center;gap:7px;font-weight:800;font-size:1rem;color:#388bfd">${_svgQRico}再接続用QR</span><button onclick="coopToggleReconn()" style="background:transparent;border:none;color:rgba(255,255,255,.5);font-size:1.1rem;cursor:pointer;line-height:1;padding:0 2px">✕</button></div><div onclick="coopCopyLobbyCode()" style="font-size:1.15rem;font-weight:900;color:#388bfd;letter-spacing:.14em;text-align:center;cursor:pointer;padding:8px;border-radius:8px;border:1px solid rgba(56,139,253,.35);background:rgba(56,139,253,.08)">${CO.roomId} <span style="font-size:.65rem;font-weight:400;color:var(--t3)">タップでコピー</span></div><div style="text-align:center"><div id="${qrId}" style="display:inline-block;background:#0d1117;padding:6px;border-radius:8px"></div></div><div style="font-size:.68rem;color:var(--t3);text-align:center;line-height:1.6">前回と同じ名前を入力して参加ボタンを押すと再接続できる</div></div></div>`;
     }
     function coopRenderBoard() {
       const cityPanels = CO.cities.map(cs => coopCityPanel(cs)).join('');
@@ -9295,8 +9320,12 @@
       }
       const intelOk = CO.intelPopup && (!CO.online || CO.mySide === 'city');
       const overlay = CO.confirm ? coopRenderConfirm() : (CO.eventPopup ? coopRenderEventPopup() : (intelOk ? coopRenderIntelPopup() : ''));
-      const reconnPanel = coopReconnPanel();
-      return `<div class="screen active" style="padding:12px;max-width:560px;margin:0 auto">${dc}${coopStatusBar()}<div style="display:flex;gap:8px;margin-top:8px">${cityPanels}</div>${intel}${area}${infoPanel}<div style="margin-top:10px">${reconnPanel}</div><button onclick="coopRequestQuit()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:#fff;font-size:.76rem;cursor:pointer">ロビーに戻る（中断）</button></div>${overlay}`;
+      const reconnOverlay = coopRenderReconnOverlay();
+      // ハテナ（？）ボタン：MPオンライン時のみ表示。タップで再接続QRオーバーレイを開閉する
+      const reconnHintBtn = (CO.mp && CO.online && CO.roomId)
+        ? `<button class="hint-btn" onclick="coopToggleReconn()" title="再接続QR">？</button>`
+        : '';
+      return `<div class="screen active" style="padding:12px;max-width:560px;margin:0 auto">${dc}${coopStatusBar()}<div style="display:flex;gap:8px;margin-top:8px">${cityPanels}</div>${intel}${area}${infoPanel}<button onclick="coopRequestQuit()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:#fff;font-size:.76rem;cursor:pointer">ロビーに戻る（中断）</button></div>${overlay}${reconnOverlay}${reconnHintBtn}`;
     }
     // 自然の攻撃まとめ（対戦モードの renderTurnSummary に合わせる。2都市＋残りターン対応）
     function coopRenderSummary() {
