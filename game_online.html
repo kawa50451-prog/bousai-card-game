@@ -5492,7 +5492,7 @@
           if (jc.length < 6) statusLine = 'ルームコードを入力すると、参加方法が表示されます。';
           else if (!info) statusLine = 'ルームを確認中…';
           else if (!info.exists) { statusLine = '⚠️ そのコードのルームが見つかりません。'; statusColor = 'var(--red,#f85149)'; }
-          else if (info.started) { statusLine = '⚠️ このルームは既に開始しています。'; statusColor = 'var(--red,#f85149)'; }
+          else if (info.started) { statusLine = 'このルームは既に開始しています。参加時と同じ名前を入力して「参加する」を押すと、切断中スロットに再接続できます。'; statusColor = 'var(--t3)'; }
           else if (isRandom) { if (info.partFull) { statusLine = '⚠️ 満員です（最大5人）。'; statusColor = 'var(--red,#f85149)'; } else statusLine = '🎲 配役（都市側／自然側）は開始時に抽選されます。'; }
           else if (info.cityFull && !natureSelectable) { statusLine = '⚠️ 都市側が満員です（最大4人）。'; statusColor = 'var(--red,#f85149)'; }
           else if (natureSelectable) statusLine = '自然側に空きがあります。都市側・自然側のどちらでも参加できます。';
@@ -7554,6 +7554,7 @@
     let _coSeq = 0, _coHeartbeat = null, _coLastRecv = null; // seq付きpush＋ハートビート再配信で欠落更新からゲストを自己修復
     let _coRoomPlayersRef = null, _coRoomPresRef = null, _coStartedRef = null; // MP：ロビーのロスター・在席・開始フラグ購読
     let _coRoleShown = false; // MP：配役発表スプラッシュを1度だけ出す
+    let _coReconnOpen = false; // 盤面：再接続パネルの開閉状態
 
     // 勝敗を中立 outcome から自分視点に変換（オンライン用）
     function coopResultFor(side) {
@@ -8113,8 +8114,26 @@
         const snap = await db.ref(`coopRooms/${code}`).get();
         const room = snap.val();
         if (!room) { lobbyState.error = 'ルームが見つかりません'; render(); return; }
-        if (room.started) { lobbyState.error = 'このルームは既に開始しています'; render(); return; }
         const players = room.players || {};
+        if (room.started) {
+          // 開始済み：名前一致＋切断中スロットがあれば既存IDを引き継ぎ再接続
+          const pres = room.presence || {};
+          const rejoinEntry = Object.entries(players).find(([id, p]) => p.name === name && pres[id] === false);
+          if (rejoinEntry) {
+            const [rejoinId] = rejoinEntry;
+            try { localStorage.setItem('ron_coopId', rejoinId); localStorage.setItem('ron_coopName', name); localStorage.setItem('ron_coopRoom', code); } catch (e) {}
+            coopMPRejoin(code);
+            return;
+          }
+          if (Object.entries(players).some(([id, p]) => p.name === name && pres[id] !== false)) {
+            lobbyState.error = 'その名前のプレイヤーは接続中です'; render(); return;
+          }
+          lobbyState.error = 'このルームは既に開始しています'; render(); return;
+        }
+        // ロビー段階：同名拒否（別の名前で参加するよう促す）
+        if (Object.values(players).some(p => p.name === name)) {
+          lobbyState.error = '同じ名前のプレイヤーが既にいます。別の名前を入力してください'; render(); return;
+        }
         const assign = room.assign || 'fixed';
         let side;
         if (assign === 'random') {
@@ -9223,6 +9242,26 @@
       const hints = coopContextHints();
       return `<div style="margin-top:10px;background:var(--bg1,#0d1117);border:1px solid #21262d;border-radius:8px;padding:8px 10px"><div style="font-size:.66rem;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:4px">ヒント</div>${hints.slice(0,2).map(h => `<div style="font-size:.7rem;color:${h.col};line-height:1.5">${h.t}</div>`).join('')}</div>`;
     }
+    // 盤面内の再接続情報パネル（QR＋コード）。全プレイヤーに表示
+    function coopToggleReconn() { _coReconnOpen = !_coReconnOpen; renderCoop(); }
+    function coopOpenReconn() { _coReconnOpen = true; renderCoop(); }
+    function coopReconnPanel() {
+      if (!CO || !CO.online || !CO.roomId) return '';
+      const _svgQRico = `<svg style="width:14px;height:14px;vertical-align:middle;display:inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M5 5h3v3H5zm11 0h3v3h-3zM5 16h3v3H5z" fill="currentColor" stroke="none"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2z" fill="currentColor" stroke="none"/></svg>`;
+      const btnBg = _coReconnOpen ? 'rgba(56,139,253,.2)' : 'rgba(56,139,253,.08)';
+      const btn = `<button onclick="coopToggleReconn()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;background:${btnBg};border:1.5px solid rgba(56,139,253,.45);color:#388bfd;font-size:.74rem;cursor:pointer;transition:.12s">${_svgQRico}再接続QR${_coReconnOpen ? '　▲' : '　▼'}</button>`;
+      if (!_coReconnOpen) return btn;
+      const qrId = 'coop-reconn-qr';
+      setTimeout(() => {
+        const el = document.getElementById(qrId);
+        if (!el || el.dataset.generated) return;
+        el.dataset.generated = 'true';
+        const url = window.location.href.split('?')[0] + '?coop=' + CO.roomId;
+        try { new QRCode(el, { text: url, width: 130, height: 130, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
+        catch (e) { el.innerHTML = '<div style="color:var(--t3);font-size:.72rem;padding:8px">QR生成失敗</div>'; }
+      }, 0);
+      return `${btn}<div style="background:rgba(56,139,253,.07);border:1px solid rgba(56,139,253,.28);border-radius:8px;padding:8px 10px;margin-top:5px"><div onclick="coopCopyLobbyCode()" style="font-size:1.1rem;font-weight:900;color:#388bfd;letter-spacing:.12em;text-align:center;cursor:pointer;padding:6px;border-radius:6px;border:1px solid rgba(56,139,253,.3);background:rgba(56,139,253,.08);margin-bottom:6px">${CO.roomId} <span style="font-size:.64rem;font-weight:400;color:var(--t3)">タップでコピー</span></div><div style="text-align:center;margin-bottom:6px"><div id="${qrId}" style="display:inline-block;background:#0d1117;padding:6px;border-radius:8px"></div></div><div style="font-size:.65rem;color:var(--t3);text-align:center;line-height:1.5">前回と同じ名前を入力して参加ボタンを押すと再接続できる</div></div>`;
+    }
     function coopRenderBoard() {
       const cityPanels = CO.cities.map(cs => coopCityPanel(cs)).join('');
       const showIntel = CO.intel && (!CO.online || CO.mySide === 'city');
@@ -9252,11 +9291,12 @@
         } else {
           _dcWho = CO.oppName || '相手';
         }
-        dc = `<div style="background:rgba(248,81,73,.15);border:1px solid #f85149;border-radius:8px;padding:6px;text-align:center;color:#f85149;font-size:.76rem;margin-bottom:6px">⚠️ ${_dcWho} が切断しました。再接続を待っています…</div>`;
+        dc = `<div style="background:rgba(248,81,73,.15);border:1px solid #f85149;border-radius:8px;padding:6px 10px;color:#f85149;font-size:.76rem;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px"><span>⚠️ ${_dcWho} が切断しました。再接続を待っています…</span><button onclick="coopOpenReconn()" style="flex-shrink:0;padding:3px 10px;border-radius:6px;background:transparent;border:1px solid rgba(248,81,73,.5);color:#f85149;font-size:.7rem;cursor:pointer">QRを表示</button></div>`;
       }
       const intelOk = CO.intelPopup && (!CO.online || CO.mySide === 'city');
       const overlay = CO.confirm ? coopRenderConfirm() : (CO.eventPopup ? coopRenderEventPopup() : (intelOk ? coopRenderIntelPopup() : ''));
-      return `<div class="screen active" style="padding:12px;max-width:560px;margin:0 auto">${dc}${coopStatusBar()}<div style="display:flex;gap:8px;margin-top:8px">${cityPanels}</div>${intel}${area}${infoPanel}<button onclick="coopRequestQuit()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:#fff;font-size:.76rem;cursor:pointer">ロビーに戻る（中断）</button></div>${overlay}`;
+      const reconnPanel = coopReconnPanel();
+      return `<div class="screen active" style="padding:12px;max-width:560px;margin:0 auto">${dc}${coopStatusBar()}<div style="display:flex;gap:8px;margin-top:8px">${cityPanels}</div>${intel}${area}${infoPanel}<div style="margin-top:10px">${reconnPanel}</div><button onclick="coopRequestQuit()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:#fff;font-size:.76rem;cursor:pointer">ロビーに戻る（中断）</button></div>${overlay}`;
     }
     // 自然の攻撃まとめ（対戦モードの renderTurnSummary に合わせる。2都市＋残りターン対応）
     function coopRenderSummary() {
