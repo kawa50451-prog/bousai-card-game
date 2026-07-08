@@ -205,6 +205,40 @@
       gap: 10px
     }
 
+    /* ── A1：ホームのダッシュボード状態カード（design_system.md §9.1 A1）。
+       Layer1カードより視覚的重みを小さくした控えめな1枚。絵文字・アクセントピンクは使わない ── */
+    .lobby-dash-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 44px;
+      background: var(--bg2);
+      border: 1px solid var(--bg3);
+      border-radius: 10px;
+      padding: 8px 14px;
+      color: var(--t1);
+      font-size: .78rem;
+      text-align: left;
+      cursor: pointer
+    }
+    .lobby-dash-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      font-weight: 600
+    }
+    .lobby-dash-sub {
+      font-size: .68rem;
+      color: var(--t2);
+      font-weight: 400
+    }
+    .lobby-dash-arrow {
+      color: var(--t3);
+      font-size: 1rem
+    }
+
     .lobby-btn {
       background: var(--bg2);
       border: 1.5px solid var(--bg3);
@@ -1085,7 +1119,8 @@
       font-size: .85rem;
       font-weight: 700;
       min-width: 56px;
-      text-align: right
+      text-align: right;
+      font-variant-numeric: tabular-nums
     }
 
     .backup-city-row {
@@ -1121,7 +1156,8 @@
     .backup-hp-text {
       font-size: .7rem;
       min-width: 36px;
-      text-align: right
+      text-align: right;
+      font-variant-numeric: tabular-nums
     }
 
     .effects-row {
@@ -1405,7 +1441,8 @@
     .budget-display {
       display: flex;
       align-items: center;
-      gap: 4px
+      gap: 4px;
+      font-variant-numeric: tabular-nums
     }
 
     .budget-label {
@@ -2150,7 +2187,8 @@
       text-shadow: 0 2px 8px rgba(0,0,0,.8);
       animation: float-up-dmg .95s cubic-bezier(.23,1,.32,1) forwards;
       z-index: 9000;
-      user-select: none
+      user-select: none;
+      font-variant-numeric: tabular-nums
     }
 
     /* ── ターン開始スプラッシュ ── */
@@ -2547,6 +2585,14 @@
     }
     .hp-text-warn { animation:yb-flicker 2.4s linear infinite; }
 
+    /* ── §9.4積み残し：prefers-reduced-motion拡張。前庭系に敏感なユーザー向けに、
+       画面シェイク・HP危険域の点滅・フリッカー系の強い視覚効果を無効化する（design_system.md §4.3） ── */
+    @media (prefers-reduced-motion: reduce) {
+      .screen-shake { animation: none !important; }
+      .hp-text-warn { animation: none !important; opacity: 1 !important; }
+      .hp-critical-badge { animation: none !important; opacity: 1 !important; }
+    }
+
     /* ── D-2: Confirm drop-in ── */
     @keyframes yb-drop-in {
       from { opacity:0; transform:translateY(-44px) scale(.94); }
@@ -2759,8 +2805,8 @@
     }
     .go-stats-row:last-child { border-bottom: none; }
     .go-stats-row-name { flex: 1; color: var(--t1); }
-    .go-hp-alive { color:var(--green); font-weight:700; font-family:'Roboto Condensed',sans-serif; }
-    .go-hp-dead  { color:var(--red);   font-weight:700; font-family:'Roboto Condensed',sans-serif; }
+    .go-hp-alive { color:var(--green); font-weight:700; font-family:'Roboto Condensed',sans-serif; font-variant-numeric: tabular-nums; }
+    .go-hp-dead  { color:var(--red);   font-weight:700; font-family:'Roboto Condensed',sans-serif; font-variant-numeric: tabular-nums; }
 
     /* Turns badge */
     .go-turns-badge {
@@ -2772,6 +2818,7 @@
     .go-turns-badge strong {
       font-family: 'Roboto Condensed', sans-serif;
       color: var(--t1); font-size: 1.15rem;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Last-card highlight */
@@ -3285,6 +3332,51 @@
     //    自作の詰め防災パズルを作成・共有・プレイする。プレイ時はDD（デイリー防災エンジン）へ委譲するため、
     //    プレイ中はPZ=null・DD.isPuzzle=trueになる（詳細はファイル末尾の問題工房モジュールを参照）。
     let PZ = null;
+    // ══ B4：Screen Wake Lock（design_system.md §9.2 B4）。バトル中（対戦・協力・ソロCPUを含む）のみ画面消灯を防ぎ、
+    //    ロビー復帰・リザルト確定・デイリー/工房への遷移で解放する。非対応環境（iOS旧版等）は静かに無視する。 ══
+    let _wakeLock = null;
+    let _wakeLockWantActive = false;
+    async function _acquireWakeLock() {
+      try {
+        if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
+        _wakeLock = await navigator.wakeLock.request('screen');
+        _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+      } catch (e) { /* 非対応・ユーザー拒否・省電力モード等は無害に無視する */ }
+    }
+    function _releaseWakeLock() {
+      try { if (_wakeLock) _wakeLock.release(); } catch (e) { /* noop */ }
+      _wakeLock = null;
+    }
+    // バトル中かどうかの判定：対戦(G)は lobby/gameover/waiting_connection/tutorial 以外の画面、
+    // 協力(CO)は lobby/waitOnline/over 以外のフェーズ。デイリー(DD)・カード工房(CW)・問題工房(PZ)はバトルではない。
+    function _isBattleActive() {
+      if (DD || CW || PZ) return false;
+      if (CO && CO.phase && CO.phase !== 'lobby' && CO.phase !== 'waitOnline' && CO.phase !== 'over') return true;
+      if (G && G.screen && G.screen !== 'lobby' && G.screen !== 'gameover' && G.screen !== 'waiting_connection' && G.screen !== 'tutorial') return true;
+      return false;
+    }
+    function _updateWakeLock() {
+      const active = _isBattleActive();
+      if (active === _wakeLockWantActive) return;
+      _wakeLockWantActive = active;
+      if (active) _acquireWakeLock(); else _releaseWakeLock();
+    }
+    // Wake Lockはタブが非表示になると自動解放されるため、バトル中に再表示されたタイミングで再取得する
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && _wakeLockWantActive && !_wakeLock) _acquireWakeLock();
+      });
+    }
+    // ══ B1：ハプティクス共通ヘルパー（design_system.md §9.2 B1）。navigator.vibrate非対応（iOS Safari等）は無害に無視する。
+    //    prefers-reduced-motion:reduce環境では前庭系刺激の抑制と合わせて振動も止める（design_system.md §9.4）。 ══
+    const HAPTIC = { hit: [60, 40, 80], cardPlay: 25, win: [40, 60, 40, 60, 120] };
+    function haptic(pattern) {
+      try {
+        if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+        if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        navigator.vibrate(pattern);
+      } catch (e) { /* 非対応環境は無視 */ }
+    }
     // 協力モード専用：災害連鎖テーブル（共有データ DISASTER_CARDS は変更しない）
     // 連鎖（二次災害）の自動ベース値。ハイブリッド方式：自動連鎖は控えめなベース（教育の最低保証）にとどめ、
     // プレイヤーが対応する実カード（津波・洪水・土砂崩れ）を同一ターン・同一都市に続けて撃つと COOP_COMBO_BONUS で増幅する。
@@ -3974,7 +4066,9 @@
           } else {
             if (!G._gameHistory) G._gameHistory = [];
             G._gameHistory.push(...(G._nextTurnEvents[i] || []).map(ev => ({ ...ev, playerIdx: i })));
-            G.winner = i === 0 ? 1 : 0; G.screen = 'gameover'; pushState(); render(); return true;
+            G.winner = i === 0 ? 1 : 0; G.screen = 'gameover';
+            if (G.winner === myPlayerIdx) haptic(HAPTIC.win); // B1：勝利ハプティクス（design_system.md §9.2）
+            pushState(); render(); return true;
           }
         }
       }
@@ -4459,6 +4553,7 @@
         if (dmgAmt >= 30) {
           document.body.classList.remove('screen-shake'); void document.body.offsetWidth; document.body.classList.add('screen-shake');
           document.body.addEventListener('animationend', () => document.body.classList.remove('screen-shake'), { once: true });
+          haptic(HAPTIC.hit); // B1：被弾ハプティクス（screen-shakeと同期。design_system.md §9.2）
           const _flash = document.createElement('div');
           _flash.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9998;background:rgba(248,81,73,.26);animation:red-flash-anim .5s ease both';
           document.body.appendChild(_flash);
@@ -5237,6 +5332,7 @@
     // RENDER
     // ═══════════════════════════════════════
     function render() {
+      _updateWakeLock();
       if (CO) { renderCoop(); return; }
       if (DD) { renderDaily(); return; }
       if (CW) { renderCardWorkshop(); return; }
@@ -5412,6 +5508,36 @@
       render();
     }
 
+    // ── A1：ホームのダッシュボード化（design_system.md §9.1 A1）。Layer1カードの上に「今日いちばん関連が高い1つ」だけを
+    //    表示する薄い状態カード。データはすべて既存localStorage（ron_daily_v1）を読むのみで新規収集は行わない。
+    //    優先順：①今日のデイリー未クリア→②クリア済みでストリーク継続中→③前回の対戦結果。
+    //    ③は対戦・協力を横断する汎用戦績の保存先が現状存在しないため、新規データ収集をしない方針上、実質的に該当なしとなる。
+    function _lobbyDashboardCard() {
+      try {
+        const store = _ddStore();
+        const todayKey = ddDateKeyJST();
+        const todayRec = store.days && store.days[todayKey];
+        const clearedToday = !!(todayRec && todayRec.done);
+        const ico = _ddIcoCalShield(16, 'var(--t2)');
+        if (!clearedToday) {
+          const jst = new Date(Date.now() + 9 * 3600000);
+          const msInDay = jst.getUTCHours() * 3600000 + jst.getUTCMinutes() * 60000 + jst.getUTCSeconds() * 1000;
+          const remainH = Math.max(1, Math.ceil((86400000 - msInDay) / 3600000));
+          return `<button type="button" class="lobby-dash-card" onclick="dailyStart()" aria-label="今日のデイリー防災（未クリア・残り${remainH}時間）を開く">${ico}<span class="lobby-dash-text">今日のデイリー未クリア<span class="lobby-dash-sub">残り${remainH}時間</span></span><span class="lobby-dash-arrow" aria-hidden="true">›</span></button>`;
+        }
+        const streak = store.streak || 0;
+        if (streak > 0) {
+          return `<button type="button" class="lobby-dash-card" onclick="lobbyOpenDailyCalendar()" aria-label="ストリーク${streak}日目。カレンダー実績を見る">${ico}<span class="lobby-dash-text">ストリーク${streak}日目</span><span class="lobby-dash-arrow" aria-hidden="true">›</span></button>`;
+        }
+        return '';
+      } catch (e) { return ''; }
+    }
+    // ダッシュボードのストリークカードからカレンダー実績へ直接遷移する（デイリー未着手ならDDを初期化してから開く）
+    function lobbyOpenDailyCalendar() {
+      if (!DD) dailyStart();
+      dailyOpenCalendar();
+    }
+
     function renderLobby() {
       const nv = lobbyState.nameInput.replace(/"/g, '&quot;'); const jv = lobbyState.joinCodeInput.replace(/"/g, '&quot;');
       const err = lobbyState.error ? `<div class="lobby-error">⚠️ ${lobbyState.error}</div>` : '';
@@ -5505,7 +5631,7 @@
       // ── Layer2共通ウィザード部品（対戦Layer2・協力coopStepウィザードの両方で共用。段差表示の選択カード） ──
       const nameField = `<div style="margin-bottom:12px"><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>`;
       let _bigCardSeq = 0;
-      const bigCard = (onclick, icon, title, desc, color) => `<button onclick="${onclick}" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:1.5px solid ${color || 'var(--bg3,#30363d)'};background:rgba(255,255,255,.02);color:#fff;cursor:pointer;text-align:left;margin-bottom:8px;transition:.15s;animation:yb-scale-in .32s cubic-bezier(.23,1,.32,1) both;animation-delay:${(_bigCardSeq++) * 70}ms" onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='rgba(255,255,255,.02)'"><span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:32px;height:32px">${icon}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:.98rem">${title}</span><span style="font-size:.72rem;color:var(--t2);font-weight:400;line-height:1.4">${desc}</span></span></button>`;
+      const bigCard = (onclick, icon, title, desc, color) => `<button onclick="${onclick}" aria-label="${title}：${desc}" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:1.5px solid ${color || 'var(--bg3,#30363d)'};background:rgba(255,255,255,.02);color:#fff;cursor:pointer;text-align:left;margin-bottom:8px;transition:.15s;animation:yb-scale-in .32s cubic-bezier(.23,1,.32,1) both;animation-delay:${(_bigCardSeq++) * 70}ms" onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='rgba(255,255,255,.02)'"><span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:32px;height:32px">${icon}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:.98rem">${title}</span><span style="font-size:.72rem;color:var(--t2);font-weight:400;line-height:1.4">${desc}</span></span></button>`;
       const stepHead = t => `<div style="text-align:center;color:var(--t1);font-weight:800;font-size:1.02rem;margin:2px 0 12px">${t}</div>`;
       // アイコン：ホーム画面・中断ポップと同じSVGライン調（stroke=currentColor / width 2）
       const _wSvg = (paths, col) => `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px">${paths}</svg>`;
@@ -5525,9 +5651,10 @@
         // ── Layer1：モード選択（対戦する／協力する）。色ではなくアイコン・文言のみで差別化（design_system.md §1.4/§8.3） ──
         body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
     ${err}
+    ${_lobbyDashboardCard()}
     <div class="lobby-mode-btns">
-      <button class="lobby-btn" onclick="lobbyGoTo(()=>{lobbyState.playMode='vs';lobbyState.error=''},'forward')">${_svgGame}<strong>対戦する</strong><span style="font-size:.72rem;color:var(--t2)">1対1でぶつかり合う</span></button>
-      <button class="lobby-btn" onclick="lobbyGoTo(()=>{lobbyState.mode='coop';lobbyState.coopStep=1;lobbyState.coopNet=null;lobbyState.error=''},'forward')"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力する</strong><span style="font-size:.72rem;color:var(--t2)">街を守るため力を合わせる（ベータ版）</span></button>
+      <button class="lobby-btn" onclick="lobbyGoTo(()=>{lobbyState.playMode='vs';lobbyState.error=''},'forward')" aria-label="対戦する：1対1でぶつかり合う">${_svgGame}<strong>対戦する</strong><span style="font-size:.72rem;color:var(--t2)">1対1でぶつかり合う</span></button>
+      <button class="lobby-btn" onclick="lobbyGoTo(()=>{lobbyState.mode='coop';lobbyState.coopStep=1;lobbyState.coopNet=null;lobbyState.error=''},'forward')" aria-label="協力する：街を守るため力を合わせる（ベータ版）"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力する</strong><span style="font-size:.72rem;color:var(--t2)">街を守るため力を合わせる（ベータ版）</span></button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin:4px 0 0">
       <div style="flex:1;height:1px;background:var(--bg3)"></div>
@@ -5547,7 +5674,7 @@
     ${bigCard("lobbyGoTo(()=>{lobbyState.mode='cpu';lobbyState.error=''},'forward')", icoUser('#3fb950'), 'ひとりで練習', 'CPU対戦で練習する', '#3fb950')}
     ${bigCard("handleHostClick()", icoUsers('#388bfd'), '部屋を作る', 'ホスト（先攻）でオンライン対戦', '#388bfd')}
     ${bigCard("lobbyGoTo(()=>{lobbyState.mode='join';lobbyState.error=''},'forward')", icoLink('#a371f7'), '部屋に参加', 'ゲスト（後攻）でコードから参加', '#a371f7')}
-    <button class="sq-btn-r" style="margin-top:6px" onclick="lobbyGoTo(()=>{lobbyState.playMode=null;lobbyState.error=''},'back')">＜ ロビーに戻る</button>`;
+    <button class="sq-btn-r" style="margin-top:6px" onclick="lobbyGoTo(()=>{lobbyState.playMode=null;lobbyState.error=''},'back')" aria-label="ロビーに戻る">＜ ロビーに戻る</button>`;
       } else if (lobbyState.mode === 'cpu') {
         const _diffBtns = [
           { key: 'easy',   label: 'EASY',   color: '#3fb950', rgb: '63,185,80',  desc: 'ランダム行動<br>練習向け' },
@@ -5558,7 +5685,7 @@
     ${err}
     <div style="text-align:center;color:var(--t2);font-size:.82rem;margin:4px 0 10px">CPUと一人で対戦できます。難易度を選んでください。</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${_diffBtns}</div>
-    <button class="sq-btn-r" style="margin-top:8px" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.error=''},'back')">＜ ロビーに戻る</button>`;
+    <button class="sq-btn-r" style="margin-top:8px" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.error=''},'back')" aria-label="ロビーに戻る">＜ ロビーに戻る</button>`;
       } else if (lobbyState.mode === 'coop') {
         // ── ステップ式ウィザード：1画面に1つの問いだけを出す（bigCard等の共通部品は対戦Layer2と兼用のため上でホイスト済み） ──
         const step = lobbyState.coopStep || 1;
@@ -5583,7 +5710,7 @@
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='solo';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoUser('#3fb950'), 'ひとりで練習', 'CPUと対戦して練習する', '#3fb950')}
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='host';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoUsers('#388bfd'), '部屋を作る', 'みんなを招待してオンラインで', '#388bfd')}
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='join';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoLink('#a371f7'), '部屋に参加', 'コード・QR・リンクで参加する', '#a371f7')}
-    <button class="sq-btn-r" style="margin-top:6px" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.playMode=null;lobbyState.error=''},'back')">＜ ロビーに戻る</button>`;
+    <button class="sq-btn-r" style="margin-top:6px" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.playMode=null;lobbyState.error=''},'back')" aria-label="ロビーに戻る">＜ ロビーに戻る</button>`;
         } else if (step === 2 && net === 'solo') {
           // STEP 2（ソロ）：役割
           wiz = `${backBtn(1, "lobbyState.coopNet=null;")}${crumb}${stepHead('あなたの役割は？')}
@@ -5692,7 +5819,7 @@
     <div style="font-size:.78rem;color:#fff;text-align:center;line-height:1.6;padding:2px 0">ホストの画面に表示されるQRコードはカメラから読み込んでください</div>
     ${err}${spectateOffer}
     <button class="lobby-btn-single" onclick="handleJoinClick()">参加する</button>
-    <button class="sq-btn-r" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.error=''},'back')">＜ ロビーに戻る</button>`;
+    <button class="sq-btn-r" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.error=''},'back')" aria-label="ロビーに戻る">＜ ロビーに戻る</button>`;
       }
       const _rlLinesCls = _lobbyTitleAnimDone ? ' ron-active' : '';
       const _rlTextCls = _lobbyTitleAnimDone ? ' ron-active ron-flicker' : '';
@@ -5704,9 +5831,16 @@
         const anim = i%2===0 ? 'lobby-scroll-up 28s linear infinite' : 'lobby-scroll-down 28s linear infinite';
         return `<div class="lobby-bg-col"><div class="lobby-bg-col-inner" style="animation:${anim}">${_bgText}</div></div>`;
       }).join('');
-      return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-bg-title" aria-hidden="true">${_bgCols}</div><div class="lobby-box${enterClass}">
+      // A3：サムゾーン・アンカー（design_system.md §9.1 A3）。Layer1のみ、タイトル/ヒーローを上に固定したまま
+      // 操作要素（名前入力・ダッシュボードカード・モード選択・その他の機能）を画面下側へ寄せる。
+      // バトル画面のaction-barで実績のあるmargin-top:auto方式を.lobby-boxに適用し、min-heightで押し下げの余地を作る。
+      // 他レイヤー（Layer2・ギャラリー等）は既存どおり中央寄せのまま変更しない。
+      const _l1Anchor = lobbyState.mode === 'select' && !lobbyState.playMode;
+      const _boxStyleAttr = _l1Anchor ? ' style="min-height:min(640px, calc(100dvh - 40px))"' : '';
+      const _bodyHtml = _l1Anchor ? `<div style="display:flex;flex-direction:column;gap:16px;margin-top:auto">${body}</div>` : body;
+      return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-bg-title" aria-hidden="true">${_bgCols}</div><div class="lobby-box${enterClass}"${_boxStyleAttr}>
     <div class="lobby-hero">${_neonIconsHtml}${_rlHtml}</div>
-    ${body}
+    ${_bodyHtml}
   </div></div></div>`;
     }
 
@@ -5730,7 +5864,7 @@
         <span class="pulse-dot" style="background:var(--accent);min-width:12px"></span>
         <span style="font-size:.85rem;color:var(--accent)">相手の接続を待っています...</span>
       </div>
-      <button class="sq-btn-r" onclick="restartGame()">${_svgBack} ロビーに戻る</button>
+      <button class="sq-btn-r" onclick="restartGame()" aria-label="ロビーに戻る">${_svgBack} ロビーに戻る</button>
     </div></div></div>`;
       } else {
         return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
@@ -5743,7 +5877,7 @@
         <span class="pulse-dot" style="background:var(--green);min-width:12px"></span>
         <span style="font-size:.85rem;color:var(--green)">ホストの開始を待っています...</span>
       </div>
-      <button class="sq-btn-r" onclick="restartGame()">${_svgBack} ロビーに戻る</button>
+      <button class="sq-btn-r" onclick="restartGame()" aria-label="ロビーに戻る">${_svgBack} ロビーに戻る</button>
     </div></div></div>`;
       }
     }
@@ -6095,7 +6229,7 @@
       } else if (hasPending) {
         actionBar = pendingBar;
       } else if (ap === mi && !isResponsePhase) {
-        actionBar = `<div class="action-bar"><button class="btn-end" onclick="requestEndTurn()">ターン終了 →</button></div>`;
+        actionBar = `<div class="action-bar"><button class="btn-end" onclick="requestEndTurn()" aria-label="ターン終了">ターン終了 →</button></div>`;
       }
 
       return `<div class="screen active"><div class="battle-layout${isResponsePhase ? ' response-phase' : ''}">
@@ -6127,7 +6261,7 @@
           <div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div>
           <div class="confirm-card-preview"><strong>予算 ${left}pt が残っています</strong></div>
           <p>本当にターンを終了しますか？</p>
-          <div class="confirm-btns"><button class="btn-ok" onclick="confirmWithAnim()">終了する</button><button class="btn-cancel" onclick="cancelConfirm()">キャンセル</button></div>
+          <div class="confirm-btns"><button class="btn-ok" onclick="confirmWithAnim()" aria-label="ターン終了を確定する">終了する</button><button class="btn-cancel" onclick="cancelConfirm()" aria-label="ターン終了をキャンセル">キャンセル</button></div>
         </div></div>`;
       }
       const tl = c.cardType === 'policy' ? '政策カード' : c.cardType === 'disaster' ? '自然災害カード' : c.cardType === 'jinzai' ? '人為災害カード' : 'カード';
@@ -6198,7 +6332,7 @@
     <img class="confirm-card-img" src="images/cards/${cardId}.webp" alt="" onerror="this.style.display='none'">
     <div class="confirm-card-preview" style="display:flex;align-items:center;gap:6px">${_cIcon}<span>${c.name}</span></div>
     ${hint}<p>${tl}を<strong style="color:${c.danger ? 'var(--red)' : 'var(--blue)'}">${c.actionLabel}</strong>しますか？</p>
-    <div class="confirm-btns"><button class="btn-ok${c.danger ? ' danger' : ''}" onclick="confirmWithAnim()">はい</button><button class="btn-cancel" onclick="cancelConfirm()">キャンセル</button></div>
+    <div class="confirm-btns"><button class="btn-ok${c.danger ? ' danger' : ''}" onclick="confirmWithAnim()" aria-label="${c.name}を${c.actionLabel}する">はい</button><button class="btn-cancel" onclick="cancelConfirm()" aria-label="${c.actionLabel}をキャンセル">キャンセル</button></div>
   </div></div>`;
     }
 
@@ -6972,6 +7106,7 @@
     function doConfirm() {
       const c = G.confirm; G.confirm = null;
       if (c.fn === 'playCard' || c.fn === 'playResponseCard') {
+        haptic(HAPTIC.cardPlay); // B1：カード使用確定ハプティクス（design_system.md §9.2）
         _playingCardUid = c.uid; render();
         setTimeout(() => { _playingCardUid = null; if (c.fn === 'playCard') playCard(c.uid); else playResponseCard(c.uid); }, 230);
       } else if (c.fn === 'discardCard') { discardCard(c.uid); }
@@ -8966,7 +9101,11 @@
       const sideIcon = s => s === 'nature' ? `<img src="images/icons/icon_disaster.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block">` : s === 'city' ? `<img src="images/icons/icon_city.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block">` : '🎲';
       const sideText = s => s === 'nature' ? '自然側' : s === 'city' ? '都市側' : '抽選待ち';
       // E-2: 在席プレイヤーのドットに鼓動パルス（co-presence-live）を付与
-      const dot = id => `<span class="${pres[id] === false ? '' : 'co-presence-live'}" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:${pres[id] === false ? '#f85149' : '#3fb950'}"></span>`;
+      // デザインシステム改善②：色（赤/緑）のみに依存しないよう「在席／離脱中」の短いテキストラベルを併記する（design_system.md §1.5-2）
+      const dot = id => {
+        const online = pres[id] !== false;
+        return `<span style="display:inline-flex;align-items:center;gap:3px"><span class="${online ? 'co-presence-live' : ''}" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:${online ? '#3fb950' : '#f85149'}"></span><span style="font-size:.6rem;color:${online ? 'var(--t2)' : 'var(--red)'}">${online ? '在席' : '離脱中'}</span></span>`;
+      };
       // E-2: ロスター各行をyb-drop-inで段差表示
       const roster = arr.map((p, _ri) => `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#21262d);border-radius:8px;margin-bottom:5px;animation:yb-drop-in .38s cubic-bezier(.23,1,.32,1) both;animation-delay:${_ri * 70}ms"><span>${sideIcon(p.side)}</span><span style="flex:1;color:#fff;font-weight:700;font-size:.86rem;text-align:left">${p.name}${p.id === CO.myId ? '（あなた）' : ''}</span><span style="font-size:.7rem;color:var(--t2)">${sideText(p.side)}</span>${dot(p.id)}</div>`).join('');
       const isHost = CO.host;
@@ -9053,7 +9192,7 @@
       const barInner = damaged
         ? `<div data-co-ghost="${idx}" style="position:absolute;left:0;top:0;height:100%;width:${startPct}%;background:rgba(248,81,73,.55)"></div><div data-co-fill="${idx}" data-co-target="${pct}" style="position:absolute;left:0;top:0;height:100%;width:${startPct}%;background:${col}"></div>`
         : `<div style="position:absolute;left:0;top:0;width:${pct}%;height:100%;background:${col}"></div>`;
-      return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:10px;${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}"><div style="display:flex;align-items:center;gap:6px"><span class="city-icon-sm">${terrainImg(c, 22)}</span><strong style="color:#fff">${c.name}</strong></div>${owner}<div style="font-size:.64rem;color:#fff;opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px">${c.abilityDesc}</div><div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:16px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:16px;color:#fff;text-shadow:0 0 2px #000">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div><div style="font-size:.85rem;margin-top:5px;min-height:18px">${badges}</div></div>`;
+      return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:10px;${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}"><div style="display:flex;align-items:center;gap:6px"><span class="city-icon-sm">${terrainImg(c, 22)}</span><strong style="color:#fff">${c.name}</strong></div>${owner}<div style="font-size:.64rem;color:#fff;opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px">${c.abilityDesc}</div><div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:16px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:16px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div><div style="font-size:.85rem;margin-top:5px;min-height:18px">${badges}</div></div>`;
     }
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
     function coopMkCard(card, mode, support, readOnly) {
@@ -9319,6 +9458,7 @@
       if (total < 30) return;
       document.body.classList.remove('screen-shake'); void document.body.offsetWidth; document.body.classList.add('screen-shake');
       document.body.addEventListener('animationend', () => document.body.classList.remove('screen-shake'), { once: true });
+      haptic(HAPTIC.hit); // B1：被弾ハプティクス（screen-shakeと同期。design_system.md §9.2）
       const flash = document.createElement('div');
       flash.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9998;background:rgba(248,81,73,.26);animation:red-flash-anim .5s ease both';
       document.body.appendChild(flash);
@@ -9376,6 +9516,7 @@
     // ── 演出強化C-2/C-3：確認ポップの確定実行時、対象カード／攻撃タイルへ card-play-out を付与して約200ms後に実処理を呼ぶ（対戦の confirmWithAnim 相当）。
     //    ソロ／MPホスト／MPゲスト（intent送信）いずれの経路でも実処理の直前にラップするため見た目が揃う。DOM要素が見つからなければ即コミット ──
     function coopPlayOutThenCommit(el, commitFn) {
+      haptic(HAPTIC.cardPlay); // B1：カード使用確定ハプティクス（design_system.md §9.2）
       if (el && typeof el.classList === 'object' && typeof el.classList.add === 'function') {
         el.classList.add('card-play-out');
         setTimeout(commitFn, 200);
@@ -9723,6 +9864,8 @@
       const natureMode = CO.humanSide === 'nature';
       const alive = CO.cities.filter(cs => cs.hp > 0).length;
       const remHp = CO.cities.reduce((s, cs) => s + Math.max(0, cs.hp), 0);
+      // B1：勝利ハプティクス（CO再生成ごとに自然リセットされる自己完結フラグで1回のみ発火。design_system.md §9.2）
+      if (win && !CO._hapticOverFired) { CO._hapticOverFired = true; haptic(HAPTIC.win); }
 
       // 大タイトルとテーマ（対戦モードと統一：勝利=VICTORY/黄、敗北=GAME OVER/青）
       const themeCls = win ? 'go-victory' : 'go-defeat';
@@ -10866,6 +11009,15 @@
       if (rec.score <= 49) return '#d29922';
       return '#f85149';
     }
+    // デザインシステム改善②：色のみに依存しないよう、色に加えて形状（塗り丸/白ハロー/リング/角丸）で階級を区別する
+    // （完全防災=白ハローつき塗り丸・優秀=塗り丸・健闘=リング・要訓練/壊滅=角丸四角。design_system.md §1.5-2）。
+    function _ddCalDotHtml(color) {
+      if (!color) return '<div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:transparent"></div>';
+      if (color === '#e3c34d') return `<div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:${color};box-shadow:0 0 0 2px rgba(255,255,255,.55)"></div>`;
+      if (color === '#3fb950') return `<div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:${color}"></div>`;
+      if (color === '#d29922') return `<div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:transparent;border:1.5px solid ${color}"></div>`;
+      return `<div style="width:7px;height:7px;border-radius:2px;margin:3px auto 0;background:${color}"></div>`;
+    }
     function dailyRenderCalendar() {
       const store = _ddStore(); const days = store.days || {};
       const keys = Object.keys(days);
@@ -10898,9 +11050,9 @@
           : archivable ? 'border:1px solid rgba(56,139,253,.4);cursor:pointer' : '';
         const numColor = isFuture ? 'rgba(255,255,255,.25)' : '#fff';
         const clickAttr = archivable ? ` onclick="dailyOpenArchive('${key}')"` : '';
-        cells.push(`<div${clickAttr} style="text-align:center;padding:4px 0;border-radius:6px;${boxStyle}"><div style="font-size:.7rem;color:${numColor}">${d}</div><div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:${dot || 'transparent'}"></div></div>`);
+        cells.push(`<div${clickAttr} style="text-align:center;padding:4px 0;border-radius:6px;${boxStyle}"><div style="font-size:.7rem;color:${numColor}">${d}</div>${_ddCalDotHtml(dot)}</div>`);
       }
-      const statTile = (label, value) => `<div style="flex:1;background:var(--bg2,#161b22);border:1px solid var(--bg3,#21262d);border-radius:10px;padding:8px;text-align:center"><div style="font-size:1.15rem;font-weight:900;color:#fff">${value}</div><div style="font-size:.62rem;color:var(--t2);margin-top:2px">${label}</div></div>`;
+      const statTile = (label, value) => `<div style="flex:1;background:var(--bg2,#161b22);border:1px solid var(--bg3,#21262d);border-radius:10px;padding:8px;text-align:center"><div style="font-size:1.15rem;font-weight:900;color:#fff;font-variant-numeric:tabular-nums">${value}</div><div style="font-size:.62rem;color:var(--t2);margin-top:2px">${label}</div></div>`;
       return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto">
         <div style="text-align:center;color:#fff;font-weight:900;font-size:1.05rem;margin-bottom:12px">${_ddIcoCalShield(22, '#388bfd')} デイリー防災 記録</div>
         <div style="display:flex;gap:8px;margin-bottom:14px">
