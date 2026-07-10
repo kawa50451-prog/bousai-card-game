@@ -2078,6 +2078,27 @@
     /* ── 10. Hint overlay ── */
     .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:9100; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
     .hint-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(250,42,78,.1) }
+
+    /* ══ UI第3弾（試験実装）：A2 ボトムタブバー（design_system.md §9 A2。UI_TABBARで無効化可） ══ */
+    .ui-tabbar { position:fixed; left:0; right:0; bottom:0; z-index:9050; display:flex; background:var(--bg1); border-top:1px solid var(--bg3); padding:4px 4px; box-shadow:0 -2px 12px rgba(0,0,0,.35); }
+    .ui-tab-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:48px; padding:6px 4px; background:transparent; border:none; color:var(--t2); cursor:pointer; -webkit-tap-highlight-color:transparent; font:inherit; }
+    .ui-tab-icon-wrap { width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s; }
+    .ui-tab-btn.active { color:var(--blue); }
+    .ui-tab-btn.active .ui-tab-icon-wrap { background:rgba(56,139,253,.16); color:var(--blue); }
+    .ui-tab-label { font-size:.62rem; font-weight:700; line-height:1; }
+    .ui-tab-btn.active .ui-tab-label { font-weight:800; }
+    body.ui-tabbar-active #app { padding-bottom:64px; }
+    body.ui-tabbar-active .hint-btn { bottom:76px; }
+
+    /* ══ UI第3弾（試験実装）：B2 手札カード長押しプレビュー（design_system.md §9 B2。UI_LONGPRESS_PREVIEWで無効化可） ══ */
+    .ui-card-preview-overlay { position:fixed; inset:0; z-index:9600; background:rgba(0,0,0,.72); display:flex; align-items:center; justify-content:center; padding:24px; pointer-events:none; }
+    .ui-card-preview-card { width:min(280px, 78vw); background:var(--bg1); border:1.5px solid var(--bg3); border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.55); animation:ui-card-preview-in .2s cubic-bezier(.23,1,.32,1) both; }
+    .ui-card-preview-card img { width:100%; display:block; }
+    .ui-card-preview-name { padding:10px 14px 2px; font-weight:800; font-size:1.02rem; color:var(--t1); }
+    .ui-card-preview-badge { padding:0 14px; font-size:.68rem; color:var(--t2); }
+    .ui-card-preview-desc { padding:6px 14px 14px; font-size:.82rem; line-height:1.6; color:var(--t1); }
+    @keyframes ui-card-preview-in { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
+    body.ui-lp-noscroll { overflow:hidden !important; touch-action:none; }
     .spec-invite-btn { position:fixed; bottom:16px; right:64px; z-index:9100; padding:7px 12px; border-radius:20px; background:rgba(56,139,253,.15); border:1.5px solid #388bfd; color:#388bfd; font-size:.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(0,0,0,.4); transition:.2s; white-space:nowrap; }
     .spec-invite-btn:hover { background:rgba(56,139,253,.3); }
     .spec-invite-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:9200; display:flex; align-items:flex-end; justify-content:flex-end; padding:72px 12px; }
@@ -2591,6 +2612,8 @@
       .screen-shake { animation: none !important; }
       .hp-text-warn { animation: none !important; opacity: 1 !important; }
       .hp-critical-badge { animation: none !important; opacity: 1 !important; }
+      /* UI第3弾（試験実装）B2：長押しプレビューの拡大アニメを無効化 */
+      .ui-card-preview-card { animation: none !important; }
     }
 
     /* ── D-2: Confirm drop-in ── */
@@ -3177,6 +3200,17 @@
         bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
       }
 
+      /* ── 9b. UI第3弾（試験実装）：ボトムタブバーのsafe-area対応（design_system.md §5.2） ── */
+      .ui-tabbar {
+        padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+      }
+      body.ui-tabbar-active #app {
+        padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+      }
+      body.ui-tabbar-active .hint-btn {
+        bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 12px);
+      }
+
       /* ── 10. カードサイズ微調整 ── */
       :root {
         --card-h: 108px;
@@ -3231,10 +3265,55 @@
     .ios-switch.on .track { background:#34C759; }
     .ios-switch .knob { width:27px; height:27px; border-radius:50%; background:#fff; position:absolute; top:2px; left:2px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.4); }
     .ios-switch.on .knob { transform:translateX(20px); }
+
+    /* ── 静的ミニスプラッシュ（軽量化②-c）: 924KB本体のパース・スクリプト読込中の白画面対策。
+       依存なしのインラインCSSのみで即時ペイントし、JS初期化の冒頭で除去する。 ── */
+    #boot-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d1117;
+      transition: opacity .25s cubic-bezier(.23,1,.32,1);
+    }
+    #boot-splash.boot-splash-hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .boot-splash-inner { text-align: center; }
+    .boot-splash-title {
+      font-family: 'Roboto Condensed', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 900;
+      font-size: 1.7rem;
+      letter-spacing: .14em;
+      color: #e6edf3;
+      animation: boot-splash-pulse 1.7s ease-in-out infinite;
+    }
+    .boot-splash-sub {
+      margin-top: 10px;
+      font-size: .78rem;
+      letter-spacing: .05em;
+      color: #8b949e;
+    }
+    @keyframes boot-splash-pulse {
+      0%, 100% { opacity: .8; }
+      50% { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .boot-splash-title { animation: none; }
+    }
   </style>
 </head>
 
 <body>
+  <div id="boot-splash" aria-hidden="true">
+    <div class="boot-splash-inner">
+      <div class="boot-splash-title">READY OR NOT</div>
+      <div class="boot-splash-sub">起動中…</div>
+    </div>
+  </div>
   <div id="app"></div>
 
   <!-- Firebase Realtime Database SDK (compat) -->
@@ -3377,6 +3456,162 @@
         navigator.vibrate(pattern);
       } catch (e) { /* 非対応環境は無視 */ }
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    // UI第3弾（試験実装・2026-07-10）：A2 ボトムタブバー（design_system.md §9 A2）
+    // 無効化する場合は UI_TABBAR を false にするだけで完全に旧動作へ戻る（レンダリングは
+    // render()/renderCoop()/renderDaily()/renderCardWorkshop()/renderPuzzleWorkshop() の
+    // 5箇所から html += _uiTabBarHtml() を呼ぶだけの自己完結構造。呼び出し元の分岐は変更しない）。
+    // 表示対象：ホームLayer1/2/3・ギャラリー・デイリー防災・カード工房・問題工房のみ。
+    // 非表示：対戦/協力のバトル中・対応フェーズ・チュートリアル中・協力(CO)は待機ロビー/結果画面を
+    // 含む全フェーズ（design_system.md §9 A2はホーム/デイリー/つくる/図鑑の4タブのみを定義しており、
+    // オンライン協力はpresence/リスナーを張った生存ルームのためタブ遷移による離脱動線を増やさない
+    // 安全側判断とした）。
+    // ════════════════════════════════════════════════════════════════════
+    const UI_TABBAR = true;
+    function _uiTabBarActiveTab() {
+      if (CO) return null;
+      if (CW || PZ) return 'create';
+      if (DD) return 'daily';
+      if (myView() !== 'lobby') return null; // バトル中・対応フェーズ・チュートリアル中・setup_required等
+      if (lobbyState.mode === 'coop') return null; // 協力ウィザード進行中（design_system.md §9 A2の対象外）
+      if (lobbyState.mode === 'gallery') return 'gallery';
+      return 'home';
+    }
+    function _uiTabGoHome() {
+      if (CO) return;
+      CW = null; PZ = null; DD = null;
+      if (lobbyState.mode !== 'select' || lobbyState.playMode) {
+        lobbyGoTo(() => { lobbyState.mode = 'select'; lobbyState.playMode = null; lobbyState.galleryTab = null; lobbyState.galleryZoom = null; lobbyState.error = ''; }, 'back');
+      } else render();
+    }
+    function _uiTabGoDaily() {
+      if (CO || DD) return; // 既にデイリー表示中は無操作
+      CW = null; PZ = null;
+      dailyStart();
+    }
+    function _uiTabGoCreate() {
+      if (CO || CW) return; // 既にカード工房表示中は無操作
+      DD = null; PZ = null;
+      cwOpen();
+    }
+    function _uiTabGoGallery() {
+      if (CO) return;
+      if (!CW && !PZ && !DD && lobbyState.mode === 'gallery') return; // 既にギャラリー表示中は無操作
+      CW = null; PZ = null; DD = null;
+      lobbyGoTo(() => { lobbyState.mode = 'gallery'; lobbyState.galleryTab = null; lobbyState.galleryZoom = null; lobbyState.error = ''; }, 'forward');
+    }
+    // タブバー本体のレンダリング。呼ぶたびにアクティブタブを判定し body.ui-tabbar-active クラスも同期する
+    // （どの入口から呼ばれても#appの余白確保・非表示化が一貫するようにするため、判定とクラス切替を1関数に集約）。
+    function _uiTabBarHtml() {
+      const active = UI_TABBAR ? _uiTabBarActiveTab() : null;
+      if (typeof document !== 'undefined' && document.body && document.body.classList) document.body.classList.toggle('ui-tabbar-active', !!active);
+      if (!active) return '';
+      const TABS = [
+        { key: 'home', label: 'ホーム', onclick: '_uiTabGoHome()',
+          icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>' },
+        { key: 'daily', label: 'デイリー', onclick: '_uiTabGoDaily()',
+          icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M12 12.2 15.6 13.6V16c0 1.9-1.5 3.4-3.6 4.2-2.1-.8-3.6-2.3-3.6-4.2v-2.4z"/>' },
+        { key: 'create', label: 'つくる', onclick: '_uiTabGoCreate()',
+          icon: '<path d="M2 20h20"/><path d="M4 20v-9l3.5 3.5V11L11 14.5V11l3.5 3.5V7l3.5 4v9"/>' },
+        { key: 'gallery', label: '図鑑', onclick: '_uiTabGoGallery()',
+          icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' },
+      ];
+      const btns = TABS.map(t => {
+        const isActive = t.key === active;
+        return `<button class="ui-tab-btn${isActive ? ' active' : ''}" onclick="${t.onclick}" aria-label="${t.label}" aria-current="${isActive ? 'page' : 'false'}"><span class="ui-tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:21px;height:21px">${t.icon}</svg></span><span class="ui-tab-label">${t.label}</span></button>`;
+      }).join('');
+      return `<nav class="ui-tabbar" role="navigation" aria-label="メインナビゲーション">${btns}</nav>`;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // UI第3弾（試験実装・2026-07-10）：B2 手札カード長押しプレビュー（design_system.md §9 B2）
+    // 無効化する場合は UI_LONGPRESS_PREVIEW を false にするだけで完全に旧動作へ戻る
+    // （イベント委譲のみで各カード描画関数（renderPlayerHand/renderResponseHand/coopMkCard等）は
+    // 一切変更しない自己完結構造。プレビューは既存カードDOMの img/name/desc を読んで複製表示するため
+    // 新規のカードデータ参照も持たない）。
+    // 対象：バトル中（対戦main/response・協力city/draw/response/summary等）の .hand-cards-area 内の
+    // .card 要素のみ。_isBattleActive() を流用するためデイリー/カード工房/問題工房は自動的に対象外になる
+    // （それらも .hand-cards-area クラスを再利用しているが、_isBattleActive() が false を返すため無効化される）。
+    // タッチ操作のみで有効化（マウスのクリック挙動は一切変更しない＝PCの既存挙動を変えない）。
+    // ════════════════════════════════════════════════════════════════════
+    const UI_LONGPRESS_PREVIEW = true;
+    const UI_LP_DURATION_MS = 500;
+    const UI_LP_MOVE_TOLERANCE_PX = 12;
+    let _lpTimer = null;
+    let _lpStartX = 0, _lpStartY = 0;
+    let _lpFired = false;
+    let _lpOverlayEl = null;
+    function _lpEligibleCard(target) {
+      if (!UI_LONGPRESS_PREVIEW) return null;
+      if (typeof _isBattleActive !== 'function' || !_isBattleActive()) return null;
+      const card = target && target.closest ? target.closest('.hand-cards-area .card') : null;
+      if (!card || card.classList.contains('card-back')) return null;
+      if (!card.querySelector('.card-img')) return null;
+      return card;
+    }
+    function _lpCancelTimer() { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } }
+    function _lpClosePreview() {
+      if (!_lpOverlayEl) return;
+      try { _lpOverlayEl.remove(); } catch (e) { /* noop */ }
+      _lpOverlayEl = null;
+      if (typeof document !== 'undefined' && document.body && document.body.classList) document.body.classList.remove('ui-lp-noscroll');
+    }
+    function _lpShowPreview(cardEl) {
+      if (_lpOverlayEl || !cardEl) return;
+      const imgEl = cardEl.querySelector('.card-img');
+      const nameEl = cardEl.querySelector('.card-name-bar') || cardEl.querySelector('.card-name');
+      const descEl = cardEl.querySelector('.card-desc');
+      const badgeEl = cardEl.querySelector('.card-type-badge');
+      const src = imgEl ? imgEl.getAttribute('src') : '';
+      const name = nameEl ? nameEl.textContent : '';
+      const desc = descEl ? descEl.textContent : '';
+      const badge = badgeEl ? badgeEl.textContent : '';
+      const ov = document.createElement('div');
+      ov.className = 'ui-card-preview-overlay';
+      ov.innerHTML = `<div class="ui-card-preview-card"><img src="${src}" alt=""><div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div></div>`;
+      document.body.appendChild(ov);
+      _lpOverlayEl = ov;
+      document.body.classList.add('ui-lp-noscroll');
+    }
+    function _lpOnTouchStart(e) {
+      if (_lpOverlayEl) return; // プレビュー表示中は多重起動しない
+      const t = e.touches && e.touches[0]; if (!t) return;
+      const card = _lpEligibleCard(e.target); if (!card) return;
+      _lpStartX = t.clientX; _lpStartY = t.clientY; _lpFired = false;
+      _lpCancelTimer();
+      _lpTimer = setTimeout(() => { _lpTimer = null; _lpFired = true; _lpShowPreview(card); }, UI_LP_DURATION_MS);
+    }
+    function _lpOnTouchMove(e) {
+      const t = e.touches && e.touches[0];
+      if (_lpOverlayEl) {
+        // プレビュー表示中にスクロール開始とみなして閉じる。背景スクロールも防止する
+        if (e.cancelable) e.preventDefault();
+        _lpClosePreview();
+        return;
+      }
+      if (!_lpTimer || !t) return;
+      const dx = Math.abs(t.clientX - _lpStartX), dy = Math.abs(t.clientY - _lpStartY);
+      if (dx > UI_LP_MOVE_TOLERANCE_PX || dy > UI_LP_MOVE_TOLERANCE_PX) _lpCancelTimer();
+    }
+    function _lpOnTouchEnd(e) {
+      _lpCancelTimer();
+      if (_lpFired) {
+        if (e.cancelable) e.preventDefault(); // 長押し成立時は既存のタップ選択（onclick）を発火させない
+        _lpClosePreview();
+        _lpFired = false;
+      }
+    }
+    function _lpOnTouchCancel() { _lpCancelTimer(); _lpClosePreview(); _lpFired = false; }
+    function _lpOnContextMenu(e) { if (_lpEligibleCard(e.target)) e.preventDefault(); }
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('touchstart', _lpOnTouchStart, { passive: true });
+      document.addEventListener('touchmove', _lpOnTouchMove, { passive: false });
+      document.addEventListener('touchend', _lpOnTouchEnd, { passive: false });
+      document.addEventListener('touchcancel', _lpOnTouchCancel, { passive: true });
+      document.addEventListener('contextmenu', _lpOnContextMenu);
+    }
+
     // 協力モード専用：災害連鎖テーブル（共有データ DISASTER_CARDS は変更しない）
     // 連鎖（二次災害）の自動ベース値。ハイブリッド方式：自動連鎖は控えめなベース（教育の最低保証）にとどめ、
     // プレイヤーが対応する実カード（津波・洪水・土砂崩れ）を同一ターン・同一都市に続けて撃つと COOP_COMBO_BONUS で増幅する。
@@ -3398,6 +3633,11 @@
     // 防災協定（協力モード・即時＝予算の緊急融通）：対象都市（自分/味方）の「このターンの予算」を即座に +COOP_PACT_BUDGET（今すぐ使える）。
     // 即時カテゴリ（黄）の性質どおり使った瞬間に効果が完結する。コスト1で自分対象なら実質+1のランプ、味方の大型カードの後押しで強くなる状況依存カード。
     const COOP_PACT_BUDGET = 2; // 即時に融通する予算（暫定値・要プレイテスト）
+    // 手札経済（二重通貨）の公助枠：予算と手札の2通貨のうち、実際に枯渇するのは手札側という設計不全への対処（design/coop_balance.md §10）。
+    // 緊急支援ドロー：都市ターン開始時、手札がこの枚数以下の生存都市は通常ドローに+1する。
+    const COOP_EMERGENCY_HAND_MAX = 1;
+    // 備蓄：都市ターン終了時、未使用予算がこの値以上残っている生存都市は1枚ドローする（予算は消費しない）。
+    const COOP_STOCKPILE_MIN_BUDGET = 2;
     // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
     const COOP_EVENT_INFO = {
       rumor:     { id: 'rumor',     icon: '📱', name: 'デマ拡散',   effectCity: 'このターンの予算 −1',                  effectNature: 'CPU都市の予算 −1（攻めの好機）',           desc: 'SNS上の偽情報が初動対応を混乱させる' },
@@ -4919,6 +5159,9 @@
 
     function listenToState() {
       let _prevActivePlayer = null; let _prevGScreen = null;
+      // 同一ルームへの再入室（再接続等）でlistenToState()が複数回呼ばれても
+      // リスナーが多重登録されないよう、登録前に既存分を解除する
+      db.ref(`rooms/${roomId}/state`).off();
       db.ref(`rooms/${roomId}/state`).on('value', snap => {
         const data = snap.val(); if (!data || data === myLastPush) return;
         const prevScreen = G.screen;
@@ -5332,6 +5575,10 @@
     // RENDER
     // ═══════════════════════════════════════
     function render() {
+      // B2：再描画のたびに長押しタイマー・プレビューDOMの残留を一掃する（design_system.md §9 B2）。
+      // どの分岐（CO/DD/CW/PZ/通常ロビー・バトル）でも必ず通る最上流でクリアするため、
+      // 長押し中に別要因でrender()が走っても古いタイマー参照・孤立したオーバーレイが残らない。
+      _lpCancelTimer(); _lpClosePreview();
       _updateWakeLock();
       if (CO) { renderCoop(); return; }
       if (DD) { renderDaily(); return; }
@@ -5376,11 +5623,14 @@
         html += `<button class="spec-invite-btn" onclick="toggleSpecInvite()">${_svgInvBtn}招待${_scntBadge}</button>`;
       }
       if (_specInviteOpen && roomId) html += renderSpecInviteOverlay();
+      html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：ロビー/ギャラリーのみ内部判定で表示される
       app.innerHTML = html; processHpAnims();
       if (_specPv) app.insertAdjacentHTML('beforeend', _renderSpecPreviewBar());
       if (_specInviteOpen) setTimeout(generateSpecInviteQR, 80);
       if (_lastDrawnCardUid) { setTimeout(() => { _lastDrawnCardUid = null; }, 0); }
       if (view === 'lobby') {
+        // 軽量化②-b：ロビー初回描画後、アイドル時間にカード・都市画像を先読みする
+        if (!_idlePreloadStarted) { _idlePreloadStarted = true; _idlePreloadImages(); }
         if (_wasLobbyEnter && !_introShown) {
           // このタブでの初回描画のみフル演出（約2.5秒）を再生する。2回目以降のロビー再訪は
           // 下のelse ifで即座に発光済み状態にし、軽量なlobby-fade-inのみで表示する。
@@ -7321,7 +7571,15 @@
       const _rApp = document.getElementById('app');
       _rApp.style.transition = 'opacity .28s ease'; _rApp.style.opacity = '0';
       setTimeout(() => {
-        if (db && roomId && myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
+        // リスナー多重登録・リーク対策：ルーム離脱時に自分の対戦state/リマッチ監視を解除する
+        // （p2・観戦者は旧ルームを削除しないため、ここで.off()しないと別ルーム入室後も
+        //   旧ルームの更新でGが上書きされ続けるリークになる）
+        if (db && roomId) {
+          db.ref(`rooms/${roomId}/state`).off();
+          db.ref(`rooms/${roomId}/rematchRequest`).off();
+          db.ref(`rooms/${roomId}/rematch`).off();
+          if (myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
+        }
         myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
         _rematchListenerSet = false; _rematchRequested = false;
         hideRematchRequestPopup();
@@ -7692,7 +7950,51 @@
     // ═══════════════════════════════════════
     // INIT
     // ═══════════════════════════════════════
+
+    // 軽量化②-c：静的ミニスプラッシュの除去。JS初期化の冒頭で呼び、
+    // 除去後の自然な流れで（ロビー初回のみ）showScanlineIntro()に引き継ぐ。
+    function _removeBootSplash() {
+      const el = document.getElementById('boot-splash');
+      if (!el) return;
+      el.classList.add('boot-splash-hide');
+      setTimeout(() => { if (el.parentNode) el.remove(); }, 260);
+    }
+
+    // 軽量化②-a：Service Worker登録。Capacitor/file://環境（アプリ版はローカル同梱でSW不要）と
+    // 非対応ブラウザではスキップする。GitHub Pagesのサブパス配信でも動くよう相対パスで登録する。
+    function _registerServiceWorker() {
+      if (!('serviceWorker' in navigator)) return;
+      if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    // 軽量化②-b：アイドル時間でのカード・都市画像の先読み。既存のALL_CARDS/CITIESのid→パス
+    // パターンをそのまま利用し、ハードコードのファイル名リストは作らない。
+    let _idlePreloadStarted = false;
+    function _idlePreloadImages() {
+      const paths = [
+        ...ALL_CARDS.map(c => `images/cards/${c.id}.webp`),
+        ...CITIES.map(c => `images/cities/${c.id}.webp`),
+      ];
+      let i = 0;
+      const BATCH = 4;
+      function warmBatch() {
+        const slice = paths.slice(i, i + BATCH);
+        if (!slice.length) return;
+        slice.forEach(src => { const img = new Image(); img.src = src; });
+        i += BATCH;
+        if (i < paths.length) {
+          if ('requestIdleCallback' in window) requestIdleCallback(warmBatch);
+          else setTimeout(warmBatch, 120);
+        }
+      }
+      if ('requestIdleCallback' in window) requestIdleCallback(warmBatch);
+      else setTimeout(warmBatch, 120);
+    }
+
     window.addEventListener('load', () => {
+      _removeBootSplash();
+      _registerServiceWorker();
       const params = new URLSearchParams(window.location.search);
       const coopParam = params.get('coop');          // 協力モードの招待リンク（対戦の ?room= とは分離）
       const roomParam = coopParam ? null : params.get('room');
@@ -8101,8 +8403,21 @@
       CO.phase = 'city'; CO.confirm = null; CO.intel = null; CO.intelPopup = false; CO.eventPopup = null;
       CO.cities.forEach(cs => { cs.effects.disastersReceivedThisTurn = 0; cs.ready = false; cs.ack = false; cs.resp = undefined; });
       coopApplyBudgetMP();
-      // 壊滅都市も後方支援として手札を回すため毎ターン1枚は引く（生存都市は通常通り4/2枚）
-      CO.cities.forEach(cs => { coopLoadActor(cs); coopDraw(cs.hp <= 0 ? 1 : (initial ? 4 : 2)); coopSaveActor(cs); });
+      // 壊滅都市も後方支援として手札を回すため毎ターン1枚は引く（生存都市は通常通り4/2枚）。
+      // 緊急支援ドロー：生存都市の手札がCOOP_EMERGENCY_HAND_MAX枚以下なら通常ドローに+1（初回ドローは対象外・design/coop_balance.md §10）
+      CO.cities.forEach(cs => {
+        coopLoadActor(cs);
+        let n;
+        if (cs.hp <= 0) n = 1;
+        else if (initial) n = 4;
+        else {
+          const emergency = cs.hand.length <= COOP_EMERGENCY_HAND_MAX;
+          n = emergency ? 3 : 2;
+          if (emergency) _coLog(`🚨 緊急支援物資：${cs.city.name}が手札不足のため+1枚ドロー（公助）`);
+        }
+        coopDraw(n);
+        coopSaveActor(cs);
+      });
       coopLoadMyActor();
       const evs = CO.diff.events.filter(ev => ev.t === CO.turn).map(e => e.id);
       if (evs.length) CO.eventPopup = evs;
@@ -8256,6 +8571,11 @@
           case 'endTurn': {
             if (CO.phase !== 'city' && CO.phase !== 'draw') break;
             const slot = slotOf(pid); if (!slot || slot.ready) break;
+            // 備蓄：未使用予算がCOOP_STOCKPILE_MIN_BUDGET以上残っている生存都市は1枚ドロー（予算は消費しない・design/coop_balance.md §10）
+            if (slot.hp > 0 && (slot.budget - slot.budgetUsed) >= COOP_STOCKPILE_MIN_BUDGET) {
+              coopLoadActor(slot); coopDraw(1); coopSaveActor(slot);
+              _coLog(`📦 備蓄：${slot.city.name}が使わなかった予算を物資に回して1枚ドロー`);
+            }
             slot.ready = true;
             // 壊滅都市も後方支援役として手番を持つため、全都市（生存・壊滅とも）の完了を待つ
             if (CO.cities.every(cs => cs.ready)) coopAfterCityTurnMP();
@@ -8592,7 +8912,11 @@
       if (CO.mp) return coopStartCityTurnMP(initial);
       CO.phase = 'city'; CO.confirm = null; CO.intel = null; CO.intelPopup = false; CO.eventPopup = null;
       CO.cities.forEach(cs => cs.effects.disastersReceivedThisTurn = 0);
-      coopApplyBudget(); coopDraw(initial ? 4 : 2);
+      coopApplyBudget();
+      // 緊急支援ドロー：共有手札が枯渇気味（COOP_EMERGENCY_HAND_MAX枚以下）なら通常ドローに+1（初回ドローは対象外・design/coop_balance.md §10）
+      const _coEmergency = !initial && CO.hand.length <= COOP_EMERGENCY_HAND_MAX;
+      coopDraw(initial ? 4 : (_coEmergency ? 3 : 2));
+      if (_coEmergency) _coLog('🚨 緊急支援物資：手札が少ないため+1枚ドロー（公助）');
       if (!CO.online) { if (CO.humanSide === 'city') coopSplashCity(); else coopSplashCpuCity(); }
       // このターンに発動する社会的脆弱性イベント（人為災害）があればターン開始ポップで告知
       const evs = CO.diff.events.filter(ev => ev.t === CO.turn).map(e => e.id);
@@ -8608,6 +8932,11 @@
     function coopDismissEventPopup() { if (CO.mp && !CO._applying) return coopMPCommit('dismissEvent', {}); if (CO.online && !CO.host) return coopClientCommit('dismissEvent', {}); coopAfterTurnStart(); }
     // 都市ターン終了後：humanSide によって CPU攻撃／人間攻撃へ分岐
     function coopAfterCityTurn() {
+      // 備蓄：使わなかった予算がCOOP_STOCKPILE_MIN_BUDGET以上残っていれば1枚ドロー（予算は消費しない・design/coop_balance.md §10）
+      if ((CO.budget - CO.budgetUsed) >= COOP_STOCKPILE_MIN_BUDGET) {
+        coopDraw(1);
+        _coLog('📦 備蓄：使わなかった予算を物資に回して1枚ドロー');
+      }
       if (CO.online) { coopStartNatureHumanTurn(); return; } // オンラインは自然も人間
       if (CO.humanSide === 'city') coopNatureTurn();
       else coopStartNatureHumanTurn();
@@ -9056,6 +9385,7 @@
       else if (CO.phase === 'draw' && !waiting) html = coopRenderDraw();
       else if (CO.phase === 'cpuReview') html = coopRenderCpuReview();
       else { html = coopRenderBoard(); _boardShown = true; }
+      html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：協力(CO)は常に非対象のため空文字を返す（body.ui-tabbar-active解除のためだけに呼ぶ）
       app.innerHTML = html;
       if (CO.phase === 'over' && typeof initGoObserver === 'function') setTimeout(initGoObserver, 60);
       if (CO.phase === 'lobby' && CO.host) setTimeout(coopGenLobbyQR, 30);
@@ -10756,6 +11086,7 @@
       else if (DD.phase === 'prep') html = dailyRenderPrep();
       else if (DD.phase === 'calendar') html = dailyRenderCalendar();
       else html = dailyRenderResult();
+      html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：デイリー防災は表示対象
       app.innerHTML = html;
     }
     // ── カード画像表示（改修1）：対戦・協力モードの .card 画像形式を流用した読み取り専用カード ──
@@ -10868,7 +11199,7 @@
       const chips = DD.results.map((r, i) => {
         const baseChip = `<span style="${cBad}">基礎 ${r.card.baseDamage}</span>`;
         const lineChips = r.lines.filter(l => l.d != null).map(l => `<span style="${l.d > 0 ? cBad : cOk}">${_escHtml(l.t.split(/[：（(]/)[0])} ${l.d > 0 ? '+' : ''}${l.d}</span>`).join('');
-        return `<div class="ts-ev ${r.dmg > 0 ? 'damage' : 'heal'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:.84rem;color:#fff"><img src="images/cards/${r.card.id}.webp" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:5px;flex-shrink:0" onerror="this.style.display='none'"><span>${i + 1}. ${_escHtml(r.card.name)}</span></div><div><span style="font-size:1.3rem;font-weight:900;color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span style="font-size:.65rem;color:var(--t2);margin-left:2px">ダメージ</span></div></div><div style="font-size:.7rem;color:var(--t2);margin-bottom:5px">HP ${r.hpBefore} → ${r.hpAfter}</div><div style="display:flex;flex-wrap:wrap;gap:4px">${baseChip}${lineChips}</div></div>`;
+        return `<div class="ts-ev ${r.dmg > 0 ? 'damage' : 'heal'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:.84rem;color:#fff"><img src="images/cards/${r.card.id}.webp" alt="" loading="lazy" style="width:24px;height:24px;object-fit:cover;border-radius:5px;flex-shrink:0" onerror="this.style.display='none'"><span>${i + 1}. ${_escHtml(r.card.name)}</span></div><div><span style="font-size:1.3rem;font-weight:900;color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span style="font-size:.65rem;color:var(--t2);margin-left:2px">ダメージ</span></div></div><div style="font-size:.7rem;color:var(--t2);margin-bottom:5px">HP ${r.hpBefore} → ${r.hpAfter}</div><div style="display:flex;flex-wrap:wrap;gap:4px">${baseChip}${lineChips}</div></div>`;
       }).join('');
       // D2：過去問アーカイブと通常の練習モードは注記を出し分ける（アーカイブは常に練習・通常練習は本日クリア済みが理由）
       const archiveBadge = DD.isArchive ? `<div style="text-align:center;background:rgba(56,139,253,.12);border:1px solid #388bfd;border-radius:10px;padding:8px;margin-bottom:10px;font-size:.76rem;color:#388bfd;font-weight:700">${ddDateLabelSlash(DD.dateKey)}の過去問（練習）・記録には反映されません</div>` : '';
@@ -11896,7 +12227,7 @@
           const sel = CW.art && CW.art.type === 'preset' && CW.art.presetId === p.id;
           return `<div style="width:100%">
             <button type="button" onclick="cwSetArtPreset('${p.id}')" title="${_escHtml(p.label)}" style="width:100%;aspect-ratio:5/7;padding:0;border-radius:8px;overflow:hidden;position:relative;border:2px solid ${sel ? '#9ecbff' : 'var(--bg3,#30363d)'};background:#0d1117;cursor:pointer">
-              <img src="images/cities/custom/${p.id}.webp" alt="${_escHtml(p.label)}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.parentElement.style.display='none'">
+              <img src="images/cities/custom/${p.id}.webp" alt="${_escHtml(p.label)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.parentElement.style.display='none'">
               <span style="position:absolute;left:4px;bottom:3px;font-size:.6rem;color:#fff;text-shadow:0 1px 2px #000">${_escHtml(p.label)}</span>
             </button>
           </div>`;
@@ -12012,6 +12343,7 @@
       else if (CW.view === 'import') html = cwRenderImport();
       else if (CW.view === 'wizard') html = cwRenderWizard();
       else html = cwRenderList();
+      html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：カード工房は表示対象（つくるタブがアクティブ）
       app.innerHTML = html;
     }
     function cwRenderList() {
@@ -12518,6 +12850,7 @@
       if (PZ.view === 'editor') html = pzRenderEditor();
       else if (PZ.view === 'import') html = pzRenderImport();
       else html = pzRenderList();
+      html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：問題工房は表示対象（つくるタブがアクティブ）
       app.innerHTML = html;
     }
     function pzRenderList() {
@@ -12534,7 +12867,7 @@
         </div>` : '';
         return `<div style="background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;padding:10px;margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:10px">
-            <img src="images/cities/${city ? city.id : ''}.webp" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">
+            <img src="images/cities/${city ? city.id : ''}.webp" alt="" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">
             <div style="flex:1;min-width:0">
               <div style="font-weight:800;color:#fff;font-size:.86rem">${_escHtml(p.title)}</div>
               <div style="font-size:.68rem;color:var(--t2,#8b949e);margin-top:2px">${city ? _escHtml(city.name) : '?'}・災害${p.disasterIds.length}枚・予算${p.budget}${sourceTag}</div>
