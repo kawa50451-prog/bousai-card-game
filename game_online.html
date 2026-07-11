@@ -15,6 +15,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700;900&display=swap" rel="stylesheet">
+  <!-- カード工房v2：公式カード品質の合成カード文字用（太ゴシック）。document.fonts.load()で必要な文字のグリフだけを遅延取得する -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@900&display=swap" rel="stylesheet">
   <style>
     *,
     *::before,
@@ -11867,20 +11869,23 @@
       { key: 'mountain', label: '山間部', isCoastal: false, isMountain: true },
     ];
     // プリセット都市能力8種：既存都市(CITIES)の能力をそのまま借用する（値の重複定義を避けるため実行時にCITIESから読み取る）
+    // cardText：公式カード（images/cities/*.webp）に実際に印字されている文体をそのまま転記した完全文（design/card_text.md準拠）。
+    // カード工房v2のcanvas合成（_cwDrawCardTextV2）でのみ使用する表示用テキストであり、desc（DOMプレビュー・旧版canvas用の短縮表記）や
+    // ゲームロジックの数値（abilityType/abilityValue）には一切影響しない。
     const CW_PRESET_DEFS = [
-      { srcId: 'tokyo',     label: '耐震都市' },
-      { srcId: 'osaka',     label: '回復都市' },
-      { srcId: 'kobe',      label: '経済都市' },
-      { srcId: 'hiroshima', label: '山の守り' },
-      { srcId: 'sendai',    label: '水害対策' },
-      { srcId: 'kumamoto',  label: '連撃耐性' },
-      { srcId: 'niigata',   label: '復興力' },
-      { srcId: 'istanbul',  label: '学習都市' },
+      { srcId: 'tokyo',     label: '耐震都市', cardText: '地震・大火災のダメージを20軽減する。' },
+      { srcId: 'osaka',     label: '回復都市', cardText: '自分のターン終了時にHPが5回復する。' },
+      { srcId: 'kobe',      label: '経済都市', cardText: '毎ターンの予算が+1（計4pt）。' },
+      { srcId: 'hiroshima', label: '山の守り', cardText: '土砂崩れのダメージを20軽減する。' },
+      { srcId: 'sendai',    label: '水害対策', cardText: '洪水・津波のダメージを15軽減する。' },
+      { srcId: 'kumamoto',  label: '連撃耐性', cardText: '同じターンに2枚目の災害を受ける時、ダメージを20軽減する。' },
+      { srcId: 'niigata',   label: '復興力', cardText: '地震を受けたターンの終了時にHPが10回復する。' },
+      { srcId: 'istanbul',  label: '学習都市', cardText: '地震を受けた時、山札から1枚カードを引くことができる。' },
     ];
     function cwPresets() {
       return CW_PRESET_DEFS.map(p => {
         const src = CITIES.find(c => c.id === p.srcId) || {};
-        return { id: p.srcId, label: p.label, abilityType: src.abilityType, abilityValue: src.abilityValue, desc: src.abilityDesc, sourceName: src.name };
+        return { id: p.srcId, label: p.label, abilityType: src.abilityType, abilityValue: src.abilityValue, desc: src.abilityDesc, cardText: p.cardText, sourceName: src.name };
       });
     }
     function cwPresetById(id) { return cwPresets().find(p => p.id === id) || null; }
@@ -12298,7 +12303,12 @@
     // 地形別のスカイラインシルエットを2〜3レイヤーで重ねて奥行きを出す。都市名ハッシュからアクセント色相を決め、
     // 同じ名前は必ず同じ配色・違う名前は（概ね）違う配色になる。ユーザー入力（都市名）はSVG内には一切埋め込まない
     // （名前テキストはcwRenderCardVisual側の地文に別途_escHtmlで描画するため、ここでは数値ハッシュのみを使用する）。
-    function cwGenFace(card) {
+    // rasterW/rasterHを渡すと、Image()でラスタライズする際の実サイズ(width/height属性)を指定できる（canvas合成でcover相当のクロップをさせるため）。
+    // 省略時はviewBoxと同じ200x280（DOM表示側はCSSでwidth:100%/height:100%を当てるため実サイズ属性の影響を受けない＝既存呼び出しは無変更）。
+    // parMode省略時は'slice'（DOM表示・cwRenderArtのcover詰め込みと同じ挙動）。v2canvas合成のアート窓は横長(509x404)で
+    // 元のviewBox(200x280・縦長)とアスペクト比が大きく異なり、'slice'のままだとビル群・波飾りが不自然な位置で切り取られるため、
+    // v2側の呼び出しだけ'meet'（レターボックス）を指定し、下敷きのunder_art（暗色）と自然になじませて全景を見せる。
+    function cwGenFace(card, rasterW, rasterH, parMode) {
       const c = card || {};
       const t = cwTerrainByKey(c.terrain);
       const h = cwNameHash(c.name);
@@ -12341,7 +12351,7 @@
         }
         skyline = bars.join('');
       }
-      return `<svg viewBox="0 0 200 280" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%" xmlns="http://www.w3.org/2000/svg">
+      return `<svg viewBox="0 0 200 280" width="${rasterW || 200}" height="${rasterH || 280}" preserveAspectRatio="xMidYMid ${parMode || 'slice'}" style="position:absolute;inset:0;width:100%;height:100%" xmlns="http://www.w3.org/2000/svg">
         <defs><radialGradient id="cwglow${h}" cx="50%" cy="30%" r="70%"><stop offset="0%" stop-color="${accent}" stop-opacity=".35"/><stop offset="100%" stop-color="#0d1117" stop-opacity="0"/></radialGradient></defs>
         <rect width="200" height="280" fill="#0d1117"/>
         <rect width="200" height="280" fill="url(#cwglow${h})"/>
@@ -12486,7 +12496,8 @@
     }
     // カード全体をcanvasに合成して返す（合成のみ。DOM挿入・ダウンロードは呼び出し側の責務）。
     // 画像読み込みはPromiseで直列化し、失敗時（プリセット画像未配置・写真データ破損等）は無例外でフォールバック描画に進む。
-    async function cwComposeCardCanvas(card) {
+    // 【旧版・簡易合成】v2素材（cardparts/*.webp）の読み込みに失敗した場合のフォールバック専用として温存する。
+    async function _cwComposeCardCanvasLegacy(card) {
       const c = card || {};
       const doc = (typeof document !== 'undefined') ? document : null;
       if (!doc || typeof doc.createElement !== 'function') throw new Error('この環境ではカード画像の合成に対応していません');
@@ -12516,6 +12527,303 @@
 
       _cwDrawForeground(ctx, W, H, c, t, preset, style);
       return canvas;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // カード工房クオリティ向上v2：公式カード（images/cities/tokyo.webp等）と同素材のレイヤー合成。
+    // 描画順：under_art → アート（窓にroundRect clip・cover描画） → over_art → frame_city → 地形メダル → 文字
+    // 合成解像度576×900（公式288×450の2倍。cities/tokyo.webpをsharpで実測しCW_LAYOUTへ定数化した）。
+    // ══════════════════════════════════════════════════════════════════
+    // tokyo.webp(576×900換算)の実測値。窓矩形はframe_city.webpのアルファ境界をflood-fillで機械抽出、
+    // 文字の位置・サイズ・色は白/濃色ピクセルの行走査で境界を取り実測した（2026-07実装）。
+    // 2026-07-11 微調整：公式tokyo.webpとv2合成結果の半透明オーバーレイ差分（sharp測定）に基づき、
+    // 都市名/地形ラベルのbaselineをそれぞれ-3px（上へ）、地形メダルをcx-15/cy+12/d-2、能力文をfirstBaseline+7px（下へ）で補正した。
+    // メダルはcx/cyともに実測差分どおりに合わせている（frame_city.webpの円形ソケットとメダル画像を重ね合わせて誤差ゼロを確認済み）。
+    // 2026-07-11 根本修正：グリッドサーチ（SAD最小化）により、frame_city.webpは公式カードの最外殻（over_artのティール基底）に対し
+    // scale0.97・offset(dx+10, dy+16)で載っていることが判明した（PPT図としての保存がフレーム自身の外形で切り出されるため）。
+    // 従来はフレームを(0,0,576,900)全面描画していたため実寸より3%大きく左上にズレており、これが「文字が上に見える」違和感の真因だった。
+    // artWindow・medalはこのフレームローカル座標系の値（旧数値にscale0.97+offsetを適用）に更新し、文字座標は公式カード座標系で
+    // 採寸済みのため変更していない。under_art/over_artは公式カードの最外殻＝公式座標系そのものなので全面(0,0,576,900)描画のまま維持する。
+    const CW_LAYOUT = {
+      W: 576, H: 900,
+      frame: { x: 10, y: 16, w: 559, h: 873 }, // frame_city.webpの描画先矩形（576×0.97, 900×0.97、offset+10/+16）
+      artWindow: { x: 43, y: 165, w: 494, h: 392, r: 49 }, // frame_city.webpの透過窓（角丸矩形。frameのローカル座標に変換済み）
+      medal: { cx: 486, cy: 113, d: 127 }, // フレーム右上の地形メダル円スロット（中心・直径。frameのローカル座標に変換済み）
+      // 都市名（中央揃え・縁取りなし＝背景が常に濃紺のため実測上ストロークは検出されず）。
+      // maxWidth/minSizeはカード名が最大8文字まで入力可能（cwValidateCard）なため、tokyo.webp実測の2文字用サイズ(58px)のままだと
+      // 長い名前で左右のエンブレム・地形メダルに重なる。左右エンブレムの内側余白から算出した安全幅にオーバーフローする場合のみ縮小する。
+      name: { cx: 288, baseline: 124, size: 58, maxWidth: 260, minSize: 30, color: '#ffffff' },
+      label: { cx: 288, baseline: 177, size: 24, color: '#ffffff' }, // 地形ラベル「◯◯都市」（中央揃え）
+      // 2026-07-11 最終パス：公式tokyo.webpを576×900へ拡大しsharpで白文字/濃色文字の行・列プロファイルを実測（背景のグロー光沢・
+      // プレートの斜め縁取りノイズは検出器の閾値通過域に入るため、実測時は「文字部分だけが作る連続した山」をピーク解析して除外した）。
+      // 公式「HP 60」白文字bbox: x149-302, y578-619（幅153・高さ41）。旧size46は高さ約34と小さすぎたため、
+      // size55へ拡大しbaselineは619のまま維持（下端は自然に一致）、左端合わせでx148→145に調整した。
+      // 生成結果の実測bbox: x150-304, y578-619（各辺の誤差はいずれも±2px以内）。
+      hp: { x: 145, baseline: 619, size: 55, color: '#ffffff' }, // 「HP 60」（左揃え。ハートはframe_city側に焼き込み済み）
+      // 2026-07-11 レイアウト方針転換：効果文は公式カードのbbox一致（旧仕様）ではなく、銀プレート
+      // （フレーム下部の白がかった金属質パネル。frame_city.webpのHP帯より下）の内側に上下左右中央揃えで
+      // 配置する方針にユーザー指定で変更した。abilityPlateは576×900最終キャンバス座標での実測値。
+      // 実測方法：sharpでframe_city.webpのアルファ境界を走査 → 銀色（b-rが小さく明度が高いピクセル）の
+      // 最大外接矩形は概ねx52-525・y656-820（境界の輝いた縁取りビス飾りを含む外殻）。ここから境界線・
+      // 面取りコーナーを避けるため8〜12px内側へ余白を取った内接矩形をabilityPlateとして定数化した
+      // （Puppeteerでcompose→getImageDataし同じ閾値判定を実行、frame_city.webp単体のsharp実測とも整合を確認）。
+      abilityPlate: { x: 60, y: 664, w: 456, h: 148 },
+      ability: {
+        // フォントサイズ26.5・行送り32は公式bbox実測時代からの値をそのまま維持する（可読性は公式と同等のため）。
+        // marginXはプレート内側幅から左右に差し引く安全余白（ビス飾り・面取りコーナーに文字が寄りすぎないように）。
+        // プレート内に収まらない場合（3行でも高さ超過、等）のみ_cwDrawCardTextV2内でsize/lineHeightを比例縮小する。
+        size: 26.5, lineHeight: 32, maxLines: 3, color: '#2c2f35', marginX: 20,
+      },
+    };
+    // 角丸矩形パス（Path2D/ctx.roundRect非対応環境向けの手動実装）
+    function _cwRoundRectPath(ctx, x, y, w, h, r) {
+      const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+    }
+    // _cwDrawCoverのオフセット付き版（アート窓など、canvas原点(0,0)以外の矩形へcover描画するために使う）
+    function _cwDrawCoverAt(ctx, img, x, y, w, h) {
+      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+      if (!iw || !ih) { try { ctx.drawImage(img, x, y, w, h); } catch (e) {} return; }
+      const r = _cwCoverRect(iw, ih, w, h);
+      ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, x, y, w, h);
+    }
+    // 折返し行を「描画せず」配列で返す版（能力説明文の総行数を先に数えて縦中央寄せするために使う。_cwWrapTextとロジックは同一）
+    function _cwWrapLines(ctx, text, maxWidth) {
+      const chars = String(text || '').split('');
+      let line = '', lines = [];
+      for (let i = 0; i < chars.length; i++) {
+        const test = line + chars[i];
+        if (line && ctx.measureText(test).width > maxWidth) { lines.push(line); line = chars[i]; }
+        else line = test;
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+    // カードv2の能力説明文専用の折返し（禁則処理＋優先折返し点つき）。他の呼び出し元（_cwWrapText/_cwWrapLines）には一切影響しない別関数。
+    // ・禁則処理：行頭に「、」「。」「・」が来る場合は前の行の末尾へ送る（多少maxWidthを超えても1文字なので視認上のはみ出しは僅か）。
+    // ・優先折返し点：直近の「、」「・」の直後で改行できる場合はそこで折り返す（自然な意味の区切りで改行するため）。
+    // 　ただし折返し候補が短すぎる（行の先頭付近）場合は不自然になるため、LOOKBACK文字以内にある場合のみ採用する。
+    function _cwWrapAbilityLines(ctx, text, maxWidth) {
+      const chars = String(text || '').split('');
+      const FORBIDDEN_LEADING = new Set(['、', '。', '・']);
+      const PREFERRED_BREAK_AFTER = new Set(['、', '・']);
+      const LOOKBACK = 6;
+      const lines = [];
+      let line = '';
+      let preferredIdx = -1; // line内で「この文字の直後」が優先折返し点であるインデックス
+      for (let i = 0; i < chars.length; i++) {
+        const ch = chars[i];
+        const test = line + ch;
+        if (line && ctx.measureText(test).width > maxWidth) {
+          if (FORBIDDEN_LEADING.has(ch)) {
+            // 句読点・中点を行頭にしない：多少はみ出しても現在行に含めてしまう
+            line = test;
+            lines.push(line);
+            line = ''; preferredIdx = -1;
+            continue;
+          }
+          if (preferredIdx > -1 && preferredIdx < line.length - 1 && line.length - 1 - preferredIdx <= LOOKBACK) {
+            lines.push(line.slice(0, preferredIdx + 1));
+            line = line.slice(preferredIdx + 1) + ch;
+          } else {
+            lines.push(line);
+            line = ch;
+          }
+          preferredIdx = PREFERRED_BREAK_AFTER.has(line[line.length - 1]) ? line.length - 1 : -1;
+        } else {
+          line = test;
+          if (PREFERRED_BREAK_AFTER.has(ch)) preferredIdx = line.length - 1;
+        }
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+    // 都市名のフォントサイズをmaxWidthに収まるまで縮小する（長い名前が左右のエンブレム・地形メダルへ重なるのを防ぐ）。
+    // ctx.fontを書き換えながらmeasureTextで判定するため、呼び出し後のctx.fontは戻り値のサイズになっている。
+    function _cwFitNameFontSize(ctx, text, fontFamily, baseSize, maxWidth, minSize) {
+      let size = baseSize;
+      while (size > minSize) {
+        ctx.font = `900 ${size}px ${fontFamily}`;
+        if (ctx.measureText(text).width <= maxWidth) break;
+        size -= 2;
+      }
+      return size;
+    }
+    // v2レイヤー素材（under_art/over_art/frame_city）は全カード共通・都市非依存のため初回のみロードしPromiseをキャッシュする
+    let _cwLayerImagesPromise = null;
+    function _cwLoadLayerImages() {
+      if (!_cwLayerImagesPromise) {
+        _cwLayerImagesPromise = Promise.all([
+          _cwLoadImage('images/cardparts/under_art.webp'),
+          _cwLoadImage('images/cardparts/over_art.webp'),
+          _cwLoadImage('images/cardparts/frame_city.webp'),
+        ]).then(([under, over, frame]) => ({ under, over, frame }));
+      }
+      return _cwLayerImagesPromise;
+    }
+    // 地形メダル画像（3種のみ）も都市非依存のため種類ごとに1回だけロードしキャッシュする
+    const _cwMedalImageCache = {};
+    function _cwLoadMedalImage(terrainKey) {
+      const src = terrainKey === 'coastal' ? 'images/icons/terrain_coastal.webp' : terrainKey === 'mountain' ? 'images/icons/terrain_mountain.webp' : 'images/icons/terrain_inland.webp';
+      if (!_cwMedalImageCache[src]) _cwMedalImageCache[src] = _cwLoadImage(src);
+      return _cwMedalImageCache[src];
+    }
+    // Google Fonts「Noto Sans JP」weight900をdocument.fonts経由でロードする（初回のみ・Promiseキャッシュ）。
+    // <head>の<link>で@font-faceは既に登録済みのため、ここではdocument.fonts.load(spec, text)で実際に描画する文字の
+    // グリフ（CJKのUnicode-range分割チャンク）だけを取得させる。オフライン・404・タイムアウト時はfalseに解決し、
+    // 呼び出し側はシステムのsans-serif太字へフォールバックする（合成自体は例外を投げず必ず成功させる）。
+    let _cwFontReadyPromise = null;
+    function _cwEnsureFont() {
+      if (!_cwFontReadyPromise) {
+        _cwFontReadyPromise = (async () => {
+          if (typeof document === 'undefined' || !document.fonts || typeof document.fonts.load !== 'function') return false;
+          // 地形ラベル・プリセット能力名・HP表記など、都市名以外の固定語彙をまとめて先読みする
+          const vocab = CW_TERRAINS.map(t => t.label).join('') + CW_PRESET_DEFS.map(p => p.label).join('')
+            + cwPresets().map(p => p.desc || '').join('') + cwPresets().map(p => p.cardText || '').join('')
+            + '都市HP0123456789：（）+−ー、。';
+          try {
+            await Promise.race([
+              document.fonts.load('900 48px "Noto Sans JP"', vocab),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('cw font timeout')), 3500)),
+            ]);
+            return true;
+          } catch (e) { return false; }
+        })();
+      }
+      return _cwFontReadyPromise;
+    }
+    // カード名は自由入力（任意の漢字を含みうる）のため、固定語彙のCJKチャンクに含まれない可能性がある。
+    // 既にロード済みのUnicode-rangeはブラウザが再取得しないため、カードごとに呼んでも実質コストはほぼゼロ。
+    async function _cwEnsureNameGlyphs(name) {
+      if (typeof document === 'undefined' || !document.fonts || typeof document.fonts.load !== 'function' || !name) return;
+      try {
+        await Promise.race([
+          document.fonts.load('900 48px "Noto Sans JP"', name),
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]);
+      } catch (e) { /* 失敗しても既存グリフ・フォールバックフォントで描画を継続する */ }
+    }
+    // 都市名・地形ラベル・HP・能力説明を実測レイアウト（CW_LAYOUT）で描画する
+    function _cwDrawCardTextV2(ctx, card, terrain, preset, fontFamily) {
+      const c = card || {};
+      const L = CW_LAYOUT;
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = L.name.color;
+      const nameText = c.name || '（都市名未入力）';
+      _cwFitNameFontSize(ctx, nameText, fontFamily, L.name.size, L.name.maxWidth, L.name.minSize); // ctx.fontを収まるサイズへ設定
+      ctx.fillText(nameText, L.name.cx, L.name.baseline);
+
+      ctx.font = `900 ${L.label.size}px ${fontFamily}`;
+      ctx.fillText(`${terrain.label}都市`, L.label.cx, L.label.baseline);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = L.hp.color;
+      ctx.font = `900 ${L.hp.size}px ${fontFamily}`;
+      ctx.fillText('HP 60', L.hp.x, L.hp.baseline); // カスタムカードは常時HP60固定（cwBuildCityObject準拠）
+
+      // cardText：公式カードに実際に印字されている完全文（例：「地震・大火災のダメージを20軽減する。」）。
+      // preset.cardText未設定（想定外の欠損）時のみ、従来の短縮表記にフォールバックする。
+      const abilityText = preset ? (preset.cardText || `${preset.label}：${preset.desc || ''}`) : '';
+      if (abilityText) {
+        const plate = L.abilityPlate;
+        const maxWidth = plate.w - L.ability.marginX * 2; // プレート内側幅から左右余白を引いた折返し幅
+        const lhRatio = L.ability.lineHeight / L.ability.size; // フォント縮小時も行送り比率を保つ
+        ctx.fillStyle = L.ability.color;
+        ctx.textAlign = 'center'; // 各行を中央揃えにする（プレート内で行の塊全体が中央に見えるように）
+        let fontSize = L.ability.size;
+        let lineHeight = L.ability.lineHeight;
+        let lines = [];
+        while (true) {
+          ctx.font = `900 ${fontSize}px ${fontFamily}`;
+          lines = _cwWrapAbilityLines(ctx, abilityText, maxWidth);
+          const blockHeight = (lines.length - 1) * lineHeight + fontSize * 1.2; // 文字自体の視覚高さを概算1.2emとして加算
+          if ((lines.length <= L.ability.maxLines && blockHeight <= plate.h) || fontSize <= 14) break;
+          fontSize -= 1;
+          lineHeight = Math.round(fontSize * lhRatio); // プレートに収まらない場合のみ比例縮小する
+        }
+        lines = lines.slice(0, L.ability.maxLines);
+        ctx.textBaseline = 'middle'; // 各行をその行の垂直中心基準で配置し、プレート中心を軸に上下展開する
+        const cx = plate.x + plate.w / 2;
+        const cy = plate.y + plate.h / 2;
+        const totalOffset = (lines.length - 1) * lineHeight;
+        let y = cy - totalOffset / 2; // 行ブロック全体をプレートの垂直中心に配置する
+        for (const line of lines) { ctx.fillText(line, cx, y); y += lineHeight; }
+        ctx.textBaseline = 'alphabetic'; // 呼び出し順が変わっても影響しないようデフォルトへ戻す
+      }
+    }
+    // v2本体：レイヤー画像・地形メダル・フォントを並列ロードし、素材が1つでも欠けたら例外を投げて呼び出し元(cwComposeCardCanvas)を
+    // 旧版フォールバックへ回す。フォント読み込み失敗はここでは無害（system sans-serifで続行するだけで例外にしない）。
+    async function _cwComposeCardCanvasV2(card) {
+      const c = card || {};
+      const doc = document;
+      const t = cwTerrainByKey(c.terrain);
+      const preset = cwPresetById(c.abilityId);
+      const art = cwNormalizeArt(c.art);
+      const L = CW_LAYOUT;
+      const canvas = doc.createElement('canvas');
+      canvas.width = L.W; canvas.height = L.H;
+      const ctx = canvas.getContext && canvas.getContext('2d');
+      if (!ctx) throw new Error('この環境では2D描画に対応していません');
+
+      const terrainKey = t.isCoastal ? 'coastal' : (t.isMountain ? 'mountain' : 'inland');
+      let artImgPromise;
+      if (art.type === 'preset') artImgPromise = _cwLoadImage(`images/cities/custom/${art.presetId}.webp`);
+      else if (art.type === 'photo') artImgPromise = _cwLoadImage(art.photo);
+      else artImgPromise = Promise.resolve(null); // gen顔は後段でウィンドウサイズに合わせてラスタライズする
+
+      const [{ under, over, frame }, medalImg, fontOk, artImg] = await Promise.all([
+        _cwLoadLayerImages(), _cwLoadMedalImage(terrainKey), _cwEnsureFont(), artImgPromise,
+      ]);
+      if (!under || !over || !frame) throw new Error('カードv2素材の読み込みに失敗しました'); // 呼び出し元で旧版フォールバック
+
+      let genImg = null;
+      if (art.type === 'gen' || !artImg) {
+        genImg = await _cwLoadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(cwGenFace(c, L.artWindow.w, L.artWindow.h, 'meet')));
+      }
+      if (fontOk) { try { await _cwEnsureNameGlyphs(c.name); } catch (e) {} }
+      const fontFamily = fontOk ? '"Noto Sans JP", sans-serif' : 'sans-serif';
+
+      ctx.drawImage(under, 0, 0, L.W, L.H); // ① 背景ベース
+
+      const win = L.artWindow;
+      ctx.save();
+      _cwRoundRectPath(ctx, win.x, win.y, win.w, win.h, win.r);
+      ctx.clip();
+      if (artImg) _cwDrawCoverAt(ctx, artImg, win.x, win.y, win.w, win.h);
+      else if (genImg) _cwDrawCoverAt(ctx, genImg, win.x, win.y, win.w, win.h);
+      else { ctx.fillStyle = '#0d1117'; ctx.fillRect(win.x, win.y, win.w, win.h); }
+      ctx.restore(); // ② アート（窓にclip）
+
+      ctx.drawImage(over, 0, 0, L.W, L.H); // ③ over_art（窓周りのグロー・上下プレートの下地。公式カード最外殻＝公式座標系そのものなので全面描画）
+      ctx.drawImage(frame, L.frame.x, L.frame.y, L.frame.w, L.frame.h); // ④ frame_city（scale0.97・offset(10,16)で公式カード境界に合わせる）
+
+      if (medalImg) { // ⑤ 地形メダル
+        const m = L.medal;
+        try { ctx.drawImage(medalImg, m.cx - m.d / 2, m.cy - m.d / 2, m.d, m.d); } catch (e) {}
+      }
+
+      _cwDrawCardTextV2(ctx, c, t, preset, fontFamily); // ⑥ 文字
+      return canvas;
+    }
+    // 公開関数：まずv2（レイヤー合成）を試み、素材未配置・読み込み失敗等があれば無例外で旧版簡易合成にフォールバックする。
+    // 呼び出し経路（ゲーム内表示A3のcwCardImage・PNG書き出しC3のcwDownloadCardPng）はこの関数だけを参照するため、
+    // どちらも自動的にv2を使うようになる（呼び出し側の変更は不要）。
+    async function cwComposeCardCanvas(card) {
+      const c = card || {};
+      const doc = (typeof document !== 'undefined') ? document : null;
+      if (!doc || typeof doc.createElement !== 'function') throw new Error('この環境ではカード画像の合成に対応していません');
+      try {
+        return await _cwComposeCardCanvasV2(c);
+      } catch (e) {
+        return await _cwComposeCardCanvasLegacy(c);
+      }
     }
     // ── PNG書き出し：合成→ダウンロード。source='editor'なら入力中のドラフト、'list'なら保存済みカード[idx]が対象 ──
     async function cwDownloadCardPng(source, idx) {
