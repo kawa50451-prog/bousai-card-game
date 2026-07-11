@@ -1389,14 +1389,23 @@
       flex: 1
     }
 
+    /* A案：バッジは名前バー内の1行フレックス要素（絶対配置を廃止）。
+       画像ロード失敗時のみ .card-text-fallback 併用で従来の右下絶対配置に戻る */
     .card-type-badge {
-      position: absolute;
-      bottom: 4px;
-      right: 4px;
       font-size: .55rem;
       padding: 1px 5px;
       border-radius: 4px;
-      font-weight: 600
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+      align-self: flex-end
+    }
+
+    .card-type-badge.badge-long {
+      font-size: .48rem;
+      max-width: 62%;
+      overflow: hidden;
+      text-overflow: ellipsis
     }
 
     .card.disaster .card-type-badge {
@@ -2020,10 +2029,18 @@
     .hand-group-label { display:none }
     .card-img-wrap { flex:1; position:relative; overflow:hidden; min-height:0 }
     .card-img { width:100%; height:100%; object-fit:cover; object-position:top center; display:block }
-    .card-name-bar { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,.88) 55%); padding:20px 4px 3px; font-size:.6rem; font-weight:700; color:#fff; text-align:center; line-height:1.15; pointer-events:none }
+    /* A案：名前バー＝左:名称(flex:1・左寄せ)/右:種類バッジ(固定)の1行フレックス。重なりが構造的に起きない */
+    .card-name-bar { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,.88) 55%); padding:20px 4px 3px; font-size:.6rem; font-weight:700; color:#fff; text-align:left; line-height:1.15; pointer-events:none; display:flex; align-items:flex-end; gap:3px }
+    /* 名称：keep-all＋​分割ヒントで自然な位置を優先して折返し、ヒントが無い長名はanywhereで緊急折返し。最大2行clamp */
+    .card-name-text { flex:1; min-width:0; word-break:keep-all; overflow-wrap:anywhere; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden }
+    .card-name-text.cn-sm { font-size:.52rem }
+    .card-name-text.cn-xs { font-size:.46rem }
     .card-text-fallback { display:none }
     .card.img-fail .card-text-fallback { display:block }
     .card.img-fail .card-img-wrap { display:none }
+    /* 画像フォールバック時のバッジ：名前バーごと消えるため、従来の右下絶対配置で復活させる */
+    .card-type-badge.card-text-fallback { display:none; position:absolute; bottom:4px; right:4px }
+    .card.img-fail .card-type-badge.card-text-fallback { display:inline-block }
     .card-disabled-reason { position:absolute; left:0; right:0; bottom:4px; font-size:.6rem; color:#fff; background:rgba(0,0,0,.72); text-align:center; padding:2px 4px; z-index:4 }
     .card-back img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block }
     .confirm-card-img { width:108px; border-radius:8px; display:block; margin:0 auto }
@@ -2062,7 +2079,7 @@
     .rdp-breakdown { font-size:.74rem; color:var(--t2); margin-top:3px; }
     .rdp-breakdown b { color:var(--red); font-weight:700; }
     .card-ineffective { opacity:.35; }
-    .card-hp-band { position:absolute; bottom:18px; left:0; width:72%; padding:2px 3px 2px 4px; background:rgba(0,0,0,.6); clip-path:polygon(0 0,100% 0,82% 100%,0 100%); font-size:.42rem; font-weight:700; color:var(--green); z-index:2; white-space:nowrap; }
+    .card-hp-band { position:absolute; bottom:26px; left:0; width:72%; padding:2px 3px 2px 4px; background:rgba(0,0,0,.6); clip-path:polygon(0 0,100% 0,82% 100%,0 100%); font-size:.42rem; font-weight:700; color:var(--green); z-index:2; white-space:nowrap; }
 
     /* ── 8. Log critical/divider ── */
     .log-entry.critical { background:rgba(248,81,73,.18) !important; border-left:3px solid var(--red); color:var(--red) !important; font-weight:700; padding-left:8px }
@@ -2133,6 +2150,8 @@
     @keyframes tutGlow { from { box-shadow:0 0 0 2px var(--blue),0 0 10px rgba(56,139,253,.4); transform:translateY(-2px) } to { box-shadow:0 0 0 3px var(--blue),0 0 22px rgba(56,139,253,.7); transform:translateY(-7px) } }
     .btn-end.tut-glow { animation:tutGlowBtn 1.1s ease-in-out infinite alternate }
     @keyframes tutGlowBtn { from { box-shadow:0 0 0 2px var(--green),0 0 8px rgba(63,185,80,.35) } to { box-shadow:0 0 0 3px var(--green),0 0 18px rgba(63,185,80,.65) } }
+    /* 協力チュートリアル：ターン終了ボタンの発光（.btn-endの見た目は使わず専用ボタンに同じ発光のみ適用） */
+    .coop-tut-endturn.tut-glow { animation:tutGlowBtn 1.1s ease-in-out infinite alternate }
     .tut-dim { opacity:.28 !important; pointer-events:none !important }
     .tut-dim-soft { opacity:.28 !important }
     .tut-guide { background:var(--bg1); border:1.5px solid var(--blue); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:10px }
@@ -3560,11 +3579,12 @@
     function _lpShowPreview(cardEl) {
       if (_lpOverlayEl || !cardEl) return;
       const imgEl = cardEl.querySelector('.card-img');
-      const nameEl = cardEl.querySelector('.card-name-bar') || cardEl.querySelector('.card-name');
+      // A案対応：名称は .card-name-text（バッジを含まない）を優先して読む。ゼロ幅スペースの分割ヒントは除去する
+      const nameEl = cardEl.querySelector('.card-name-text') || cardEl.querySelector('.card-name-bar') || cardEl.querySelector('.card-name');
       const descEl = cardEl.querySelector('.card-desc');
       const badgeEl = cardEl.querySelector('.card-type-badge');
       const src = imgEl ? imgEl.getAttribute('src') : '';
-      const name = nameEl ? nameEl.textContent : '';
+      const name = nameEl ? nameEl.textContent.replace(/\u200B/g, '') : '';
       const desc = descEl ? descEl.textContent : '';
       const badge = badgeEl ? badgeEl.textContent : '';
       const ov = document.createElement('div');
@@ -3648,11 +3668,16 @@
     let _cityInfoModal = null;
     let _hintOpen = false;
     let _coopTipOpen = false;
+    let _hintReconnQrOpen = false; // 対戦「?」ヒントの再接続用QR表示トグル
     let _lastDrawnCardUid = null;
     let _playingCardUid = null;
     let _mainTutorialShown = false;
     let _tutStepSpotlights = new Set();
     let _tutBattleGateShown = false;
+    // 協力モード用チュートリアル「はじめての協力：1ラウンド体験」の状態（G/CO/Firebaseから完全に独立した
+    // 隔離ステートマシン。公式記録への書き込みが起こり得ないことを構造的に保証する。詳細は関数定義側を参照）。
+    let coopTutorialState = null;
+    let _coopTutSpotlights = new Set();
 
     // ══ HINT CONTENT ══
     const HINT_CONTENT = {
@@ -3764,7 +3789,7 @@
         title: 'ゲーム終了',
         sections: [
           'ゲームが終了しました。お疲れ様でした！',
-          '各カードの防災知識・学習ポイントはロビーの「<strong>📖 カードを見る</strong>」で確認できます。',
+          `各カードの防災知識・学習ポイントはロビーの「<strong>${uiIcoBook(14)} カードを見る</strong>」で確認できます。`,
         ]
       },
       tutorial: {
@@ -3774,6 +3799,21 @@
           '操作が必要なときは対象のカードや「<strong>ターン終了</strong>ボタン」が青く光ります。光っているものをタップして進みましょう。',
           '説明を読んで次に進む場合は「<strong>次へ →</strong>」または「<strong>対応フェーズへ →</strong>」ボタンを押します。',
           '途中でやめる場合は画面下の「← ロビーに戻る」を押してください。',
+        ]
+      },
+      waiting_connection: {
+        title: '接続を待っています',
+        sections: [
+          'ホストは表示されている<strong>ルームコード・招待URL・QRコード</strong>のいずれかを相手に共有してください。参加する側はそのいずれかを使ってルームに入れます。',
+          '相手の接続が途中で切れても心配ありません。同じコードでいつでも再接続でき、<strong>同じ名前で入力すると同じ枠に自動で戻れます</strong>。',
+        ]
+      },
+      spectator: {
+        title: '観戦モードについて',
+        sections: [
+          '対戦中のルームへ招待URL・コードでアクセスすると、<strong>満員の場合は参加の代わりに観戦者として入室</strong>できます。',
+          '観戦中は両プレイヤーの手札・都市HPを確認しながら試合の推移を見られますが、操作はできません。',
+          '画面右下の「招待」ボタンからは、対戦中のプレイヤーが観戦用のQR・URLを発行することもできます。',
         ]
       },
     };
@@ -3787,12 +3827,30 @@
       const sectionsHtml = content.sections.map(s => `<div class="hint-section">${s}</div>`).join('<hr class="hint-divider">');
       const _svgCopy = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
       const _svgLink2 = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
-      const roomSection = roomId ? `<hr class="hint-divider"><div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:8px">再接続用</div><div style="display:flex;flex-direction:column;gap:6px"><button class="copy-url-btn" style="font-size:.78rem" onclick="copyRoomCode();toggleHint()">${_svgCopy}ルームコードをコピー（${roomId}）</button><button class="copy-url-btn" style="font-size:.78rem" onclick="copyRoomUrl();toggleHint()">${_svgLink2}招待URLをコピー</button></div></div>` : '';
+      const _svgQR2 = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M5 5h3v3H5zm11 0h3v3h-3zM5 16h3v3H5z" fill="currentColor" stroke="none"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2z" fill="currentColor" stroke="none"/></svg>`;
+      const _svgX2 = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      const reconnQrBlock = _hintReconnQrOpen
+        ? `<div style="text-align:center;margin-top:8px"><div id="hint-reconn-qr" style="display:inline-block;background:#0d1117;padding:8px;border-radius:8px"></div></div>`
+        : '';
+      // 実仕様：対戦相手の接続が切れると自動で再接続待ちの画面（QR付き）が表示される。この「?」パネルからも
+      // 同じルームコード・URL・QRをいつでも呼び出せるようにし、相手が同じ名前で入力すれば同じ枠に自動復帰する
+      // ことを説明する（TASKS.md該当タスク③：実仕様をコードで確認した上で追加したヘルプ）。
+      const roomSection = roomId ? `<hr class="hint-divider"><div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:6px">再接続用</div><div style="font-size:.76rem;color:var(--t2);line-height:1.6;margin-bottom:8px">対戦相手の接続が切れると自動で再接続待ちの画面が表示されます。下のコード・URL・QRコードを共有し、相手が同じ名前で入力すると同じ枠に自動で戻れます。</div><div style="display:flex;flex-direction:column;gap:6px"><button class="copy-url-btn" style="font-size:.78rem" onclick="copyRoomCode();toggleHint()">${_svgCopy}ルームコードをコピー（${roomId}）</button><button class="copy-url-btn" style="font-size:.78rem" onclick="copyRoomUrl();toggleHint()">${_svgLink2}招待URLをコピー</button><button class="copy-url-btn" style="font-size:.78rem" onclick="toggleHintReconnQR()">${_hintReconnQrOpen ? _svgX2 + 'QRを閉じる' : _svgQR2 + 'QRコードを表示'}</button></div>${reconnQrBlock}</div>` : '';
       return `<div class="hint-overlay" onclick="toggleHint()"><div class="hint-box" onclick="event.stopPropagation()">
-        <div class="hint-box-header"><span class="hint-title">💡 ${content.title}</span><button class="hint-close" onclick="toggleHint()">✕</button></div>
+        <div class="hint-box-header"><span class="hint-title">${uiIcoBulb(15)} ${content.title}</span><button class="hint-close" onclick="toggleHint()">✕</button></div>
         ${sectionsHtml}
         ${roomSection}
       </div></div>`;
+    }
+    function toggleHintReconnQR() {
+      _hintReconnQrOpen = !_hintReconnQrOpen;
+      render();
+      if (_hintReconnQrOpen) setTimeout(() => {
+        const el = document.getElementById('hint-reconn-qr'); if (!el || el.dataset.generated) return; el.dataset.generated = 'true';
+        const url = window.location.href.split('?')[0] + '?room=' + roomId;
+        try { new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
+        catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.72rem;padding:8px">QR生成失敗</div>`; }
+      }, 30);
     }
 
     // ─── チュートリアル ───
@@ -3819,7 +3877,7 @@
       { title: '黄カードで即時回復', body: '<strong>避難訓練（コスト1）</strong> をタップ。タップした瞬間に <strong>HP +20</strong> 回復します。', highlight: 'drill', btnLabel: null, action: 'play_drill' },
       { title: 'ターン終了', body: '予算を使い切りました。光っている「<strong>ターン終了</strong>」を押して相手にターンを渡しましょう。', highlight: 'end_turn', btnLabel: null, action: 'end_turn' },
       { title: '相手のターン：洪水攻撃！', body: '東京が <strong>洪水（コスト2）</strong> を使用！<br>仙台は海岸都市なので 基礎30 + 海岸+10 = <strong>40ダメージ</strong>。<br>でも 堤防建設 が <strong>-25軽減</strong> → 実際のダメージは <strong>15</strong>。', highlight: null, btnLabel: '対応フェーズへ →', action: 'next' },
-      { title: 'メインフェーズ → 対応フェーズ', body: `相手がカードを使い終えると<strong>対応フェーズ</strong>が始まります。<br><br><div style="display:flex;flex-direction:column;gap:5px;font-size:.78rem"><div style="background:rgba(63,185,80,.1);border-radius:6px;padding:5px 8px">✅ <strong>政策カードで対応</strong>：コスト<strong>無料</strong>。ただし回復効果は<strong>半減</strong>になる</div><div style="background:rgba(139,148,158,.1);border-radius:6px;padding:5px 8px">⏩ <strong>対応しない</strong>：そのままダメージを受ける</div></div><br>次のステップで <strong>相互支援協定</strong> を使って洪水15ダメージを相殺してみましょう！`, highlight: null, btnLabel: '対応してみよう →', action: 'next' },
+      { title: 'メインフェーズ → 対応フェーズ', body: `相手がカードを使い終えると<strong>対応フェーズ</strong>が始まります。<br><br><div style="display:flex;flex-direction:column;gap:5px;font-size:.78rem"><div style="background:rgba(63,185,80,.1);border-radius:6px;padding:5px 8px">${coopIcoCheckCircle(15,'#3fb950')} <strong>政策カードで対応</strong>：コスト<strong>無料</strong>。ただし回復効果は<strong>半減</strong>になる</div><div style="background:rgba(139,148,158,.1);border-radius:6px;padding:5px 8px">→ <strong>対応しない</strong>：そのままダメージを受ける</div></div><br>次のステップで <strong>相互支援協定</strong> を使って洪水15ダメージを相殺してみましょう！`, highlight: null, btnLabel: '対応してみよう →', action: 'next' },
       { title: '対応フェーズ', body: '<strong>相互支援協定（黄）</strong> で対応できます。対応時はHP回復が <strong>半減（+15）</strong> になりますが、15ダメージをちょうど相殺！タップして対応しましょう。', highlight: 'agreement', btnLabel: null, action: 'respond' },
       { title: '結果確認', isResultSummary: true, body: '', btnLabel: '確認 →', action: 'next' },
       { title: 'チュートリアル完了！', body: '1ターンで体験したこと：<br>・<strong>緑カード</strong>（シールド型）は事前設置で次の攻撃を自動軽減<br>・<strong>黄カード</strong>（即時型）はタップで即発動、対応時は半減<br>・<strong>対応フェーズ</strong>で政策カードを使って被害を減らせる<br><br><strong>自分の都市を守りつつ、相手の都市のHPを0にしよう！</strong><br>実際に対戦してみましょう！', highlight: null, btnLabel: '対戦ロビーへ →', action: 'finish' },
@@ -3849,11 +3907,11 @@
       ts.skipWarning = false; ts.confirmCard = null;
       let _vfx = null;
       if (action === 'next')          { ts.feedback = null; ts.step++; }
-      else if (action === 'play_dam')  { ts.usedUids.push('tu_dam'); ts.budgetUsed += 2; ts.shieldActive = true; ts.feedback = '✅ 堤防建設を設置！シールドバッジが表示されています。'; ts.step++; _vfx = 'dam'; }
-      else if (action === 'play_drill'){ ts.usedUids.push('tu_drill'); ts.budgetUsed += 1; const prev = ts.playerHp; ts.playerHp = Math.min(60, prev + 20); ts.feedback = `✅ HP +20 回復！（${prev} → ${ts.playerHp}）`; ts.step++; _vfx = 'drill'; }
+      else if (action === 'play_dam')  { ts.usedUids.push('tu_dam'); ts.budgetUsed += 2; ts.shieldActive = true; ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} 堤防建設を設置！シールドバッジが表示されています。`; ts.step++; _vfx = 'dam'; }
+      else if (action === 'play_drill'){ ts.usedUids.push('tu_drill'); ts.budgetUsed += 1; const prev = ts.playerHp; ts.playerHp = Math.min(60, prev + 20); ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} HP +20 回復！（${prev} → ${ts.playerHp}）`; ts.step++; _vfx = 'drill'; }
       else if (action === 'end_turn')  { ts.feedback = null; ts.step++; }
       else if (action === 'skip_attempt') { ts.skipWarning = true; }
-      else if (action === 'respond')   { ts.usedUids.push('tu_agr'); ts.feedback = '✅ 洪水ダメージ 15 − 相互支援協定 +15 = 実ダメージ 0！'; ts.step++; _vfx = 'respond'; }
+      else if (action === 'respond')   { ts.usedUids.push('tu_agr'); ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} 洪水ダメージ 15 − 相互支援協定 +15 = 実ダメージ 0！`; ts.step++; _vfx = 'respond'; }
       else if (action === 'finish')    { _lobbyEnter = true; tutorialState = null; G.screen = 'lobby'; }
       else if (action === 'back') {
         const prev = ts.step - 1;
@@ -3936,8 +3994,8 @@
         const cYel = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;background:rgba(227,179,65,.15);color:var(--yellow);border:1px solid rgba(227,179,65,.35);white-space:nowrap';
         const chips = `<span style="${cBad}">基礎 30</span><span style="${cBad}">海岸都市 +10</span><span style="${cOk}">堤防建設 −25</span><span style="${cYel}">相互支援協定 +15</span>`;
         return `<div class="screen active"><div class="turn-summary-box">
-          <div class="ts-title">📋 仙台のターン — 対応結果</div>
-          <div class="ts-events"><div class="ts-ev heal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">🌧️ 洪水</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:var(--green)">0</span><span style="font-size:.68rem;font-weight:600;color:var(--green);margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t3);margin-bottom:3px"><span>HP</span><span>60（変化なし）</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:100%;background:var(--green);border-radius:4px"></div></div></div><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></div></div>
+          <div class="ts-title">${coopIcoClipboard(16)} 仙台のターン — 対応結果</div>
+          <div class="ts-events"><div class="ts-ev heal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">${uiIcoDroplet(15,'var(--red)')} 洪水</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:var(--green)">0</span><span style="font-size:.68rem;font-weight:600;color:var(--green);margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t3);margin-bottom:3px"><span>HP</span><span>60（変化なし）</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:100%;background:var(--green);border-radius:4px"></div></div></div><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></div></div>
           <div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="tutorialAction('next')">確認 →</button></div>
         </div></div>`;
       }
@@ -3947,7 +4005,7 @@
         const feedbackHtml = ts.feedback ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.28);border-radius:8px;padding:10px 12px;font-size:.82rem;color:var(--green)">${ts.feedback}</div>` : '';
         return `<div class="screen active"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:20px">
           <div class="tut-guide" style="max-width:480px;width:100%;gap:14px">
-            <div style="font-size:2.2rem;text-align:center">🎉</div>
+            <div style="text-align:center">${coopIcoCheckCircle(40,'#3fb950')}</div>
             <div class="tut-guide-title" style="font-size:1rem;text-align:center">${step.title}</div>
             ${feedbackHtml}
             <div class="tut-guide-body">${step.body}</div>
@@ -3974,7 +4032,7 @@
       const oppZone = `<div class="opponent-zone" style="border-left:3px solid var(--red)">
         <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm"><img src="images/icons/terrain_inland.webp" alt="" style="width:22px;height:22px;object-fit:contain"></span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('tokyo')">東京 ⓘ</button><span class="terrain-badge">(内陸)</span></div>
         <div class="hp-section"><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:100%;background:var(--green)"></div></div><div class="hp-text" style="color:var(--green)">60/60</div></div>
-        <div style="margin-top:4px">${isAttackActive ? `<div style="background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:4px 10px;font-size:.75rem;color:var(--red);display:inline-block">🌧️ 洪水 発動中</div>` : `<div class="hand-back-row">${Array(3).fill('<div class="card-back"><img src="images/cards/back.webp" alt=""></div>').join('')}</div>`}</div>
+        <div style="margin-top:4px">${isAttackActive ? `<div style="background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:4px 10px;font-size:.75rem;color:var(--red);display:inline-block">${uiIcoDroplet(14,'var(--red)')} 洪水 発動中</div>` : `<div class="hand-back-row">${Array(3).fill('<div class="card-back"><img src="images/cards/back.webp" alt=""></div>').join('')}</div>`}</div>
       </div>`;
 
       // ── 手札カード ──
@@ -3984,11 +4042,12 @@
         const isDim = step.highlight !== null && !isGlow;
         const isDimSoft = ts.step === 2;
         const oc = `onclick="tutorialShowConfirm('${card.uid}')"`;
+        const tBadge = isResp ? '対応可' : card.color === 'green' ? 'シールド' : '即時';
         return `<div class="card policy${isGlow ? ' tut-glow' : ''}${isDim ? ' tut-dim' : isDimSoft ? ' tut-dim-soft' : ''}" data-ctype="${cardCtype(card)}" style="cursor:pointer" ${oc}>
           <div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${isResp ? '無料' : card.cost}</span></div>
-          <div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div>
+          <div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, tBadge)}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>
-          <span class="card-type-badge">${isResp ? '対応可' : card.color === 'green' ? 'シールド' : '即時'}</span>
+          ${cardTypeBadgeFallback(tBadge)}
         </div>`;
       }
       const visibleHand = ts.hand.filter(c => !ts.usedUids.includes(c.uid));
@@ -3998,9 +4057,9 @@
 
       // ── ステータスバー・バッジ・アクションバー ──
       const statusBar = (ts.step >= 2 && ts.step <= 5) ? `<div class="status-bar"><span class="turn-badge" style="color:#e6edf3">チュートリアル | あなたのターン</span><div class="budget-display"><span class="budget-label" style="color:#e6edf3">予算</span><div class="budget-pips">${Array(3).fill(0).map((_,i)=>`<div class="pip ${i<ts.budgetUsed?'used':'avail'}"></div>`).join('')}</div><span style="font-size:.8rem;font-weight:700;color:var(--green)">${budgetLeft}<span style="color:var(--t3);font-weight:400">/3</span></span></div></div>` : '';
-      const shieldBadge = ts.shieldActive ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.25);border-radius:6px;padding:3px 8px;font-size:.72rem;color:var(--green);display:inline-block">🌊 堤防設置中 -25</div>` : '';
-      const skipWarn = ts.skipWarning ? `<div style="background:rgba(210,153,34,.15);border:1px solid rgba(210,153,34,.3);border-radius:6px;padding:5px 10px;font-size:.75rem;color:var(--yellow);margin-top:6px">⚠️ まず上のカードをタップして対応を試してみましょう！</div>` : '';
-      const respBar = isResp ? `<div class="response-pending-bar tut-resp-anim"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>東京が「🌧️ 洪水」を使用！</strong><br>想定ダメージ: 40 → 堤防 -25 → 実ダメージ <strong>15</strong><br>政策カードを選んで対応するか「対応しない」を押してください。${skipWarn}</div><button class="btn-skip-resp" onclick="tutorialAction('skip_attempt')">対応しない</button></div>` : '';
+      const shieldBadge = ts.shieldActive ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.25);border-radius:6px;padding:3px 8px;font-size:.72rem;color:var(--green);display:inline-block">${uiIcoShield(14,'var(--green)')} 堤防設置中 -25</div>` : '';
+      const skipWarn = ts.skipWarning ? `<div style="background:rgba(210,153,34,.15);border:1px solid rgba(210,153,34,.3);border-radius:6px;padding:5px 10px;font-size:.75rem;color:var(--yellow);margin-top:6px">${coopIcoWarnTriangle(15,'var(--yellow)')} まず上のカードをタップして対応を試してみましょう！</div>` : '';
+      const respBar = isResp ? `<div class="response-pending-bar tut-resp-anim"><div class="rpb-icon">${coopIcoWarnTriangle(18,'var(--yellow)')}</div><div class="rpb-text"><strong>東京が「${uiIcoDroplet(14,'var(--red)')} 洪水」を使用！</strong><br>想定ダメージ: 40 → 堤防 -25 → 実ダメージ <strong>15</strong><br>政策カードを選んで対応するか「対応しない」を押してください。${skipWarn}</div><button class="btn-skip-resp" onclick="tutorialAction('skip_attempt')">対応しない</button></div>` : '';
       const actionBar = step.action === 'end_turn' ? `<div class="action-bar"><button class="btn-end tut-glow" onclick="tutorialAction('end_turn')">ターン終了 →</button></div>` : (ts.step >= 2 && ts.step <= 4) ? `<div class="action-bar"><button class="btn-end" style="opacity:.3;pointer-events:none">ターン終了 →</button></div>` : '';
 
       // ── プレイヤーゾーン ──
@@ -4171,6 +4230,31 @@
       if (card.type === 'jinzai') return 'jinzai';
       return card.color === 'green' ? 'shield' : 'instant';
     }
+    // ─── カード名称バー＋種類バッジ 共通ヘルパー（A案：1行フレックス構造） ───
+    // 長い組み込みカード名の自然な折返し位置マップ。CSSの word-break:keep-all と組み合わせ、
+    // ​（ゼロ幅スペース）の位置を優先して折り返す。マップに無い名称（カード工房の自由入力等）は
+    // overflow-wrap:anywhere の緊急折返し＋2行clampにフォールバックする。
+    const CARD_NAME_BREAK_HINTS = {
+      'ハザードマップ整備': 'ハザードマップ\u200B整備',
+      '広域避難指示': '広域\u200B避難指示',
+      '相互支援協定': '相互支援\u200B協定',
+      '防災庁設置': '防災庁\u200B設置',
+    };
+    // 名称の自動縮小：7文字超で1段階（.6rem→.52rem）、11文字超でさらに1段階（→.46rem）。2行折返しはCSSのclampで許可
+    function cardNameBarHtml(name, badgeLabel) {
+      const raw = String(name == null ? '' : name);
+      const len = [...raw].length;
+      const sizeCls = len > 11 ? ' cn-xs' : len > 7 ? ' cn-sm' : '';
+      const hinted = Object.prototype.hasOwnProperty.call(CARD_NAME_BREAK_HINTS, raw) ? CARD_NAME_BREAK_HINTS[raw] : raw;
+      const badge = badgeLabel ? `<span class="card-type-badge${[...String(badgeLabel)].length > 4 ? ' badge-long' : ''}">${badgeLabel}</span>` : '';
+      return `<div class="card-name-bar"><span class="card-name-text${sizeCls}">${_escHtml(hinted)}</span>${badge}</div>`;
+    }
+    // 画像ロード失敗時のテキストフォールバック用バッジ（img-fail時のみ従来の右下絶対配置で表示される）
+    function cardTypeBadgeFallback(badgeLabel) {
+      return badgeLabel ? `<span class="card-type-badge card-text-fallback">${badgeLabel}</span>` : '';
+    }
+    // 手札系4系統（操作可・閲覧・観戦・捨て札）共通の種類ラベル
+    function cardTypeLabel(card) { return card.type === 'policy' ? '政策' : card.type === 'jinzai' ? '人為' : '自然'; }
     function terrainImg(city, size) {
       const sz = size || 22;
       const src = city.isCoastal ? 'images/icons/terrain_coastal.webp' : city.isMountain ? 'images/icons/terrain_mountain.webp' : 'images/icons/terrain_inland.webp';
@@ -4188,7 +4272,7 @@
         p.hand.push(G.deck.shift());
       }
     }
-    function autoDiscard(pi) { const p = G.players[pi]; while (p.hand.length > 5) { const d = p.hand.pop(); G.discard.push(d); addLog(`📤 ${p.name}の手札超過：自動で1枚捨てた`, 'sys'); } }
+    function autoDiscard(pi) { const p = G.players[pi]; while (p.hand.length > 5) { const d = p.hand.pop(); G.discard.push(d); addLog(`${uiIcoUpload(13)} ${p.name}の手札超過：自動で1枚捨てた`, 'sys'); } }
     function handleDiscardIfNeeded(pi, returnTo) {
       if (G.players[pi].hand.length > 5) { G.discardNeeded = { pi, returnTo }; G.screen = 'discard'; pushState(); render(); return true; }
       return false;
@@ -4300,7 +4384,7 @@
           if (nxt < p.cities.length && p.cityHps[nxt] > 0) {
             const old = p.cities[p.activeCityIdx];
             p.cityHps[p.activeCityIdx] = 0; p.activeCityIdx = nxt; p.effects = mkEffects();
-            addLog(`💥 ${p.name}の「${old.name}」壊滅！→「${p.cities[nxt].name}」に切り替え！`, 'sys');
+            addLog(`${coopIcoWarnTriangle(13,'var(--red)')} ${p.name}の「${old.name}」壊滅！→「${p.cities[nxt].name}」に切り替え！`, 'sys');
             G._nextTurnEvents[i].push({ type: 'city_switch', oldCityName: old.name, newCityIcon: terrainImg(p.cities[nxt], 18), newCityName: p.cities[nxt].name });
             return false;
           } else {
@@ -4380,9 +4464,9 @@
       let finalHp = def.cityHps[def.activeCityIdx]; const hpAD = finalHp;
       if (fromHp !== finalHp) queueHpAnim(defIdx, fromHp, finalHp);
       const aN = G.players[G.pendingAttack.attackerIdx].name;
-      addLog(`💥 ${aN}が「${attackCard.name}」→ ${dmg}ダメージ（${def.name}残HP:${Math.max(0, finalHp)}）`, 'dmg');
+      addLog(`${coopIcoWarnTriangle(13,'var(--red)')} ${aN}が「${attackCard.name}」→ ${dmg}ダメージ（${def.name}残HP:${Math.max(0, finalHp)}）`, 'dmg');
       for (const l of log) addLog(l.delta != null ? `→ ${l.text}（${l.delta > 0 ? '+' : ''}${l.delta}）` : `→ ${l.text}`);
-      if (healAmt > 0) addLog(`💚 ${def.name}「${healName}」→ 回復軽減 ${healAmt}（対応時半減）`);
+      if (healAmt > 0) addLog(`${coopIcoHeart(12,'#3fb950')} ${def.name}「${healName}」→ 回復軽減 ${healAmt}（対応時半減）`);
       G._nextTurnEvents[defIdx].push({ type: 'damage', cardId: attackCard.id, cardIcon: attackCard.icon, cardName: attackCard.name, baseDamage: attackCard.baseDamage, details: [...log], damage: dmg, hpBefore: fromHp, hpAfterDamage: Math.max(0, hpAD), hpAfter: Math.max(0, finalHp), healAmount: healAmt, healCardName: healName });
     }
 
@@ -4392,13 +4476,13 @@
     function applyPolicyEffect(card, pi, asResponse) {
       const p = G.players[pi];
       switch (card.effectType) {
-        case 'shield_quake_fire': p.effects.shieldQuakeFire = true; if (!asResponse) addLog(`🔵 ${p.name}「${card.name}」→ 地震・大火災シールド`, 'policy'); break;
-        case 'shield_flood': p.effects.shieldFlood = true; if (!asResponse) addLog(`🔵 ${p.name}「${card.name}」→ 洪水・津波シールド`, 'policy'); break;
-        case 'heal': { const mxHp = getActiveMaxHp(pi); const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + card.value, mxHp); queueHpAnim(pi, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${p.name}「${card.name}」→ HP +${card.value}（現在:${p.cityHps[p.activeCityIdx]}）`, 'heal'); break; }
-        case 'draw': G.turnDrawState = { pi, drawn: 0, target: card.value, revealed: null, isHazardMap: true }; G.screen = 'turnDraw'; addLog(`🗺️ ${p.name}「${card.name}」→ ${card.value}枚ドロー中…`, 'policy'); break;
-        case 'negate_special': p.effects.negateSpecial = true; addLog(`🔵 ${p.name}「${card.name}」→ 特殊効果・テロ攻撃を無効化＋ダメージ−10`, 'policy'); break;
-        case 'damage_reduce_2t': p.effects.damageReduceHits = 2; addLog(`🔵 ${p.name}「${card.name}」→ 全ダメージ −15（次2回）`, 'policy'); break;
-        case 'peek_all': { const opp = G.players[pi === 0 ? 1 : 0]; if (opp.hand.length > 0) { G.peekCards = opp.hand.slice(); G.peekByPlayerIdx = pi; addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札を全公開`, 'policy'); G.screen = 'peek'; } else addLog(`🔵 ${p.name}「${card.name}」→ 相手の手札なし`, 'policy'); break; }
+        case 'shield_quake_fire': p.effects.shieldQuakeFire = true; if (!asResponse) addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 地震・大火災シールド`, 'policy'); break;
+        case 'shield_flood': p.effects.shieldFlood = true; if (!asResponse) addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 洪水・津波シールド`, 'policy'); break;
+        case 'heal': { const mxHp = getActiveMaxHp(pi); const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + card.value, mxHp); queueHpAnim(pi, fh, p.cityHps[p.activeCityIdx]); addLog(`${coopIcoHeart(12,'#3fb950')} ${p.name}「${card.name}」→ HP +${card.value}（現在:${p.cityHps[p.activeCityIdx]}）`, 'heal'); break; }
+        case 'draw': G.turnDrawState = { pi, drawn: 0, target: card.value, revealed: null, isHazardMap: true }; G.screen = 'turnDraw'; addLog(`${uiIcoMap(13)} ${p.name}「${card.name}」→ ${card.value}枚ドロー中…`, 'policy'); break;
+        case 'negate_special': p.effects.negateSpecial = true; addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 特殊効果・テロ攻撃を無効化＋ダメージ−10`, 'policy'); break;
+        case 'damage_reduce_2t': p.effects.damageReduceHits = 2; addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 全ダメージ −15（次2回）`, 'policy'); break;
+        case 'peek_all': { const opp = G.players[pi === 0 ? 1 : 0]; if (opp.hand.length > 0) { G.peekCards = opp.hand.slice(); G.peekByPlayerIdx = pi; addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 相手の手札を全公開`, 'policy'); G.screen = 'peek'; } else addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 相手の手札なし`, 'policy'); break; }
       }
     }
 
@@ -4420,15 +4504,15 @@
       const defIdx = pi === 0 ? 1 : 0; const def = G.players[defIdx];
       if (card.id === 'pollution') {
         const shields = getActiveShields(def);
-        if (shields.length === 0) { addLog(`☣️ ${p.name}「公害」→ 相手にシールドがなく効果なし`, 'sys'); return; }
+        if (shields.length === 0) { addLog(`${uiIcoAlertCircle(13,'#c084fc')} ${p.name}「公害」→ 相手にシールドがなく効果なし`, 'sys'); return; }
         G.pendingPollution = { attackerIdx: pi }; G.screen = 'pollution';
-        addLog(`☣️ ${p.name}「公害」→ 破壊するシールドを選択中…`, 'sys');
+        addLog(`${uiIcoAlertCircle(13,'#c084fc')} ${p.name}「公害」→ 破壊するシールドを選択中…`, 'sys');
       } else if (card.id === 'terror') {
         p.effects.terrorNextDisaster = true;
-        addLog(`💣 ${p.name}「テロ攻撃」→ 次に使う災害への対応フェーズを封じる`, 'sys');
+        addLog(`${uiIcoAlertOctagon(13,'#c084fc')} ${p.name}「テロ攻撃」→ 次に使う災害への対応フェーズを封じる`, 'sys');
       } else if (card.id === 'rumor') {
         def.effects.debtBudget = 1; // 重複使用時は上書き（加算しない）
-        addLog(`📱 ${p.name}「デマ拡散」→ ${def.name}の次ターン予算−1`, 'sys');
+        addLog(`${uiIcoSmartphone(13,'#c084fc')} ${p.name}「デマ拡散」→ ${def.name}の次ターン予算−1`, 'sys');
         G._nextTurnEvents[defIdx].push({ type: 'rumor_debt' });
       }
     }
@@ -4440,10 +4524,10 @@
       let broken = false;
       if (key === 'damageReduceHits') {
         if (def.effects.damageReduceHits > 0) { def.effects.damageReduceHits = 0; broken = true; }
-        addLog(`☣️ 公害：${def.name}の防災庁設置を完全に破壊（残り全回分を無効化）`, 'sys');
+        addLog(`${uiIcoAlertCircle(13,'#c084fc')} 公害：${def.name}の防災庁設置を完全に破壊（残り全回分を無効化）`, 'sys');
       } else if (def.effects[key]) {
         def.effects[key] = false; broken = true;
-        addLog(`☣️ 公害：${def.name}のシールドを1つ破壊`, 'sys');
+        addLog(`${uiIcoAlertCircle(13,'#c084fc')} 公害：${def.name}のシールドを1つ破壊`, 'sys');
       }
       if (broken && shieldNames[key]) G._nextTurnEvents[defIdx].push({ type: 'pollution_broken', shieldName: shieldNames[key] });
       G.pendingPollution = null; G.screen = 'main';
@@ -4464,8 +4548,8 @@
 
     function endTurn() {
       const p = G.players[G.activePlayer]; const city = getActiveCity(G.activePlayer);
-      if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
-      if (city && city.abilityType === 'quake_regen' && p.effects.quakeHitThisTurn) { const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, city.hp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`💚 ${city.name}の能力（地震後回復）+${city.abilityValue}`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
+      if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`${coopIcoHeart(12,'#3fb950')} ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
+      if (city && city.abilityType === 'quake_regen' && p.effects.quakeHitThisTurn) { const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, city.hp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`${coopIcoHeart(12,'#3fb950')} ${city.name}の能力（地震後回復）+${city.abilityValue}`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
       p.effects.quakeHitThisTurn = false;
       if (p.effects.floodBonusTurns > 0) p.effects.floodBonusTurns--;
       p.effects.terrorNextDisaster = false;
@@ -4534,7 +4618,7 @@
       </div>`;
       }
       return `<div class="screen active"><div class="gacha-stage">
-      <div style="text-align:center;margin-bottom:12px"><div class="section-title">🏙️ 戦闘順の選択</div><div style="color:var(--t2);font-size:.85rem;margin-top:4px">${p.name} — どちらの都市を先に戦わせますか？</div></div>
+      <div style="text-align:center;margin-bottom:12px"><div class="section-title"><img src="images/icons/icon_city.webp" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px;margin-right:2px"> 戦闘順の選択</div><div style="color:var(--t2);font-size:.85rem;margin-top:4px">${p.name} — どちらの都市を先に戦わせますか？</div></div>
       <div style="display:flex;gap:16px;justify-content:flex-start;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 16px 8px;width:100%;box-sizing:border-box;scroll-snap-type:x mandatory">${cityCard(c0, 0)}${cityCard(c1, 1)}</div>
       <div style="color:var(--t3);font-size:.75rem;margin-top:12px;text-align:center">先に選んだ都市が最初に戦います。壊滅後に残りの都市が登場します。</div>
     </div></div>`;
@@ -4683,7 +4767,7 @@
       G.players[pi].hand.push(ts.revealed); ts.drawn++; ts.revealed = null;
       if (ts.drawn >= ts.target) {
         G.turnDrawState = null;
-        if (ts.isHazardMap) addLog(`🗺️ ${G.players[pi].name}：ハザードマップ整備で${ts.target}枚ドロー完了`, 'policy');
+        if (ts.isHazardMap) addLog(`${uiIcoMap(13)} ${G.players[pi].name}：ハザードマップ整備で${ts.target}枚ドロー完了`, 'policy');
         else addLog(`─── ${G.players[pi].name}のターン開始（予算${getBudget(pi)}・${ts.target}枚ドロー）`, 'sys');
         if (!handleDiscardIfNeeded(pi, 'main')) goMain();
       } else { pushState(); render(); }
@@ -5015,7 +5099,7 @@
       }).finally ? null : undefined;
       const old = document.getElementById('copy-toast'); if (old) old.remove();
       const t = document.createElement('div'); t.id = 'copy-toast'; t.className = 'go-share-toast';
-      t.textContent = '✅ ' + msg; document.body.appendChild(t);
+      t.innerHTML = coopIcoCheckCircle(15, '#3fb950') + ' ' + msg; document.body.appendChild(t);
       setTimeout(() => { if (t.parentNode) t.remove(); }, 2200);
     }
     function copyRoomCode() { if (roomId) _copyText(roomId, 'ルームコードをコピー'); }
@@ -5035,7 +5119,7 @@
       ov.innerHTML = `<div class="disconnect-box">
         ${_warnSvg}
         <div class="disconnect-title">接続が切れました</div>
-        <div class="disconnect-sub">相手の再接続を待っています。<br>下のコードまたはURLを送ってあげましょう。<br><span style="color:var(--yellow);font-size:.78rem">⚠️ 前回と同じ名前で入力するよう伝えてください</span></div>
+        <div class="disconnect-sub">相手の再接続を待っています。<br>下のコードまたはURLを送ってあげましょう。<br><span style="color:var(--yellow);font-size:.78rem">${coopIcoWarnTriangle(13,'var(--yellow)')} 前回と同じ名前で入力するよう伝えてください</span></div>
         <div class="room-code-display" onclick="copyRoomCode()" style="width:100%;cursor:pointer">
           <div class="room-code-label">ルームコード（タップでコピー）</div>
           <div class="room-code-value">${roomId}</div>
@@ -5357,6 +5441,20 @@
     // ═══════════════════════════════════════
     // MAIN TUTORIAL SPOTLIGHT
     // ═══════════════════════════════════════
+    // env(safe-area-inset-*)をJSから読むための1px幅プローブ（初回のみ生成しキャッシュ。design_system.md §5.2）。
+    let _safeInsetProbe = null;
+    function _safeInset(side) {
+      if (typeof document === 'undefined') return 0;
+      if (!_safeInsetProbe) {
+        _safeInsetProbe = document.createElement('div');
+        _safeInsetProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;padding-top:env(safe-area-inset-top,0px);padding-right:env(safe-area-inset-right,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);pointer-events:none;visibility:hidden';
+        document.body.appendChild(_safeInsetProbe);
+      }
+      const cs = getComputedStyle(_safeInsetProbe);
+      const v = side === 'top' ? cs.paddingTop : side === 'right' ? cs.paddingRight : side === 'bottom' ? cs.paddingBottom : cs.paddingLeft;
+      return parseFloat(v) || 0;
+    }
+
     function showMainTutorial() {
       if (_mainTutorialShown) return;
       _mainTutorialShown = true;
@@ -5378,14 +5476,18 @@
         b2 ? { b: b2, num: '②', color: '#d29922', rx: '6', sw: '2', title: '地形属性', desc: '特定の災害で追加ダメージが発生' } : null,
         b3 ? { b: b3, num: '③', color: '#3fb950', rx: '8', sw: '2', title: '予算', desc: '1ターンの使用上限。カードのコスト分を消費' } : null
       ].filter(Boolean);
+      // design_system.md §2/§5.2準拠：コールアウトは画面右端の1カラムに整列し（浮遊感のあるバラバラな
+      // 縦位置をやめる）、各対象要素へは最短経路のエルボー（L字）引き出し線＋端点ドットで接続する
+      // （旧実装は引き出し線そのものが存在しなかった）。背景は--bg2系＋色付きボーダーで統一する。
+      const safeR = _safeInset('right');
       const bw = Math.min(152, Math.floor(vw * 0.38));
-      const lx = vw - bw - 8;
+      const lx = vw - bw - 8 - safeR;
       const maskHoles = ITEMS.map(c => `<rect x="${c.b.x}" y="${c.b.y}" width="${c.b.w}" height="${c.b.h}" rx="${c.rx}" fill="black"/>`).join('');
       const hilights  = ITEMS.map(c => `<rect x="${c.b.x}" y="${c.b.y}" width="${c.b.w}" height="${c.b.h}" rx="${c.rx}" fill="none" stroke="${c.color}" stroke-width="${c.sw}"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="1.4s" repeatCount="indefinite"/></rect>`).join('');
       const boxes = ITEMS.map((c, i) =>
         `<div class="mto-box-outer" id="mto-box${i}" style="position:absolute;left:${lx}px;top:-999px;width:${bw}px;overflow:hidden;border-radius:6px;z-index:1">` +
         `<div class="mto-mask-inner" style="position:absolute;inset:0;background:#0d1117;z-index:2"></div>` +
-        `<div class="mto-box-content" style="background:rgba(22,27,34,0.96);border:1.5px solid ${c.color};border-radius:6px;padding:8px 10px;font-size:.76rem;color:#e6edf3;line-height:1.5;pointer-events:auto;opacity:0;transform:scale(1.06)" onclick="event.stopPropagation()">` +
+        `<div class="mto-box-content" style="background:var(--bg2);border:1.5px solid ${c.color};border-radius:6px;padding:8px 10px;font-size:.76rem;color:#e6edf3;line-height:1.5;pointer-events:auto;opacity:0;transform:scale(1.06)" onclick="event.stopPropagation()">` +
         `<div style="font-weight:700;color:${c.color};margin-bottom:3px">${c.num} ${c.title}</div>` +
         `<div>${c.desc}</div>` +
         `</div></div>`
@@ -5396,13 +5498,13 @@
       overlay.innerHTML =
         `<svg id="mto-svg" style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="mto-mask"><rect width="${vw}" height="${vh}" fill="white"/>${maskHoles}</mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.78)" mask="url(#mto-mask)"/>${hilights}</svg>` +
         boxes +
-        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:12px;right:16px;z-index:5;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#fff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>`;
+        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:calc(${_safeInset('top')}px + 12px);right:calc(${safeR}px + 16px);z-index:5;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#fff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>`;
       overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; };
       document.body.style.overflow = 'hidden';
       document.body.appendChild(overlay);
       // Stack boxes vertically ①②③ from top, no overlaps
       requestAnimationFrame(() => {
-        let nextTop = 60;
+        let nextTop = 60 + _safeInset('top');
         ITEMS.forEach((_, i) => {
           const boxEl = document.getElementById(`mto-box${i}`);
           if (!boxEl) return;
@@ -5410,25 +5512,96 @@
           nextTop += boxEl.getBoundingClientRect().height + 10;
         });
         requestAnimationFrame(() => {
-          ITEMS.forEach((_, i) => {
+          const svg = document.getElementById('mto-svg');
+          const ns = 'http://www.w3.org/2000/svg';
+          ITEMS.forEach((c, i) => {
             const boxEl = document.getElementById(`mto-box${i}`);
             if (!boxEl) return;
             const maskEl = boxEl.querySelector('.mto-mask-inner');
             const contentEl = boxEl.querySelector('.mto-box-content');
-            setTimeout(() => {
-              maskEl.animate(
-                [{ transform: 'translateX(0)' }, { transform: 'translateX(101%)' }],
-                { duration: 750, easing: 'cubic-bezier(0.25,1,0.5,1)', fill: 'forwards' }
-              );
+            // 引き出し線（エルボー型）：ハイライト右端 → 中間Xで1回だけ折れ曲がりボックス左端へ最短接続＋端点ドット
+            const br = boxEl.getBoundingClientRect();
+            const boxCy = br.top + br.height / 2;
+            const srcX = c.b.x + c.b.w, srcY = c.b.cy;
+            const midX = Math.round((srcX + lx) / 2);
+            if (svg) {
+              const leader = document.createElementNS(ns, 'path');
+              leader.setAttribute('d', `M ${srcX} ${srcY} L ${midX} ${srcY} L ${midX} ${boxCy} L ${lx - 4} ${boxCy}`);
+              leader.setAttribute('stroke', c.color); leader.setAttribute('stroke-width', '1.5');
+              leader.setAttribute('fill', 'none'); leader.setAttribute('stroke-linecap', 'round'); leader.setAttribute('stroke-linejoin', 'round');
+              leader.setAttribute('opacity', '0');
+              const dotA = document.createElementNS(ns, 'circle');
+              dotA.setAttribute('cx', srcX); dotA.setAttribute('cy', srcY); dotA.setAttribute('r', '3'); dotA.setAttribute('fill', c.color); dotA.setAttribute('opacity', '0');
+              const dotB = document.createElementNS(ns, 'circle');
+              dotB.setAttribute('cx', lx - 4); dotB.setAttribute('cy', boxCy); dotB.setAttribute('r', '3'); dotB.setAttribute('fill', c.color); dotB.setAttribute('opacity', '0');
+              svg.appendChild(leader); svg.appendChild(dotA); svg.appendChild(dotB);
               setTimeout(() => {
-                contentEl.animate(
-                  [{ opacity: 0, transform: 'scale(1.06)' }, { opacity: 1, transform: 'scale(1.0)' }],
-                  { duration: 900, easing: 'cubic-bezier(0.215,0.61,0.355,1)', fill: 'forwards' }
+                maskEl.animate(
+                  [{ transform: 'translateX(0)' }, { transform: 'translateX(101%)' }],
+                  { duration: 750, easing: 'cubic-bezier(0.25,1,0.5,1)', fill: 'forwards' }
                 );
-              }, 60);
-            }, i * 150);
+                setTimeout(() => {
+                  contentEl.animate(
+                    [{ opacity: 0, transform: 'scale(1.06)' }, { opacity: 1, transform: 'scale(1.0)' }],
+                    { duration: 900, easing: 'cubic-bezier(0.215,0.61,0.355,1)', fill: 'forwards' }
+                  );
+                  [leader, dotA, dotB].forEach(el => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, easing: 'ease-out', fill: 'forwards' }));
+                }, 60);
+              }, i * 150);
+            }
           });
         });
+      });
+    }
+
+    // 汎用スポットライトオーバーレイ（design_system.md §2/§5.2/§6準拠）：対象要素をSVGマスクでハイライトし、
+    // コールアウトへ最短経路のエルボー（L字）引き出し線＋端点ドットで接続する。showStepSpotlight（対戦／
+    // 1ターン体験チュートリアル）とshowCoopTutSpotlight（協力チュートリアル）で共用し、スタイル言語を統一する。
+    function _renderTutSpotlight(overlayId, el, cfg) {
+      if (!el) return;
+      const PAD = cfg.pad || 10;
+      const r = el.getBoundingClientRect();
+      const b = { x: r.left-PAD, y: r.top-PAD, w: r.width+PAD*2, h: r.height+PAD*2, cx: r.left+r.width/2, cy: r.top+r.height/2 };
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const safeL = _safeInset('left'), safeR = _safeInset('right'), safeB = _safeInset('bottom');
+      const cw = Math.min(cfg.width || 220, vw - 40 - safeL - safeR);
+      const cx = Math.max(16 + safeL, Math.min(vw - cw - 16 - safeR, Math.round((vw-cw)/2)));
+      const above = b.cy > vh*0.5;
+      const cy = above ? Math.max(16, Math.round(b.y - (cfg.calloutH || 110))) : Math.min(vh - 40 - safeB, Math.round(b.y + b.h + 20));
+      const color = cfg.color;
+      const maskId = overlayId + '-mask';
+      const overlay = document.createElement('div');
+      overlay.id = overlayId;
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
+      overlay.innerHTML =
+        `<svg style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs><mask id="${maskId}"><rect width="${vw}" height="${vh}" fill="white"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="black"/></mask></defs>` +
+          `<rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.72)" mask="url(#${maskId})"/>` +
+          `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="none" stroke="${color}" stroke-width="2.5"><animate attributeName="stroke-opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/><animate attributeName="stroke-width" values="2.5;4.5;2.5" dur="1.2s" repeatCount="indefinite"/></rect>` +
+          `<path id="${overlayId}-leader" d="" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+          `<circle id="${overlayId}-dotA" cx="0" cy="0" r="3" fill="${color}"/>` +
+          `<circle id="${overlayId}-dotB" cx="0" cy="0" r="3" fill="${color}"/>` +
+        `</svg>` +
+        `<div id="${overlayId}-callout" style="position:absolute;left:${cx}px;top:${cy}px;width:${cw}px;background:var(--bg2);border:2px solid ${color};border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()">` +
+          `<button onclick="event.stopPropagation();document.getElementById('${overlayId}').remove();document.body.style.overflow=''" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#ffffff;font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1">×</button>` +
+          `<div style="font-weight:700;color:${color};margin-bottom:5px;padding-right:20px">${cfg.title}</div><div>${cfg.body}</div>` +
+        `</div>`;
+      overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; if (cfg.onClose) cfg.onClose(); };
+      document.body.style.overflow = 'hidden';
+      document.body.appendChild(overlay);
+      requestAnimationFrame(() => {
+        const callout = document.getElementById(`${overlayId}-callout`);
+        const path = document.getElementById(`${overlayId}-leader`);
+        const dotA = document.getElementById(`${overlayId}-dotA`);
+        const dotB = document.getElementById(`${overlayId}-dotB`);
+        if (!callout || !path) return;
+        const cr = callout.getBoundingClientRect();
+        const calloutY = above ? cr.bottom : cr.top;
+        const calloutX = cr.left + cr.width/2;
+        const midY = Math.round((b.cy + calloutY) / 2);
+        path.setAttribute('d', `M ${b.cx} ${b.cy} L ${b.cx} ${midY} L ${calloutX} ${midY} L ${calloutX} ${calloutY}`);
+        if (dotA) { dotA.setAttribute('cx', b.cx); dotA.setAttribute('cy', b.cy); }
+        if (dotB) { dotB.setAttribute('cx', calloutX); dotB.setAttribute('cy', calloutY); }
       });
     }
 
@@ -5445,34 +5618,196 @@
       };
       const cfg = CFG[step]; if (!cfg) return;
       const el = document.querySelector(cfg.sel); if (!el) return;
-      const PAD = 10;
-      const r = el.getBoundingClientRect();
-      const b = { x: r.left-PAD, y: r.top-PAD, w: r.width+PAD*2, h: r.height+PAD*2, cx: r.left+r.width/2, cy: r.top+r.height/2 };
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const cw = Math.min(220, vw-40);
-      const cx = Math.round((vw-cw)/2);
-      const above = b.cy > vh*0.5;
-      const cy = above ? Math.max(16, Math.round(b.y - 110)) : Math.round(b.y + b.h + 20);
-      const overlay = document.createElement('div');
-      overlay.id = 'step-spotlight-overlay';
-      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
-      overlay.innerHTML =
-        `<svg style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="ss-mask"><rect width="${vw}" height="${vh}" fill="white"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="black"/></mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.72)" mask="url(#ss-mask)"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="none" stroke="${cfg.color}" stroke-width="2.5"><animate attributeName="stroke-opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/><animate attributeName="stroke-width" values="2.5;4.5;2.5" dur="1.2s" repeatCount="indefinite"/></rect><line id="ss-line" x1="${cx+cw/2}" y1="${above?cy+80:cy}" x2="${b.cx}" y2="${above?b.y:b.y+b.h}" stroke="${cfg.color}" stroke-width="1"/></svg>` +
-        `<div id="ss-callout" style="position:absolute;left:${cx}px;top:${cy}px;width:${cw}px;background:rgba(22,27,34,0.96);border:2px solid ${cfg.color};border-radius:12px;padding:10px 14px;font-size:.8rem;color:#e6edf3;line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()"><button onclick="event.stopPropagation();document.getElementById('step-spotlight-overlay').remove();document.body.style.overflow=''" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#ffffff;font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1">×</button><div style="font-weight:700;color:${cfg.color};margin-bottom:5px;padding-right:20px">${cfg.title}</div><div>${cfg.body}</div></div>`;
-      overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; };
-      document.body.style.overflow = 'hidden';
-      document.body.appendChild(overlay);
-      requestAnimationFrame(() => {
-        const callout = document.getElementById('ss-callout');
-        const line = document.getElementById('ss-line');
-        if (callout && line) {
-          const cr = callout.getBoundingClientRect();
-          line.setAttribute('x1', cr.left + cr.width/2);
-          line.setAttribute('y1', above ? cr.bottom : cr.top);
-          line.setAttribute('x2', b.cx);
-          line.setAttribute('y2', above ? b.y : b.y+b.h);
+      _renderTutSpotlight('step-spotlight-overlay', el, cfg);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 協力モード用チュートリアル「はじめての協力：1ラウンド体験」
+    // ═══════════════════════════════════════════════════════════════════
+    // 設計方針（TASKS.md該当タスク①）：
+    // ・G（対戦エンジン）・CO（協力エンジン）のいずれにも一切触れない完全に独立したステートマシンとして実装する。
+    //   実際のcoopエンジン関数（coopSelectCard/coopConfirmPlayAnim/cwRecordCoopResult等）を一切呼ばないため、
+    //   戦績・デイリー・カード工房の育つカード等のlocalStorage記録に書き込みが発生し得ない（isArchive/isPuzzle
+    //   と同じ「呼び出し経路そのものを持たない」隔離方針）。Firebase通信も発生させない（完全ローカル）。
+    // ・都市・手札・予報は固定シード（常に同一の仙台＝あなた／大阪・東京＝CPU仲間、耐震補強・避難訓練・防災協定の
+    //   3枚、次の災害＝地震→台風）とし、各ステップの説明文と盤面が必ず一致するようにする。
+    // ・スポットライト演出は_renderTutSpotlight（design_system.md §2/§5.2 準拠のエルボー引き出し線＋SVGマスク）
+    //   を対戦チュートリアルと共用し、見た目のスタイル言語を統一する。
+    function _coopTutFixedCities() {
+      return {
+        player: CITIES.find(c => c.id === 'sendai'),
+        osaka:  CITIES.find(c => c.id === 'osaka'),
+        tokyo:  CITIES.find(c => c.id === 'tokyo'),
+      };
+    }
+    function _coopTutHand() {
+      return [
+        { ...POLICY_CARDS.find(c => c.id === 'quake_wall'), uid: 'ctut_qw' },
+        { ...POLICY_CARDS.find(c => c.id === 'drill'),      uid: 'ctut_dr' },
+        { ...POLICY_CARDS.find(c => c.id === 'pact'),       uid: 'ctut_pact' },
+      ];
+    }
+    function startCoopTutorial() {
+      coopTutorialState = {
+        step: 0,
+        budgetTotal: 3, budgetUsed: 0,
+        shieldActive: false,
+        confirmPact: false, pactGiven: false, pactTarget: null,
+        osakaBudget: 3, tokyoBudget: 3,
+        feedback: null,
+      };
+      _coopTutSpotlights = new Set();
+      if (typeof document !== 'undefined' && document.body) document.body.classList.remove('ui-tabbar-active');
+      render();
+    }
+    function exitCoopTutorial() {
+      coopTutorialState = null;
+      _lobbyEnter = true;
+      lobbyState.mode = 'coop'; lobbyState.coopStep = 1; lobbyState.coopNet = null; lobbyState.playMode = null; lobbyState.error = '';
+      render();
+    }
+    function coopTutAction(action, arg) {
+      const ts = coopTutorialState; if (!ts) return;
+      ts.feedback = null;
+      if (action === 'next') { ts.step++; }
+      else if (action === 'play_shield') {
+        ts.budgetUsed += 2; ts.shieldActive = true;
+        ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} 耐震補強を設置！次の地震ダメージを大幅に軽減します。`;
+        ts.step++;
+      } else if (action === 'open_pact') { ts.confirmPact = true; }
+      else if (action === 'give_pact') {
+        ts.confirmPact = false; ts.budgetUsed += 1; ts.pactGiven = true; ts.pactTarget = arg;
+        const cities = _coopTutFixedCities();
+        if (arg === 'osaka') ts.osakaBudget += 2; else ts.tokyoBudget += 2;
+        const cname = arg === 'osaka' ? cities.osaka.name : cities.tokyo.name;
+        ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} ${cname}に予算+2を融通しました（今すぐ使えます）。`;
+        ts.step++;
+      } else if (action === 'end_turn') { ts.step++; }
+      else if (action === 'finish') { exitCoopTutorial(); return; }
+      render();
+    }
+    function coopTutClosePact() { if (coopTutorialState) { coopTutorialState.confirmPact = false; render(); } }
+    function coopTutCardTap(uid) {
+      const ts = coopTutorialState; if (!ts) return;
+      if (uid === 'ctut_qw' && ts.step === 2) coopTutAction('play_shield');
+      else if (uid === 'ctut_pact' && ts.step === 3) coopTutAction('open_pact');
+    }
+    function coopTutMkCard(card, glow, disabled) {
+      const click = disabled ? '' : `coopTutCardTap('${card.uid}')`;
+      return `<div class="card ${card.type} ${disabled ? 'card-disabled' : 'card-usable'}${glow ? ' tut-glow' : ''}" onclick="${click}" style="cursor:${disabled ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}</div>`;
+    }
+    function coopTutStatusBar() {
+      const ts = coopTutorialState;
+      const left = ts.budgetTotal - ts.budgetUsed;
+      const pips = Array(ts.budgetTotal).fill(0).map((_,i)=>`<div class="pip ${i < ts.budgetUsed ? 'used':'avail'}"></div>`).join('');
+      return `<div class="status-bar" style="gap:10px;flex-wrap:wrap"><span class="turn-badge" style="color:#fff">ターン 1<span style="color:var(--t2)">/8</span></span><div class="budget-display"><span class="budget-label" style="color:#fff">予算</span><div class="budget-pips">${pips}</div><span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${ts.budgetTotal}</span></span></div></div>`;
+    }
+    function coopTutCityPanel(city, hp, mine) {
+      const pct = Math.max(0, Math.round(hp/60*100));
+      const col = hpColor(hp,60);
+      const owner = mine ? `<div style="margin:3px 0 5px"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.66rem;font-weight:700;background:rgba(56,139,253,.3);color:#fff;border:1px solid #388bfd">あなた</span></div>` : '';
+      const shield = (mine && coopTutorialState.shieldActive) ? uiIcoShield(13) : '';
+      return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:10px;border:1px solid ${mine?'#388bfd':'var(--bg3,#21262d)'}${mine?';box-shadow:0 0 0 1px #388bfd inset':''}"><div style="display:flex;align-items:center;gap:6px"><span class="city-icon-sm">${terrainImg(city,22)}</span><strong style="color:#fff">${city.name}</strong></div>${owner}<div style="font-size:.64rem;color:#fff;opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px">${city.abilityDesc}</div><div style="background:#0d1117;border-radius:6px;height:16px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;width:${pct}%;height:100%;background:${col}"></div><span style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:16px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${hp} / 60</span></div><div style="font-size:.85rem;margin-top:5px;min-height:18px">${shield}</div></div>`;
+    }
+    function coopTutIntelPanel() {
+      const eq = DISASTER_CARDS.find(c=>c.id==='earthquake'), ty = DISASTER_CARDS.find(c=>c.id==='typhoon');
+      return `<div class="coop-tut-intel" style="background:rgba(56,139,253,.1);border:1px solid #388bfd;border-radius:8px;padding:8px;margin-top:8px;font-size:.78rem;color:#fff"><strong>${coopIcoClipboard(14,'#388bfd')} 次に来る災害</strong><br>${eq.icon}${eq.name} → ${ty.icon}${ty.name}</div>`;
+    }
+    function coopTutAllyPanel(osakaReady) {
+      const ts = coopTutorialState;
+      const cities = _coopTutFixedCities();
+      const row = (city, budget, ready) => {
+        const pips = Array(3).fill(0).map(()=>`<div class="pip avail"></div>`).join('');
+        const badge = ready
+          ? `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>`
+          : `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(56,139,253,.15);color:#388bfd;border:1px solid rgba(56,139,253,.4)">行動中 …</span>`;
+        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:#e6edf3;flex-shrink:0">CPU · ${city.name}</span>${badge}<div class="budget-display" style="margin:0"><span class="budget-label" style="color:#fff">予算</span><div class="budget-pips">${pips}</div><span style="font-size:.78rem;font-weight:700;color:var(--green)">${budget}<span style="color:var(--t2);font-weight:400">/3</span></span></div></div>`;
+      };
+      return `<div class="coop-tut-ally" style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px"><div style="font-size:.64rem;font-weight:700;color:rgba(255,255,255,.35);margin-bottom:6px">仲間の状況</div>${row(cities.osaka, ts.osakaBudget, !!osakaReady)}${row(cities.tokyo, ts.tokyoBudget, false)}</div>`;
+    }
+    function coopTutRenderPactConfirm() {
+      const cities = _coopTutFixedCities();
+      const btn = (id, city) => `<button style="background:var(--blue);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;padding:10px;margin:5px 0;width:100%" onclick="coopTutAction('give_pact','${id}')">${city.name}に融通する（予算+2）</button>`;
+      return `<div class="confirm-overlay" onclick="coopTutClosePact()"><div class="confirm-box" onclick="event.stopPropagation()"><div class="confirm-card-preview" style="color:#fff">防災協定：どの都市に予算を融通しますか？</div>${btn('osaka', cities.osaka)}${btn('tokyo', cities.tokyo)}<button style="background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:#fff;font-size:.9rem;cursor:pointer;padding:10px;margin-top:5px;width:100%" onclick="coopTutClosePact()">キャンセル</button></div></div>`;
+    }
+    function showCoopTutSpotlight(step) {
+      if (_coopTutSpotlights.has(step)) return;
+      _coopTutSpotlights.add(step);
+      const CFG = {
+        1: { sel: '.coop-tut-intel',   title: '災害予報を確認',       body: '次に来る災害が公開されています。備えてから守れるのが協力モードの特徴です。', color: '#388bfd' },
+        2: { sel: '.card.tut-glow',    title: '耐震補強をタップ',     body: '光っているカードをタップして設置しましょう',                             color: '#3fb950' },
+        3: { sel: '.card.tut-glow',    title: '防災協定をタップ',     body: '光っているカードをタップして仲間に予算を融通しましょう',                 color: '#d29922' },
+        4: { sel: '.coop-tut-endturn', title: 'ターン終了をタップ',   body: '光っているボタンを押すとターンが進みます',                               color: '#a371f7' },
+      };
+      const cfg = CFG[step]; if (!cfg) return;
+      const el = document.querySelector(cfg.sel); if (!el) return;
+      _renderTutSpotlight('coop-tut-spotlight-overlay', el, cfg);
+    }
+    function renderCoopTutorial() {
+      const app = document.getElementById('app'); if (!app) return;
+      if (document.body) document.body.classList.remove('ui-tabbar-active');
+      const ts = coopTutorialState;
+      const cities = _coopTutFixedCities();
+      const STEP_COUNT = 6;
+      const dots = Array.from({length:STEP_COUNT}, (_,i)=>`<div class="tut-dot" style="background:${i===ts.step?'var(--blue)':i<ts.step?'var(--green)':'var(--bg3)'}"></div>`).join('');
+      const stepCounter = `<span style="font-size:.72rem;color:var(--t1);font-weight:600">${ts.step+1} / ${STEP_COUNT}</span>`;
+      const progressRow = `<div style="display:flex;align-items:center;gap:6px"><div class="tut-progress">${dots}</div>${stepCounter}</div>`;
+      const exitBtn = `<button class="sq-btn" style="margin-top:10px;width:100%" onclick="exitCoopTutorial()">＜ ロビーに戻る（スキップ）</button>`;
+      let html;
+      if (ts.step === 0) {
+        html = `<div class="screen active"><div style="display:flex;flex-direction:column;flex:1;padding:10px;overflow-y:auto;gap:10px">
+          <div class="tut-guide" style="width:100%;gap:14px">
+            <div class="tut-guide-title tut-anim-title" style="font-size:1rem">はじめての協力：1ラウンド体験</div>
+            <div class="tut-guide-body tut-anim-body">協力モードは、自然災害という1人の相手に、あなたと仲間2都市のチームで挑む多対1のゲームです。<br>対戦の1対1とは違い、仲間と手札・予算を融通し合いながら街を守ります。</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">${progressRow}<button class="sq-btn" onclick="coopTutAction('next')">次へ ＞</button></div>
+          </div>
+          ${exitBtn}
+        </div></div>`;
+      } else if (ts.step === 5) {
+        const cChain = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;white-space:nowrap';
+        const chips = `<span style="${cChain};background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28)">基礎 30</span><span style="${cChain};background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28)">二次津波 +5</span><span style="${cChain};background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.2)">合計 35</span>`;
+        html = `<div class="screen active"><div class="turn-summary-box">
+          <div class="ts-title">${coopIcoClipboard(16)} 自然の攻撃 — 結果</div>
+          <div class="ts-events"><div class="ts-ev"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">🌍 地震 → ${cities.osaka.name}</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:var(--red)">35</span><span style="font-size:.68rem;font-weight:600;color:var(--red);margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t3);margin-bottom:3px"><span>HP</span><span>60 → 25</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${Math.round(25/60*100)}%;background:var(--red)"></div></div></div><div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div></div></div>
+          <div style="font-size:.82rem;color:var(--t1);text-align:center;margin-top:10px;line-height:1.7">地震は基礎30に加え、海岸都市では二次災害の津波+5が連鎖します。<br>次はどう備えるか、仲間の状況も見ながら考えてみましょう。</div>
+          <div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="coopTutAction('finish')">完了 → 協力モードへ</button></div>
+        </div>${exitBtn}</div>`;
+      } else {
+        const cityPanels = `<div style="display:flex;gap:8px;margin-top:8px">${coopTutCityPanel(cities.player, 60, true)}${coopTutCityPanel(cities.osaka, 60, false)}${coopTutCityPanel(cities.tokyo, 60, false)}</div>`;
+        const intel = coopTutIntelPanel();
+        let stepTitle = '', stepBody = '', handHtml = '', extraHtml = '';
+        if (ts.step === 1) {
+          stepTitle = '災害予報を見る';
+          stepBody = '画面上部には次に来る災害があらかじめ公開されています。相手の攻撃が見えない対戦と違い、備えてから守れるのが協力モードの特徴です。';
+          handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c,false,true)).join('')}</div>`;
+        } else if (ts.step === 2) {
+          stepTitle = '防御カードを置こう';
+          stepBody = '次に地震が来ます。<strong>耐震補強（コスト2）</strong>を設置して備えましょう。';
+          handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c, c.uid==='ctut_qw', c.uid!=='ctut_qw')).join('')}</div>`;
+        } else if (ts.step === 3) {
+          stepTitle = '仲間の状況パネルと防災協定';
+          stepBody = '仲間の予算・進行状況がひと目でわかります。<strong>防災協定（コスト1）</strong>で仲間に予算+2を融通してみましょう。';
+          handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c, c.uid==='ctut_pact', c.uid==='ctut_qw')).join('')}</div>`;
+          extraHtml = coopTutAllyPanel(false);
+        } else if (ts.step === 4) {
+          stepTitle = 'ターン終了と同期';
+          stepBody = '全員が行動を終えるとターンが進みます。仲間の状況パネルで誰の行動待ちかが一目でわかります。';
+          extraHtml = coopTutAllyPanel(true) + `<button class="coop-tut-endturn tut-glow" onclick="coopTutAction('end_turn')" style="width:100%;margin-top:10px;padding:10px;border-radius:8px;background:var(--blue);border:none;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">ターン終了</button>`;
         }
-      });
+        const feedbackHtml = ts.feedback ? `<div style="margin-top:6px;color:var(--green);font-size:.78rem">${ts.feedback}</div>` : '';
+        html = `<div class="screen active" style="padding:12px;max-width:560px;margin:0 auto">
+          <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px">${progressRow}</div>
+          ${coopTutStatusBar()}
+          ${cityPanels}
+          ${intel}
+          <div style="margin-top:10px;background:var(--bg1,#0d1117);border:1px solid #21262d;border-radius:8px;padding:10px 12px;font-size:.8rem;color:var(--t1);line-height:1.7"><strong style="color:var(--blue)">${stepTitle}</strong><br>${stepBody}${feedbackHtml}</div>
+          ${handHtml}
+          ${extraHtml}
+          ${exitBtn}
+        </div>${ts.confirmPact ? coopTutRenderPactConfirm() : ''}`;
+      }
+      app.innerHTML = html;
+      if ([1,2,3,4].includes(ts.step) && !_coopTutSpotlights.has(ts.step)) setTimeout(() => showCoopTutSpotlight(ts.step), 80);
     }
 
     // ─── 観戦招待ポップオーバー ───
@@ -5488,7 +5823,7 @@
       try {
         await navigator.clipboard.writeText(url);
         const btn = document.getElementById('spec-invite-copy-btn');
-        if (btn) { btn.textContent = '✅ コピーしました'; btn.disabled = true; setTimeout(() => { btn.textContent = 'リンクをコピー'; btn.disabled = false; }, 2000); }
+        if (btn) { btn.innerHTML = coopIcoCheckCircle(14, '#3fb950') + ' コピーしました'; btn.disabled = true; setTimeout(() => { btn.textContent = 'リンクをコピー'; btn.disabled = false; }, 2000); }
       } catch (e) {}
     }
     function renderSpecInviteOverlay() {
@@ -5580,6 +5915,7 @@
       // 長押し中に別要因でrender()が走っても古いタイマー参照・孤立したオーバーレイが残らない。
       _lpCancelTimer(); _lpClosePreview();
       _updateWakeLock();
+      if (coopTutorialState) { renderCoopTutorial(); return; } // 協力チュートリアルはG/CO/DD/CWいずれとも独立した専用ステートマシン
       if (CO) { renderCoop(); return; }
       if (DD) { renderDaily(); return; }
       if (CW) { renderCardWorkshop(); return; }
@@ -5688,7 +6024,7 @@
     // ─── セットアップ必須 ───
     function renderSetupRequired() {
       return `<div class="screen active"><div class="setup-box">
-    <div style="text-align:center;margin-bottom:20px"><div style="font-size:2.5rem">🔧</div><h2 style="color:var(--yellow);margin:8px 0">Firebase 設定が必要です</h2><p style="color:var(--t2);font-size:.85rem">このページを使うには Firebase Realtime Database の設定が必要です。</p></div>
+    <div style="text-align:center;margin-bottom:20px"><div style="display:flex;justify-content:center">${uiIcoGear(40,'var(--yellow)')}</div><h2 style="color:var(--yellow);margin:8px 0">Firebase 設定が必要です</h2><p style="color:var(--t2);font-size:.85rem">このページを使うには Firebase Realtime Database の設定が必要です。</p></div>
     <div class="setup-step"><span class="setup-num">1</span><div><strong>Firebaseプロジェクト作成</strong><br><a href="https://console.firebase.google.com" target="_blank" style="color:var(--blue)">console.firebase.google.com</a> で無料プロジェクトを作成（Googleアカウント必要）</div></div>
     <div class="setup-step"><span class="setup-num">2</span><div><strong>Realtime Database を有効化</strong><br>「構築」→「Realtime Database」→「データベースを作成」→テストモードで開始</div></div>
     <div class="setup-step"><span class="setup-num">3</span><div><strong>設定情報をコピー</strong><br>「プロジェクトの設定」→「マイアプリ」→ Webアプリを登録 →「<code>firebaseConfig</code>」をコピー</div></div>
@@ -5713,6 +6049,31 @@
       } else {
         mutateFn(); render();
       }
+    }
+    // Layer1「協力する」の入口。初めて協力モードを選んだときだけ「先に1ラウンド体験する？」を1回提案する
+    // （localStorage ron_coopTutOffered。拒否・体験済みいずれでも以降は二度と出さず、直接コープウィザードへ進む）。
+    function lobbyEnterCoopMode() {
+      let offered = false;
+      try { offered = !!localStorage.getItem('ron_coopTutOffered'); } catch (e) {}
+      if (!offered) {
+        try { localStorage.setItem('ron_coopTutOffered', '1'); } catch (e) {}
+        lobbyState.coopTutOfferOpen = true; render(); return;
+      }
+      lobbyGoTo(() => { lobbyState.mode = 'coop'; lobbyState.coopStep = 1; lobbyState.coopNet = null; lobbyState.error = ''; }, 'forward');
+    }
+    function lobbyCoopTutOfferYes() { lobbyState.coopTutOfferOpen = false; startCoopTutorial(); }
+    function lobbyCoopTutOfferNo() {
+      lobbyState.coopTutOfferOpen = false;
+      lobbyGoTo(() => { lobbyState.mode = 'coop'; lobbyState.coopStep = 1; lobbyState.coopNet = null; lobbyState.error = ''; }, 'forward');
+    }
+    function renderCoopTutOfferOverlay() {
+      const _svgUsers2 = `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>`;
+      return `<div class="confirm-overlay" onclick="lobbyCoopTutOfferNo()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:340px">
+        <div style="text-align:center;margin-bottom:8px">${_svgUsers2}</div>
+        <div class="confirm-card-preview" style="color:#fff">先に1ラウンド体験する？</div>
+        <p style="color:#fff">協力モードは対戦とルールが違います。90秒ほどで仕組みを体験できます。<br><span style="font-size:.78rem;color:rgba(255,255,255,.7)">いつでもスキップでき、後からもう一度体験できます</span></p>
+        <div class="confirm-btns"><button class="btn-ok" onclick="lobbyCoopTutOfferYes()">体験する</button><button class="btn-cancel" onclick="lobbyCoopTutOfferNo()">スキップ</button></div>
+      </div></div>`;
     }
     function openGalleryZoom(type, id, name) { lobbyState.galleryZoom = { type, id, name }; render(); }
     // ギャラリー表示順（グリッドの並びと一致）を返す。前後ナビ用。
@@ -5790,7 +6151,7 @@
 
     function renderLobby() {
       const nv = lobbyState.nameInput.replace(/"/g, '&quot;'); const jv = lobbyState.joinCodeInput.replace(/"/g, '&quot;');
-      const err = lobbyState.error ? `<div class="lobby-error">⚠️ ${lobbyState.error}</div>` : '';
+      const err = lobbyState.error ? `<div class="lobby-error">${coopIcoWarnTriangle(14,'var(--yellow)')} ${lobbyState.error}</div>` : '';
       const enterClass = _lobbyEnter ? ' lobby-enter' : ''; _lobbyEnter = false;
 
       // ── ギャラリーモード ──
@@ -5904,7 +6265,7 @@
     ${_lobbyDashboardCard()}
     <div class="lobby-mode-btns">
       <button class="lobby-btn" onclick="lobbyGoTo(()=>{lobbyState.playMode='vs';lobbyState.error=''},'forward')" aria-label="対戦する：1対1でぶつかり合う">${_svgGame}<strong>対戦する</strong><span style="font-size:.72rem;color:var(--t2)">1対1でぶつかり合う</span></button>
-      <button class="lobby-btn" onclick="lobbyGoTo(()=>{lobbyState.mode='coop';lobbyState.coopStep=1;lobbyState.coopNet=null;lobbyState.error=''},'forward')" aria-label="協力する：街を守るため力を合わせる（ベータ版）"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力する</strong><span style="font-size:.72rem;color:var(--t2)">街を守るため力を合わせる（ベータ版）</span></button>
+      <button class="lobby-btn" onclick="lobbyEnterCoopMode()" aria-label="協力する：街を守るため力を合わせる（ベータ版）"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力する</strong><span style="font-size:.72rem;color:var(--t2)">街を守るため力を合わせる（ベータ版）</span></button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin:4px 0 0">
       <div style="flex:1;height:1px;background:var(--bg3)"></div>
@@ -5960,6 +6321,7 @@
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='solo';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoUser('#3fb950'), 'ひとりで練習', 'CPUと対戦して練習する', '#3fb950')}
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='host';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoUsers('#388bfd'), '部屋を作る', 'みんなを招待してオンラインで', '#388bfd')}
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='join';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoLink('#a371f7'), '部屋に参加', 'コード・QR・リンクで参加する', '#a371f7')}
+    <div style="text-align:center;margin-top:2px"><button onclick="startCoopTutorial()" style="background:none;border:none;color:var(--t3);font-size:.72rem;text-decoration:underline;cursor:pointer;padding:4px">はじめての方へ：1ラウンド体験（90秒〜2分）</button></div>
     <button class="sq-btn-r" style="margin-top:6px" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.playMode=null;lobbyState.error=''},'back')" aria-label="ロビーに戻る">＜ ロビーに戻る</button>`;
         } else if (step === 2 && net === 'solo') {
           // STEP 2（ソロ）：役割
@@ -5989,10 +6351,10 @@
           let statusLine, statusColor = 'var(--t3)';
           if (jc.length < 6) statusLine = 'ルームコードを入力すると、参加方法が表示されます。';
           else if (!info) statusLine = 'ルームを確認中…';
-          else if (!info.exists) { statusLine = '⚠️ そのコードのルームが見つかりません。'; statusColor = 'var(--red,#f85149)'; }
+          else if (!info.exists) { statusLine = `${coopIcoWarnTriangle(13,'var(--red,#f85149)')} そのコードのルームが見つかりません。`; statusColor = 'var(--red,#f85149)'; }
           else if (info.started) { statusLine = 'このルームは既に開始しています。参加時と同じ名前を入力して「参加する」を押すと、切断中スロットに再接続できます。'; statusColor = 'var(--t3)'; }
-          else if (isRandom) { if (info.partFull) { statusLine = '⚠️ 満員です（最大5人）。'; statusColor = 'var(--red,#f85149)'; } else statusLine = '🎲 配役（都市側／自然側）は開始時に抽選されます。'; }
-          else if (info.cityFull && !natureSelectable) { statusLine = '⚠️ 都市側が満員です（最大4人）。'; statusColor = 'var(--red,#f85149)'; }
+          else if (isRandom) { if (info.partFull) { statusLine = `${coopIcoWarnTriangle(13,'var(--red,#f85149)')} 満員です（最大5人）。`; statusColor = 'var(--red,#f85149)'; } else statusLine = `${uiIcoDice(13)} 配役（都市側／自然側）は開始時に抽選されます。`; }
+          else if (info.cityFull && !natureSelectable) { statusLine = `${coopIcoWarnTriangle(13,'var(--red,#f85149)')} 都市側が満員です（最大4人）。`; statusColor = 'var(--red,#f85149)'; }
           else if (natureSelectable) statusLine = '自然側に空きがあります。都市側・自然側のどちらでも参加できます。';
           else if (info.natureMode === 'cpu') statusLine = '自然はCPUが担当します。都市側で参加します。';
           else statusLine = '自然側は参加者で埋まっています。都市側で参加します。';
@@ -6091,7 +6453,7 @@
       return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-bg-title" aria-hidden="true">${_bgCols}</div><div class="lobby-box${enterClass}"${_boxStyleAttr}>
     <div class="lobby-hero">${_neonIconsHtml}${_rlHtml}</div>
     ${_bodyHtml}
-  </div></div></div>`;
+  </div></div></div>${lobbyState.coopTutOfferOpen ? renderCoopTutOfferOverlay() : ''}`;
     }
 
     // ─── 接続待ち ───
@@ -6100,7 +6462,7 @@
       const _svgBack = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><polyline points="15 18 9 12 15 6"/></svg>`;
       if (myRole === 'p1') {
         return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
-      <div style="text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;color:#e6edf3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span style="font-size:1.3rem;font-weight:700;color:#e6edf3">ホスト待機中</span></div><p style="color:var(--t1);font-size:.88rem">相手にルームコードまたはURLを共有してください</p></div>
+      <div style="text-align:center"><p style="color:var(--t1);font-size:.88rem">相手にルームコードまたはURLを共有してください</p></div>
       <div class="room-code-display" onclick="copyRoomCode()" title="タップしてコピー">
         <div class="room-code-label">ルームコード（タップでコピー）</div>
         <div class="room-code-value">${roomId || '------'}</div>
@@ -6109,6 +6471,7 @@
       <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
         <div id="qr-container" style="background:var(--bg2);padding:10px;border-radius:10px;border:1px solid var(--bg3);min-height:52px;display:flex;align-items:center;justify-content:center"></div>
         <div style="font-size:.7rem;color:var(--t1)">QRコードをカメラで読み取るか、URLまたはコードを共有してください</div>
+        <div style="font-size:.68rem;color:var(--t3)">対戦中に接続が切れても、同じコードでいつでも再接続できます</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(250,42,78,.08);border:1px solid rgba(250,42,78,.3);border-radius:8px;padding:10px 14px">
         <span class="pulse-dot" style="background:var(--accent);min-width:12px"></span>
@@ -6118,7 +6481,7 @@
     </div></div></div>`;
       } else {
         return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-box">
-      <div style="text-align:center"><div style="font-size:2rem;margin-bottom:6px">🔗 参加完了</div><p style="color:var(--t1);font-size:.88rem">ホストがゲームを開始するまでお待ちください</p></div>
+      <div style="text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">${uiIcoLink(24,'#e6edf3')}<span style="font-size:1.3rem;font-weight:700;color:#e6edf3">参加完了</span></div><p style="color:var(--t1);font-size:.88rem">ホストがゲームを開始するまでお待ちください</p></div>
       <div class="room-code-display" onclick="copyRoomCode()" title="タップしてコピー">
         <div class="room-code-label">接続中のルーム（タップでコピー）</div>
         <div class="room-code-value">${roomId || '------'}</div>
@@ -6172,11 +6535,11 @@
       const defHasNegate = G.players[atk.defenderIdx].effects.negateSpecial;
       const isCompoundSkip = atk.card.specialType === 'skip_response' && !defHasNegate;
       const banner = isCompoundSkip
-        ? `<div class="waiting-banner red">⚡ ${G.players[atk.attackerIdx].name}が「${atk.card.icon} ${atk.card.name}」を宣言！複合災害：対応フェーズが強制スキップされます...</div>`
-        : `<div class="waiting-banner red">⚔️ ${G.players[atk.attackerIdx].name}が「${atk.card.icon} ${atk.card.name}」を宣言！対応フェーズへ自動移行中...</div>`;
+        ? `<div class="waiting-banner red">${coopZapIco(15,'#fff')} ${G.players[atk.attackerIdx].name}が「${atk.card.icon} ${atk.card.name}」を宣言！複合災害：対応フェーズが強制スキップされます...</div>`
+        : `<div class="waiting-banner red">${uiIcoSwords(15,'#fff')} ${G.players[atk.attackerIdx].name}が「${atk.card.icon} ${atk.card.name}」を宣言！対応フェーズへ自動移行中...</div>`;
       const notice = isCompoundSkip
-        ? `<div class="response-pending-bar"><div class="rpb-icon">⚡</div><div class="rpb-text"><strong>複合災害：対応フェーズ強制スキップ</strong><br>政策カードは使用できません。攻撃の解決をお待ちください。</div></div>`
-        : `<div class="response-pending-bar"><div class="rpb-icon">⚔️</div><div class="rpb-text"><strong>${G.players[atk.attackerIdx].name}が「${atk.card.icon} ${atk.card.name}」を使用！</strong><br>対応フェーズへ自動移行中...</div></div>`;
+        ? `<div class="response-pending-bar"><div class="rpb-icon">${coopZapIco(20)}</div><div class="rpb-text"><strong>複合災害：対応フェーズ強制スキップ</strong><br>政策カードは使用できません。攻撃の解決をお待ちください。</div></div>`
+        : `<div class="response-pending-bar"><div class="rpb-icon">${uiIcoSwords(20)}</div><div class="rpb-text"><strong>${G.players[atk.attackerIdx].name}が「${atk.card.icon} ${atk.card.name}」を使用！</strong><br>対応フェーズへ自動移行中...</div></div>`;
       return `<div class="screen active">
     ${banner}
     ${renderZoneReadOnly(oi, 'opponent')}
@@ -6193,7 +6556,7 @@
       const isMe = (idx === myPlayerIdx);
       return `<div class="${position}-zone">
     <div class="zone-header"><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? terrainImg(c) : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}</div>
-    <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
+    <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? `<span class="hp-critical-badge">${coopIcoWarnTriangle(12,'var(--red)')} 壊滅寸前</span>` : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
     ${renderBackupCity(idx)}
     <div class="effects-row">${renderEffectBadges(p.effects, idx)}</div>
     <div class="hand-cards-area">
@@ -6216,7 +6579,7 @@
               ${(_gachaAllCities||[]).map((c,i) => `<div class="gacha-city-duo-item" style="animation-delay:${i*120}ms"><div class="gacha-city-duo-card"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><div class="gacha-city-duo-label">${c.name}</div></div>`).join('')}
             </div>
           </div>
-          <div style="display:flex;justify-content:center;padding:6px 0"><button class="btn-ho draft-confirm-appear" onclick="proceedToCityOrder()" style="padding:13px 44px;font-size:1rem">⚔️ 戦闘順を選ぶ</button></div>
+          <div style="display:flex;justify-content:center;padding:6px 0"><button class="btn-ho draft-confirm-appear" onclick="proceedToCityOrder()" style="padding:13px 44px;font-size:1rem">${uiIcoSwords(16)} 戦闘順を選ぶ</button></div>
         </div>`;
       }
 
@@ -6241,7 +6604,7 @@
       })();
 
       let firstPickInfo = '';
-      if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">✅ 1枚目：${terrainImg(fc, 18)} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
+      if (gc.pickNum === 1 && p.cities.length > 0) { const fc = p.cities[0]; firstPickInfo = `<div class="gacha-first-pick">${coopIcoCheckCircle(15,'#3fb950')} 1枚目：${terrainImg(fc, 18)} <strong>${fc.name}</strong>　${fc.abilityDesc}</div>`; }
 
       const isRandomMode = !isCpuMode || cpuDifficulty === 'hard';
       const pickLabel = gc.pickNum === 0 ? '1枚目' : '2枚目';
@@ -6273,13 +6636,13 @@
       let ca = '';
       if (gc.candidates && gc.candidates.length) {
         const cols = gc.candidates.length === 2 ? 'repeat(2,1fr)' : 'repeat(3,1fr)';
-        const cards = gc.candidates.map(c => `<div class="gacha-candidate-card" onclick="acceptGachaCandidate('${c.id}')"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="gacha-cand-info"><div style="font-weight:700;font-size:.85rem;line-height:1.2">${c.name}</div><div style="font-size:.7rem;color:var(--t2);margin-top:2px">${c.isCoastal ? '🌊 海岸' : c.isMountain ? '⛰️ 山間部' : '🏙️ 内陸'} · HP ${c.hp}</div><div style="font-size:.65rem;color:var(--t3);margin-top:3px;line-height:1.3">${c.abilityDesc}</div></div></div>`).join('');
+        const cards = gc.candidates.map(c => `<div class="gacha-candidate-card" onclick="acceptGachaCandidate('${c.id}')"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="gacha-cand-info"><div style="font-weight:700;font-size:.85rem;line-height:1.2">${c.name}</div><div style="font-size:.7rem;color:var(--t2);margin-top:2px">${c.isCoastal ? '<img src="images/icons/terrain_coastal.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 海岸' : c.isMountain ? '<img src="images/icons/terrain_mountain.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 山間部' : '<img src="images/icons/terrain_inland.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 内陸'} · HP ${c.hp}</div><div style="font-size:.65rem;color:var(--t3);margin-top:3px;line-height:1.3">${c.abilityDesc}</div></div></div>`).join('');
         ca = `<div class="gacha-candidates" style="grid-template-columns:${cols}">${cards}</div><div style="text-align:center;color:var(--t3);font-size:.75rem;margin-top:10px">都市をタップして選択</div>`;
       } else if (!gc.revealed) {
-        const btnLabel = cpuDifficulty === 'easy' ? '🎲 3枚から選ぶ' : '🎲 2枚から選ぶ';
+        const btnLabel = cpuDifficulty === 'easy' ? `${uiIcoDice(15)} 3枚から選ぶ` : `${uiIcoDice(15)} 2枚から選ぶ`;
         ca = `<div class="gacha-card-reveal-area" onclick="pullGacha()"><img src="images/cities/back.webp" alt=""></div><button class="btn-gacha" onclick="pullGacha()">${btnLabel}</button>`;
       } else {
-        const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptGachaCity()">✅ この都市で進む</button>`;
+        const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptGachaCity()">${coopIcoCheckCircle(15,'#3fb950')} この都市で進む</button>`;
       }
       return `<div class="screen active">${overlay}<div class="section-title" style="margin-bottom:0">${p.name}｜都市ガチャ <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${pickLabel}</span></div>${firstPickInfo}<div class="gacha-stage">${ca}</div></div>`;
     }
@@ -6298,13 +6661,13 @@
     // ─── 効果バッジ ───
     function renderEffectBadges(eff, pi) {
       const b = [];
-      if (eff.shieldQuakeFire) b.push(`<span class="eff-badge eff-blue">🏗️ 耐震シールド</span>`);
-      if (eff.shieldFlood) b.push(`<span class="eff-badge eff-blue">🌊 堤防シールド</span>`);
-      if (eff.negateSpecial) b.push(`<span class="eff-badge eff-blue">📢 特殊効果無効</span>`);
-      if (eff.damageReduceHits > 0) b.push(`<span class="eff-badge eff-yellow">🏛️ 全ダメ−15（残${eff.damageReduceHits}回）</span>`);
-      if (eff.floodBonusTurns > 0) { const _fc = pi != null ? getActiveCity(pi) : null; const _fa = _fc?.abilityValue ?? 1; b.push(`<span class="eff-badge eff-blue">💧 予算+${_fa}</span>`); }
-      if (eff.terrorNextDisaster) b.push(`<span class="eff-badge eff-red">💣 テロ準備</span>`);
-      if (eff.debtBudget > 0) b.push(`<span class="eff-badge eff-red">📉 予算−${eff.debtBudget}</span>`);
+      if (eff.shieldQuakeFire) b.push(`<span class="eff-badge eff-blue">${uiIcoShield(13)} 耐震シールド</span>`);
+      if (eff.shieldFlood) b.push(`<span class="eff-badge eff-blue">${uiIcoShield(13)} 堤防シールド</span>`);
+      if (eff.negateSpecial) b.push(`<span class="eff-badge eff-blue">${uiIcoMegaphone(13)} 特殊効果無効</span>`);
+      if (eff.damageReduceHits > 0) b.push(`<span class="eff-badge eff-yellow">${uiIcoShield(13)} 全ダメ−15（残${eff.damageReduceHits}回）</span>`);
+      if (eff.floodBonusTurns > 0) { const _fc = pi != null ? getActiveCity(pi) : null; const _fa = _fc?.abilityValue ?? 1; b.push(`<span class="eff-badge eff-blue">${uiIcoDroplet(13)} 予算+${_fa}</span>`); }
+      if (eff.terrorNextDisaster) b.push(`<span class="eff-badge eff-red">${uiIcoAlertOctagon(13)} テロ準備</span>`);
+      if (eff.debtBudget > 0) b.push(`<span class="eff-badge eff-red">${uiIcoTrendDown(13)} 予算−${eff.debtBudget}</span>`);
       return b.join('') || `<span class="eff-badge eff-gray">効果なし</span>`;
     }
 
@@ -6317,7 +6680,7 @@
         const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
         const _isNew = card.uid === _lastDrawnCardUid;
         const _isPlaying = card.uid === _playingCardUid;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : card.type === 'jinzai' ? '人為' : '自然'}</span>${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -6331,7 +6694,7 @@
 
     // ─── 手札描画（読み取り専用：自分のターン外） ───
     function renderPlayerHandReadOnly(p) {
-      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : card.type === 'jinzai' ? '人為' : '自然'}</span></div>`; }
+      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`; }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
       const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => a.cost - b.cost);
@@ -6346,7 +6709,7 @@
     function renderPlayerHandSpectator(p) {
       function mkCard(card) {
         const isNew = card.uid === _lastDrawnCardUid;
-        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : card.type === 'jinzai' ? '人為' : '自然'}</span></div>`;
+        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis  = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -6374,8 +6737,8 @@
         const _isPlaying = card.uid === _playingCardUid;
         // ④ カードごとのHP予測をバッジに表示
         const hpBand = (!dis && atkCard) ? `<div class="card-hp-band" style="white-space:nowrap">予測HP<strong>${Math.max(0, curHp - computeResponseEst(atkCard, mi, card))}</strong></div>` : '';
-        const badge = dis ? `<span class="card-type-badge">${card.type === 'jinzai' ? '人為' : '自然'}（使用不可）</span>` : `<span class="card-type-badge">対応</span>`;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div>${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${badge}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`;
+        const bLabel = dis ? `${card.type === 'jinzai' ? '人為' : '自然'}（使用不可）` : '対応';
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -6394,7 +6757,7 @@
       const amIHolder = (deviceHolder === mi);
       const budget = getBudget(ap), left = getBudgetLeft(ap);
       const hasPending = !!G.pendingAttack; const isMyAttack = hasPending && G.pendingAttack.attackerIdx === mi;
-      const stateBanner = !amIHolder ? `<div class="state-banner ${isResponsePhase ? 'state-banner-response' : 'state-banner-waiting'}">${isResponsePhase ? '⚠️ 相手が対応フェーズを処理中...' : `<strong>${G.players[ap].name}</strong> のターン進行中...`}</div>` : '';
+      const stateBanner = !amIHolder ? `<div class="state-banner ${isResponsePhase ? 'state-banner-response' : 'state-banner-waiting'}">${isResponsePhase ? `${coopIcoWarnTriangle(13,'var(--yellow)')} 相手が対応フェーズを処理中...` : `<strong>${G.players[ap].name}</strong> のターン進行中...`}</div>` : '';
 
       function zoneHand(idx) {
         const isMe = (idx === mi);
@@ -6415,18 +6778,18 @@
           const _specialLabel = _rpbAtk.card.specialType ? (_specialLabels[_rpbAtk.card.specialType] || '') : '';
           const _specialSpan = _specialLabel ? `<span class="rdp-item rdp-special">${_specialLabel}</span>` : '';
           const _dmgPreview = `<div class="response-dmg-preview"><span class="rdp-item rdp-skip">対応なし → HP <strong>${_rpbHpAfter}</strong></span>${_specialSpan}</div>`;
-          pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚠️</div><div class="rpb-text"><strong>${G.players[_rpbAtk.attackerIdx].name}が「${_rpbAtk.card.icon} ${_rpbAtk.card.name}」を使用！</strong>${_breakHtml}${_dmgPreview}</div><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
+          pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">${coopIcoWarnTriangle(20,'var(--yellow)')}</div><div class="rpb-text"><strong>${G.players[_rpbAtk.attackerIdx].name}が「${_rpbAtk.card.icon} ${_rpbAtk.card.name}」を使用！</strong>${_breakHtml}${_dmgPreview}</div><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
         } else if (isMyAttack) {
           const _atk = G.pendingAttack;
           const _defHasNegate = G.players[_atk.defenderIdx].effects.negateSpecial;
           if (_atk.card.specialType === 'skip_response' && !_defHasNegate) {
-            pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚡</div><div class="rpb-text"><strong>「${_atk.card.icon} ${_atk.card.name}」を宣言！</strong><br>複合災害：${G.players[_atk.defenderIdx].name}の対応フェーズを強制スキップ中...</div></div>`;
+            pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">${coopZapIco(20)}</div><div class="rpb-text"><strong>「${_atk.card.icon} ${_atk.card.name}」を宣言！</strong><br>複合災害：${G.players[_atk.defenderIdx].name}の対応フェーズを強制スキップ中...</div></div>`;
             if (!G._pendingAutoHandover) { G._pendingAutoHandover = true; setTimeout(() => { G._pendingAutoHandover = false; goResponseHandover(); }, 700); }
           } else if (_atk.card.specialType === 'skip_response' && _defHasNegate) {
-            pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚡</div><div class="rpb-text"><strong>「${_atk.card.icon} ${_atk.card.name}」を宣言！</strong><br>広域避難指示が有効 — 対応フェーズへ移行中...</div></div>`;
+            pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">${coopZapIco(20)}</div><div class="rpb-text"><strong>「${_atk.card.icon} ${_atk.card.name}」を宣言！</strong><br>広域避難指示が有効 — 対応フェーズへ移行中...</div></div>`;
             if (!G._pendingAutoHandover) { G._pendingAutoHandover = true; setTimeout(() => { G._pendingAutoHandover = false; goResponseHandover(); }, 700); }
           } else {
-            pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">⚔️</div><div class="rpb-text"><strong>「${_atk.card.icon} ${_atk.card.name}」を宣言！</strong><br>${G.players[_atk.defenderIdx].name}の対応フェーズへ移行中...</div></div>`;
+            pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">${uiIcoSwords(20)}</div><div class="rpb-text"><strong>「${_atk.card.icon} ${_atk.card.name}」を宣言！</strong><br>${G.players[_atk.defenderIdx].name}の対応フェーズへ移行中...</div></div>`;
             if (!G._pendingAutoHandover) { G._pendingAutoHandover = true; setTimeout(() => { G._pendingAutoHandover = false; goResponseHandover(); }, 700); }
           }
         }
@@ -6464,7 +6827,7 @@
         const isMyActive = isMe && ap === mi && !hasPending && !isResponsePhase;
         return `<div class="${position}-zone${isMyActive ? " my-turn-active" : ""}" style="${bdr}">
       <div class="zone-header"><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? terrainImg(c) : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${terrainLabel}</div>
-      <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? '<span class="hp-critical-badge">⚠️ 壊滅寸前</span>' : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
+      <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? `<span class="hp-critical-badge">${coopIcoWarnTriangle(12,'var(--red)')} 壊滅寸前</span>` : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
       ${renderBackupCity(idx)}
       <div class="effects-row">${renderEffectBadges(p.effects, idx)}</div>
       <div class="hand-cards-area">${isMe ? zoneHand(idx) : `<div class="hand-back-row">${zoneHand(idx)}</div>`}${!isMe ? `<div class="hand-count">手札 ${p.hand.length} 枚</div>` : ''}</div>
@@ -6474,7 +6837,7 @@
       // レイアウト: 相手ゾーン → ログ → ステータスバー → pendingBar/ターン終了 → 自分ゾーン
       let actionBar = '';
       if (shouldAutoEnd) {
-        actionBar = `<div class="auto-end-bar"><div class="auto-end-text">⚙️ 使えるカードがありません。ターンを終了します…</div></div>`;
+        actionBar = `<div class="auto-end-bar"><div class="auto-end-text">${uiIcoGear(14)} 使えるカードがありません。ターンを終了します…</div></div>`;
         if (!G._autoEndScheduled) { G._autoEndScheduled = true; setTimeout(() => { G._autoEndScheduled = false; endTurn(); }, 2500); }
       } else if (hasPending) {
         actionBar = pendingBar;
@@ -6589,8 +6952,8 @@
     // ─── 捨て札選択 ───
     function renderDiscard() {
       const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi]; const excess = p.hand.length - 5;
-      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">${card.type === 'policy' ? '政策' : card.type === 'jinzai' ? '人為' : '自然'}</span></div>`).join('');
-      return `<div class="screen active"><div class="section-title">📤 ${p.name} — 捨てるカードを選んでください</div>
+      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`).join('');
+      return `<div class="screen active"><div class="section-title">${uiIcoUpload(15)} ${p.name} — 捨てるカードを選んでください</div>
     <div class="discard-info">手札が上限（5枚）を超えています。<strong style="color:var(--red)">${excess}枚</strong>を捨ててください。<br><span style="font-size:.75rem;color:var(--t3)">カードをクリックすると捨て札になります</span></div>
     <div style="font-size:.8rem;color:var(--t2);text-align:center">現在の手札：<strong style="color:var(--yellow)">${p.hand.length}枚</strong>　→　目標：5枚</div>
     <div class="discard-cards">${cards}</div></div>`;
@@ -6601,8 +6964,8 @@
       const ts = G.turnDrawState; const pi = ts.pi ?? ts.playerIdx; const p = G.players[pi];
       const pips = Array(ts.target).fill(0).map((_, i) => { const cls = i < ts.drawn ? 'done' : i === ts.drawn ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
       let ca = '';
-      if (!ts.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullTurnCard()">🃏 カードを引く！</button>`; }
-      else { const c = ts.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptTurnCard()">✅ 手札に加える</button>`; }
+      if (!ts.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt="" style="width:16px;height:16px;object-fit:cover;border-radius:2px;vertical-align:-3px;margin-right:2px">カードを引く！</button>`; }
+      else { const c = ts.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptTurnCard()">${coopIcoCheckCircle(15,'#3fb950')} 手札に加える</button>`; }
       const titleLabel = ts.isHazardMap ? 'ハザードマップ整備' : 'ターン開始ドロー';
       return `<div class="screen active"><div class="section-title" style="margin-bottom:0">${p.name}｜${titleLabel} <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${ts.drawn + 1}／${ts.target}枚</span></div>
     <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t1)">ドロー </span><strong style="color:var(--yellow)">${ts.drawn} / ${ts.target}</strong><span style="font-size:.8rem;color:var(--t1)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
@@ -6697,7 +7060,7 @@
 
       const flipAllBtn = (allFlipped || _draftAnimBusy) ? '' : `<button id="draft-flip-all-btn" class="btn-flip-all" onclick="flipAllDraftCards()">一括開封</button>`;
       const confirmBtn = allFlipped
-        ? `<button class="btn-ho draft-confirm-appear" onclick="finalizeAllDraftCards()" style="padding:13px 44px;font-size:1rem">✅ 手札を確定する</button>`
+        ? `<button class="btn-ho draft-confirm-appear" onclick="finalizeAllDraftCards()" style="padding:13px 44px;font-size:1rem">${coopIcoCheckCircle(16,'#3fb950')} 手札を確定する</button>`
         : '';
 
       return `<div class="screen active" style="gap:6px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);overflow:hidden">${revealOverlay}
@@ -6744,7 +7107,7 @@
       }
 
       const actionHtml = `<div style="display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap">
-          <button class="btn-ho" onclick="startPeekDiscard()" style="font-size:.9rem;border-color:var(--red);color:var(--red);background:rgba(248,81,73,.12)">📤 手札を1枚捨てる</button>
+          <button class="btn-ho" onclick="startPeekDiscard()" style="font-size:.9rem;border-color:var(--red);color:var(--red);background:rgba(248,81,73,.12)">${uiIcoUpload(14,'var(--red)')} 手札を1枚捨てる</button>
           <button class="btn-ho" onclick="closePeek()" style="font-size:.9rem">スキップ（捨てない）</button>
         </div>`;
       return `<div class="screen active"><div class="peek-wrap">${oppSection}${actionHtml}</div></div>`;
@@ -6759,7 +7122,7 @@
       if (idx === -1) return;
       const card = p.hand.splice(idx, 1)[0];
       G.discard.push(card);
-      addLog(`📤 ${p.name}が防災協定で手札1枚を捨てた（${card.icon} ${card.name}）`, 'sys');
+      addLog(`${uiIcoUpload(13)} ${p.name}が防災協定で手札1枚を捨てた（${card.icon} ${card.name}）`, 'sys');
       closePeek();
     }
 
@@ -6769,7 +7132,7 @@
       const def = G.players[defIdx];
       const shields = getActiveShields(def);
       const header = `<div style="text-align:center;padding:12px 12px 0"><img src="images/icons/neon_jinzai.webp" alt="" style="width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(168,85,247,.85)) drop-shadow(0 0 3px rgba(168,85,247,1))"></div>
-    <div style="text-align:center;padding:4px 12px 2px;color:#c084fc;font-size:.92rem;font-weight:700">☣️ 公害：破壊する相手のシールドを選択</div>`;
+    <div style="text-align:center;padding:4px 12px 2px;color:#c084fc;font-size:.92rem;font-weight:700">${uiIcoAlertCircle(15,'#c084fc')} 公害：破壊する相手のシールドを選択</div>`;
       if (shields.length === 0) { return `<div class="screen active"><div class="peek-wrap">${header}<div style="text-align:center;padding:24px;color:var(--t2)">破壊できるシールドがありません</div><div style="text-align:center"><button class="btn-ho" onclick="destroyPollutionShield('none')">閉じる</button></div></div></div>`; }
       const tiles = shields.map(s => {
         const pc = POLICY_CARDS.find(c => c.id === s.cardId);
@@ -6812,14 +7175,14 @@
           const hpLabel=noChange?`${hpBefore}（変化なし）`:`${hpBefore} → ${hpAfterDmg}`;
           return `<div class="ts-ev ${isBlock?'heal':'damage'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">${ev.cardIcon} ${ev.cardName}</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:${dmgCol}">${ev.damage}</span><span style="font-size:.68rem;font-weight:600;color:${dmgCol};margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:${chipsHtml?'6px':'2px'}"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:#fff;margin-bottom:3px"><span>HP</span><span>${hpLabel}</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${pR}%;background:var(--green);border-radius:4px 0 0 4px"></div><div style="position:absolute;left:${pR}%;top:0;height:100%;width:${pD}%;background:rgba(248,81,73,0.75)"></div></div></div>${chipsHtml?`<div style="display:flex;flex-wrap:wrap;gap:4px">${chipsHtml}</div>`:''}</div>`;
         }
-        if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −15 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −15</div></div>`; }
-        if (ev.type === 'response_skipped') return `<div class="ts-ev warn" style="border-color:var(--red)"><div class="ts-ev-title">${ev.byTerror ? '💣 テロ攻撃' : '⚡ 複合災害'}：対応フェーズがスキップされました</div><div class="ts-ev-detail">${ev.cityName ? `「${ev.cityName}」` : '相手'}は政策カードを使用できませんでした</div></div>`;
-        if (ev.type === 'rumor_debt') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">📱 デマ拡散の影響：このターン予算 −1</div><div class="ts-ev-detail">情報の混乱で使えるコストが1減っています</div></div>`;
-        if (ev.type === 'pollution_broken') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">☣️ 公害：${ev.shieldName}が破壊されました</div><div class="ts-ev-detail">設置していたシールドが人為災害で無効化されました</div></div>`;
-        if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">💚 ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
-        if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">💧 ${ev.cityIcon} ${ev.cityName}：今ターン予算 +${ev.bonusAmt ?? 1}</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
-        if (ev.type === 'typhoon_discard') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">🌀 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">⚠️ 手札からカードが奪われました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${ev.cardIcon}</span><br>「<strong>${ev.cardName}</strong>」が手札から失われました</div></div>`;
-        if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">💥 ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が次の都市として登場します</div></div>`;
+        if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">${uiIcoShield(15)} 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −15 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">${uiIcoShield(15)} 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −15</div></div>`; }
+        if (ev.type === 'response_skipped') return `<div class="ts-ev warn" style="border-color:var(--red)"><div class="ts-ev-title">${ev.byTerror ? uiIcoAlertOctagon(15,'var(--red)') + ' テロ攻撃' : coopZapIco(15,'var(--red)') + ' 複合災害'}：対応フェーズがスキップされました</div><div class="ts-ev-detail">${ev.cityName ? `「${ev.cityName}」` : '相手'}は政策カードを使用できませんでした</div></div>`;
+        if (ev.type === 'rumor_debt') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">${uiIcoSmartphone(14,'#c084fc')} デマ拡散の影響：このターン予算 −1</div><div class="ts-ev-detail">情報の混乱で使えるコストが1減っています</div></div>`;
+        if (ev.type === 'pollution_broken') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">${uiIcoAlertCircle(15,'#c084fc')} 公害：${ev.shieldName}が破壊されました</div><div class="ts-ev-detail">設置していたシールドが人為災害で無効化されました</div></div>`;
+        if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">${coopIcoHeart(13,'#3fb950')} ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
+        if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">${uiIcoDroplet(14,'var(--blue)')} ${ev.cityIcon} ${ev.cityName}：今ターン予算 +${ev.bonusAmt ?? 1}</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
+        if (ev.type === 'typhoon_discard') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">${uiIcoWind(18)} 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">${coopIcoWarnTriangle(15,'var(--red)')} 手札からカードが奪われました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${ev.cardIcon}</span><br>「<strong>${ev.cardName}</strong>」が手札から失われました</div></div>`;
+        if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">${coopIcoWarnTriangle(18,'var(--yellow)')} ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が次の都市として登場します</div></div>`;
         return '';
       }).join('');
     }
@@ -6856,20 +7219,20 @@
           const hpLabel=noChange?`${hpBefore}（変化なし）`:`${hpBefore} → ${hpAfterDmg}`;
           return `<div class="ts-ev ${isBlock?'heal':'damage'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">${ev.cardIcon} ${ev.cardName}</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:${dmgCol}">${ev.damage}</span><span style="font-size:.68rem;font-weight:600;color:${dmgCol};margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:${chipsHtml?'6px':'2px'}"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:#fff;margin-bottom:3px"><span>HP</span><span>${hpLabel}</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${pR}%;background:var(--green);border-radius:4px 0 0 4px"></div><div style="position:absolute;left:${pR}%;top:0;height:100%;width:${pD}%;background:rgba(248,81,73,0.75)"></div></div></div>${chipsHtml?`<div style="display:flex;flex-wrap:wrap;gap:4px">${chipsHtml}</div>`:''}</div>`;
         }
-        if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −15 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −15</div></div>`; }
-        if (ev.type === 'response_skipped') return `<div class="ts-ev warn" style="border-color:var(--red)"><div class="ts-ev-title">${ev.byTerror ? '💣 テロ攻撃' : '⚡ 複合災害'}：対応フェーズがスキップされました</div><div class="ts-ev-detail">${ev.cityName ? `「${ev.cityName}」` : 'あなた'}は政策カードを使用できませんでした</div></div>`;
-        if (ev.type === 'rumor_debt') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">📱 デマ拡散の影響：このターン予算 −1</div><div class="ts-ev-detail">情報の混乱で使えるコストが1減っています</div></div>`;
-        if (ev.type === 'pollution_broken') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">☣️ 公害：${ev.shieldName}が破壊されました</div><div class="ts-ev-detail">設置していたシールドが人為災害で無効化されました</div></div>`;
-        if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">💚 ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
-        if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">💧 ${ev.cityIcon} ${ev.cityName}：今ターン予算 +${ev.bonusAmt ?? 1}</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
-        if (ev.type === 'typhoon_discard') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">🌀 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">⚠️ あなたの手札からカードが奪われました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${ev.cardIcon}</span><br>「<strong>${ev.cardName}</strong>」が手札から失われました</div></div>`;
-        if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">💥 ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が次の都市として登場します</div></div>`;
+        if (ev.type === 'disaster_agency_remaining') { if (ev.remaining === 0) return `<div class="ts-ev warn"><div class="ts-ev-title">${uiIcoShield(15)} 防災庁設置の効果が終了しました</div><div class="ts-ev-detail">次の攻撃からは全ダメージ −15 の軽減はありません</div></div>`; return `<div class="ts-ev warn"><div class="ts-ev-title">${uiIcoShield(15)} 防災庁設置：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回の被攻撃まで全ダメージ −15</div></div>`; }
+        if (ev.type === 'response_skipped') return `<div class="ts-ev warn" style="border-color:var(--red)"><div class="ts-ev-title">${ev.byTerror ? uiIcoAlertOctagon(15,'var(--red)') + ' テロ攻撃' : coopZapIco(15,'var(--red)') + ' 複合災害'}：対応フェーズがスキップされました</div><div class="ts-ev-detail">${ev.cityName ? `「${ev.cityName}」` : 'あなた'}は政策カードを使用できませんでした</div></div>`;
+        if (ev.type === 'rumor_debt') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">${uiIcoSmartphone(14,'#c084fc')} デマ拡散の影響：このターン予算 −1</div><div class="ts-ev-detail">情報の混乱で使えるコストが1減っています</div></div>`;
+        if (ev.type === 'pollution_broken') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">${uiIcoAlertCircle(15,'#c084fc')} 公害：${ev.shieldName}が破壊されました</div><div class="ts-ev-detail">設置していたシールドが人為災害で無効化されました</div></div>`;
+        if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">${coopIcoHeart(13,'#3fb950')} ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
+        if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">${uiIcoDroplet(14,'var(--blue)')} ${ev.cityIcon} ${ev.cityName}：今ターン予算 +${ev.bonusAmt ?? 1}</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
+        if (ev.type === 'typhoon_discard') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">${uiIcoWind(18)} 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">${coopIcoWarnTriangle(15,'var(--red)')} あなたの手札からカードが奪われました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${ev.cardIcon}</span><br>「<strong>${ev.cardName}</strong>」が手札から失われました</div></div>`;
+        if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">${coopIcoWarnTriangle(18,'var(--yellow)')} ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が次の都市として登場します</div></div>`;
         return '';
       }).join('');
       return `<div class="screen active"><div class="turn-summary-box">
-    <div class="ts-title">📋 ${p.name}のターン — 前ターンの状況確認</div>
+    <div class="ts-title">${coopIcoClipboard(16)} ${p.name}のターン — 前ターンの状況確認</div>
     <div class="ts-events">${items || '<div style="color:var(--t3);font-size:.85rem">特記なし</div>'}</div>
-    <div style="text-align:center;margin-top:12px">${!isCpuMode && !G._atkSummaryConfirmed ? `<button class="btn-ho" disabled style="opacity:.5;cursor:default">⏳ 相手の確認待ち...</button>` : `<button class="btn-ho" onclick="dismissTurnSummary()">✅ 確認してターン開始</button>`}</div>
+    <div style="text-align:center;margin-top:12px">${!isCpuMode && !G._atkSummaryConfirmed ? `<button class="btn-ho" disabled style="opacity:.5;cursor:default">${uiSpinner(12)} 相手の確認待ち...</button>` : `<button class="btn-ho" onclick="dismissTurnSummary()">${coopIcoCheckCircle(15,'#3fb950')} 確認してターン開始</button>`}</div>
   </div></div>`;
     }
 
@@ -6899,14 +7262,14 @@
           const hpLabel = isBlock ? `${hpBefore}（ブロック）` : `${hpBefore} → ${hpAfterDmg}`;
           return `<div class="ts-ev ${isBlock ? 'heal' : 'damage'}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:700;font-size:.88rem;color:var(--t1)">${ev.cardIcon} ${ev.cardName}</div><div style="text-align:right;line-height:1"><span style="font-size:1.55rem;font-weight:900;color:${dmgCol}">${ev.damage}</span><span style="font-size:.68rem;font-weight:600;color:${dmgCol};margin-left:2px">ダメージ</span></div></div><div style="margin-bottom:${chipsHtml ? '6px' : '2px'}"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:#fff;margin-bottom:3px"><span>${cpuName} HP</span><span>${hpLabel}</span></div><div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:${pR}%;background:var(--green);border-radius:4px 0 0 4px"></div><div style="position:absolute;left:${pR}%;top:0;height:100%;width:${pD}%;background:rgba(248,81,73,0.75)"></div></div></div>${chipsHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${chipsHtml}</div>` : ''}</div>`;
         }
-        if (ev.type === 'disaster_agency_remaining') { return ev.remaining === 0 ? `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ ${cpuName}の防災庁効果が終了</div><div class="ts-ev-detail">次の攻撃から軽減なし</div></div>` : `<div class="ts-ev warn"><div class="ts-ev-title">🏛️ ${cpuName}の防災庁：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回は全ダメージ −15</div></div>`; }
-        if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">💥 ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が登場</div></div>`;
+        if (ev.type === 'disaster_agency_remaining') { return ev.remaining === 0 ? `<div class="ts-ev warn"><div class="ts-ev-title">${uiIcoShield(15)} ${cpuName}の防災庁効果が終了</div><div class="ts-ev-detail">次の攻撃から軽減なし</div></div>` : `<div class="ts-ev warn"><div class="ts-ev-title">${uiIcoShield(15)} ${cpuName}の防災庁：残り ${ev.remaining} 回</div><div class="ts-ev-detail">あと ${ev.remaining} 回は全ダメージ −15</div></div>`; }
+        if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">${coopIcoWarnTriangle(18,'var(--yellow)')} ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が登場</div></div>`;
         return '';
       }).filter(Boolean).join('');
       return `<div class="screen active"><div class="turn-summary-box">
-    <div class="ts-title">⚔️ 攻撃結果 — ${cpuName}に与えたダメージ</div>
+    <div class="ts-title">${uiIcoSwords(16)} 攻撃結果 — ${cpuName}に与えたダメージ</div>
     <div class="ts-events">${items || '<div style="color:var(--t3);font-size:.85rem">ダメージなし（または対応により無効）</div>'}</div>
-    <div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="dismissAttackerSummary()">✅ 確認</button></div>
+    <div style="text-align:center;margin-top:12px"><button class="btn-ho" onclick="dismissAttackerSummary()">${coopIcoCheckCircle(15,'#3fb950')} 確認</button></div>
   </div></div>`;
     }
 
@@ -6952,7 +7315,7 @@
         return `<div class="spec-zone${isActive ? ' spec-zone-active' : ''}">
           <div class="spec-zone-header">
             ${isActive ? '<span class="spec-turn-dot"></span>' : ''}
-            ${isDefending ? '<span class="spec-response-badge">⚡ 対応中</span>' : ''}
+            ${isDefending ? `<span class="spec-response-badge">${coopZapIco(13)} 対応中</span>` : ''}
             <span class="spec-player-name">${p.name}</span>
             ${c ? terrainImg(c, 26) : ''}
             <span class="spec-city-name">${c ? c.name : '?'}</span>
@@ -6962,7 +7325,7 @@
           <div class="hp-section" id="hp-section-${idx}">
             <div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${Math.max(0,hp/mxHp*100)}%"></div><div class="hp-bar-fill${hp<=10?' hp-warn':''}" id="hp-fill-${idx}" style="width:${Math.max(0,hp/mxHp*100)}%;background:${hpColor(hp,mxHp)}"></div></div>
             <div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp,mxHp)}">${Math.max(0,hp)}/${mxHp}</div>
-            ${hp<=10?'<span class="hp-critical-badge">⚠️ 壊滅寸前</span>':hp<=30?'<span class="hp-danger-badge">危険</span>':''}
+            ${hp<=10?`<span class="hp-critical-badge">${coopIcoWarnTriangle(12,'var(--red)')} 壊滅寸前</span>`:hp<=30?'<span class="hp-danger-badge">危険</span>':''}
           </div>
           ${renderBackupCity(idx)}
           <div class="effects-row">${renderEffectBadges(p.effects, idx)}</div>
@@ -6976,9 +7339,9 @@
       const _turnNum = G.turnsEach[ap] + 1;
       const _turnSub = `<span class="spec-vs-sub">ターン${_turnNum}</span>`;
       const midSection = screen === 'turnSummary' && G._turnSummary
-        ? `<div class="spec-summary-panel"><div class="spec-summary-title">📋 ターンサマリー — ${G.players[ap]?.name} のターン</div><div class="ts-events">${_buildTurnSummaryItems(G._turnSummary)}</div><div class="spec-summary-waiting">⏳ プレイヤーが確認中...</div></div>`
+        ? `<div class="spec-summary-panel"><div class="spec-summary-title">${coopIcoClipboard(15)} ターンサマリー — ${G.players[ap]?.name} のターン</div><div class="ts-events">${_buildTurnSummaryItems(G._turnSummary)}</div><div class="spec-summary-waiting">${uiSpinner(12)} プレイヤーが確認中...</div></div>`
         : screen === 'response' && G.pendingAttack
-          ? `<div class="spec-vs-divider"><span class="spec-vs-response-main">⚔️ ${G.pendingAttack.card.icon} ${G.pendingAttack.card.name} → 対応フェーズ</span>${_turnSub}</div>`
+          ? `<div class="spec-vs-divider"><span class="spec-vs-response-main">${uiIcoSwords(15)} ${G.pendingAttack.card.icon} ${G.pendingAttack.card.name} → 対応フェーズ</span>${_turnSub}</div>`
           : `<div class="spec-vs-divider"><span>VS</span>${_turnSub}</div>`;
       const logHtml = G.log.slice(0, 8).map(e => `<div class="log-entry ${e.cls}">${e.msg}</div>`).join('') || '<div class="log-entry sys">ゲーム開始</div>';
       return `<div class="screen active spec-screen">
@@ -7059,11 +7422,11 @@
         const maxAtk = allDmg.reduce((m,ev)=>ev.damage>(m?.damage??0)?ev:m,null);
         const p0dealt = allDmg.filter(ev=>ev.playerIdx===1).reduce((s,ev)=>s+ev.damage,0);
         const p1dealt = allDmg.filter(ev=>ev.playerIdx===0).reduce((s,ev)=>s+ev.damage,0);
-        highlightHtml = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_disaster.webp" style="width:20px;height:20px;object-fit:contain"> 試合ハイライト</div>${maxAtk?`<div class="go-stats-row"><span style="font-size:1rem">${maxAtk.cardIcon}</span><span class="go-stats-row-name">最大ダメージ：${maxAtk.cardName}</span><span class="go-hp-dead">−${maxAtk.damage}</span></div>`:''}<div class="go-stats-row"><span style="font-size:1rem">⚔️</span><span class="go-stats-row-name">${G.players[0].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p0dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">⚔️</span><span class="go-stats-row-name">${G.players[1].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p1dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">🕐</span><span class="go-stats-row-name">総ターン数</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${totalTurns}</span></div></div>`;
+        highlightHtml = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_disaster.webp" style="width:20px;height:20px;object-fit:contain"> 試合ハイライト</div>${maxAtk?`<div class="go-stats-row"><span style="font-size:1rem">${maxAtk.cardIcon}</span><span class="go-stats-row-name">最大ダメージ：${maxAtk.cardName}</span><span class="go-hp-dead">−${maxAtk.damage}</span></div>`:''}<div class="go-stats-row"><span style="font-size:1rem">${uiIcoSwords(15)}</span><span class="go-stats-row-name">${G.players[0].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p0dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">${uiIcoSwords(15)}</span><span class="go-stats-row-name">${G.players[1].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p1dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">${uiIcoClock(15)}</span><span class="go-stats-row-name">総ターン数</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${totalTurns}</span></div></div>`;
       }
 
       // 観戦者限定: 観戦レポートコピー
-      const reportHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label"><img src="images/icons/neon_policy_instant.webp" style="width:20px;height:20px;object-fit:contain"> 観戦レポートをシェア</div><button class="go-gallery-btn" onclick="copySpecReport()">📋 観戦レポートをコピー</button></div>`;
+      const reportHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label"><img src="images/icons/neon_policy_instant.webp" style="width:20px;height:20px;object-fit:contain"> 観戦レポートをシェア</div><button class="go-gallery-btn" onclick="copySpecReport()">${coopIcoClipboard(15)} 観戦レポートをコピー</button></div>`;
 
       return `<div class="screen active go-screen ${themeCls}">
         <div class="go-hero">
@@ -7073,7 +7436,7 @@
             <div class="go-hero-bg-col"><div class="go-hero-bg-col-inner go-scroll-a">${bgText}</div></div>
           </div>
           <div class="go-hero-content">
-            <div style="font-size:.78rem;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.1em;margin-bottom:6px">👁 SPECTATOR</div>
+            <div style="font-size:.78rem;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.1em;margin-bottom:6px">${uiIcoEye(13,'rgba(255,255,255,.5)')} SPECTATOR</div>
             <div class="go-big-title">${bigTitle}</div>
             <div class="go-player-name">${w.name} の勝利！</div>
           </div>
@@ -7183,10 +7546,10 @@
       let jinzaiKarte = '';
       if (myJinzaiEvts.length > 0) {
         const jRows = myJinzaiEvts.map(ev => {
-          let icon = '☣️', label = '公害', detail = '';
-          if (ev.type === 'response_skipped') { icon = '💣'; label = 'テロ攻撃'; detail = '対応フェーズを封じられた'; }
-          else if (ev.type === 'rumor_debt') { icon = '📱'; label = 'デマ拡散'; detail = '予算 −1'; }
-          else if (ev.type === 'pollution_broken') { icon = '☣️'; label = '公害'; detail = `${ev.shieldName}を破壊された`; }
+          let icon = uiIcoAlertCircle(15,'#c084fc'), label = '公害', detail = '';
+          if (ev.type === 'response_skipped') { icon = uiIcoAlertOctagon(15,'#c084fc'); label = 'テロ攻撃'; detail = '対応フェーズを封じられた'; }
+          else if (ev.type === 'rumor_debt') { icon = uiIcoSmartphone(14,'#c084fc'); label = 'デマ拡散'; detail = '予算 −1'; }
+          else if (ev.type === 'pollution_broken') { icon = uiIcoAlertCircle(15,'#c084fc'); label = '公害'; detail = `${ev.shieldName}を破壊された`; }
           return `<div class="go-stats-row"><span style="font-size:1rem">${icon}</span><span class="go-stats-row-name">${label}</span><span style="color:#c084fc;font-weight:700;font-size:.8rem">${detail}</span></div>`;
         }).join('');
         const hadTerror = myJinzaiEvts.some(ev => ev.type === 'response_skipped');
@@ -7276,7 +7639,7 @@
     ${jinzaiKarte}
     ${terrainStat}
     ${counterHtml}
-    ${isCpuMode ? `<button class="go-inview go-rematch-btn" onclick="replayCpuGame()">⚔️ もう一度戦う</button>` : roomId ? `<button class="go-inview go-rematch-btn" onclick="requestRematch()" ${_rematchRequested ? 'disabled' : ''}>${_rematchRequested ? '⏳ 相手の返答待ち...' : '⚔️ もう1戦'}</button>` : ''}
+    ${isCpuMode ? `<button class="go-inview go-rematch-btn" onclick="replayCpuGame()">${uiIcoSwords(15)} もう一度戦う</button>` : roomId ? `<button class="go-inview go-rematch-btn" onclick="requestRematch()" ${_rematchRequested ? 'disabled' : ''}>${_rematchRequested ? uiSpinner(12) + ' 相手の返答待ち...' : uiIcoSwords(15) + ' もう1戦'}</button>` : ''}
     <button class="go-inview go-replay-btn" onclick="restartGame()">ロビーに戻る</button>
   </div>
 
@@ -7386,7 +7749,7 @@
         if (!handleDiscardIfNeeded(G.activePlayer, 'main')) goMain();
       } else {
         const defIdx = G.activePlayer === 0 ? 1 : 0; G.pendingAttack = { card, attackerIdx: G.activePlayer, defenderIdx: defIdx };
-        addLog(`⚔️ ${p.name}が「${card.icon} ${card.name}」を宣言！`, 'sys'); pushState(); render();
+        addLog(`${uiIcoSwords(13)} ${p.name}が「${card.icon} ${card.name}」を宣言！`, 'sys'); pushState(); render();
       }
     }
 
@@ -7398,7 +7761,7 @@
       const terrorActive = atkPlayer.effects.terrorNextDisaster;
       if (terrorActive) atkPlayer.effects.terrorNextDisaster = false;
       if (atk.card.specialType === 'skip_response' && !def.effects.negateSpecial) {
-        addLog(`⚡ 複合災害：${def.name}の対応フェーズを強制スキップ！`, 'sys');
+        addLog(`${coopZapIco(13)} 複合災害：${def.name}の対応フェーズを強制スキップ！`, 'sys');
         G._nextTurnEvents[atk.defenderIdx].push({ type: 'response_skipped', cityName: getActiveCity(atk.defenderIdx)?.name || '' });
         resolveDamage(atk.card, atk.defenderIdx, null);
         _responseAnimatedPis.add(atk.defenderIdx);
@@ -7408,7 +7771,7 @@
         return;
       }
       if (terrorActive && !def.effects.negateSpecial) {
-        addLog(`💣 テロ攻撃：${def.name}の対応フェーズを強制スキップ！`, 'sys');
+        addLog(`${uiIcoAlertOctagon(13,'#c084fc')} テロ攻撃：${def.name}の対応フェーズを強制スキップ！`, 'sys');
         G._nextTurnEvents[atk.defenderIdx].push({ type: 'response_skipped', cityName: getActiveCity(atk.defenderIdx)?.name || '', byTerror: true });
         resolveDamage(atk.card, atk.defenderIdx, null);
         _responseAnimatedPis.add(atk.defenderIdx);
@@ -7428,7 +7791,7 @@
     function playResponseCard(uid) {
       const defIdx = G.pendingAttack.defenderIdx; const def = G.players[defIdx];
       const idx = def.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = def.hand[idx]; if (card.type !== 'policy') return;
-      def.hand.splice(idx, 1); G.discard.push(card); addLog(`🛡️ ${def.name}が「${card.icon} ${card.name}」で対応！`, 'policy');
+      def.hand.splice(idx, 1); G.discard.push(card); addLog(`${uiIcoShield(13)} ${def.name}が「${card.icon} ${card.name}」で対応！`, 'policy');
       resolveDamage(G.pendingAttack.card, defIdx, card); G.pendingAttack = null;
       if (checkWin()) return; if (G.screen !== 'peek' && G.screen !== 'turnDraw') G.screen = 'main'; pushState(); render();
     }
@@ -7436,7 +7799,7 @@
     function discardCard(uid) {
       const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi];
       const idx = p.hand.findIndex(c => c.uid === uid); if (idx === -1) return;
-      const card = p.hand.splice(idx, 1)[0]; G.discard.push(card); addLog(`📤 ${p.name}がカードを1枚捨てた`, 'sys');
+      const card = p.hand.splice(idx, 1)[0]; G.discard.push(card); addLog(`${uiIcoUpload(13)} ${p.name}がカードを1枚捨てた`, 'sys');
       if (p.hand.length <= 5) { G.discardNeeded = null; G.screen = dn.returnTo; }
       pushState(); render();
     }
@@ -7496,7 +7859,7 @@
         ${_svgSword}
         <div class="rematch-request-title">もう1戦リクエスト</div>
         <div class="rematch-request-sub">相手がもう1戦を希望しています。<br>受けますか？</div>
-        <button class="rematch-accept-btn" onclick="acceptRematch()">⚔️ はい、やります！</button>
+        <button class="rematch-accept-btn" onclick="acceptRematch()">${uiIcoSwords(15)} はい、やります！</button>
         <button class="rematch-decline-btn" onclick="declineRematch()">いいえ</button>
       </div>`;
       document.body.appendChild(ov);
@@ -7560,7 +7923,7 @@
     function showShareToast(msg) {
       const old = document.getElementById('go-share-toast'); if (old) old.remove();
       const t = document.createElement('div'); t.id = 'go-share-toast'; t.className = 'go-share-toast';
-      t.textContent = '✅ ' + msg; document.body.appendChild(t);
+      t.innerHTML = coopIcoCheckCircle(15, '#3fb950') + ' ' + msg; document.body.appendChild(t);
       setTimeout(() => { if (t.parentNode) t.remove(); }, 2500);
     }
 
@@ -8053,7 +8416,7 @@
       const totalAttacks = (draw + (n - 1)) * maxTurns; // = coopMPAttackCount × ターン数
       return Math.max(3, Math.min(maxTurns, Math.ceil(totalAttacks / 6) + 1));
     }
-    function coopShieldBadges(e) { const b = []; if (e.shieldQuakeFire) b.push('🏗️'); if (e.shieldFlood) b.push('🌊'); if (e.negateSpecial) b.push('📢'); if (e.damageReduceHits > 0) b.push('🏛️' + e.damageReduceHits); return b.join(' '); }
+    function coopShieldBadges(e) { const b = []; if (e.shieldQuakeFire) b.push(uiIcoShield(13)); if (e.shieldFlood) b.push(uiIcoShield(13)); if (e.negateSpecial) b.push(uiIcoMegaphone(13)); if (e.damageReduceHits > 0) b.push(uiIcoShield(13) + e.damageReduceHits); return b.join(' '); }
     function coopTerrainMatch(card, city) { return (card.specialType === 'coastal_bonus' && city.isCoastal) || (card.specialType === 'mountain_bonus' && city.isMountain) || (card.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain); }
 
     function coopDraw(n) {
@@ -8445,7 +8808,7 @@
       CO.phase = 'nature'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
       if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) coopEventPollution();
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = '💣 テロ攻撃イベントにより対応フェーズはスキップ'; _coLog('💣 テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); }
       // 即死防止：同種は1ターン1回／1都市への攻撃は最大 COOP_MAX_HITS 回
       CO.atkUsedTypes = {}; CO.atkCityHits = {};
       const nAtk = coopMPAttackCount();
@@ -9117,14 +9480,14 @@
       coopSplashNature();
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
       if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) coopEventPollution();
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = '💣 テロ攻撃イベントにより対応フェーズはスキップ'; _coLog('💣 テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); }
       const cards = []; for (let i = 0; i < CO.diff.draw; i++) { const c = coopDrawNature(); if (c) cards.push(c); }
       CO.incoming = cards.map(card => { const idx = coopPickTarget(card); return { card, idx, est: coopEstimate(card, CO.cities[idx]) }; });
-      if (cards.length === 0) { _coLog('🌪️ 自然山札が尽きた。今回の攻撃なし'); coopApplyRegen(null); coopDismissSummary(); return; }
+      if (cards.length === 0) { _coLog('自然山札が尽きた。今回の攻撃なし'); coopApplyRegen(null); coopDismissSummary(); return; }
       // 複合災害：対象都市に広域避難指示（事前設置）がなければ対応フェーズを強制スキップ
       const compoundUnstopped = CO.incoming.some(a => a.card.specialType === 'skip_response' && !CO.cities[a.idx].effects.negateSpecial);
-      if (compoundUnstopped) { CO.responseBlocked = true; CO.blockReason = '⚡ 複合災害により対応フェーズが強制スキップ（広域避難指示で防げる）'; _coLog('⚡ 複合災害：対応フェーズが強制スキップされた'); }
-      _coLog(`🌪️ 自然の攻撃：${cards.map(c => c.name).join('・')}`);
+      if (compoundUnstopped) { CO.responseBlocked = true; CO.blockReason = `${coopZapIco(14)} 複合災害により対応フェーズが強制スキップ（広域避難指示で防げる）`; _coLog('複合災害：対応フェーズが強制スキップされた'); }
+      _coLog(`自然の攻撃：${cards.map(c => c.name).join('・')}`);
       if (CO.responseBlocked) { CO.phase = 'resolving'; renderCoop(); _coTimer = setTimeout(() => coopResolveRound(null, -1), 1600); }
       else { CO.phase = 'coopResponse'; renderCoop(); }
     }
@@ -9240,7 +9603,7 @@
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
       // 社会的脆弱性イベント（都市＝CPU側に作用するので、自然側プレイヤーには有利）
       if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) coopEventPollution();
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = '💣 テロ攻撃イベント：都市側は対応不可'; _coLog('💣 テロ攻撃イベント：今回は都市側の対応を封じた'); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベント：都市側は対応不可`; _coLog('テロ攻撃イベント：今回は都市側の対応を封じた'); }
       CO.incoming = [];
       if (CO.mp) {
         CO.atkUsedTypes = {}; CO.atkCityHits = {}; // 即死防止：同種1回／都市別上限の集計をリセット
@@ -9288,7 +9651,7 @@
       CO.confirm = null;
       const compoundUnstopped = CO.incoming.some(a => a.card.specialType === 'skip_response' && !CO.cities[a.idx].effects.negateSpecial);
       // MPでは複合の対応スキップを当たった都市だけに限定（coopEnterResponseMP）。非MP（ソロ/旧2人）は従来通り全体スキップ
-      if (compoundUnstopped && !CO.mp) { CO.responseBlocked = true; CO.blockReason = '⚡ 複合災害により都市側は対応不可'; _coLog('⚡ 複合災害：都市側の対応を封じた'); }
+      if (compoundUnstopped && !CO.mp) { CO.responseBlocked = true; CO.blockReason = `${coopZapIco(14)} 複合災害により都市側は対応不可`; _coLog('複合災害：都市側の対応を封じた'); }
       // MP：被弾都市ごとに所有者が対応（per-victim）
       if (CO.mp) { coopEnterResponseMP(); return; }
       // オンライン（旧2人）：対応は都市側の人間が行う（CPU応答は使わない）
@@ -9428,7 +9791,7 @@
       const isRandom = CO.assign === 'random';
       const cityCount = arr.filter(p => p.side === 'city').length;
       const natureP = arr.find(p => p.side === 'nature');
-      const sideIcon = s => s === 'nature' ? `<img src="images/icons/icon_disaster.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block">` : s === 'city' ? `<img src="images/icons/icon_city.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block">` : '🎲';
+      const sideIcon = s => s === 'nature' ? `<img src="images/icons/icon_disaster.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block">` : s === 'city' ? `<img src="images/icons/icon_city.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block">` : uiIcoDice(18);
       const sideText = s => s === 'nature' ? '自然側' : s === 'city' ? '都市側' : '抽選待ち';
       // E-2: 在席プレイヤーのドットに鼓動パルス（co-presence-live）を付与
       // デザインシステム改善②：色（赤/緑）のみに依存しないよう「在席／離脱中」の短いテキストラベルを併記する（design_system.md §1.5-2）
@@ -9461,7 +9824,7 @@
       }
       const codeBlock = isHost ? `<div onclick="coopCopyLobbyCode()" style="cursor:pointer;margin:8px 0"><div style="font-size:.72rem;color:var(--t2)">ルームコード（タップでコピー）</div><div style="font-size:1.9rem;font-weight:900;letter-spacing:.2em;color:${d.color}">${code}</div></div>
         <div style="text-align:center;margin:8px 0"><div id="coop-lobby-qr" style="display:inline-block;background:#0d1117;padding:8px;border-radius:10px"></div><div style="font-size:.72rem;color:var(--t2);margin-top:4px">スマホのカメラで読み取って参加</div></div>
-        <button onclick="coopCopyLobbyLink()" style="width:100%;max-width:340px;padding:11px;border-radius:10px;background:rgba(56,139,253,.15);border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer">🔗 招待リンクをコピー</button>` : '';
+        <button onclick="coopCopyLobbyLink()" style="width:100%;max-width:340px;padding:11px;border-radius:10px;background:rgba(56,139,253,.15);border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer">${uiIcoLink(15)} 招待リンクをコピー</button>` : '';
       const natLabel = natureP ? '1（人間）' : (CO.natureMode === 'cpu' ? 'CPU' : '0（参加待ち）');
       const _svOn3 = CO.socialVuln !== false;
       return `<div class="screen active" style="padding:20px;max-width:460px;margin:0 auto;text-align:center">
@@ -9533,7 +9896,7 @@
       const costLabel = mode === 'resp' ? '無料' : card.cost;
       const reason = readOnly ? '' : (noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : ''));
       const _roExtra = readOnly ? ';pointer-events:none' : '';
-      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${readOnly ? 'default' : (dis ? 'not-allowed' : 'pointer')}${_roExtra}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${card.name}</div></div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div><span class="card-type-badge">政策</span>${reason}</div>`;
+      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${readOnly ? 'default' : (dis ? 'not-allowed' : 'pointer')}${_roExtra}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
@@ -9648,7 +10011,7 @@
     function coopCloseIntel() { if (CO.mp && !CO._applying) { if (!CO.host) coopSendIntent('dismissIntel', {}); CO.intelPopup = false; renderCoop(); return; } if (CO.online && !CO.host) { coopSendIntent('dismissIntel', {}); CO.intelPopup = false; renderCoop(); return; } CO.intelPopup = false; renderCoop(); }
     function coopRenderIntelPopup() {
       const tiles = (CO.intel || []).map((c, i) => `<div class="peek-card-big" style="flex-shrink:0;border-color:var(--red)"><div style="font-size:.66rem;color:var(--t2);font-weight:700;margin-bottom:2px">${i + 1}番目</div><img src="images/cards/${c.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'"><div class="pk-icon">${cardTypeIconHtml('disaster', null, 32)}</div><div class="pk-name">${c.name}</div><div class="pk-desc">${c.desc}</div></div>`).join('');
-      return `<div class="confirm-overlay" onclick="coopCloseIntel()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:480px"><div style="text-align:center;font-weight:800;color:#fff;font-size:1.05rem">📋 防災協定（情報共有）</div><div style="text-align:center;color:#fff;font-size:.8rem;margin:4px 0 12px">次に来る自然災害が判明した。今のうちに備えを選ぼう</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div class="confirm-btns" style="margin-top:14px"><button class="btn-ok" onclick="coopCloseIntel()">確認した</button></div></div></div>`;
+      return `<div class="confirm-overlay" onclick="coopCloseIntel()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:480px"><div style="text-align:center;font-weight:800;color:#fff;font-size:1.05rem">${coopIcoClipboard(16)} 防災協定（情報共有）</div><div style="text-align:center;color:#fff;font-size:.8rem;margin:4px 0 12px">次に来る自然災害が判明した。今のうちに備えを選ぼう</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div class="confirm-btns" style="margin-top:14px"><button class="btn-ok" onclick="coopCloseIntel()">確認した</button></div></div></div>`;
     }
     function coopRenderDraw() {
       const ds = CO.drawState;
@@ -9660,7 +10023,7 @@
         const justDrawn = _coFxDrawnUid !== c.uid; _coFxDrawnUid = c.uid;
         ca = `<div class="gacha-card-reveal-area revealed gacha-reveal${justDrawn ? ' card-just-drawn' : ''}"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="coopAcceptDrawCard()">${coopIcoCheckCircle(16,'currentColor')} 手札に加える</button>`;
       }
-      return `<div class="screen active"><div class="section-title" style="margin-bottom:0">🗺️ ハザードマップ整備 <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${Math.min(ds.drawn + 1, ds.total)}／${ds.total}枚</span></div><div class="gacha-stage">${ca}</div></div>`;
+      return `<div class="screen active"><div class="section-title" style="margin-bottom:0">${uiIcoMap(15)} ハザードマップ整備 <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${Math.min(ds.drawn + 1, ds.total)}／${ds.total}枚</span></div><div class="gacha-stage">${ca}</div></div>`;
     }
     function coopAllyStatusPanel() {
       if (!CO.mp) return '';
@@ -9778,6 +10141,86 @@
       const s = size || 14;
       return `<svg viewBox="0 0 24 24" fill="${col || '#f85149'}" stroke="none" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-2px"><path d="M12 21s-6.7-4.35-9.3-8.02C.86 10.2 1.4 6.9 4.1 5.2 6.2 3.9 8.9 4.4 10.4 6.2L12 8.1l1.6-1.9C15.1 4.4 17.8 3.9 19.9 5.2c2.7 1.7 3.24 5 1.4 7.78C18.7 16.65 12 21 12 21z"/></svg>`;
     }
+    // ── 対戦モードUIアイコンのSVG統一：絵文字置き換え用の追加ラインアイコン。既存coopIco*・icoZap等と同じ作法（stroke=currentColor既定・線画）で統一 ──
+    function uiIcoShield(size, col) {
+      const s = size || 15;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+    }
+    function uiIcoAlertOctagon(size, col) {
+      const s = size || 15;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    }
+    function uiIcoAlertCircle(size, col) {
+      const s = size || 15;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    }
+    function uiIcoSmartphone(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`;
+    }
+    function uiIcoWind(size, col) {
+      const s = size || 15;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>`;
+    }
+    function uiIcoDroplet(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
+    }
+    function uiIcoMap(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>`;
+    }
+    function uiIcoDice(size, col) {
+      const s = size || 15;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.3" fill="${col || 'currentColor'}" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="${col || 'currentColor'}" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="${col || 'currentColor'}" stroke="none"/></svg>`;
+    }
+    function uiIcoLink(size, col) {
+      const s = size || 15;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+    }
+    function uiIcoUpload(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+    }
+    function uiIcoMegaphone(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
+    }
+    function uiIcoTrendDown(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`;
+    }
+    function uiIcoBook(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
+    }
+    function uiIcoBulb(size, col) {
+      const s = size || 15;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.5.4.8 1 .8 1.7V17h6.4v-.6c0-.7.3-1.3.8-1.7A7 7 0 0 0 12 2z"/></svg>`;
+    }
+    function uiIcoGear(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+    }
+    function uiIcoSwords(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" y1="14" x2="9" y2="18"/><line x1="4" y1="17" x2="3" y2="21"/></svg>`;
+    }
+    function uiIcoEye(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    }
+    function uiIcoClock(size, col) {
+      const s = size || 14;
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    }
+    function uiSpinner(size, col) {
+      const s = size || 12;
+      return `<span class="co-spinner" style="width:${s}px;height:${s}px;color:${col || 'currentColor'};margin-right:4px"></span>`;
+    }
+    function uiDot(col) {
+      return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col || 'currentColor'};margin-right:3px;vertical-align:middle"></span>`;
+    }
     // ── 演出強化A-1：被弾フィードバック（画面シェイク＋赤フラッシュ）。サマリー画面表示のたびにフックするが1ターンにつき1回だけ発火する ──
     function coopSummaryFx() {
       if (typeof document === 'undefined' || !document.body || typeof document.body.classList.add !== 'function' || !document.createElement) return;
@@ -9882,7 +10325,7 @@
       const click = !dis ? `coopSelectAttackType('${c.id}')` : '';
       const cntCol = usedType ? 'var(--yellow,#d29922)' : (n > 0 ? '#fff' : 'var(--t3,#8b949e)');
       const cntLabel = usedType ? '今ターン使用済' : `残り ${n}`;
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="card ${c.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="disaster" data-atk-id="${c.id}" onclick="${click}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${c.icon}</span><span class="card-cost">${c.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${c.name}</div></div><div class="card-name card-text-fallback">${c.name}</div><div class="card-desc card-text-fallback">${c.desc}</div><span class="card-type-badge">自然</span></div><div style="font-size:.74rem;font-weight:800;color:${cntCol}">${cntLabel}</div></div>`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="card ${c.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="disaster" data-atk-id="${c.id}" onclick="${click}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${c.icon}</span><span class="card-cost">${c.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(c.name, '自然')}</div><div class="card-name card-text-fallback">${c.name}</div><div class="card-desc card-text-fallback">${c.desc}</div>${cardTypeBadgeFallback('自然')}</div><div style="font-size:.74rem;font-weight:800;color:${cntCol}">${cntLabel}</div></div>`;
     }
     function coopRenderNaturePool() {
       const total = Object.values(CO.naturePool).reduce((a, b) => a + b, 0);
@@ -10233,7 +10676,7 @@
       const otherLabel = natureMode ? `${_icoC16} 今度は都市を守ってみる` : `${_icoD16} 今度は自然を操ってみる`;
       // オンラインはネット版リマッチ未対応のため、ソロ用の再戦・逆サイドは出さない
       const switchBtn = CO.online ? '' : `<button class="go-inview go-rematch-btn" onclick="coopPlayOtherSide('${otherSide}')" style="background:var(--bg2);color:#fff;border:1px solid var(--bg3)">${otherLabel}</button>`;
-      const rematchBtn = CO.online ? '' : `<button class="go-inview go-rematch-btn" onclick="coopRestart()">🔁 もう一度（${d.label}）</button>`;
+      const rematchBtn = CO.online ? '' : `<button class="go-inview go-rematch-btn" onclick="coopRestart()">${uiIcoSwords(15)} もう一度（${d.label}）</button>`;
 
       // 戦略ティップ（都市側・リザルト画面専用。自分視点の勝敗で出し分け）
       const isCityDefeat = !natureMode && !win;
@@ -11093,7 +11536,7 @@
     // 災害カード（予報・解決内訳用）。order を渡すと来襲順バッジ（1・2・3）を左上に重ねる。
     function ddMkDisasterCard(card, order) {
       const badge = order ? `<div style="position:absolute;top:4px;left:4px;z-index:5;width:19px;height:19px;border-radius:50%;background:rgba(0,0,0,.75);border:1.5px solid var(--red);color:#fff;font-size:.68rem;font-weight:900;display:flex;align-items:center;justify-content:center">${order}</div>` : '';
-      return `<div class="card disaster card-spectator" data-ctype="disaster">${badge}<div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${_escHtml(card.name)}</div></div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div><span class="card-type-badge">自然</span></div>`;
+      return `<div class="card disaster card-spectator" data-ctype="disaster">${badge}<div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}</div>`;
     }
     // 政策カード（予報の手札プレビュー・備えフェーズの手札の両方で使用）。opts.clickable=true で dailyPlayCard を紐付ける。
     function ddMkPolicyCard(card, opts) {
@@ -11104,7 +11547,7 @@
       const cls = `card ${card.type} ${clickable ? (dis ? 'card-disabled' : 'card-usable') : 'card-spectator'}`;
       const click = (clickable && !dis) ? ` onclick="dailyPlayCard('${card.uid}')"` : '';
       const reason = dis ? '<div class="card-disabled-reason">予算不足</div>' : '';
-      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${(clickable && !dis) ? 'pointer' : 'default'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')"><div class="card-name-bar">${_escHtml(card.name)}</div></div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div><span class="card-type-badge">政策</span>${reason}</div>`;
+      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${(clickable && !dis) ? 'pointer' : 'default'}"><div class="card-header"><span class="card-icon">${card.icon}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
     }
     function dailyRenderForecast() {
       if (DD.pickerOpen) return dailyRenderCityPicker(); // C4：マイ都市選択画面（予報フェーズのサブビュー）
