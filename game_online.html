@@ -12364,14 +12364,19 @@
       }
       render();
     }
-    // カスタム軽減：軽減値の3択（10/15/20のみ）
+    // カスタム軽減：軽減値のスライダー（min10/max20/step5＝選べる値は10/15/20の3値のみ、従来の3択ボタンと同じ）。
+    // 協力モードの都市HPスライダー（coopRenderMPLobby）と同様、ドラッグ中はフルrender()を呼ばずラベル直書き＋
+    // cwUpdatePreviewDom()（350msデバウンス）のみを行う。フルrender()を呼ぶとinput中にスライダー自身のDOMノードが
+    // 差し替わりドラッグ操作の途中で切断されてしまうため（テキスト入力のoninputが同じ理由でrender()を呼ばないのと同様）。
     function cwSetCustomResistValue(v) {
       if (!CW) return;
       const val = parseInt(v, 10);
       if (!CW_CUSTOM_RESIST_VALUES.includes(val)) return;
       if (!CW.customResist || typeof CW.customResist !== 'object') CW.customResist = { targets: [], value: val };
       else CW.customResist.value = val;
-      render();
+      const label = document.getElementById('cw-resist-val-label');
+      if (label) label.textContent = '−' + val;
+      cwUpdatePreviewDom();
     }
 
     // ── 入力中のドラフト（保存前）を1つのオブジェクトにまとめる ──
@@ -13452,6 +13457,14 @@
     // ── 描画（対戦・協力・デイリーのneonトーンに合わせる） ──
     function renderCardWorkshop() {
       const app = document.getElementById('app'); if (!app) return;
+      // スクロールジャンプ修正：Puppeteerで実測した結果、地形・能力・災害チップ等のタップ後にウィンドウが
+      // 上（プレビューの見える位置）へ動いて見える原因は、scrollIntoView/focus/autofocus等の明示的な呼び出しでは
+      // なく、app.innerHTML差し替えで文書の高さが縮んだ際にwindow.scrollYがブラウザによって自動的に新しい最大値へ
+      // クランプされる挙動だった（例：カスタム軽減の選択有無で警告文が出入りし高さが変化→タップ前後でscrollYが
+      // 縮んだ分だけ自動的に減少）。この画面（カード工房）に限り、差し替え直前のwindow.scrollYを保存し、差し替え
+      // 直後に復元する。テキスト入力（都市名・フレーバー）はrender()自体を経由しない部分更新（cwUpdatePreviewDom）
+      // のためフォーカス・カーソル位置への影響はない。他画面（render()の通常分岐）は無変更。
+      const _cwScrollY = window.scrollY;
       let html;
       if (CW.view === 'editor') html = cwRenderEditor();
       else if (CW.view === 'import') html = cwRenderImport();
@@ -13459,6 +13472,7 @@
       else html = cwRenderList();
       html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：カード工房は表示対象（つくるタブがアクティブ）
       app.innerHTML = html;
+      window.scrollTo(0, _cwScrollY);
       // エディタ画面はテキスト入力以外（地形・能力・アートタブ切替）もrender()を経由するフルDOM差し替えのため、
       // これらの操作でも同じデバウンス付きv2合成に統一するためここでも1回スケジュールする（初回マウントも含む）。
       if (CW.view === 'editor') setTimeout(cwSchedulePreviewV2, 0);
@@ -13532,17 +13546,21 @@
         const label = cwCustomResistTargetLabel(id);
         return `<button type="button" onclick="cwToggleCustomResistTarget('${id}')" style="padding:6px 12px;border-radius:16px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.16)' : 'transparent'};color:#fff;font-size:.74rem;cursor:pointer;margin:0 6px 6px 0">${_escHtml(label)}</button>`;
       }).join('');
-      const valBtns = CW_CUSTOM_RESIST_VALUES.map(v => {
-        const sel = cr.value === v;
-        return `<button type="button" onclick="cwSetCustomResistValue(${v})" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid ${sel ? '#388bfd' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(56,139,253,.18)' : 'transparent'};color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">−${v}</button>`;
-      }).join('');
-      const targetErr = cr.targets.length === 0 ? `<div style="font-size:.66rem;color:#d29922;margin:2px 0 6px">軽減する災害を1〜2つ選んでください</div>` : '';
+      // 軽減値：協力モードの都市HPスライダー（coopRenderMPLobby内）と同一の意匠（アイコン行＋値ラベル＋range＋目盛り）を流用。
+      // min/max/stepで見た目上は連続スライダーだが、step=5により選べる値は従来どおり10/15/20の3値のみに保たれる
+      // （cwValidateCard・共有コードの検証は無変更。cwSetCustomResistValue側でもCW_CUSTOM_RESIST_VALUES.includesで再検証する）。
+      const sliderTicks = CW_CUSTOM_RESIST_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(255,255,255,.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
+      const targetErr = `<div style="font-size:.66rem;color:#d29922;margin:2px 0 6px;visibility:${cr.targets.length === 0 ? 'visible' : 'hidden'}">軽減する災害を1〜2つ選んでください</div>`;
       return `<div style="margin:2px 0 10px;padding:10px;border:1px dashed rgba(255,255,255,.2);border-radius:10px">
         <div style="font-size:.72rem;color:var(--t2,#8b949e);margin-bottom:6px">軽減する災害（最大2つ・タップで選択/解除）</div>
         <div style="display:flex;flex-wrap:wrap">${chipHtml}</div>
         ${targetErr}
-        <div style="font-size:.72rem;color:var(--t2,#8b949e);margin:8px 0 6px">軽減値</div>
-        <div style="display:flex;gap:8px">${valBtns}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin:8px 0 6px">
+          <span style="font-size:.72rem;color:var(--t2,#8b949e)">軽減値</span>
+          <span id="cw-resist-val-label" style="color:#388bfd;font-weight:700;font-size:.84rem">−${cr.value}</span>
+        </div>
+        <input type="range" min="10" max="20" step="5" value="${cr.value}" style="width:100%;accent-color:#388bfd" oninput="cwSetCustomResistValue(this.value)">
+        <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
       </div>`;
     }
     function cwRenderEditor() {
