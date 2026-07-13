@@ -12220,6 +12220,7 @@
     function cwWizardApply() {
       if (!CW || !CW.wizard || !CW.wizard.result) return;
       const r = CW.wizard.result;
+      _cwPreviewLastDataUrl = null; // エディタを開き直すため前カードのプレビューキャッシュを破棄
       CW.view = 'editor'; CW.name = ''; CW.terrain = r.terrain; CW.abilityId = r.abilityId; CW.flavor = '';
       CW.art = { type: 'gen' }; CW.artPanel = 'gen'; CW.error = ''; CW.wizard = null;
       render();
@@ -12336,9 +12337,9 @@
     }
 
     // ── エディタ・一覧の画面遷移 ──
-    function cwOpen() { CW = { view: 'list', name: '', terrain: 'inland', abilityId: 'tokyo', flavor: '', art: { type: 'gen' }, artPanel: 'gen', error: '', importCode: '', importError: '', deleteIdx: null, exportIdx: null, wizard: null, flipped: {} }; render(); }
+    function cwOpen() { _cwPreviewLastDataUrl = null; CW = { view: 'list', name: '', terrain: 'inland', abilityId: 'tokyo', flavor: '', art: { type: 'gen' }, artPanel: 'gen', error: '', importCode: '', importError: '', deleteIdx: null, exportIdx: null, wizard: null, flipped: {} }; render(); }
     function cwClose() { CW = null; lobbyState.mode = 'select'; lobbyState.error = ''; render(); }
-    function cwNewCard() { if (!CW) return; CW.view = 'editor'; CW.name = ''; CW.terrain = 'inland'; CW.abilityId = 'tokyo'; CW.flavor = ''; CW.art = { type: 'gen' }; CW.artPanel = 'gen'; CW.error = ''; render(); }
+    function cwNewCard() { if (!CW) return; _cwPreviewLastDataUrl = null; CW.view = 'editor'; CW.name = ''; CW.terrain = 'inland'; CW.abilityId = 'tokyo'; CW.flavor = ''; CW.art = { type: 'gen' }; CW.artPanel = 'gen'; CW.error = ''; render(); }
     function cwBackToList() { if (!CW) return; CW.view = 'list'; CW.error = ''; CW.importError = ''; render(); }
     function cwSetTerrain(key) { if (!CW) return; CW.terrain = key; render(); }
     function cwSetAbility(id) {
@@ -12404,6 +12405,16 @@
     let _cwPreviewPending = false;
     const CW_PREVIEW_DEBOUNCE_MS = 350;
     const CW_PREVIEW_TIMEOUT_MS = 3000;
+    // スクロールジャンプ追加修正：直近のv2合成結果（dataURL）のキャッシュ。
+    // render()経由の再描画（地形・能力・チップ等のタップ）のたびにマウント初期HTMLがDOM簡易カード
+    // （v2画像よりはるかに小さい）へ一旦戻ると、①文書高が縮んで下の操作UIが上へシフト→②350ms後の
+    // 合成完了で再び下へシフト、という2段の高さ変動が起きて「勝手に画面が動く」体験になる。
+    // キャッシュがある間は再描画直後から前回の合成画像を表示し続け、この変動を根絶する。
+    // エディタを開き直すとき（cwNewCard/cwWizardApply/cwOpen）はクリアし、古いカードの絵が一瞬出ることを防ぐ。
+    let _cwPreviewLastDataUrl = null;
+    function _cwPreviewImgHtml(dataUrl) {
+      return `<img src="${dataUrl}" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:10px;display:block" onerror="this.style.display='none'">`;
+    }
     function cwSchedulePreviewV2() {
       if (!CW) return;
       if (_cwPreviewDebounceTimer) clearTimeout(_cwPreviewDebounceTimer);
@@ -12439,7 +12450,8 @@
         const mount = document.getElementById('cw-live-mount'); // タイムアウト・画面遷移で消えている可能性があるため再取得
         if (mount && !timedOut) {
           const dataUrl = canvas.toDataURL('image/png');
-          mount.innerHTML = `<img src="${dataUrl}" alt="" style="width:288px;max-width:100%;border-radius:10px;display:block" onerror="this.style.display='none'">`;
+          _cwPreviewLastDataUrl = dataUrl; // render()経由の次回再描画でもこの画像を初期表示し、DOM簡易カードへの一時退行（高さ変動）を防ぐ
+          mount.innerHTML = _cwPreviewImgHtml(dataUrl);
         }
       } catch (e) {
         clearTimeout(timeoutId);
@@ -13582,7 +13594,7 @@
       return `<div class="screen active" style="padding:18px;max-width:520px;margin:0 auto">
         <button class="gallery-btn-back" style="margin-bottom:10px" onclick="cwBackToList()">＜</button>
         <h2 style="text-align:center;color:#fff;margin:4px 0 14px">ご当地カードメーカー</h2>
-        <div id="cw-live-mount" style="display:flex;justify-content:center;margin-bottom:8px">${cwRenderCardVisual(cwCurrentDraftCard())}</div>
+        <div id="cw-live-mount" style="width:288px;max-width:100%;aspect-ratio:288/450;margin:0 auto 8px;display:flex;justify-content:center;align-items:center">${_cwPreviewLastDataUrl ? _cwPreviewImgHtml(_cwPreviewLastDataUrl) : cwRenderCardVisual(cwCurrentDraftCard())}</div>
         <button onclick="cwDownloadCardPng('editor')" style="width:100%;margin-bottom:16px;padding:8px;border-radius:8px;background:transparent;border:1px solid var(--bg3,#30363d);color:#fff;font-size:.76rem;cursor:pointer">画像として保存（PNG）</button>
         ${cwRenderArtSection()}
         <label class="lobby-label" style="margin-top:12px">都市名（最大8文字・必須）</label>
