@@ -838,22 +838,27 @@
       align-items: center;
       gap: 8px;
       padding: 6px 0 4px;
+      /* UI修正：画面最下端に張り付いていたボタン列を、縦方向でもう少し中央寄りに底上げする
+         （.draft-stack-area側のflex:1が余白を全て上に集めるため、ここにmargin-bottomを足すだけで
+         カードスタック/ボタンの両方の位置が中央方向へ動く。overflow:hiddenの範囲内に収まるようclampで上限を設ける）*/
+      margin-bottom: clamp(28px, 9vh, 72px);
     }
 
+    /* ターンサマリー等の.btn-ho/.btn-acceptと同じデザイントーン（緑の縁取り・2px・角丸10px）に統一 */
     .btn-flip-all {
-      padding: 9px 28px;
-      font-size: .88rem;
+      padding: 13px 40px;
+      font-size: .95rem;
       font-weight: 700;
       background: var(--bg2);
-      border: 1.5px solid var(--yellow);
+      border: 2px solid var(--green);
       border-radius: 10px;
-      color: var(--yellow);
+      color: var(--green);
       cursor: pointer;
-      transition: .18s;
+      transition: .2s;
     }
 
     .btn-flip-all:disabled { opacity: .5; cursor: default; }
-    .btn-flip-all:not(:disabled):hover { background: rgba(227,179,65,.15); }
+    .btn-flip-all:not(:disabled):hover { background: var(--green); color: #000; }
 
     .draft-confirm-appear {
       animation: draft-confirm-pop .4s cubic-bezier(.34,1.56,.64,1) both;
@@ -2047,6 +2052,38 @@
        keep-all＋anywhereの折返し規則をhintedName()のZWSP挿入と組み合わせ、狭い都市パネルでも
        「ニューオーリンズ」等が語中で不自然に割れないようにする（例：ニューオーリン／ズ → ニュー／オーリンズ） */
     .coop-city-name { word-break:keep-all; overflow-wrap:anywhere; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden }
+
+    /* 協力モード：都市パネルのシールドバッジ タップ詳細トグル */
+    .coop-shield-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      padding: 2px 4px;
+      margin: -2px -4px;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      -webkit-tap-highlight-color: transparent;
+      border-radius: 6px;
+    }
+    .coop-shield-toggle:hover, .coop-shield-toggle:focus-visible {
+      background: rgba(56,139,253,.14);
+      color: var(--blue,#388bfd);
+    }
+    .coop-shield-chevron { transition: transform .15s ease; }
+    .coop-shield-toggle[aria-expanded="true"] .coop-shield-chevron { transform: rotate(180deg); }
+    .coop-shield-detail {
+      margin-top: 5px;
+      padding: 6px 8px;
+      background: rgba(56,139,253,.08);
+      border: 1px solid rgba(56,139,253,.25);
+      border-radius: 6px;
+      animation: ts-fade-in .18s ease both;
+    }
+    .coop-shield-detail-row { display: flex; align-items: flex-start; gap: 5px; font-size: .66rem; color: #fff; line-height: 1.5; }
+    .coop-shield-detail-row + .coop-shield-detail-row { margin-top: 3px; }
     .card-text-fallback { display:none }
     .card.img-fail .card-text-fallback { display:block }
     .card.img-fail .card-img-wrap { display:none }
@@ -6676,7 +6713,7 @@
         ? `<div class="waiting-banner red">${coopZapIco(15,'#fff')} ${G.players[atk.attackerIdx].name}が「${cardIconSvg(atk.card.icon,15,'#fff')} ${atk.card.name}」を宣言！複合災害：対応フェーズが強制スキップされます...</div>`
         : `<div class="waiting-banner red">${uiIcoSwords(15,'#fff')} ${G.players[atk.attackerIdx].name}が「${cardIconSvg(atk.card.icon,15,'#fff')} ${atk.card.name}」を宣言！対応フェーズへ自動移行中...</div>`;
       const notice = isCompoundSkip
-        ? `<div class="response-pending-bar"><div class="rpb-icon">${coopZapIco(20)}</div><div class="rpb-text"><strong>複合災害：対応フェーズ強制スキップ</strong><br>政策カードは使用できません。攻撃の解決をお待ちください。</div></div>`
+        ? `<div class="response-pending-bar"><div class="rpb-icon">${coopZapIco(20)}</div><div class="rpb-text"><strong>複合災害：対応フェーズ強制スキップ</strong><br>攻撃の解決をお待ちください。</div></div>`
         : `<div class="response-pending-bar"><div class="rpb-icon">${uiIcoSwords(20)}</div><div class="rpb-text"><strong>${G.players[atk.attackerIdx].name}が「${cardIconSvg(atk.card.icon,15)} ${atk.card.name}」を使用！</strong><br>対応フェーズへ自動移行中...</div></div>`;
       return `<div class="screen active">
     ${banner}
@@ -7104,7 +7141,7 @@
       const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi]; const excess = p.hand.length - 5;
       const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`).join('');
       return `<div class="screen active"><div class="section-title">${uiIcoUpload(15)} ${p.name} — 捨てるカードを選んでください</div>
-    <div class="discard-info">手札が上限（5枚）を超えています。<strong style="color:var(--red)">${excess}枚</strong>を捨ててください。<br><span style="font-size:.75rem;color:var(--t3)">カードをクリックすると捨て札になります</span></div>
+    <div class="discard-info"><strong style="color:var(--red)">${excess}枚</strong>を捨ててください</div>
     <div style="font-size:.8rem;color:var(--t2);text-align:center">現在の手札：<strong style="color:var(--yellow)">${p.hand.length}枚</strong>　→　目標：5枚</div>
     <div class="discard-cards">${cards}</div></div>`;
     }
@@ -8581,7 +8618,18 @@
       const totalAttacks = (draw + (n - 1)) * maxTurns; // = coopMPAttackCount × ターン数
       return Math.max(3, Math.min(maxTurns, Math.ceil(totalAttacks / 6) + 1));
     }
-    function coopShieldBadges(e) { const b = []; if (e.shieldQuakeFire) b.push(uiIcoShield(13)); if (e.shieldFlood) b.push(uiIcoShield(13)); if (e.negateSpecial) b.push(uiIcoMegaphone(13)); if (e.damageReduceHits > 0) b.push(uiIcoShield(13) + e.damageReduceHits); return b.join(' '); }
+    // 協力モード都市パネルのシールドバッジ：現在有効な設置効果の一覧を返す（アイコン・見出し・タップ詳細用の説明文）
+    function coopShieldEffects(e) {
+      const list = [];
+      if (e.shieldQuakeFire) list.push({ icon: uiIcoShield(13), label: '耐震シールド', detail: '地震・大火災のダメージを30軽減する' });
+      if (e.shieldFlood) list.push({ icon: uiIcoShield(13), label: '堤防シールド', detail: '洪水・津波のダメージを25軽減する' });
+      if (e.negateSpecial) list.push({ icon: uiIcoMegaphone(13), label: '特殊効果無効', detail: '広域避難指示の効果で特殊効果・テロ攻撃を無効化する' });
+      if (e.damageReduceHits > 0) list.push({ icon: uiIcoShield(13), label: '防災庁', detail: `全ダメージを15軽減する（残り${e.damageReduceHits}回）` });
+      return list;
+    }
+    // 都市パネル別にシールド詳細トグルの開閉状態を保持（Firebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
+    let _coShieldDetailOpen = {};
+    function coopToggleShieldDetail(idx) { _coShieldDetailOpen[idx] = !_coShieldDetailOpen[idx]; renderCoop(); }
     function coopTerrainMatch(card, city) { return (card.specialType === 'coastal_bonus' && city.isCoastal) || (card.specialType === 'mountain_bonus' && city.isMountain) || (card.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain); }
 
     function coopDraw(n) {
@@ -8903,9 +8951,11 @@
       return CO;
     }
 
-    // 予算（MP）：生存都市ごとに基本3pt＋自分の都市能力。デマは各都市 −1
+    // 予算（MP）：生存都市ごとに基本3pt＋自分の都市能力。デマは各都市 −1（カスタム軽減でデマ拡散に耐性を持つ都市がチームにいれば無効化）
     function coopApplyBudgetMP() {
-      const rumor = CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'rumor');
+      const rumorRaw = CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'rumor');
+      const rumorResisted = rumorRaw && coopCustomResistsEvent('rumor');
+      const rumor = rumorRaw && !rumorResisted;
       CO.cities.forEach(cs => {
         // 壊滅都市は後方支援役：予算は毎ターン +GAIN たまり上限 CAP（使った残りは持ち越す）。デマの影響は受けない。
         // 神戸など予算ボーナス都市は上限もその分高い（生存時の予算ルールと一貫）
@@ -8923,6 +8973,7 @@
         cs.budget = b; cs.budgetUsed = 0;
       });
       if (rumor) _coLog('📱 デマ拡散イベント：各都市の予算 −1（社会的脆弱性）');
+      else if (rumorResisted) _coLog('📱 デマ拡散イベント：カスタム都市対策により無効化');
     }
 
     // 都市ターン開始（MP）：全スロットの予算・ドロー・各種フラグをリセット
@@ -8972,8 +9023,8 @@
       _coCancelTimer();
       CO.phase = 'nature'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) coopEventPollution();
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); } }
       // 即死防止：同種は1ターン1回／1都市への攻撃は最大 COOP_MAX_HITS 回
       CO.atkUsedTypes = {}; CO.atkCityHits = {};
       const nAtk = coopMPAttackCount();
@@ -9431,10 +9482,13 @@
       // ロッテルダム等の洪水・津波被弾による次ターン予算ボーナス
       if (CO.nextBudgetBonus > 0) { b += CO.nextBudgetBonus; _coLog(`💧 洪水・津波後の復旧ボーナス：予算+${CO.nextBudgetBonus}`); }
       CO.nextBudgetBonus = 0;
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'rumor')) { b = Math.max(0, b - 1); _coLog('📱 デマ拡散イベント：今ターンの予算 −1（社会的脆弱性）'); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'rumor')) {
+        if (coopCustomResistsEvent('rumor')) _coLog('📱 デマ拡散イベント：カスタム都市対策により無効化');
+        else { b = Math.max(0, b - 1); _coLog('📱 デマ拡散イベント：今ターンの予算 −1（社会的脆弱性）'); }
+      }
       CO.budget = b; CO.budgetUsed = 0;
     }
-    function coopBeginPlay() { CO.turn = 1; coopStartCityTurn(true); }
+    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; coopStartCityTurn(true); }
     // 都市ターン開始（humanSide によって人間操作／CPU防衛に分岐）
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
@@ -9557,6 +9611,15 @@
     function coopConfirmEndTurn() { CO.confirm = null; coopEndCityTurn(); }
 
     // ── 自然ターン（CPU） ──
+    // カスタム軽減（人為災害3種）：公害・テロ攻撃・デマ拡散のイベントは特定の1都市を狙うものではなく、CO.cities全体に
+    // 影響する「チーム全体のイベント」として実装されている（対象都市を選ばず、公害は最初に見つかったシールドを破壊・
+    // テロ攻撃は対応フェーズ全体を封鎖・デマ拡散は生存都市全体の予算を−1する）。そのため「都市個別の耐性」ではなく、
+    // 生存しているカスタム都市のいずれか1つでもその人為災害への耐性（resist_custom.abilityTargets）を持っていれば、
+    // チーム全体としてそのイベントを無効化する設計とした（イベント自体がチーム全体を狙うため、チームの誰か1人の
+    // 備えが全体を守るという解釈は対戦・協力の他の防御ロジック＝広域避難指示等と同じ「事前の備えが効く」哲学に沿う）。
+    function coopCustomResistsEvent(evId) {
+      return (CO.cities || []).some(cs => cs && cs.hp > 0 && cs.city && cs.city.abilityType === 'resist_custom' && Array.isArray(cs.city.abilityTargets) && cs.city.abilityTargets.includes(evId));
+    }
     function coopEventPollution() {
       for (const cs of CO.cities) {
         const e = cs.effects;
@@ -9645,14 +9708,14 @@
       CO.phase = 'nature'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
       coopSplashNature();
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) coopEventPollution();
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); } }
       const cards = []; for (let i = 0; i < CO.diff.draw; i++) { const c = coopDrawNature(); if (c) cards.push(c); }
       CO.incoming = cards.map(card => { const idx = coopPickTarget(card); return { card, idx, est: coopEstimate(card, CO.cities[idx]) }; });
       if (cards.length === 0) { _coLog('自然山札が尽きた。今回の攻撃なし'); coopApplyRegen(null); coopDismissSummary(); return; }
       // 複合災害：対象都市に広域避難指示（事前設置）がなければ対応フェーズを強制スキップ
       const compoundUnstopped = CO.incoming.some(a => a.card.specialType === 'skip_response' && !CO.cities[a.idx].effects.negateSpecial);
-      if (compoundUnstopped) { CO.responseBlocked = true; CO.blockReason = `${coopZapIco(14)} 複合災害により対応フェーズが強制スキップ（広域避難指示で防げる）`; _coLog('複合災害：対応フェーズが強制スキップされた'); }
+      if (compoundUnstopped) { CO.responseBlocked = true; CO.blockReason = `${coopZapIco(14)} 複合災害により対応フェーズが強制スキップ`; _coLog('複合災害：対応フェーズが強制スキップされた'); }
       _coLog(`自然の攻撃：${cards.map(c => c.name).join('・')}`);
       if (CO.responseBlocked) { CO.phase = 'resolving'; renderCoop(); _coTimer = setTimeout(() => coopResolveRound(null, -1), 1600); }
       else { CO.phase = 'coopResponse'; renderCoop(); }
@@ -9769,8 +9832,8 @@
       CO.phase = 'natureHuman'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
       // 社会的脆弱性イベント（都市＝CPU側に作用するので、自然側プレイヤーには有利）
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) coopEventPollution();
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベント：都市側は対応不可`; _coLog('テロ攻撃イベント：今回は都市側の対応を封じた'); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
+      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベント：都市側は対応不可`; _coLog('テロ攻撃イベント：今回は都市側の対応を封じた'); } }
       CO.incoming = [];
       if (CO.mp) {
         CO.atkUsedTypes = {}; CO.atkCityHits = {}; // 即死防止：同種1回／都市別上限の集計をリセット
@@ -10037,7 +10100,13 @@
       const pct = Math.max(0, Math.round(cs.hp / cs.maxHp * 100));
       const ratio = cs.hp / cs.maxHp;
       const col = ratio > 0.6 ? '#3fb950' : ratio > 0.3 ? '#d29922' : '#f85149';
-      const badges = coopShieldBadges(cs.effects);
+      const shieldList = coopShieldEffects(cs.effects);
+      const shieldDetailOpen = !!_coShieldDetailOpen[idx];
+      const badges = shieldList.length === 0 ? '' : (() => {
+        const row = `<button type="button" class="coop-shield-toggle" aria-expanded="${shieldDetailOpen}" aria-label="設置中の効果の詳細を${shieldDetailOpen ? '閉じる' : '表示する'}" onclick="coopToggleShieldDetail(${idx})">${shieldList.map(s => s.icon).join(' ')}${uiIcoChevronDown(10)}</button>`;
+        const detail = shieldDetailOpen ? `<div class="coop-shield-detail">${shieldList.map(s => `<div class="coop-shield-detail-row">${s.icon}<span><strong>${s.label}</strong>：${s.detail}</span></div>`).join('')}</div>` : '';
+        return row + detail;
+      })();
       const mine = CO.mp && cs.ownerId && cs.ownerId === CO.myId;
       const showTurn = CO.mp && (CO.phase === 'city' || CO.phase === 'draw');
       const readyChip = showTurn ? (cs.ready ? `<span style="display:inline-flex;align-items:center;gap:2px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>` : `<span style="display:inline-block;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(255,255,255,.05);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.15)">…</span>`) : '';
@@ -10178,7 +10247,7 @@
     function coopCloseIntel() { if (CO.mp && !CO._applying) { if (!CO.host) coopSendIntent('dismissIntel', {}); CO.intelPopup = false; renderCoop(); return; } if (CO.online && !CO.host) { coopSendIntent('dismissIntel', {}); CO.intelPopup = false; renderCoop(); return; } CO.intelPopup = false; renderCoop(); }
     function coopRenderIntelPopup() {
       const tiles = (CO.intel || []).map((c, i) => `<div class="peek-card-big" style="flex-shrink:0;border-color:var(--red)"><div style="font-size:.66rem;color:var(--t2);font-weight:700;margin-bottom:2px">${i + 1}番目</div><img src="images/cards/${c.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'"><div class="pk-icon">${cardTypeIconHtml('disaster', null, 32)}</div><div class="pk-name">${c.name}</div><div class="pk-desc">${c.desc}</div></div>`).join('');
-      return `<div class="confirm-overlay" onclick="coopCloseIntel()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:480px"><div style="text-align:center;font-weight:800;color:#fff;font-size:1.05rem">${coopIcoClipboard(16)} 防災協定（情報共有）</div><div style="text-align:center;color:#fff;font-size:.8rem;margin:4px 0 12px">次に来る自然災害が判明した。今のうちに備えを選ぼう</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div class="confirm-btns" style="margin-top:14px"><button class="btn-ok" onclick="coopCloseIntel()">確認した</button></div></div></div>`;
+      return `<div class="confirm-overlay" onclick="coopCloseIntel()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:480px"><div style="text-align:center;font-weight:800;color:#fff;font-size:1.05rem">${coopIcoClipboard(16)} 防災協定（情報共有）</div><div style="text-align:center;color:#fff;font-size:.8rem;margin:4px 0 12px">次に来る自然災害を確認して備えを選ぼう</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div class="confirm-btns" style="margin-top:14px"><button class="btn-ok" onclick="coopCloseIntel()">確認した</button></div></div></div>`;
     }
     function coopRenderDraw() {
       const ds = CO.drawState;
@@ -10388,6 +10457,11 @@
     function uiDot(col) {
       return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col || 'currentColor'};margin-right:3px;vertical-align:middle"></span>`;
     }
+    // タップ可能トグルのaffordance用シェブロン（下向き）。開閉状態はCSS([aria-expanded="true"])で180度回転させる
+    function uiIcoChevronDown(size, col) {
+      const s = size || 10;
+      return `<svg class="coop-shield-chevron" viewBox="0 0 24 24" fill="none" stroke="${col || 'currentColor'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>`;
+    }
     // ── カードアイコンのSVG統一：POLICY_CARDS/DISASTER_CARDS/JINZAI_DISASTER_CARDS/CITIES/COOP_CHAINS/COOP_EVENT_INFO の
     // icon フィールドは絵文字ではなくこのIDの文字列を持つ（例：'earthquake'・'quake_wall'）。呼び出し側は
     // cardIconSvg(card.icon, size, color) で常にSVG線画（stroke=currentColor既定・uiIco*と同じ作法）を得る。
@@ -10555,7 +10629,7 @@
       const respCards = resp.map(c => coopMkCard(c, 'resp')).join('');
       const _icoDisStr = `<img src="images/icons/icon_disaster.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block">`;
       const head = CO.mp ? `${_icoDisStr} あなたの都市への攻撃` : `${_icoDisStr} 迫りくる自然災害`;
-      const note = CO.mp ? '自分の街は自分で守ろう。対応は1回。政策カードをタップ' : '対応は1ターンに1回だけ。政策カードをタップして対応する攻撃を選ぼう（トリアージ）';
+      const note = CO.mp ? '政策カードをタップして対応しよう' : '政策カードをタップして対応する攻撃を選ぼう';
       return `<div style="margin-top:10px"><div style="font-weight:700;color:#f85149;font-size:.85rem;margin-bottom:6px">${head}</div>${atks}</div><div style="text-align:center;color:#fff;font-size:.78rem;margin:8px 0">${note}</div><div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${respCards || '<span style="color:#fff;font-size:.76rem">対応できる政策が手札にありません</span>'}</div><button onclick="coopSkipResponse()" style="width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#21262d;border:1px solid #30363d;color:#fff;font-weight:700;cursor:pointer">対応せず受ける ▶</button>`;
     }
     // オンラインで自分の手番でないときの待機表示
@@ -10627,9 +10701,9 @@
         if (slot.hp <= 0) return;
         const e = slot.effects || {};
         if (slot.city.isCoastal && !e.shieldFlood) hints.push({ col: '#f8993a', t: `${slot.city.name}：洪水・津波への備えがありません` });
-        if (slot.hp / slot.maxHp < 0.35) hints.push({ col: '#f8993a', t: `${slot.city.name}：HP${slot.hp}で危険域。回復か耐震補強を検討しよう` });
+        if (slot.hp / slot.maxHp < 0.35) hints.push({ col: '#f8993a', t: `${slot.city.name}：回復か耐震補強を検討しよう` });
       });
-      if (hints.length === 0) hints.push({ col: 'rgba(63,185,80,.9)', t: '備えができています。ターンを終了しましょう' });
+      if (hints.length === 0) hints.push({ col: 'rgba(63,185,80,.9)', t: 'ターンを終了しよう' });
       return hints;
     }
     function coopInfoPanel() {
@@ -11046,7 +11120,14 @@
       if (DD.shieldQuakeFire && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; DD.shieldQuakeFire = false; ld('耐震補強（シールド）発動・消費', -30); }
       if (DD.shieldFlood && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= 25; DD.shieldFlood = false; ld('堤防建設（シールド）発動・消費', -25); }
       dmg = Math.max(0, dmg);
-      const hpBefore = DD.hp, hpAfter = Math.max(0, hpBefore - dmg);
+      const hpBefore = DD.hp;
+      let hpAfter = Math.max(0, hpBefore - dmg);
+      // カスタム回復（大阪のregen能力を借用）：G/COの「自分のターン終了時にHP回復」を、DDでは1回の攻撃解決＝1ラウンドとみなして適用する
+      // （攻撃を受けて生存している場合のみ。G/COと同じくDAILY_CFG.hpを上限にキャップする）
+      if (city.abilityType === 'regen' && hpAfter > 0) {
+        const heal = Math.min(city.abilityValue, DAILY_CFG.hp - hpAfter);
+        if (heal > 0) { hpAfter += heal; ld(`${city.name}の都市対策：ターン終了時回復`, -heal); }
+      }
       return { card: atk, dmg, lines, hpBefore, hpAfter };
     }
     function dailyEvalLabel(hpFinal, totalDamage) {
@@ -11646,8 +11727,18 @@
     // 結果は公式記録（ron_daily_v1・ストリーク・カレンダー）に一切影響させない別枠（ron_daily_custom_v1）として扱う。
     // ══════════════════════════════════════════════════════════════════
     // デイリーの簡易ダメージ式（dailyResolveAttack）が対応している都市能力のみ、マイ都市経由でも効果を持つ
-    // （単純軽減系：地震・大火災／土砂崩れ／洪水・津波／同ターン2枚目軽減。回復系・予算系・ドロー系は今回のフェーズ1では未対応）。
-    const CW_DAILY_SUPPORTED_ABILITIES = ['resist_quake_fire', 'resist_landslide', 'resist_flood', 'resist_compound', 'second_hit_reduce', 'resist_custom'];
+    // （単純軽減系：地震・大火災／土砂崩れ／洪水・津波／同ターン2枚目軽減／カスタム軽減、回復系：regen、予算系：extra_budget。
+    // ドロー系は今回のフェーズ1では未対応）。
+    const CW_DAILY_SUPPORTED_ABILITIES = ['resist_quake_fire', 'resist_landslide', 'resist_flood', 'resist_compound', 'second_hit_reduce', 'resist_custom', 'regen', 'extra_budget'];
+    // resist_customは対象に人為災害id（pollution/terror/rumor）を含み得るが、Daily/問題工房の来襲災害は常に自然災害のみ
+    // （JINZAI_DISASTER_CARDSはdailyのdisasters/handのどちらにも含まれない）ため、自然災害を1件も選んでいないresist_customは
+    // Dailyでは実質無効果になる。cityObjのabilityTargets（cwBuildCityObjectが設定）で判定し、その場合のみ「効果なし」を表示する。
+    function cwDailyAbilitySupported(cityLike) {
+      const t = cityLike && cityLike.abilityType;
+      if (!t || !CW_DAILY_SUPPORTED_ABILITIES.includes(t)) return false;
+      if (t === 'resist_custom') return Array.isArray(cityLike.abilityTargets) && cityLike.abilityTargets.some(id => CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(id));
+      return true;
+    }
     // 予報画面から「マイ都市で挑戦」を開く。予報フェーズ・当日（非アーカイブ）・保存済みカードが1枚以上ある場合のみ有効。
     function dailyOpenCityPicker() {
       // 柱4：問題工房のプレイ（isPuzzle）は出題者が固定した都市で解く前提のため、マイ都市への差し替えは対象外にする
@@ -11658,6 +11749,8 @@
     function dailyCloseCityPicker() { if (!DD) return; DD.pickerOpen = false; render(); }
     // 選んだマイ都市で今日のシナリオを再構成する。災害・手札は現在の予報（DD.disasters/DD.hand。まだ未使用の元の手札）をそのまま流用し、
     // 都市だけをカスタムカードに差し替える。理論値（dailyComputeOptimal）はこの新しい都市構成で再計算する。
+    // カスタム予算（extra_budget）：G/COの「毎ターン予算+N」を、Dailyの単一予算プール×来襲回数ぶんの加算として適応する
+    // （Dailyには「ターン」の概念がなく攻撃1回＝1ラウンドのため、来襲回数ぶんの上乗せで「毎ターン」を近似する）。
     function dailyStartCustomCity(customId) {
       if (!DD || DD.phase !== 'forecast' || DD.isArchive || DD.isPuzzle) return;
       const card = cwLoadAll().find(c => c.id === customId); if (!card) return;
@@ -11665,14 +11758,16 @@
       const cityObj = cwBuildCityObject(card);
       const disasters = DD.disasters;
       const hand = DD.hand.slice();
-      const scenario = { dateKey, city: cityObj, disasters, hand };
+      const budgetBonus = (cityObj.abilityType === 'extra_budget') ? cityObj.abilityValue * disasters.length : 0;
+      const budget = DAILY_CFG.budget + budgetBonus;
+      const scenario = { dateKey, city: cityObj, disasters, hand, budget };
       const optimalResult = dailyComputeOptimal(scenario);
       const tip = ddPickDailyTip(dateKey, scenario);
       const fullHand = hand.slice();
-      const supported = CW_DAILY_SUPPORTED_ABILITIES.includes(cityObj.abilityType);
+      const supported = cwDailyAbilitySupported(cityObj);
       DD = {
         dateKey, city: cityObj, disasters, hand, fullHand,
-        hp: DAILY_CFG.hp, budget: DAILY_CFG.budget, budgetUsed: 0, attackIndex: 0, phase: 'forecast',
+        hp: DAILY_CFG.hp, budget, budgetUsed: 0, attackIndex: 0, phase: 'forecast',
         shieldQuakeFire: false, shieldFlood: false, reduceHits: 0, negateSpecial: false,
         used: [], results: [], totalDamage: 0, evalLabel: '', evalColor: '', isPractice: false, streak: 0,
         optimal: optimalResult.best, optimalAssign: optimalResult.assign, tip, isOptimal: false,
@@ -11686,7 +11781,7 @@
       const saved = cwLoadAll();
       const rows = saved.map((c, i) => {
         const info = cwAbilityInfo(c);
-        const supported = !!info.abilityType && CW_DAILY_SUPPORTED_ABILITIES.includes(info.abilityType);
+        const supported = cwDailyAbilitySupported(info);
         return `<div onclick="dailyStartCustomCity('${c.id}')" style="display:flex;align-items:center;gap:10px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer">
           ${cwCardImage(c, 'sm', 'cw-cimg-daily-' + (c.id || i))}
           <div style="flex:1;min-width:0">
@@ -12095,36 +12190,84 @@
 
     // ══════════════════════════════════════════════════════════════════
     // 9番目の都市能力「カスタム軽減」：プリセット8種と違い、軽減対象の災害（1〜2件）と軽減値を自分で選べる。
-    // バランスガードレールは公式レンジ内（東京=地震・大火災×20が公式上限）に固定し、選択肢はこの範囲のみ提示する。
+    // 対象は自然災害7種（ダメージ軽減）＋人為災害3種（効果を無効化する耐性として扱う）の計10種から選ぶ。
+    // 軽減値は10〜40（step5）。当初の公式レンジ上限ガードレール（東京=地震・大火災×20が上限）はユーザー指示により撤廃した。
     // データは card.abilityId==='custom_resist' ＋ card.customResist:{targets:[...], value:N} に保存する。
     // ══════════════════════════════════════════════════════════════════
     const CW_CUSTOM_RESIST_ID = 'custom_resist';
-    const CW_CUSTOM_RESIST_TARGETS = ['earthquake', 'wildfire', 'flood', 'tsunami', 'landslide']; // 選択可能な災害id（公式カードのresist系と同じ範囲）
-    const CW_CUSTOM_RESIST_VALUES = [10, 15, 20]; // 選択可能な軽減値（公式レンジ内）
+    const CW_CUSTOM_RESIST_NATURAL_TARGETS = ['earthquake', 'wildfire', 'flood', 'tsunami', 'landslide', 'typhoon', 'compound']; // 自然災害7種（全種）。ダメージを軽減値ぶん軽減する
+    const CW_CUSTOM_RESIST_JINZAI_TARGETS = ['pollution', 'terror', 'rumor']; // 人為災害3種。ダメージを持たないため「効果を無効化する」耐性として扱う（軽減値は使わない）
+    const CW_CUSTOM_RESIST_TARGETS = [...CW_CUSTOM_RESIST_NATURAL_TARGETS, ...CW_CUSTOM_RESIST_JINZAI_TARGETS]; // 選択可能な災害id（自然7種＋人為3種の計10種）
+    const CW_CUSTOM_RESIST_VALUES = [10, 15, 20, 25, 30, 35, 40]; // 選択可能な軽減値（10〜40・step5。ユーザー指示によりガードレール撤廃）
     const CW_CUSTOM_RESIST_MAX_TARGETS = 2;
     function cwCustomResistTargetLabel(id) {
-      const d = DISASTER_CARDS.find(x => x.id === id);
+      const d = DISASTER_CARDS.find(x => x.id === id) || JINZAI_DISASTER_CARDS.find(x => x.id === id);
       return d ? d.name : id;
     }
-    // カード保存データからカスタム軽減の設定を安全に取り出す（欠損・壊れたデータは空選択として扱う。後方互換の要）
+    // ══════════════════════════════════════════════════════════════════
+    // 非災害系カスタム能力：大阪（regen）・神戸（extra_budget）の既存abilityTypeを再利用し、値だけ自分で選べるようにする。
+    // 両abilityTypeは対戦・協力の全エンジンで既にcity.abilityValueを参照する形でパラメータ化済み（ハードコード値なし）
+    // だったため、エンジン側の変更は不要で、カード工房側でこの値を選ばせるだけで既存都市（大阪・神戸）の挙動は完全に不変。
+    // ══════════════════════════════════════════════════════════════════
+    const CW_CUSTOM_REGEN_ID = 'custom_regen';
+    const CW_CUSTOM_REGEN_VALUES = [5, 10, 15]; // ターン終了時HP回復量
+    const CW_CUSTOM_BUDGET_ID = 'custom_budget';
+    const CW_CUSTOM_BUDGET_VALUES = [1, 2]; // 毎ターン予算+N
+    // カード保存データからカスタム軽減の設定を安全に取り出す（欠損・壊れたデータは空選択として扱う。後方互換の要。
+    // 旧共有コード（targets⊂自然5種・value∈{10,15,20}）はどちらも新しい範囲の部分集合のため、そのまま正常に読める）
     function cwNormalizeCustomResist(cr) {
       const targets = (cr && Array.isArray(cr.targets)) ? cr.targets.filter(t => CW_CUSTOM_RESIST_TARGETS.includes(t)).slice(0, CW_CUSTOM_RESIST_MAX_TARGETS) : [];
       const value = (cr && CW_CUSTOM_RESIST_VALUES.includes(cr.value)) ? cr.value : CW_CUSTOM_RESIST_VALUES[1];
       return { targets, value };
     }
-    // ── preset/custom_resistの両方を吸収する共通ヘルパー。表示系はこの関数の返り値だけを参照すればよい ──
+    // カスタム回復・カスタム予算の設定を安全に取り出す（欠損・壊れたデータは既定値として扱う）
+    function cwNormalizeCustomRegen(cr) {
+      const value = (cr && CW_CUSTOM_REGEN_VALUES.includes(cr.value)) ? cr.value : CW_CUSTOM_REGEN_VALUES[0];
+      return { value };
+    }
+    function cwNormalizeCustomBudget(cb) {
+      const value = (cb && CW_CUSTOM_BUDGET_VALUES.includes(cb.value)) ? cb.value : CW_CUSTOM_BUDGET_VALUES[0];
+      return { value };
+    }
+    // ── preset/custom_resist/custom_regen/custom_budgetを吸収する共通ヘルパー。表示系はこの関数の返り値だけを参照すればよい ──
     // 返り値：{label, desc, cardText, abilityType, abilityValue, abilityTargets, sourceName}
     // ・preset：従来通りCW_PRESET_DEFS/CITIESの値をそのまま返す（abilityTargetsはnull）
-    // ・custom_resist：customResistから「地震・洪水 −15」形式のdesc、「地震・洪水のダメージを15軽減する。」形式のcardTextを自動生成する
+    // ・custom_resist：customResistから「地震・洪水 −15」形式のdesc、「地震・洪水のダメージを15軽減する。」形式のcardTextを自動生成する。
+    //   自然災害targetsは軽減値ぶんの軽減文、人為災害targetsは「効果を無効化する」文として分けて組み立て、両方選んでいれば2文を連結する
+    //   （例：「台風のダメージを30軽減する。テロ攻撃の効果を無効化する。」）
+    // ・custom_regen/custom_budget：大阪(regen)・神戸(extra_budget)と同じabilityTypeを返す（値だけカードごとに異なる）
     function cwAbilityInfo(card) {
       const c = card || {};
       if (c.abilityId === CW_CUSTOM_RESIST_ID) {
         const cr = cwNormalizeCustomResist(c.customResist);
-        const labels = cr.targets.map(cwCustomResistTargetLabel);
+        const naturalIds = cr.targets.filter(id => CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(id));
+        const jinzaiIds = cr.targets.filter(id => CW_CUSTOM_RESIST_JINZAI_TARGETS.includes(id));
+        const naturalLabels = naturalIds.map(cwCustomResistTargetLabel);
+        const jinzaiLabels = jinzaiIds.map(cwCustomResistTargetLabel);
         const label = 'カスタム軽減';
-        const desc = labels.length ? `${labels.join('・')} −${cr.value}` : 'カスタム軽減（未設定）';
-        const cardText = labels.length ? `${labels.join('・')}のダメージを${cr.value}軽減する。` : '';
+        const descParts = [];
+        if (naturalLabels.length) descParts.push(`${naturalLabels.join('・')} −${cr.value}`);
+        if (jinzaiLabels.length) descParts.push(`${jinzaiLabels.join('・')} 無効`);
+        const desc = descParts.length ? descParts.join('／') : 'カスタム軽減（未設定）';
+        const cardTextParts = [];
+        if (naturalLabels.length) cardTextParts.push(`${naturalLabels.join('・')}のダメージを${cr.value}軽減する。`);
+        if (jinzaiLabels.length) cardTextParts.push(`${jinzaiLabels.join('・')}の効果を無効化する。`);
+        const cardText = cardTextParts.join('');
         return { label, desc, cardText, abilityType: 'resist_custom', abilityValue: cr.value, abilityTargets: cr.targets, sourceName: '' };
+      }
+      if (c.abilityId === CW_CUSTOM_REGEN_ID) {
+        const cr = cwNormalizeCustomRegen(c.customRegen);
+        const label = 'カスタム回復';
+        const desc = `ターン終了時 HP +${cr.value}`;
+        const cardText = `自分のターン終了時にHPが${cr.value}回復する。`;
+        return { label, desc, cardText, abilityType: 'regen', abilityValue: cr.value, abilityTargets: null, sourceName: '' };
+      }
+      if (c.abilityId === CW_CUSTOM_BUDGET_ID) {
+        const cb = cwNormalizeCustomBudget(c.customBudget);
+        const label = 'カスタム予算';
+        const desc = `毎ターンの予算が+${cb.value}（計${3 + cb.value}pt）`;
+        const cardText = `毎ターンの予算が+${cb.value}（計${3 + cb.value}pt）。`;
+        return { label, desc, cardText, abilityType: 'extra_budget', abilityValue: cb.value, abilityTargets: null, sourceName: '' };
       }
       const preset = cwPresetById(c.abilityId);
       if (preset) return { label: preset.label, desc: preset.desc, cardText: preset.cardText, abilityType: preset.abilityType, abilityValue: preset.abilityValue, abilityTargets: null, sourceName: preset.sourceName };
@@ -12323,7 +12466,15 @@
         if (!Array.isArray(cr.targets) || cr.targets.length < 1 || cr.targets.length > CW_CUSTOM_RESIST_MAX_TARGETS) return 'カスタム軽減の対象災害は1〜2件で選んでください';
         if (cr.targets.some(t => typeof t !== 'string' || !CW_CUSTOM_RESIST_TARGETS.includes(t))) return 'カスタム軽減の対象災害が不正です';
         if (new Set(cr.targets).size !== cr.targets.length) return 'カスタム軽減の対象災害に重複があります';
-        if (!CW_CUSTOM_RESIST_VALUES.includes(cr.value)) return 'カスタム軽減の軽減値が不正です（10・15・20のいずれかにしてください）';
+        if (!CW_CUSTOM_RESIST_VALUES.includes(cr.value)) return `カスタム軽減の軽減値が不正です（${CW_CUSTOM_RESIST_VALUES.join('・')}のいずれかにしてください）`;
+      } else if (obj.abilityId === CW_CUSTOM_REGEN_ID) {
+        const cr = obj.customRegen;
+        if (!cr || typeof cr !== 'object' || Array.isArray(cr)) return 'カスタム回復の設定が不正です';
+        if (!CW_CUSTOM_REGEN_VALUES.includes(cr.value)) return `カスタム回復の回復量が不正です（${CW_CUSTOM_REGEN_VALUES.join('・')}のいずれかにしてください）`;
+      } else if (obj.abilityId === CW_CUSTOM_BUDGET_ID) {
+        const cb = obj.customBudget;
+        if (!cb || typeof cb !== 'object' || Array.isArray(cb)) return 'カスタム予算の設定が不正です';
+        if (!CW_CUSTOM_BUDGET_VALUES.includes(cb.value)) return `カスタム予算の増加量が不正です（${CW_CUSTOM_BUDGET_VALUES.join('・')}のいずれかにしてください）`;
       } else if (!CW_PRESET_DEFS.some(p => p.srcId === obj.abilityId)) {
         return '都市能力の値が不正です';
       }
@@ -12345,9 +12496,15 @@
     function cwSetAbility(id) {
       if (!CW) return;
       CW.abilityId = id;
-      // カスタム軽減へ切り替えた初回は既定値（未選択・−15）を用意する。既に選んだことがある場合はその設定を保持する。
+      // カスタムの各能力へ切り替えた初回は既定値を用意する。既に選んだことがある場合はその設定を保持する。
       if (id === CW_CUSTOM_RESIST_ID && (!CW.customResist || typeof CW.customResist !== 'object')) {
         CW.customResist = { targets: [], value: 15 };
+      }
+      if (id === CW_CUSTOM_REGEN_ID && (!CW.customRegen || typeof CW.customRegen !== 'object')) {
+        CW.customRegen = { value: CW_CUSTOM_REGEN_VALUES[0] };
+      }
+      if (id === CW_CUSTOM_BUDGET_ID && (!CW.customBudget || typeof CW.customBudget !== 'object')) {
+        CW.customBudget = { value: CW_CUSTOM_BUDGET_VALUES[0] };
       }
       render();
     }
@@ -12379,9 +12536,31 @@
       if (label) label.textContent = '−' + val;
       cwUpdatePreviewDom();
     }
+    // カスタム回復：回復量スライダー（5/10/15の3値）。カスタム軽減のスライダーと同じ部分更新パターンを踏襲する。
+    function cwSetCustomRegenValue(v) {
+      if (!CW) return;
+      const val = parseInt(v, 10);
+      if (!CW_CUSTOM_REGEN_VALUES.includes(val)) return;
+      if (!CW.customRegen || typeof CW.customRegen !== 'object') CW.customRegen = { value: val };
+      else CW.customRegen.value = val;
+      const label = document.getElementById('cw-regen-val-label');
+      if (label) label.textContent = '+' + val;
+      cwUpdatePreviewDom();
+    }
+    // カスタム予算：予算増加量スライダー（1/2の2値）。同上のパターンを踏襲する。
+    function cwSetCustomBudgetValue(v) {
+      if (!CW) return;
+      const val = parseInt(v, 10);
+      if (!CW_CUSTOM_BUDGET_VALUES.includes(val)) return;
+      if (!CW.customBudget || typeof CW.customBudget !== 'object') CW.customBudget = { value: val };
+      else CW.customBudget.value = val;
+      const label = document.getElementById('cw-budget-val-label');
+      if (label) label.textContent = '+' + val;
+      cwUpdatePreviewDom();
+    }
 
     // ── 入力中のドラフト（保存前）を1つのオブジェクトにまとめる ──
-    function cwCurrentDraftCard() { return CW ? { name: CW.name, terrain: CW.terrain, abilityId: CW.abilityId, flavor: CW.flavor, art: CW.art, customResist: CW.customResist } : {}; }
+    function cwCurrentDraftCard() { return CW ? { name: CW.name, terrain: CW.terrain, abilityId: CW.abilityId, flavor: CW.flavor, art: CW.art, customResist: CW.customResist, customRegen: CW.customRegen, customBudget: CW.customBudget } : {}; }
 
     // ══════════════════════════════════════════════════════════════════
     // エディタのライブプレビューをv2合成（cwComposeCardCanvas）に切り替え（TASKS.md該当タスク②）。
@@ -12475,10 +12654,14 @@
       if (!CW) return;
       const draft = { id: 'custom_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), name: (CW.name || '').trim(), terrain: CW.terrain, abilityId: CW.abilityId, flavor: (CW.flavor || '').trim(), art: CW.art, custom: true };
       if (CW.abilityId === CW_CUSTOM_RESIST_ID) draft.customResist = CW.customResist;
+      if (CW.abilityId === CW_CUSTOM_REGEN_ID) draft.customRegen = CW.customRegen;
+      if (CW.abilityId === CW_CUSTOM_BUDGET_ID) draft.customBudget = CW.customBudget;
       const err = cwValidateCard(draft);
       if (err) { CW.error = err; render(); return; }
       draft.art = cwNormalizeArt(draft.art);
       if (draft.abilityId === CW_CUSTOM_RESIST_ID) draft.customResist = cwNormalizeCustomResist(draft.customResist);
+      if (draft.abilityId === CW_CUSTOM_REGEN_ID) draft.customRegen = cwNormalizeCustomRegen(draft.customRegen);
+      if (draft.abilityId === CW_CUSTOM_BUDGET_ID) draft.customBudget = cwNormalizeCustomBudget(draft.customBudget);
       const arr = cwLoadAll();
       if (arr.length >= CW_MAX_CARDS) { CW.error = `保存できるカードは最大${CW_MAX_CARDS}枚です。一覧から削除してから保存してください。`; render(); return; }
       arr.push(draft); cwSaveAll(arr);
@@ -12614,6 +12797,8 @@
         const exportArt = art.type === 'photo' ? { type: 'gen' } : art;
         const payload = { name: card.name, terrain: card.terrain, abilityId: card.abilityId, flavor: card.flavor || '', art: exportArt };
         if (card.abilityId === CW_CUSTOM_RESIST_ID) payload.customResist = cwNormalizeCustomResist(card.customResist);
+        if (card.abilityId === CW_CUSTOM_REGEN_ID) payload.customRegen = cwNormalizeCustomRegen(card.customRegen);
+        if (card.abilityId === CW_CUSTOM_BUDGET_ID) payload.customBudget = cwNormalizeCustomBudget(card.customBudget);
         return btoa(encodeURIComponent(JSON.stringify(payload)));
       } catch (e) { return ''; }
     }
@@ -12656,12 +12841,18 @@
         flavor: typeof obj.flavor === 'string' ? obj.flavor : '',
         art: obj.art, custom: true,
         customResist: obj.customResist,
+        customRegen: obj.customRegen,
+        customBudget: obj.customBudget,
       };
       const err = cwValidateCard(draft);
       if (err) { CW.importError = err; render(); return; }
       draft.art = cwNormalizeArt(draft.art);
       if (draft.abilityId === CW_CUSTOM_RESIST_ID) draft.customResist = cwNormalizeCustomResist(draft.customResist);
       else delete draft.customResist;
+      if (draft.abilityId === CW_CUSTOM_REGEN_ID) draft.customRegen = cwNormalizeCustomRegen(draft.customRegen);
+      else delete draft.customRegen;
+      if (draft.abilityId === CW_CUSTOM_BUDGET_ID) draft.customBudget = cwNormalizeCustomBudget(draft.customBudget);
+      else delete draft.customBudget;
       const arr = cwLoadAll();
       if (arr.length >= CW_MAX_CARDS) { CW.importError = `保存できるカードは最大${CW_MAX_CARDS}枚です。一覧から削除してから読み込んでください。`; render(); return; }
       arr.push(draft); cwSaveAll(arr);
@@ -13518,7 +13709,7 @@
             ${flipCard}
             <div style="flex:1;min-width:0">
               <div style="font-weight:800;color:#fff;font-size:.9rem">${_escHtml(c.name)}</div>
-              <div style="font-size:.7rem;color:var(--t2,#8b949e);margin-top:2px">${t.label}・${_escHtml(info.label)}${c.abilityId === CW_CUSTOM_RESIST_ID ? `（${_escHtml(info.desc)}）` : ''}</div>
+              <div style="font-size:.7rem;color:var(--t2,#8b949e);margin-top:2px">${t.label}・${_escHtml(info.label)}${[CW_CUSTOM_RESIST_ID, CW_CUSTOM_REGEN_ID, CW_CUSTOM_BUDGET_ID].includes(c.abilityId) ? `（${_escHtml(info.desc)}）` : ''}</div>
               ${c.flavor ? `<div style="font-size:.68rem;color:var(--t3,#8b949e);margin-top:2px;font-style:italic">${_escHtml(c.flavor)}</div>` : ''}
               ${artNote}
               ${recNote}
@@ -13550,28 +13741,61 @@
         ${delOverlay}
       </div>`;
     }
-    // カスタム軽減：災害チップ（最大2つ）＋軽減値3択のUI。CW.abilityId==='custom_resist'の時だけcwRenderEditorから呼ばれる。
+    // カスタム軽減：災害チップ（自然7種＋人為3種の計10種から最大2つ）＋軽減値7択のUI。CW.abilityId==='custom_resist'の時だけcwRenderEditorから呼ばれる。
+    // 自然災害チップは軽減値ぶんダメージを軽減、人為災害チップは軽減値を使わず「効果を無効化する」（軽減値スライダーは自然災害選択時のみ意味を持つ）。
     function cwRenderCustomResistSection() {
       const cr = cwNormalizeCustomResist(CW.customResist);
-      const chipHtml = CW_CUSTOM_RESIST_TARGETS.map(id => {
+      const mkChip = id => {
         const sel = cr.targets.includes(id);
         const label = cwCustomResistTargetLabel(id);
         return `<button type="button" onclick="cwToggleCustomResistTarget('${id}')" style="padding:6px 12px;border-radius:16px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.16)' : 'transparent'};color:#fff;font-size:.74rem;cursor:pointer;margin:0 6px 6px 0">${_escHtml(label)}</button>`;
-      }).join('');
+      };
+      const naturalChips = CW_CUSTOM_RESIST_NATURAL_TARGETS.map(mkChip).join('');
+      const jinzaiChips = CW_CUSTOM_RESIST_JINZAI_TARGETS.map(mkChip).join('');
       // 軽減値：協力モードの都市HPスライダー（coopRenderMPLobby内）と同一の意匠（アイコン行＋値ラベル＋range＋目盛り）を流用。
-      // min/max/stepで見た目上は連続スライダーだが、step=5により選べる値は従来どおり10/15/20の3値のみに保たれる
+      // min10/max40/step5＝選べる値は10/15/20/25/30/35/40の7値（ユーザー指示によりガードレール撤廃で拡大）。
       // （cwValidateCard・共有コードの検証は無変更。cwSetCustomResistValue側でもCW_CUSTOM_RESIST_VALUES.includesで再検証する）。
       const sliderTicks = CW_CUSTOM_RESIST_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(255,255,255,.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
-      const targetErr = `<div style="font-size:.66rem;color:#d29922;margin:2px 0 6px;visibility:${cr.targets.length === 0 ? 'visible' : 'hidden'}">軽減する災害を1〜2つ選んでください</div>`;
+      const targetErr = `<div style="font-size:.66rem;color:#d29922;margin:2px 0 6px;visibility:${cr.targets.length === 0 ? 'visible' : 'hidden'}">軽減・無効化する災害を1〜2つ選んでください</div>`;
+      const hasNatural = cr.targets.some(t => CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(t));
       return `<div style="margin:2px 0 10px;padding:10px;border:1px dashed rgba(255,255,255,.2);border-radius:10px">
-        <div style="font-size:.72rem;color:var(--t2,#8b949e);margin-bottom:6px">軽減する災害（最大2つ・タップで選択/解除）</div>
-        <div style="display:flex;flex-wrap:wrap">${chipHtml}</div>
+        <div style="font-size:.72rem;color:var(--t2,#8b949e);margin-bottom:6px">対象は最大2つ（タップで選択/解除）</div>
+        <div style="font-size:.66rem;color:var(--t3,#8b949e);margin-bottom:4px">自然災害（ダメージを軽減）</div>
+        <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${naturalChips}</div>
+        <div style="font-size:.66rem;color:var(--t3,#8b949e);margin-bottom:4px">人為災害（効果を無効化）</div>
+        <div style="display:flex;flex-wrap:wrap">${jinzaiChips}</div>
         ${targetErr}
         <div style="display:flex;align-items:center;gap:6px;margin:8px 0 6px">
-          <span style="font-size:.72rem;color:var(--t2,#8b949e)">軽減値</span>
+          <span style="font-size:.72rem;color:var(--t2,#8b949e)">軽減値${hasNatural ? '' : '（自然災害を選ぶと適用）'}</span>
           <span id="cw-resist-val-label" style="color:#388bfd;font-weight:700;font-size:.84rem">−${cr.value}</span>
         </div>
-        <input type="range" min="10" max="20" step="5" value="${cr.value}" style="width:100%;accent-color:#388bfd" oninput="cwSetCustomResistValue(this.value)">
+        <input type="range" min="10" max="40" step="5" value="${cr.value}" style="width:100%;accent-color:#388bfd" oninput="cwSetCustomResistValue(this.value)">
+        <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
+      </div>`;
+    }
+    // カスタム回復：ターン終了時HP回復量スライダー（5/10/15の3値）のUI。CW.abilityId==='custom_regen'の時だけcwRenderEditorから呼ばれる。
+    function cwRenderCustomRegenSection() {
+      const cr = cwNormalizeCustomRegen(CW.customRegen);
+      const sliderTicks = CW_CUSTOM_REGEN_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(255,255,255,.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
+      return `<div style="margin:2px 0 10px;padding:10px;border:1px dashed rgba(255,255,255,.2);border-radius:10px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="font-size:.72rem;color:var(--t2,#8b949e)">ターン終了時のHP回復量</span>
+          <span id="cw-regen-val-label" style="color:#3fb950;font-weight:700;font-size:.84rem">+${cr.value}</span>
+        </div>
+        <input type="range" min="5" max="15" step="5" value="${cr.value}" style="width:100%;accent-color:#3fb950" oninput="cwSetCustomRegenValue(this.value)">
+        <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
+      </div>`;
+    }
+    // カスタム予算：毎ターン予算増加量スライダー（1/2の2値）のUI。CW.abilityId==='custom_budget'の時だけcwRenderEditorから呼ばれる。
+    function cwRenderCustomBudgetSection() {
+      const cb = cwNormalizeCustomBudget(CW.customBudget);
+      const sliderTicks = CW_CUSTOM_BUDGET_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(255,255,255,.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
+      return `<div style="margin:2px 0 10px;padding:10px;border:1px dashed rgba(255,255,255,.2);border-radius:10px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="font-size:.72rem;color:var(--t2,#8b949e)">毎ターンの予算増加量</span>
+          <span id="cw-budget-val-label" style="color:#d29922;font-weight:700;font-size:.84rem">+${cb.value}</span>
+        </div>
+        <input type="range" min="1" max="2" step="1" value="${cb.value}" style="width:100%;accent-color:#d29922" oninput="cwSetCustomBudgetValue(this.value)">
         <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
       </div>`;
     }
@@ -13586,8 +13810,13 @@
         const sel = CW.abilityId === p.id;
         return `<button onclick="cwSetAbility('${p.id}')" style="width:100%;text-align:left;display:block;padding:8px 10px;border-radius:8px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.14)' : 'transparent'};color:#fff;margin-bottom:6px;cursor:pointer"><div style="font-weight:700;font-size:.82rem">${_escHtml(p.label)}</div><div style="font-size:.68rem;color:var(--t2,#8b949e);margin-top:2px">${_escHtml(p.desc || '')}（${_escHtml(p.sourceName || '')}の能力を借用）</div></button>`;
       }).join('') + (() => {
-        const sel = CW.abilityId === CW_CUSTOM_RESIST_ID;
-        return `<button onclick="cwSetAbility('${CW_CUSTOM_RESIST_ID}')" style="width:100%;text-align:left;display:block;padding:8px 10px;border-radius:8px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.14)' : 'transparent'};color:#fff;margin-bottom:6px;cursor:pointer"><div style="font-weight:700;font-size:.82rem">カスタム軽減</div><div style="font-size:.68rem;color:var(--t2,#8b949e);margin-top:2px">軽減する災害と軽減値を自分で選べます</div></button>`;
+        const mkCustomTile = (id, label, desc) => {
+          const sel = CW.abilityId === id;
+          return `<button onclick="cwSetAbility('${id}')" style="width:100%;text-align:left;display:block;padding:8px 10px;border-radius:8px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.14)' : 'transparent'};color:#fff;margin-bottom:6px;cursor:pointer"><div style="font-weight:700;font-size:.82rem">${_escHtml(label)}</div><div style="font-size:.68rem;color:var(--t2,#8b949e);margin-top:2px">${_escHtml(desc)}</div></button>`;
+        };
+        return mkCustomTile(CW_CUSTOM_RESIST_ID, 'カスタム軽減', '軽減・無効化する災害と軽減値を自分で選べます')
+          + mkCustomTile(CW_CUSTOM_REGEN_ID, 'カスタム回復', 'ターン終了時のHP回復量を自分で選べます（大阪の能力を借用）')
+          + mkCustomTile(CW_CUSTOM_BUDGET_ID, 'カスタム予算', '毎ターンの予算増加量を自分で選べます（神戸の能力を借用）');
       })();
       const capMsg = atCap ? `<div style="text-align:center;color:#d29922;font-size:.72rem;margin:6px 0">保存済みカードが上限（${CW_MAX_CARDS}枚）に達しています。一覧から削除してから保存してください。</div>` : '';
       const errMsg = CW.error ? `<div style="text-align:center;color:#f85149;font-size:.76rem;margin:6px 0;font-weight:700">${_escHtml(CW.error)}</div>` : '';
@@ -13604,6 +13833,8 @@
         <label class="lobby-label">都市能力（プリセットまたはカスタムから1つ選択）</label>
         <div style="margin-bottom:8px">${abilityBtns}</div>
         ${CW.abilityId === CW_CUSTOM_RESIST_ID ? cwRenderCustomResistSection() : ''}
+        ${CW.abilityId === CW_CUSTOM_REGEN_ID ? cwRenderCustomRegenSection() : ''}
+        ${CW.abilityId === CW_CUSTOM_BUDGET_ID ? cwRenderCustomBudgetSection() : ''}
         <label class="lobby-label">防災コンセプト（フレーバー・最大40文字・任意）</label>
         <textarea maxlength="40" rows="2" class="lobby-input" style="resize:none" placeholder="例: 水と共に生きるまち" oninput="CW.flavor=this.value.slice(0,40);cwUpdatePreviewDom()">${_escHtml(CW.flavor)}</textarea>
         ${errMsg}${capMsg}
@@ -13724,12 +13955,86 @@
       else if (e.disasterIds.length < PZ_MAX_DISASTERS) e.disasterIds.push(id);
       render();
     }
-    function pzEditorMoveDisaster(idx, delta) {
-      if (!PZ || !PZ.editor) return;
-      const arr = PZ.editor.disasterIds; const j = idx + delta;
-      if (j < 0 || j >= arr.length) return;
-      const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
-      render();
+    // ══════════════════════════════════════════════════════════════════
+    // 来襲災害の並べ替え：Notion風の長押しドラッグ（pointerイベント）。旧▲▼ボタン（pzEditorMoveDisaster）は廃止。
+    // ・長押し（約450ms）で移動モードに入る。判定前（タイマー待ち中）はtouch-actionを一切制限しないため、
+    //   指がPZ_DRAG_CANCEL_PXを超えて動いた時点でスクロール操作とみなしタイマーをキャンセルする
+    //   （＝ページスクロールと競合しない。preventDefaultも呼ばないため通常のタッチスクロールがそのまま機能する）。
+    // ・移動モードに入った瞬間だけtouch-actionを'none'に切り替える（この時点では指がまだ静止しておりネイティブの
+    //   スクロールジェスチャは開始していないため、以降のドラッグ操作を横取りできる）。持ち上がる視覚効果
+    //   （scale+shadow）を掛け、setPointerCaptureで以降のpointermove/upを同じ行要素に固定して受け取る。
+    // ・ドラッグ中は対象行にtransform: translateYを直接適用し、他の行も対象の通過に応じてtransformで押し出す
+    //   （render()は一切呼ばない）。指を離した時（pointerup/cancel）にのみ最終順序をPZ.editor.disasterIdsへ反映し、
+    //   その1回だけrender()する（カード工房で学んだレイアウト安定の教訓を踏襲）。
+    // ══════════════════════════════════════════════════════════════════
+    let _pzDrag = null;
+    const PZ_DRAG_HOLD_MS = 450;
+    const PZ_DRAG_CANCEL_PX = 10;
+    function pzDragPointerDown(e, idx) {
+      if (_pzDrag) return; // 二重開始防止
+      const row = e.currentTarget;
+      try { row.setPointerCapture(e.pointerId); } catch (err) { /* 非対応環境は無視（フォールバックはタップのみ） */ }
+      const st = { idx, pointerId: e.pointerId, row, startY: e.clientY, active: false, timer: null };
+      st.timer = setTimeout(() => pzDragActivate(st), PZ_DRAG_HOLD_MS);
+      _pzDrag = st;
+    }
+    function pzDragActivate(st) {
+      if (_pzDrag !== st || !PZ || !PZ.editor) return;
+      st.active = true;
+      const container = st.row.parentElement;
+      st.rows = container ? Array.from(container.querySelectorAll('.pz-disaster-row')) : [st.row];
+      st.original = PZ.editor.disasterIds.slice();
+      const rect = st.row.getBoundingClientRect();
+      const cs = getComputedStyle(st.row);
+      st.rowH = rect.height + parseFloat(cs.marginBottom || '0');
+      st.curSlot = st.idx;
+      st.row.style.touchAction = 'none';
+      st.row.style.transition = 'none';
+      st.row.style.zIndex = '50';
+      st.row.style.boxShadow = '0 10px 24px rgba(0,0,0,.5)';
+      st.row.style.borderColor = '#f85149';
+      st.rows.forEach(r => { if (r !== st.row) r.style.transition = 'transform .15s ease'; });
+    }
+    function pzDragPointerMove(e) {
+      const st = _pzDrag; if (!st || e.pointerId !== st.pointerId) return;
+      if (!st.active) {
+        if (Math.abs(e.clientY - st.startY) > PZ_DRAG_CANCEL_PX) { clearTimeout(st.timer); _pzDrag = null; } // スクロール操作とみなしキャンセル
+        return;
+      }
+      e.preventDefault();
+      const dy = e.clientY - st.startY;
+      st.row.style.transform = `translateY(${dy}px) scale(1.03)`;
+      const rawSlot = st.idx + Math.round(dy / st.rowH);
+      const targetSlot = Math.max(0, Math.min(st.original.length - 1, rawSlot));
+      st.curSlot = targetSlot;
+      st.rows.forEach((r, j) => {
+        if (j === st.idx) return;
+        let shift = 0;
+        if (targetSlot > st.idx && j > st.idx && j <= targetSlot) shift = -1;
+        else if (targetSlot < st.idx && j >= targetSlot && j < st.idx) shift = 1;
+        r.style.transform = shift ? `translateY(${shift * st.rowH}px)` : '';
+      });
+    }
+    function pzDragPointerUp(e) {
+      const st = _pzDrag; if (!st || e.pointerId !== st.pointerId) return;
+      _pzDrag = null;
+      clearTimeout(st.timer);
+      if (!st.active || !PZ || !PZ.editor) return; // 長押し未成立＝通常のタップ／スクロール。何もしない
+      const id = st.original[st.idx];
+      const rest = st.original.filter((_, i) => i !== st.idx);
+      const newOrder = rest.slice(0, st.curSlot).concat([id], rest.slice(st.curSlot));
+      PZ.editor.disasterIds = newOrder;
+      render(); // 確定時のみrender()（ドラッグ中は一切呼んでいない）
+    }
+    // 手札の「外す」アイコン（負符号を丸で囲んだSVG。絵文字は使わない）
+    function _pzIcoRemoveCircle(size, col) {
+      const s = size || 14; const c = col || '#f85149';
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
+    }
+    // 並べ替えの掴み手がかり（グリップ）アイコン
+    function _pzIcoDragHandle(size, col) {
+      const s = size || 16; const c = col || 'currentColor';
+      return `<svg viewBox="0 0 24 24" fill="${c}" style="width:${s}px;height:${s}px;flex-shrink:0"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`;
     }
     function pzEditorAddHandCard(id) {
       if (!PZ || !PZ.editor) return;
@@ -13740,7 +14045,14 @@
       render();
     }
     function pzEditorRemoveHandCard(idx) { if (!PZ || !PZ.editor) return; PZ.editor.handIds.splice(idx, 1); render(); }
-    function pzEditorSetBudget(n) { if (!PZ || !PZ.editor) return; PZ.editor.budget = n; render(); }
+    // 予算スライダー：カード工房カスタム軽減のスライダーと同じ部分更新パターン。ドラッグ中（input）はラベルのみ
+    // 直接更新してrender()を呼ばず、指を離した時（change）にpzEditorSetBudgetで確定して検品パネルを再計算する
+    // （柱2実測どおり全探索は1.5ms程度で軽量だが、input毎のrender()はスクロール位置を壊すため避ける）。
+    function pzSetBudgetDraft(v) {
+      const label = document.getElementById('pz-budget-val-label');
+      if (label) label.textContent = v;
+    }
+    function pzEditorSetBudget(n) { if (!PZ || !PZ.editor) return; PZ.editor.budget = parseInt(n, 10); render(); }
 
     function pzEditorScenario() {
       const e = PZ.editor;
@@ -13749,12 +14061,16 @@
       const hand = pzBuildHandFromIds(e.handIds);
       return { city, disasters, hand, budget: e.budget };
     }
-    // ── 作者向け検品パネル：柱2の検品関数（dailyComputeOptimal・ddCheckUniqueSolution・ddComputeCleverness）を
-    //    そのまま流用してリアルタイム表示する。設計意図：出題者が解を理解し調整する過程そのものが学習になる。 ──
+    // ── 問題推定スコア（旧「作者向け検品パネル」。ユーザー向け文言として改名）：柱2の検品関数
+    //    （dailyComputeOptimal・ddCheckUniqueSolution・ddComputeCleverness）はそのまま流用し、表示層のみを刷新した。
+    //    計算ロジックは無改変。設計意図：出題者が解を理解し調整する過程そのものが学習になる。
+    //    「貪欲bot」という内部実装名はユーザー向け文言からは排除し「定石どおりに打った場合との被害差」と言い換える
+    //    （ddComputeCleverness等の関数名・コード内コメントは変更しない）。 ──
+    const PZ_CLEVER_GAUGE_MAX = 30; // 妙手度ゲージの目安上限（実測上ほとんどの問題がこの範囲に収まる。数値自体は併記するため超過しても情報は失われない）
     function pzRenderInspectionPanel() {
       const e = PZ.editor;
       if (!e.disasterIds.length || !e.handIds.length) {
-        return `<div style="text-align:center;color:var(--t3,#8b949e);font-size:.74rem;padding:12px;border:1px dashed rgba(255,255,255,.15);border-radius:10px;margin:10px 0">災害を1枚以上・手札を1枚以上選ぶと検品結果（理論値・唯一解・妙手度）が表示されます</div>`;
+        return `<div style="text-align:center;color:var(--t3,#8b949e);font-size:.74rem;padding:12px;border:1px dashed rgba(255,255,255,.15);border-radius:10px;margin:10px 0">災害を1枚以上・手札を1枚以上選ぶと問題推定スコア（理論値・唯一解・妙手度）が表示されます</div>`;
       }
       const scenario = pzEditorScenario();
       const optimal = dailyComputeOptimal(scenario);
@@ -13767,10 +14083,34 @@
         ? `<span style="display:inline-flex;align-items:center;font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:9px;background:rgba(63,185,80,.15);color:#3fb950;border:1px solid rgba(63,185,80,.3)">唯一解</span>`
         : `<span style="display:inline-flex;align-items:center;font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:9px;background:rgba(248,81,73,.12);color:#f85149;border:1px solid rgba(248,81,73,.3)">複数の最適解あり</span>`;
       const dullWarn = dull ? `<div style="font-size:.7rem;color:#d29922;margin-top:6px">${coopIcoWarnTriangle(13, '#d29922')} 凡問の可能性があります（工夫の余地が少ない構成です）。保存は可能です。</div>` : '';
+      // 理論値バー：「無策の被害」を全長（100%）とし、そのうち理論値（最善プレイでも避けられない被害）が占める割合を
+      // マーカーで示す。マーカーより右側＝工夫（政策カードの使い方）で防げる被害の幅。
+      const markerPct = noAction > 0 ? Math.max(0, Math.min(100, (optimal.best / noAction) * 100)) : 0;
+      const theoryBar = `<div style="margin:8px 0 4px">
+        <div style="display:flex;justify-content:space-between;font-size:.66rem;color:var(--t2,#8b949e);margin-bottom:4px">
+          <span>理論値で防げる被害</span>
+          <span>無策${noAction} → 理論値<strong style="color:#e3c34d">${optimal.best}</strong></span>
+        </div>
+        <div style="position:relative;height:10px;border-radius:5px;background:rgba(248,81,73,.32)">
+          <div style="position:absolute;left:${markerPct}%;top:0;bottom:0;right:0;border-radius:0 5px 5px 0;background:rgba(63,185,80,.55)"></div>
+          <div style="position:absolute;left:${markerPct}%;top:-3px;bottom:-3px;width:2px;background:#e3c34d;transform:translateX(-1px)"></div>
+        </div>
+      </div>`;
+      // 妙手度ゲージ：定石どおりに打った場合（内部実装は貪欲bot。ユーザー向けにはこう言い換える）との被害差を可視化する。
+      const cleverPct = Math.max(0, Math.min(100, (cleverness / PZ_CLEVER_GAUGE_MAX) * 100));
+      const cleverGauge = `<div style="margin:8px 0 4px">
+        <div style="display:flex;justify-content:space-between;font-size:.66rem;color:var(--t2,#8b949e);margin-bottom:4px">
+          <span>妙手度スコア（定石どおりに打った場合との被害差）</span>
+          <span style="color:#fff;font-weight:700">${cleverness}</span>
+        </div>
+        <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden">
+          <div style="height:100%;width:${cleverPct}%;border-radius:4px;background:linear-gradient(90deg,#388bfd,#3fb950)"></div>
+        </div>
+      </div>`;
       return `<div style="background:rgba(56,139,253,.08);border:1px solid #388bfd;border-radius:10px;padding:10px;margin:10px 0">
-        <div style="font-weight:800;color:#fff;font-size:.82rem;margin-bottom:6px">作者向け検品パネル</div>
-        <div style="font-size:.78rem;color:#fff;margin-bottom:4px">理論値（最少被害）：<strong style="color:#e3c34d">${optimal.best}</strong></div>
-        <div style="font-size:.78rem;color:#fff;margin-bottom:4px">妙手度スコア：<strong>${cleverness}</strong>（貪欲botとの被害差。無策の被害は${noAction}）</div>
+        <div style="font-weight:800;color:#fff;font-size:.82rem;margin-bottom:6px">問題推定スコア</div>
+        ${theoryBar}
+        ${cleverGauge}
         <div>${uniqueChip}</div>
         ${dullWarn}
       </div>`;
@@ -14083,31 +14423,39 @@
         const disabled = !sel && e.disasterIds.length >= PZ_MAX_DISASTERS;
         return `<button ${disabled ? 'disabled' : ''} onclick="pzEditorToggleDisaster('${d.id}')" style="padding:6px 10px;border-radius:8px;border:1.5px solid ${sel ? '#f85149' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(248,81,73,.14)' : 'transparent'};color:${disabled ? 'rgba(255,255,255,.3)' : '#fff'};font-size:.72rem;font-weight:700;cursor:${disabled ? 'default' : 'pointer'};white-space:nowrap">${_escHtml(d.name)}</button>`;
       }).join('');
+      // 来襲災害の並び順：Notion風の長押しドラッグ（pzDragPointerDown/Move/Up）。行全体がドラッグ面（旧▲▼ボタンは廃止）。
+      // touch-action:pan-yを初期値にして通常のページスクロールを妨げず、長押し確定後にJS側でnoneへ切り替える。
       const disasterOrderRows = e.disasterIds.map((id, i) => {
         const d = DISASTER_CARDS.find(x => x.id === id);
-        return `<div style="display:flex;align-items:center;gap:8px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:8px;padding:6px 8px;margin-bottom:6px">
+        return `<div class="pz-disaster-row" data-idx="${i}" onpointerdown="pzDragPointerDown(event,${i})" onpointermove="pzDragPointerMove(event)" onpointerup="pzDragPointerUp(event)" onpointercancel="pzDragPointerUp(event)" style="display:flex;align-items:center;gap:8px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:8px;padding:6px 8px;margin-bottom:6px;touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:grab">
           <span style="width:20px;height:20px;border-radius:50%;background:rgba(248,81,73,.2);color:#f85149;font-size:.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i + 1}</span>
           <span style="flex:1;color:#fff;font-size:.78rem">${_escHtml(d ? d.name : id)}</span>
-          <button onclick="pzEditorMoveDisaster(${i},-1)" ${i === 0 ? 'disabled' : ''} style="padding:2px 8px;border-radius:6px;border:1px solid var(--bg3,#30363d);background:transparent;color:${i === 0 ? 'rgba(255,255,255,.25)' : '#fff'};cursor:${i === 0 ? 'default' : 'pointer'}">↑</button>
-          <button onclick="pzEditorMoveDisaster(${i},1)" ${i === e.disasterIds.length - 1 ? 'disabled' : ''} style="padding:2px 8px;border-radius:6px;border:1px solid var(--bg3,#30363d);background:transparent;color:${i === e.disasterIds.length - 1 ? 'rgba(255,255,255,.25)' : '#fff'};cursor:${i === e.disasterIds.length - 1 ? 'default' : 'pointer'}">↓</button>
+          <span style="color:var(--t3,#8b949e);display:flex;align-items:center;flex-shrink:0">${_pzIcoDragHandle(16)}</span>
         </div>`;
       }).join('') || `<div style="text-align:center;color:var(--t3,#8b949e);font-size:.72rem;padding:6px 0">未選択（上のボタンから1〜3枚選んでください）</div>`;
+      const disasterOrderHint = e.disasterIds.length > 1 ? `<div style="text-align:center;color:var(--t3,#8b949e);font-size:.66rem;margin:-2px 0 6px">行を長押しするとドラッグで並べ替えられます</div>` : '';
       const handPickBtns = POLICY_CARDS.map(c => {
         const countInHand = e.handIds.filter(id => id === c.id).length;
         const disabled = e.handIds.length >= PZ_MAX_HAND || countInHand >= PZ_HAND_SAME_ID_MAX;
         return `<button ${disabled ? 'disabled' : ''} onclick="pzEditorAddHandCard('${c.id}')" style="padding:6px 10px;border-radius:8px;border:1.5px solid ${countInHand > 0 ? '#3fb950' : 'var(--bg3,#30363d)'};background:${countInHand > 0 ? 'rgba(63,185,80,.14)' : 'transparent'};color:${disabled ? 'rgba(255,255,255,.3)' : '#fff'};font-size:.72rem;font-weight:700;cursor:${disabled ? 'default' : 'pointer'};white-space:nowrap">${_escHtml(c.name)}${countInHand ? `×${countInHand}` : ''}</button>`;
       }).join('');
+      // 手札の「外す」：負符号を丸で囲んだSVGアイコンに置換（絵文字は使わない。色は既存の赤トーンを維持）
       const handRows = e.handIds.map((id, i) => {
         const c = POLICY_CARDS.find(x => x.id === id);
         return `<div style="display:flex;align-items:center;gap:8px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:8px;padding:6px 8px;margin-bottom:6px">
           <span style="flex:1;color:#fff;font-size:.78rem">${_escHtml(c ? c.name : id)}</span>
-          <button onclick="pzEditorRemoveHandCard(${i})" style="padding:2px 10px;border-radius:6px;border:1px solid #f85149;background:transparent;color:#f85149;font-size:.68rem;cursor:pointer">外す</button>
+          <button onclick="pzEditorRemoveHandCard(${i})" aria-label="外す" style="padding:4px 8px;border-radius:6px;border:1px solid #f85149;background:transparent;color:#f85149;cursor:pointer;display:flex;align-items:center">${_pzIcoRemoveCircle(14, '#f85149')}</button>
         </div>`;
       }).join('') || `<div style="text-align:center;color:var(--t3,#8b949e);font-size:.72rem;padding:6px 0">未選択（上のボタンから最大${PZ_MAX_HAND}枚選んでください。同じカードは${PZ_HAND_SAME_ID_MAX}枚まで）</div>`;
-      const budgetBtns = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => {
-        const sel = e.budget === n;
-        return `<button onclick="pzEditorSetBudget(${n})" style="width:32px;height:32px;border-radius:8px;border:1.5px solid ${sel ? '#e3c34d' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(227,195,77,.18)' : 'transparent'};color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">${n}</button>`;
-      }).join('');
+      // 予算：カード工房カスタム軽減のスライダーと同じ意匠（アイコン行＋値ラベル＋range＋目盛り）。
+      // ドラッグ中（oninput）はラベルのみ更新しrender()せず、指を離した時（onchange）にpzEditorSetBudgetで確定する。
+      const budgetTicks = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(255,255,255,.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
+      const budgetSlider = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="font-size:.72rem;color:var(--t2,#8b949e)">予算</span>
+          <span id="pz-budget-val-label" style="color:#e3c34d;font-weight:700;font-size:.84rem">${e.budget}</span>
+        </div>
+        <input type="range" min="${PZ_MIN_BUDGET}" max="${PZ_MAX_BUDGET}" step="1" value="${e.budget}" style="width:100%;accent-color:#e3c34d" oninput="pzSetBudgetDraft(this.value)" onchange="pzEditorSetBudget(this.value)">
+        <div style="display:flex;justify-content:space-between;margin-top:3px">${budgetTicks}</div>`;
       const errMsg = e.error ? `<div style="text-align:center;color:#f85149;font-size:.76rem;margin:6px 0;font-weight:700">${_escHtml(e.error)}</div>` : '';
       return `<div class="screen active" style="padding:18px;max-width:520px;margin:0 auto">
         <button class="gallery-btn-back" style="margin-bottom:10px" onclick="pzBackToList()">＜</button>
@@ -14116,14 +14464,15 @@
         <input type="text" class="lobby-input" maxlength="${PZ_TITLE_MAXLEN}" value="${_escHtml(e.title)}" placeholder="例: 初級・地震対策" oninput="PZ.editor.title=this.value.slice(0,${PZ_TITLE_MAXLEN})">
         <label class="lobby-label" style="margin-top:12px">都市（標準都市のみ・カスタム都市は対象外）</label>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${cityBtns}</div>
-        <label class="lobby-label" style="margin-top:12px">来襲災害（1〜${PZ_MAX_DISASTERS}枚。クリックで選択・並び順は下で入れ替え）</label>
+        <label class="lobby-label" style="margin-top:12px">来襲災害（1〜${PZ_MAX_DISASTERS}枚。クリックで選択・並び順は下でドラッグして入れ替え）</label>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${disasterPickBtns}</div>
         ${disasterOrderRows}
+        ${disasterOrderHint}
         <label class="lobby-label" style="margin-top:12px">手札（最大${PZ_MAX_HAND}枚・同じカードは${PZ_HAND_SAME_ID_MAX}枚まで）</label>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${handPickBtns}</div>
         ${handRows}
         <label class="lobby-label" style="margin-top:12px">予算</label>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${budgetBtns}</div>
+        <div style="margin-bottom:8px">${budgetSlider}</div>
         ${pzRenderInspectionPanel()}
         ${errMsg}
         <button class="btn-ho" style="margin-top:10px" onclick="pzSaveCurrent()">この問題を保存</button>
