@@ -1486,6 +1486,47 @@
       background: var(--green)
     }
 
+    /* ── コイン型pip（予算ゲージ）。カード選択中＝コスト確定前は点滅+減光で消費予告 ── */
+    @keyframes pip-pending-blink { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+    .pip-coin-pending { animation: pip-pending-blink 1s ease-in-out infinite }
+    @media (prefers-reduced-motion: reduce) {
+      .pip-coin-pending { animation: none; opacity: .55 }
+    }
+    .budget-pips-compact {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .budget-pips-compact-n {
+      font-size: .74rem;
+      font-weight: 700;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── 使用済みカード履歴チップ（相手ゾーン。320px幅対策で折返し＋横スクロール併用） ── */
+    .history-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 2px 0 4px;
+      max-height: 46px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .history-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--t2);
+      flex-shrink: 0;
+    }
+
     .status-bar .spacer {
       flex: 1
     }
@@ -2084,6 +2125,11 @@
     }
     .coop-shield-detail-row { display: flex; align-items: flex-start; gap: 5px; font-size: .66rem; color: #fff; line-height: 1.5; }
     .coop-shield-detail-row + .coop-shield-detail-row { margin-top: 3px; }
+
+    /* 協力：リーチ警告バッジ（HPバー右上に重ねる。シールドトグル行＝バー下部とは別レイヤーのためレイアウト競合なし） */
+    .coop-reach-warn { position:absolute; top:-6px; right:-6px; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#0d1117; border:1.5px solid #f85149; box-shadow:0 0 6px rgba(248,81,73,.55); animation: coop-reach-pulse 1.6s ease-in-out infinite; z-index:2 }
+    @keyframes coop-reach-pulse { 0%,100% { box-shadow:0 0 4px rgba(248,81,73,.4) } 50% { box-shadow:0 0 9px rgba(248,81,73,.85) } }
+    @media (prefers-reduced-motion: reduce) { .coop-reach-warn { animation: none } }
     .card-text-fallback { display:none }
     .card.img-fail .card-text-fallback { display:block }
     .card.img-fail .card-img-wrap { display:none }
@@ -2125,6 +2171,9 @@
     .rdp-item { font-size:.76rem; padding:3px 8px; border-radius:5px; font-weight:600 }
     .rdp-skip { background:rgba(248,81,73,.15); color:var(--red) }
     .rdp-special { background:rgba(227,179,65,.15); color:var(--yellow); border:1px solid rgba(227,179,65,.3) }
+    .rdp-shield { display:inline-flex; align-items:center; gap:3px; background:rgba(56,139,253,.15); color:var(--blue); border:1px solid rgba(56,139,253,.3) }
+    /* 協力：対応カードのbefore/afterプレビュー統一。1タップ目でプレビュー中のカードを枠強調（2タップ目で確定） */
+    .card.resp-previewing { box-shadow:0 0 0 2px var(--blue,#388bfd) inset, 0 0 10px rgba(56,139,253,.45) }
     .rdp-breakdown { font-size:.74rem; color:var(--t2); margin-top:3px; }
     .rdp-breakdown b { color:var(--red); font-weight:700; }
     .card-ineffective { opacity:.35; }
@@ -2285,6 +2334,9 @@
       z-index: 9000;
       user-select: none;
       font-variant-numeric: tabular-nums
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .float-dmg { animation: none; opacity: .95 }
     }
 
     /* ── ターン開始スプラッシュ ── */
@@ -4143,7 +4195,7 @@
         : `<div style="color:var(--t3);font-size:.82rem;padding:8px">手札なし</div>`;
 
       // ── ステータスバー・バッジ・アクションバー ──
-      const statusBar = (ts.step >= 2 && ts.step <= 5) ? `<div class="status-bar"><span class="turn-badge" style="color:#e6edf3">チュートリアル | あなたのターン</span><div class="budget-display"><span class="budget-label" style="color:#e6edf3">予算</span><div class="budget-pips">${Array(3).fill(0).map((_,i)=>`<div class="pip ${i<ts.budgetUsed?'used':'avail'}"></div>`).join('')}</div><span style="font-size:.8rem;font-weight:700;color:var(--green)">${budgetLeft}<span style="color:var(--t3);font-weight:400">/3</span></span></div></div>` : '';
+      const statusBar = (ts.step >= 2 && ts.step <= 5) ? `<div class="status-bar"><span class="turn-badge" style="color:#e6edf3">チュートリアル | あなたのターン</span><div class="budget-display"><span class="budget-label" style="color:#e6edf3">予算</span>${budgetPipsHtml(3, ts.budgetUsed, 0)}<span style="font-size:.8rem;font-weight:700;color:var(--green)">${budgetLeft}<span style="color:var(--t3);font-weight:400">/3</span></span></div></div>` : '';
       const shieldBadge = ts.shieldActive ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.25);border-radius:6px;padding:3px 8px;font-size:.72rem;color:var(--green);display:inline-block">${uiIcoShield(14,'var(--green)')} 堤防設置中 -25</div>` : '';
       const skipWarn = ts.skipWarning ? `<div style="background:rgba(210,153,34,.15);border:1px solid rgba(210,153,34,.3);border-radius:6px;padding:5px 10px;font-size:.75rem;color:var(--yellow);margin-top:6px">${coopIcoWarnTriangle(15,'var(--yellow)')} まず上のカードをタップして対応を試してみましょう！</div>` : '';
       const respBar = isResp ? `<div class="response-pending-bar tut-resp-anim"><div class="rpb-icon">${coopIcoWarnTriangle(18,'var(--yellow)')}</div><div class="rpb-text"><strong>東京が「${uiIcoDroplet(14,'var(--red)')} 洪水」を使用！</strong><br>想定ダメージ: 40 → 堤防 -25 → 実ダメージ <strong>15</strong><br>政策カードを選んで対応するか「対応しない」を押してください。${skipWarn}</div><button class="btn-skip-resp" onclick="tutorialAction('skip_attempt')">対応しない</button></div>` : '';
@@ -4290,6 +4342,7 @@
       gachaPickedIds: [], gachaCurrent: null, draftState: null,
       discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
       _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
+      usedHistory: { 0: [], 1: [] },
     };
 
     // ═══════════════════════════════════════
@@ -4302,6 +4355,33 @@
     function getActiveMaxHp(pi) { return G.players[pi].cities[G.players[pi].activeCityIdx].hp; }
     function getBudget(pi) { const p = G.players[pi]; const c = getActiveCity(pi); let b = 3; if (c && c.abilityType === 'extra_budget') b += c.abilityValue; if (c && c.abilityType === 'flood_budget' && p.effects.floodBonusTurns > 0) b += c.abilityValue; if (p.effects.debtBudget > 0) b -= p.effects.debtBudget; return Math.max(0, b); }
     function getBudgetLeft(pi) { return getBudget(pi) - G.players[pi].budgetUsed; }
+    // ── 予算pipゲージ（コイン型SVG）。対戦・協力の全予算表示箇所で共通利用。design_system.md準拠で絵文字不使用 ──
+    // 個別pipで描画できる上限。協力は複数都市の予算合算のため5以上（時に2桁）になり得るため、
+    // 超過時は個別pip描画をやめてコイン1つ+「×残数」の数字併記に切替え、320px幅でのレイアウト破綻を防ぐ
+    const PIP_VISUAL_CAP = 6;
+    function pipCoinSvg(state, size) {
+      size = size || 14;
+      const isUsed = state === 'used';
+      const pendingCls = state === 'pending' ? ' pip-coin-pending' : '';
+      const fill = isUsed ? 'var(--bg0)' : 'var(--green)';
+      const ringStroke = isUsed ? 'var(--bg3)' : 'rgba(0,0,0,.3)';
+      return `<svg class="pip-coin${pendingCls}" viewBox="0 0 24 24" width="${size}" height="${size}" style="flex-shrink:0" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="${fill}" stroke="${ringStroke}" stroke-width="1.5"/>${!isUsed ? '<circle cx="12" cy="12" r="6.2" fill="none" stroke="rgba(0,0,0,.32)" stroke-width="1.2"/>' : ''}</svg>`;
+    }
+    // total=予算総量・used=使用済み数・pendingCost=カード選択中（未確定）で消費予定のコスト（点滅予告）
+    function budgetPipsHtml(total, used, pendingCost, size) {
+      total = Math.max(0, total || 0); used = Math.max(0, Math.min(used || 0, total)); pendingCost = Math.max(0, pendingCost || 0);
+      if (total > PIP_VISUAL_CAP) {
+        const remain = Math.max(0, total - used);
+        return `<span class="budget-pips budget-pips-compact">${pipCoinSvg('avail', size)}<span class="budget-pips-compact-n">×${remain}</span></span>`;
+      }
+      let html = '';
+      for (let i = 0; i < total; i++) {
+        let state = 'avail';
+        if (i < used) state = 'used'; else if (i < used + pendingCost) state = 'pending';
+        html += pipCoinSvg(state, size);
+      }
+      return `<div class="budget-pips">${html}</div>`;
+    }
     function addLog(msg, cls = '') {
       let finalCls = cls;
       if (msg.includes('壊滅')) finalCls = (cls ? cls + ' critical' : 'critical');
@@ -4310,6 +4390,22 @@
       }
       G.log.unshift({ msg, cls: finalCls });
       if (G.log.length > 40) G.log.length = 40;
+    }
+    // 対戦：使用済みカード履歴チップ用。playCard/playResponseCardの「実際に使った」瞬間だけ追記する
+    // （手札上限による強制discardや台風のランダム破棄は「使用」ではないため対象外）。
+    // Gは全量syncのため、この配列もpushState()で自動的に相手・観戦者へ同期される（専用の差分同期は不要）
+    function pushUsedHistory(pi, card) {
+      if (!G.usedHistory) G.usedHistory = { 0: [], 1: [] };
+      if (!G.usedHistory[pi]) G.usedHistory[pi] = [];
+      G.usedHistory[pi].unshift({ id: card.id, icon: card.icon, name: card.name, type: card.type });
+      if (G.usedHistory[pi].length > 12) G.usedHistory[pi].length = 12;
+    }
+    // 相手の使用済みカード履歴チップHTML（対戦main/spectator共通）。直近使用が左（先頭）に並ぶ
+    function usedHistoryChipsHtml(pi) {
+      const hist = (G.usedHistory && G.usedHistory[pi]) || [];
+      if (!hist.length) return '';
+      const chips = hist.map(h => `<span class="history-chip" title="${_escHtml(h.name)}">${cardIconSvg(h.icon, 13)}</span>`).join('');
+      return `<div class="history-chip-row" aria-label="使用済みカード履歴">${chips}</div>`;
     }
     function hpColor(hp, max) { const r = hp / max; if (r > 0.6) return '#3fb950'; if (r > 0.3) return '#d29922'; return '#f85149'; }
     function cardCtype(card) {
@@ -4639,6 +4735,18 @@
       if (e.negateSpecial) list.push({ key: 'negateSpecial', cardId: 'evacuation', icon: 'evacuation', label: '特殊効果無効', desc: '特殊効果・テロを無効＋ダメージ−10' });
       if (e.damageReduceHits > 0) list.push({ key: 'damageReduceHits', cardId: 'bousai_cho', icon: 'bousai_cho', label: `防災庁設置（残${e.damageReduceHits}回）`, desc: '全ダメージ −15' });
       return list;
+    }
+    // シールド消費予告バッジ用：この攻撃(atkCard)が対戦/協力どちらの effects でも、耐震・堤防シールドを消費するか判定する（対戦=p.effects／協力=cs.effects、フィールド名は共通）
+    function shieldConsumeLabel(atkCard, effects) {
+      if (!atkCard || !effects) return '';
+      if (effects.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) return '耐震シールド';
+      if (effects.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) return '堤防シールド';
+      return '';
+    }
+    // 上記ラベルをneonトーンの小バッジHTMLに変換（絵文字不使用・uiIcoShieldの線画アイコンを流用）
+    function shieldConsumeBadgeHtml(label, size) {
+      if (!label) return '';
+      return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:8px;font-size:${size || '.68rem'};font-weight:700;background:rgba(56,139,253,.15);color:#388bfd;border:1px solid rgba(56,139,253,.35);white-space:nowrap">${uiIcoShield(11)}この攻撃で${label}消費</span>`;
     }
 
     function applyJinzaiEffect(card, pi) {
@@ -5039,15 +5147,24 @@
         zone.addEventListener('animationend', () => zone.classList.remove('zone-flash-dmg', 'zone-flash-heal'), {once:true});
       }
     }
-    function showDamageFloat(pi, amount, isHeal) {
-      const sec = document.getElementById('hp-section-' + pi); if (!sec) return;
-      const r = sec.getBoundingClientRect();
+    // 連続ヒット時にダメージ/回復フロート数字が重ならないよう、アンカー(stackKey)ごとに現在表示中の
+    // 個数を数えて縦オフセットをずらす共通カウンタ（対戦VS・協力COOP両方で共用）
+    let _floatStackCounts = {};
+    function _spawnFloatDmg(stackKey, left, top, amount, isHeal) {
       const el = document.createElement('div'); el.className = 'float-dmg';
       el.textContent = (isHeal ? '+' : '-') + amount;
       el.style.color = isHeal ? 'var(--green)' : 'var(--red)';
-      el.style.left = (r.left + r.width * 0.4 + Math.random() * 30 - 15) + 'px';
-      el.style.top = (r.top - 4) + 'px';
-      document.body.appendChild(el); setTimeout(() => el.remove(), 1000);
+      const stack = _floatStackCounts[stackKey] || 0;
+      el.style.left = left + 'px';
+      el.style.top = (top - stack * 26) + 'px';
+      _floatStackCounts[stackKey] = stack + 1;
+      document.body.appendChild(el);
+      setTimeout(() => { el.remove(); _floatStackCounts[stackKey] = Math.max(0, (_floatStackCounts[stackKey] || 1) - 1); }, 1000);
+    }
+    function showDamageFloat(pi, amount, isHeal) {
+      const sec = document.getElementById('hp-section-' + pi); if (!sec) return;
+      const r = sec.getBoundingClientRect();
+      _spawnFloatDmg('vs' + pi, r.left + r.width * 0.4 + Math.random() * 30 - 15, r.top - 4, amount, isHeal);
     }
     // ビジュアル監査修正④：手札行(.hand-groups)は360px幅等では横スクロールで全カードを閲覧できるが、
     // スクロール可能なことを示す視覚ヒントが無く、末尾カードが見切れているだけに見えた（例：4枚目の公害カード）。
@@ -5863,8 +5980,7 @@
     function coopTutStatusBar() {
       const ts = coopTutorialState;
       const left = ts.budgetTotal - ts.budgetUsed;
-      const pips = Array(ts.budgetTotal).fill(0).map((_,i)=>`<div class="pip ${i < ts.budgetUsed ? 'used':'avail'}"></div>`).join('');
-      return `<div class="status-bar" style="gap:10px;flex-wrap:wrap"><span class="turn-badge" style="color:#fff">ターン 1<span style="color:var(--t2)">/8</span></span><div class="budget-display"><span class="budget-label" style="color:#fff">予算</span><div class="budget-pips">${pips}</div><span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${ts.budgetTotal}</span></span></div></div>`;
+      return `<div class="status-bar" style="gap:10px;flex-wrap:wrap"><span class="turn-badge" style="color:#fff">ターン 1<span style="color:var(--t2)">/8</span></span><div class="budget-display"><span class="budget-label" style="color:#fff">予算</span>${budgetPipsHtml(ts.budgetTotal, ts.budgetUsed, 0)}<span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${ts.budgetTotal}</span></span></div></div>`;
     }
     function coopTutCityPanel(city, hp, mine) {
       const pct = Math.max(0, Math.round(hp/60*100));
@@ -5881,11 +5997,10 @@
       const ts = coopTutorialState;
       const cities = _coopTutFixedCities();
       const row = (city, budget, ready) => {
-        const pips = Array(3).fill(0).map(()=>`<div class="pip avail"></div>`).join('');
         const badge = ready
           ? `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>`
           : `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(56,139,253,.15);color:#388bfd;border:1px solid rgba(56,139,253,.4)">行動中 …</span>`;
-        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:#e6edf3;flex-shrink:0">CPU · ${city.name}</span>${badge}<div class="budget-display" style="margin:0"><span class="budget-label" style="color:#fff">予算</span><div class="budget-pips">${pips}</div><span style="font-size:.78rem;font-weight:700;color:var(--green)">${budget}<span style="color:var(--t2);font-weight:400">/3</span></span></div></div>`;
+        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:#e6edf3;flex-shrink:0">CPU · ${city.name}</span>${badge}<div class="budget-display" style="margin:0"><span class="budget-label" style="color:#fff">予算</span>${budgetPipsHtml(3, 0, 0)}<span style="font-size:.78rem;font-weight:700;color:var(--green)">${budget}<span style="color:var(--t2);font-weight:400">/3</span></span></div></div>`;
       };
       return `<div class="coop-tut-ally" style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px"><div style="font-size:.64rem;font-weight:700;color:rgba(255,255,255,.35);margin-bottom:6px">仲間の状況</div>${row(cities.osaka, ts.osakaBudget, !!osakaReady)}${row(cities.tokyo, ts.tokyoBudget, false)}</div>`;
     }
@@ -6952,7 +7067,9 @@
           const _specialLabels = { 'discard_policy': '特殊効果：手札を1枚ランダム廃棄', 'coastal_bonus': '特殊効果：海岸・沿岸都市に +10', 'mountain_bonus': '特殊効果：山間部都市に +10', 'inland_bonus': '特殊効果：内陸都市に +10' };
           const _specialLabel = _rpbAtk.card.specialType ? (_specialLabels[_rpbAtk.card.specialType] || '') : '';
           const _specialSpan = _specialLabel ? `<span class="rdp-item rdp-special">${_specialLabel}</span>` : '';
-          const _dmgPreview = `<div class="response-dmg-preview"><span class="rdp-item rdp-skip">対応なし → HP <strong>${_rpbHpAfter}</strong></span>${_specialSpan}</div>`;
+          const _shieldLabel = shieldConsumeLabel(_rpbAtk.card, G.players[mi].effects);
+          const _shieldSpan = _shieldLabel ? `<span class="rdp-item rdp-shield">${uiIcoShield(12)}この攻撃で${_shieldLabel}消費</span>` : '';
+          const _dmgPreview = `<div class="response-dmg-preview"><span class="rdp-item rdp-skip">対応なし → HP <strong>${_rpbHpAfter}</strong></span>${_specialSpan}${_shieldSpan}</div>`;
           pendingBar = `<div class="response-pending-bar"><div class="rpb-icon">${coopIcoWarnTriangle(20,'var(--yellow)')}</div><div class="rpb-text"><strong>${G.players[_rpbAtk.attackerIdx].name}が「${cardIconSvg(_rpbAtk.card.icon,15)} ${_rpbAtk.card.name}」を使用！</strong>${_breakHtml}${_dmgPreview}</div><button class="btn-skip-resp" onclick="skipResponse()">対応しない</button></div>`;
         } else if (isMyAttack) {
           const _atk = G.pendingAttack;
@@ -6974,8 +7091,14 @@
       const toggleBtn = G.log.length > 3 ? `<button class="log-toggle" onclick="_logExpanded=!_logExpanded;render()">${_logExpanded ? '▲ 閉じる' : `▼ ${Math.min(G.log.length, 30)}件すべて表示`}</button>` : '';
       let statusBar = '';
       if (ap === mi && !hasPending && !isResponsePhase) {
+        // カード選択中（G.confirmでコスト確定前の確認ポップ表示中）は使用予定分のpipを点滅予告
+        let pendingCost = 0;
+        if (G.confirm && G.confirm.fn === 'playCard') {
+          const pcard = G.players[ap].hand.find(cd => cd.uid === G.confirm.uid);
+          if (pcard) pendingCost = pcard.cost;
+        }
         statusBar = `<div class="status-bar"><span class="turn-badge">ターン ${G.turnsEach[ap] + 1} | ${G.players[ap].name}</span>
-      <div class="budget-display"><span class="budget-label">予算</span><div class="budget-pips">${Array(budget).fill(0).map((_, i) => `<div class="pip ${i < (budget - left) ? 'used' : 'avail'}"></div>`).join('')}</div><span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${budget}</span></span></div>
+      <div class="budget-display"><span class="budget-label">予算</span>${budgetPipsHtml(budget, budget - left, pendingCost)}<span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${budget}</span></span></div>
       </div>`;
       }
 
@@ -7005,6 +7128,7 @@
       <div class="hp-section" id="hp-section-${idx}"><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? `<span class="hp-critical-badge">${coopIcoWarnTriangle(12,'var(--red)')} 壊滅寸前</span>` : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
       ${renderBackupCity(idx)}
       <div class="effects-row">${renderEffectBadges(p.effects, idx)}</div>
+      ${!isMe ? usedHistoryChipsHtml(idx) : ''}
       <div class="hand-cards-area">${isMe ? zoneHand(idx) : `<div class="hand-back-row">${zoneHand(idx)}</div>`}${!isMe ? `<div class="hand-count">手札 ${p.hand.length} 枚</div>` : ''}</div>
     ${footer}</div>`;
       }
@@ -7529,6 +7653,7 @@
           </div>
           ${renderBackupCity(idx)}
           <div class="effects-row">${renderEffectBadges(p.effects, idx)}</div>
+          ${usedHistoryChipsHtml(idx)}
         </div>`;
       }
       function specHand(idx) {
@@ -7938,6 +8063,7 @@
       if (G.activePlayer === 0 && G.turnsEach[0] === 0 && (card.type === 'disaster' || card.type === 'jinzai')) { alert('先攻1ターン目は災害カード（自然・人為）を使えません。'); return; }
       if (getBudgetLeft(G.activePlayer) < card.cost) return;
       p.hand.splice(idx, 1); G.discard.push(card); p.budgetUsed += card.cost;
+      pushUsedHistory(G.activePlayer, card);
       showBudgetToast(card.cost, getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
       if (card.type === 'policy') {
         applyPolicyEffect(card, G.activePlayer, false);
@@ -7992,7 +8118,7 @@
     function playResponseCard(uid) {
       const defIdx = G.pendingAttack.defenderIdx; const def = G.players[defIdx];
       const idx = def.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = def.hand[idx]; if (card.type !== 'policy') return;
-      def.hand.splice(idx, 1); G.discard.push(card); addLog(`${uiIcoShield(13)} ${def.name}が「${cardIconSvg(card.icon,13)} ${card.name}」で対応！`, 'policy');
+      def.hand.splice(idx, 1); G.discard.push(card); pushUsedHistory(defIdx, card); addLog(`${uiIcoShield(13)} ${def.name}が「${cardIconSvg(card.icon,13)} ${card.name}」で対応！`, 'policy');
       resolveDamage(G.pendingAttack.card, defIdx, card); G.pendingAttack = null;
       if (checkWin()) return; if (G.screen !== 'peek' && G.screen !== 'turnDraw') G.screen = 'main'; pushState(); render();
     }
@@ -8030,6 +8156,7 @@
         gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null }, draftState: null,
         discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
+        usedHistory: { 0: [], 1: [] },
       };
       pushState(); render();
     }
@@ -8152,7 +8279,7 @@
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, fromResult: false };
         _hintOpen = false; tutorialState = null;
         _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
-        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
+        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
         requestAnimationFrame(() => { _rApp.style.transition = ''; });
@@ -8174,7 +8301,7 @@
         _hintOpen = false; tutorialState = null;
         _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
         isCpuMode = false;
-        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null };
+        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
         requestAnimationFrame(() => { _rApp.style.transition = ''; });
@@ -8225,7 +8352,8 @@
         deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, peekByPlayerIdx: null,
         winner: null, gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null, candidates: null },
         draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
-        _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: []
+        _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
+        usedHistory: { 0: [], 1: [] }
       };
       localStorage.setItem('ron_lastName', name);
       _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
@@ -8630,6 +8758,9 @@
     // 都市パネル別にシールド詳細トグルの開閉状態を保持（Firebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
     let _coShieldDetailOpen = {};
     function coopToggleShieldDetail(idx) { _coShieldDetailOpen[idx] = !_coShieldDetailOpen[idx]; renderCoop(); }
+    // 対応フェーズ：どの対応カードを「プレビュー中」か（Firebase同期には載せないローカル表示state。1タップ目でプレビュー、
+    // 同じカードを2タップ目で実際の対応選択＝coopSelectResponseへ進む。対応フェーズを離れたら renderCoop 冒頭で自動クリア）
+    let _coRespPreviewUid = null;
     function coopTerrainMatch(card, city) { return (card.specialType === 'coastal_bonus' && city.isCoastal) || (card.specialType === 'mountain_bonus' && city.isMountain) || (card.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain); }
 
     function coopDraw(n) {
@@ -9488,7 +9619,7 @@
       }
       CO.budget = b; CO.budgetUsed = 0;
     }
-    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; coopStartCityTurn(true); }
+    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coRespPreviewUid = null; coopStartCityTurn(true); }
     // 都市ターン開始（humanSide によって人間操作／CPU防衛に分岐）
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
@@ -9641,16 +9772,22 @@
       return cand[Math.random() * cand.length | 0].i;
     }
     // 予測ダメージ（read-only。coopResolveAttack の主要計算を再現。resp を渡すと対応カード適用後の予測）
-    function coopPredictDamage(atkCard, cs, resp) {
+    // comboBonus は省略可（既定0）。連鎖コンボ増幅を含めた合計を予測する呼び出し側（coopEstimate等）向けのオプション引数で、
+    // 実際の解決(coopResolveAttack)と同じ位置（地形ボーナスの直後・耐性/シールド軽減より前）で加算し、最終クランプも1回だけにすることで
+    // 「軽減で一旦0未満になった値をコンボ増幅が引き上げる」ケースの予測とのズレを防ぐ（省略時は従来どおりの計算・結果と完全に同じ）
+    function coopPredictDamage(atkCard, cs, resp, comboBonus) {
       const city = cs.city, e = cs.effects;
       let dmg = atkCard.baseDamage; let neg = false;
       if (e.negateSpecial) { neg = true; dmg -= 10; }
       else if (resp && resp.effectType === 'negate_special') { neg = true; dmg -= 10; }
+      let extraHandLoss = 0; // 台風：ランダムに手札を1枚破棄する（どのカードが選ばれるかは予測不能だが、破棄されるかどうか＝手札枚数が1減るかは決定的）
       if (!neg && atkCard.specialType) {
         if (atkCard.specialType === 'coastal_bonus' && city.isCoastal) dmg += 10;
         else if (atkCard.specialType === 'mountain_bonus' && city.isMountain) dmg += 10;
         else if (atkCard.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain) dmg += 10;
+        else if (atkCard.specialType === 'discard_policy' && (CO.hand.length - (resp ? 1 : 0)) > 0) extraHandLoss = 1;
       }
+      if (comboBonus) dmg += comboBonus;
       if (city.abilityType === 'resist_compound' && atkCard.id === 'compound') dmg -= city.abilityValue;
       if (city.abilityType === 'resist_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= city.abilityValue;
       if (city.abilityType === 'resist_landslide' && atkCard.id === 'landslide') dmg -= city.abilityValue;
@@ -9665,7 +9802,9 @@
         if (resp.effectType === 'shield_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= 25;
         if (resp.effectType === 'heal') dmg -= Math.floor(resp.value / 2);
       }
-      if (city.abilityType === 'vulnerability_draw' && CO.hand.length <= 2) dmg += city.abilityValue;
+      // 脆弱性判定は実際の解決(coopResolveRound)では対応カードを手札から取り除いた後（＋台風なら追加で1枚破棄された後）の枚数で行われるため、
+      // resp（プレビュー/適用予定のカード）・台風の破棄を反映した枚数で判定し実測との乖離を防ぐ
+      if (city.abilityType === 'vulnerability_draw' && (CO.hand.length - (resp ? 1 : 0) - extraHandLoss) <= 2) dmg += city.abilityValue;
       return Math.max(0, dmg);
     }
     // 連鎖（二次災害）の予測。read-only。本体攻撃が先に消費するシールド・防災庁を考慮して追加ダメージを返す。
@@ -9699,9 +9838,43 @@
       return hasTrigger ? COOP_COMBO_BONUS : 0;
     }
     // 予測総ダメージ＝本体＋連鎖＋コンボ増幅（表示用。実ダメージは coopResolveAttack＋coopApplyChain が算出する）
+    // コンボ増幅はcoopPredictDamageの4番目の引数として渡し、実解決と同じ「最終クランプの前に加算」の順序に揃える
     function coopEstimate(card, cs) {
       const idx = CO.cities ? CO.cities.indexOf(cs) : -1;
-      return coopPredictDamage(card, cs, null) + coopPredictChain(card, cs).reduce((s, x) => s + x.dmg, 0) + (idx >= 0 ? coopComboBonus(card, idx) : 0);
+      const combo = idx >= 0 ? coopComboBonus(card, idx) : 0;
+      return coopPredictDamage(card, cs, null, combo) + coopPredictChain(card, cs).reduce((s, x) => s + x.dmg, 0);
+    }
+    // リーチ警告バッジ用：残り災害プールに実際に来襲し得る種類だけを返す（プールに存在しない災害での過大警告を防ぐ）。
+    // 人間が自然側を操作する場合（CO.humanSide==='nature'）は有限のCO.naturePool（使い切ると二度と出ない）を参照する。
+    // それ以外（通常の都市側プレイ・MP＝自然側は常にCPU/スクリプト）はCO.natureDeck+natureDiscardの合算枚数を見る。
+    // このデッキは捨て札を都度シャッフルし直して循環する設計（coopDrawNature）のため、合算枚数が1枚でも残っていれば
+    // 実質的に「今後いつでも来襲し得る」種類として扱ってよい
+    function coopReachAvailableTypes() {
+      if (CO.humanSide === 'nature') return DISASTER_CARDS.filter(c => (CO.naturePool[c.id] || 0) > 0);
+      const counts = {};
+      (CO.natureDeck || []).forEach(c => { counts[c.id] = (counts[c.id] || 0) + 1; });
+      (CO.natureDiscard || []).forEach(c => { counts[c.id] = (counts[c.id] || 0) + 1; });
+      return DISASTER_CARDS.filter(c => (counts[c.id] || 0) > 0);
+    }
+    // 都市cs が「1ターンに受け得る最大打点」を概算する（残り災害プールの各種類についてcoopPredictDamageで単発ダメージを
+    // 計算し最大値を返す。地形ボーナス・設置中シールド・耐性は coopPredictDamage が実解決=coopResolveAttackと同じ式で
+    // 織り込み済み。複数攻撃の合算や連鎖・コンボ増幅は含めない単発ワーストケースの概算にとどめる）
+    function coopWorstCaseHit(cs) {
+      if (!cs || cs.hp <= 0) return 0;
+      let worst = 0;
+      for (const atk of coopReachAvailableTypes()) {
+        const d = coopPredictDamage(atk, cs, null);
+        if (d > worst) worst = d;
+      }
+      return worst;
+    }
+    // HPバー付近に出すリーチ警告バッジ（赤系SVG）。壊滅済み都市・プールに存在しない過大警告を除外した上で、
+    // 現HP以下の一撃を受け得る都市にのみ表示する
+    function coopReachWarningBadge(cs) {
+      if (!cs || cs.hp <= 0) return '';
+      const worst = coopWorstCaseHit(cs);
+      if (worst < cs.hp) return '';
+      return `<span class="coop-reach-warn" title="残り災害プールの一撃(最大約${worst})で壊滅し得ます" aria-label="危険：一撃で壊滅し得ます">${uiIcoAlertOctagon(13, '#f85149')}</span>`;
     }
     function coopNatureTurn() {
       _coCancelTimer();
@@ -9822,6 +9995,13 @@
     }
 
     // ── 対応フェーズ（トリアージ・ポップアップ確認） ──
+    // 対応カードの1タップ目＝プレビュー（攻撃行のダメージ表示をbefore/afterに切替えるだけで確定はしない）。
+    // 同じカードへの2タップ目で実際の対応選択（coopSelectResponse＝確認ポップアップ）に進む。他のカードをタップすればプレビュー対象を切替えられる
+    function coopRespCardTap(uid) {
+      if (CO.phase !== 'coopResponse') return;
+      if (_coRespPreviewUid === uid) { coopSelectResponse(uid); return; }
+      _coRespPreviewUid = uid; renderCoop();
+    }
     function coopSelectResponse(uid) { if (CO.phase !== 'coopResponse') return; CO.confirm = { uid, resp: true }; renderCoop(); }
     function coopConfirmRespApply(ai) { if (!CO.confirm) return; if (CO.mp && !CO._applying) return coopMPCommit('respApply', { uid: CO.confirm.uid }); if (CO.online && !CO.host) return coopClientCommit('respApply', { uid: CO.confirm.uid, ai }); const uid = CO.confirm.uid; CO.confirm = null; coopResolveRound(uid, ai); }
     function coopSkipResponse() { if (CO.mp && !CO._applying) return coopMPCommit('skipResp', {}); if (CO.online && !CO.host) return coopClientCommit('skipResp', {}); CO.confirm = null; coopResolveRound(null, -1); }
@@ -9966,6 +10146,7 @@
     // ── 描画（対戦モードのデザインに合わせる） ──
     function renderCoop() {
       cwRecordCoopResult(CO); // A2修正：ソロ協力の育つカード戦績（over初回のみ・オンラインMPでは何もしない・失敗しても無害）
+      if (CO.phase !== 'coopResponse' && _coRespPreviewUid) _coRespPreviewUid = null; // 対応フェーズを離れたらプレビュー状態を自動クリア（ホスト/ゲスト/ソロいずれの経路でも同期状態の変化を拾える唯一の共通点）
       const app = document.getElementById('app'); if (!app) return;
       if (CO.mp && CO.phase === 'over') _coClearSession(); // 終了後は再接続対象から外す
       const waiting = CO.online && !coopMyPhase();
@@ -10089,10 +10270,17 @@
     }
     function coopStatusBar() {
       const d = CO.diff, used = CO.budgetUsed, total = CO.budget, left = total - used;
-      const pips = Array(total).fill(0).map((_, i) => `<div class="pip ${i < used ? 'used' : 'avail'}"></div>`).join('');
+      // カード選択中（CO.confirmでコスト確定前の確認ポップ表示中）は使用予定分のpipを点滅予告。
+      // resp/attack/quit/endTurnの確認は予算を消費しないためuidのみ持つcity選択時に限定
+      let pendingCost = 0;
+      if (CO.confirm && CO.confirm.uid && !CO.confirm.resp) {
+        const pcard = (CO.hand || []).find(cd => cd.uid === CO.confirm.uid);
+        if (pcard) pendingCost = pcard.cost;
+      }
+      const pips = budgetPipsHtml(total, used, pendingCost);
       const remaining = CO.humanSide === 'nature' ? Object.values(CO.naturePool).reduce((a, b) => a + b, 0) : CO.natureDeck.length;
       const remLabel = CO.humanSide === 'nature' ? `災害 残${remaining}枚` : `残り ${remaining}枚`;
-      const budgetBlock = CO.humanSide === 'nature' ? '' : `<div class="budget-display"><span class="budget-label" style="color:#fff">予算</span><div class="budget-pips">${pips}</div><span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
+      const budgetBlock = CO.humanSide === 'nature' ? '' : `<div class="budget-display"><span class="budget-label" style="color:#fff">予算</span>${pips}<span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
       return `<div class="status-bar" style="gap:10px;flex-wrap:wrap"><span class="turn-badge" style="color:#fff">ターン ${CO.turn}<span style="color:var(--t2)">/${d.maxTurns}</span></span>${budgetBlock}<div style="display:flex;align-items:center;gap:5px;margin-left:auto"><img src="images/cards/back.webp" alt="" style="width:18px;height:24px;border-radius:3px;object-fit:cover" onerror="this.style.display='none'"><span style="font-size:.78rem;color:#fff;font-weight:700">${remLabel}</span></div></div>`;
     }
     function coopCityPanel(cs, idx) {
@@ -10113,26 +10301,33 @@
       const supportChip = (CO.mp && dead) ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>後方支援</span>` : '';
       const owner = (CO.mp && cs.ownerName) ? `<div style="margin:3px 0 5px"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.66rem;font-weight:700;background:${mine ? 'rgba(56,139,253,.3)' : 'rgba(255,255,255,.08)'};color:#fff;border:1px solid ${mine ? '#388bfd' : 'rgba(255,255,255,.18)'}">${mine ? 'あなた' : cs.ownerName}</span>${supportChip}${readyChip}</div>` : '';
       const panelBorder = mine ? '#388bfd' : 'var(--bg3,#21262d)';
-      // A-2: 前回描画時のHPより減っていれば、バーを旧幅で描画して coopApplyCityHpFx で新幅へアニメさせる（ghost残像つき）
+      // A-2: 前回描画時のHPより減っていれば、バーを旧幅で描画して coopApplyCityHpFx で新幅へアニメさせる（ghost残像つき）。
+      // 増えた（回復）場合もghostなしでdata-co-fill/targetを付け、フロート数字(+N緑)をcoopApplyCityHpFxで検知できるようにする
       const prevHp = _coFxHpPrev[idx];
       const damaged = (typeof prevHp === 'number') && prevHp > cs.hp;
+      const healed = (typeof prevHp === 'number') && prevHp < cs.hp;
       const startPct = damaged ? Math.max(0, Math.round(prevHp / cs.maxHp * 100)) : pct;
       const warnCls = (!dead && ratio > 0 && ratio <= 0.3) ? ' hp-text-warn' : '';
       const barInner = damaged
         ? `<div data-co-ghost="${idx}" style="position:absolute;left:0;top:0;height:100%;width:${startPct}%;background:rgba(248,81,73,.55)"></div><div data-co-fill="${idx}" data-co-target="${pct}" style="position:absolute;left:0;top:0;height:100%;width:${startPct}%;background:${col}"></div>`
-        : `<div style="position:absolute;left:0;top:0;width:${pct}%;height:100%;background:${col}"></div>`;
-      return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:10px;${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}"><div style="display:flex;align-items:center;gap:6px;min-width:0"><span class="city-icon-sm">${terrainImg(c, 22)}</span><strong class="coop-city-name" style="color:#fff;min-width:0">${_escHtml(hintedName(c.name))}</strong></div>${owner}<div style="font-size:.64rem;color:#fff;opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px">${c.abilityDesc}</div><div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:16px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:16px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div><div style="font-size:.85rem;margin-top:5px;min-height:18px">${badges}</div></div>`;
+        : healed
+          ? `<div data-co-fill="${idx}" data-co-target="${pct}" style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${col}"></div>`
+          : `<div style="position:absolute;left:0;top:0;width:${pct}%;height:100%;background:${col}"></div>`;
+      const reachBadge = coopReachWarningBadge(cs);
+      // リーチ警告バッジはHPバーの外側（overflow:hiddenの影響を受けない position:relative ラッパー）に重ねる。バー内部のoverflow:hiddenでクリップされないようにするため
+      return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:10px;${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}"><div style="display:flex;align-items:center;gap:6px;min-width:0"><span class="city-icon-sm">${terrainImg(c, 22)}</span><strong class="coop-city-name" style="color:#fff;min-width:0">${_escHtml(hintedName(c.name))}</strong></div>${owner}<div style="font-size:.64rem;color:#fff;opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px">${c.abilityDesc}</div><div style="position:relative">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:16px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:16px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div><div style="font-size:.85rem;margin-top:5px;min-height:18px">${badges}</div></div>`;
     }
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
     function coopMkCard(card, mode, support, readOnly) {
       const left = CO.budget - CO.budgetUsed;
       const noTarget = support && card.effectType === 'draw'; // 後方支援は自己完結カード（ドロー）だけ使えない。防災協定は味方支援なので可
       const dis = !readOnly && (mode === 'city') && (card.cost > left || noTarget);
-      const click = (readOnly || dis) ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopSelectResponse('${card.uid}')`);
+      const click = (readOnly || dis) ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopRespCardTap('${card.uid}')`);
       const costLabel = mode === 'resp' ? '無料' : card.cost;
       const reason = readOnly ? '' : (noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : ''));
       const _roExtra = readOnly ? ';pointer-events:none' : '';
-      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${readOnly ? 'default' : (dis ? 'not-allowed' : 'pointer')}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
+      const previewing = mode === 'resp' && _coRespPreviewUid === card.uid;
+      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${readOnly ? 'default' : (dis ? 'not-allowed' : 'pointer')}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
@@ -10212,7 +10407,8 @@
       if (resp) {
         const myIdx = CO.mp ? CO.cities.indexOf(coopMySlot()) : -1;
         const list = CO.mp ? CO.incoming.map((a, ai) => ({ a, ai })).filter(x => x.a.idx === myIdx) : CO.incoming.map((a, ai) => ({ a, ai }));
-        const btns = list.map(({ a, ai }) => { const cs = CO.cities[a.idx]; const before = a.est; const after = coopPredictDamage(a.card, cs, c); const eff = after < before; return `<button style="${actBtnTall}" onclick="coopConfirmRespApplyAnim(${ai})"><span style="display:flex;align-items:center;gap:5px">${cardIconSvg(a.card.icon,15)} ${a.card.name} → ${cs.city.name}</span><span style="font-size:.78rem;font-weight:600">予測ダメージ ${before} → <span style="color:${eff ? '#9ff0a8' : '#fff'};font-weight:800">${after}</span></span></button>`; }).join('');
+        // coopRespDmgHtml と同じ計算（coopPredictDamage＋連鎖・コンボの一貫加算）を再利用し、対応フェーズの攻撃行と確認ポップで数値が乖離しないようにする
+        const btns = list.map(({ a, ai }) => { const cs = CO.cities[a.idx]; return `<button style="${actBtnTall}" onclick="coopConfirmRespApplyAnim(${ai})"><span style="display:flex;align-items:center;gap:5px">${cardIconSvg(a.card.icon,15)} ${a.card.name} → ${cs.city.name}</span><span style="font-size:.78rem;font-weight:600">${coopRespDmgHtml(a, c)}</span></button>`; }).join('');
         actions = `<p style="margin:6px 0;color:#fff">${CO.mp ? '自分の都市への攻撃に対応します（対応は1回）' : 'どの攻撃に対応しますか？（対応は1回）'}</p>${btns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
       } else if (c.effectType === 'draw') {
         actions = `<p style="margin:6px 0;color:#fff">この政策を使用しますか？</p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlayAnim(-1)">使用する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
@@ -10280,8 +10476,7 @@
           const total = s.budget || 0;
           const used = s.budgetUsed || 0;
           const left = total - used;
-          const pips = Array(total).fill(0).map((_, i) => `<div class="pip ${i < used ? 'used' : 'avail'}"></div>`).join('');
-          budgetBlock = `<div class="budget-display" style="margin:0"><span class="budget-label" style="color:#fff">予算</span><div class="budget-pips">${pips}</div><span style="font-size:.78rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
+          budgetBlock = `<div class="budget-display" style="margin:0"><span class="budget-label" style="color:#fff">予算</span>${budgetPipsHtml(total, used, 0)}<span style="font-size:.78rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
         }
         const hc = (s.hand||[]).length;
         const stackN = Math.min(hc, 8);
@@ -10523,17 +10718,12 @@
         requestAnimationFrame(() => { el.style.transition = 'width .6s cubic-bezier(.25,.8,.25,1)'; el.style.width = target + '%'; });
       });
     }
-    // ── 演出強化A-2：都市パネルのダメージフロート数字（−N、上昇フェードアウト） ──
-    function coopShowCityDamageFloat(idx, amount) {
+    // ── 演出強化A-2：都市パネルのダメージ/回復フロート数字（−N赤／+N緑、上昇フェードアウト） ──
+    function coopShowCityDamageFloat(idx, amount, isHeal) {
       if (!amount || typeof document === 'undefined' || typeof document.querySelector !== 'function' || typeof document.createElement !== 'function') return;
       const bar = document.querySelector(`[data-co-city="${idx}"]`); if (!bar || typeof bar.getBoundingClientRect !== 'function') return;
       const r = bar.getBoundingClientRect();
-      const el = document.createElement('div'); el.className = 'float-dmg';
-      el.textContent = '-' + amount;
-      el.style.color = 'var(--red)';
-      el.style.left = (r.left + r.width * 0.5 - 10) + 'px';
-      el.style.top = (r.top - 6) + 'px';
-      document.body.appendChild(el); setTimeout(() => el.remove(), 1000);
+      _spawnFloatDmg('coop' + idx, r.left + r.width * 0.5 - 10, r.top - 6, amount, !!isHeal);
     }
     // ── 演出強化A-2：都市パネルHPバーの被弾アニメ（旧幅→新幅トランジション・ghost残像）。innerHTML総入れ替え方式のため毎描画後に実行する ──
     function coopApplyCityHpFx() {
@@ -10551,7 +10741,9 @@
           fill.addEventListener('animationend', () => fill.classList.remove('hp-flash'), { once: true });
           const ghost = document.querySelector(`[data-co-ghost="${idx}"]`);
           if (ghost) setTimeout(() => { ghost.style.transition = 'width 1s ease'; ghost.style.width = target + '%'; }, 500);
-          coopShowCityDamageFloat(idx, Math.max(0, (typeof prevHp === 'number' ? prevHp : cs.hp) - cs.hp));
+          const delta = (typeof prevHp === 'number' ? prevHp : cs.hp) - cs.hp; // 正=被弾・負=回復
+          if (delta > 0) coopShowCityDamageFloat(idx, delta, false);
+          else if (delta < 0) coopShowCityDamageFloat(idx, -delta, true);
         });
       }
       CO.cities.forEach((cs, i) => { _coFxHpPrev[i] = cs.hp; });
@@ -10621,16 +10813,39 @@
       const tiles = (CO.cpuReview || []).map(p => { const bc = p.card.color === 'green' ? 'var(--green)' : 'var(--yellow)'; return `<div class="peek-card-big" style="flex-shrink:0;border-color:${bc}"><img src="images/cards/${p.card.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'"><div class="pk-icon">${cardTypeIconHtml('policy', p.card.color, 32)}</div><div class="pk-name">${p.card.name}</div><div class="pk-desc">${p.target ? '→ ' + p.target : p.card.desc}</div></div>`; }).join('');
       return `<div class="screen active"><div class="turn-summary-box"><div class="ts-title"><img src="images/icons/icon_city.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block"> CPU都市の防衛（ターン ${CO.turn}）</div><div style="text-align:center;color:#fff;font-size:.82rem;margin:6px 0 12px">CPUが置いた備えを確認して、攻め方を組み立てよう</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div style="text-align:center;margin-top:14px"><button class="btn-ho" onclick="coopDismissCpuReview()">攻撃を始める ▶</button></div></div></div>`;
     }
+    // 対応フェーズ：攻撃行のダメージ表示。プレビュー中の対応カードが無ければ従来通り「約Xダメージ」。
+    // プレビュー中はそのカードを適用した場合の予測値をbefore/afterで表示する（実際の解決=coopResolveAttackが使うcoopPredictDamageをそのまま流用し乖離を防ぐ。
+    // 連鎖・コンボ増幅は対応カードの影響を受けないため before/after 双方に同じ値を加算し内訳の整合を保つ）
+    function coopRespDmgHtml(a, previewCard) {
+      const cs = CO.cities[a.idx];
+      const before = a.est;
+      if (!previewCard) return `<span style="color:#f85149">約${before}ダメージ</span>`;
+      const chainTotal = coopPredictChain(a.card, cs).reduce((s, x) => s + x.dmg, 0);
+      const combo = coopComboBonus(a.card, a.idx);
+      const after = coopPredictDamage(a.card, cs, previewCard, combo) + chainTotal;
+      if (previewCard.effectType === 'heal') {
+        const healResp = Math.floor(previewCard.value / 2);
+        return `<span style="color:#f85149">${before}</span><span style="color:#8b949e"> → </span><span style="color:#9ff0a8;font-weight:800">${after}</span><span style="color:#9ff0a8;font-size:.68rem;margin-left:4px">(HP+${healResp}回復扱い)</span>`;
+      }
+      const eff = after < before;
+      return `<span style="color:#f85149">${before}</span><span style="color:#8b949e"> → </span><span style="color:${eff ? '#9ff0a8' : '#fff'};font-weight:800">${after}</span>`;
+    }
     function coopRenderResponse() {
       const myIdx = CO.mp ? CO.cities.indexOf(coopMySlot()) : -1;
       const list = CO.mp ? CO.incoming.filter(a => a.idx === myIdx) : CO.incoming;
-      const atks = list.map(a => { const cs = CO.cities[a.idx]; return `<div style="background:rgba(248,81,73,.08);border:1px solid #f85149;border-radius:8px;padding:8px 10px;margin-bottom:6px;color:#fff">${cardIconSvg(a.card.icon,15)} <strong>${a.card.name}</strong> → ${cs.city.name}　<span style="color:#f85149">約${a.est}ダメージ</span></div>`; }).join('');
+      const previewCard = _coRespPreviewUid ? CO.hand.find(c => c.uid === _coRespPreviewUid) : null;
+      const atks = list.map(a => {
+        const cs = CO.cities[a.idx];
+        const shieldLabel = shieldConsumeLabel(a.card, cs.effects);
+        const shieldBadge = shieldLabel ? ` ${shieldConsumeBadgeHtml(shieldLabel, '.64rem')}` : '';
+        return `<div style="background:rgba(248,81,73,.08);border:1px solid #f85149;border-radius:8px;padding:8px 10px;margin-bottom:6px;color:#fff">${cardIconSvg(a.card.icon,15)} <strong>${a.card.name}</strong> → ${cs.city.name}　${coopRespDmgHtml(a, previewCard)}${shieldBadge}</div>`;
+      }).join('');
       const resp = CO.hand.filter(c => ['shield_quake_fire', 'shield_flood', 'heal', 'negate_special'].includes(c.effectType));
       const respCards = resp.map(c => coopMkCard(c, 'resp')).join('');
       const _icoDisStr = `<img src="images/icons/icon_disaster.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block">`;
       const head = CO.mp ? `${_icoDisStr} あなたの都市への攻撃` : `${_icoDisStr} 迫りくる自然災害`;
-      const note = CO.mp ? '政策カードをタップして対応しよう' : '政策カードをタップして対応する攻撃を選ぼう';
-      return `<div style="margin-top:10px"><div style="font-weight:700;color:#f85149;font-size:.85rem;margin-bottom:6px">${head}</div>${atks}</div><div style="text-align:center;color:#fff;font-size:.78rem;margin:8px 0">${note}</div><div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${respCards || '<span style="color:#fff;font-size:.76rem">対応できる政策が手札にありません</span>'}</div><button onclick="coopSkipResponse()" style="width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#21262d;border:1px solid #30363d;color:#fff;font-weight:700;cursor:pointer">対応せず受ける ▶</button>`;
+      const note = previewCard ? `「${previewCard.name}」を適用した場合の予測を表示中。もう一度タップで対応を確定` : (CO.mp ? '政策カードをタップして対応しよう' : '政策カードをタップして対応する攻撃を選ぼう');
+      return `<div style="margin-top:10px"><div style="font-weight:700;color:#f85149;font-size:.85rem;margin-bottom:6px">${head}</div>${atks}</div><div style="text-align:center;color:${previewCard ? '#388bfd' : '#fff'};font-size:.78rem;margin:8px 0">${note}</div><div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${respCards || '<span style="color:#fff;font-size:.76rem">対応できる政策が手札にありません</span>'}</div><button onclick="coopSkipResponse()" style="width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#21262d;border:1px solid #30363d;color:#fff;font-weight:700;cursor:pointer">対応せず受ける ▶</button>`;
     }
     // オンラインで自分の手番でないときの待機表示
     function coopWaitingArea() {
