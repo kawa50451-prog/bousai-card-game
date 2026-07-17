@@ -73,6 +73,7 @@
       --bg0-soft: #111827;
       --bg0-deep: #080d14;
       --bg1: #161b22;
+      --bg1-rgb: 22, 27, 34;
       --bg2: #21262d;
       --bg3: #30363d;
       --t0: #ffffff;
@@ -104,17 +105,17 @@
        html[data-theme="cyber-red"] は現行デフォルトと同値（未指定=:root既定と完全一致、明示指定時の冗長フォールバックとして定義）。 ── */
     html[data-theme="cyber-red"] {
       --bg0: #0d1117; --bg0-soft: #111827; --bg0-deep: #080d14;
-      --bg1: #161b22; --bg2: #21262d; --bg3: #30363d;
+      --bg1: #161b22; --bg1-rgb: 22, 27, 34; --bg2: #21262d; --bg3: #30363d;
       --accent: #fa2a4e; --accent-rgb: 250, 42, 78; --accent-dark-rgb: 160, 20, 45;
     }
     html[data-theme="dystopia-blue"] {
       --bg0: #050912; --bg0-soft: #0d1830; --bg0-deep: #02050a;
-      --bg1: #0c1524; --bg2: #142033; --bg3: #223655;
+      --bg1: #0c1524; --bg1-rgb: 12, 21, 36; --bg2: #142033; --bg3: #223655;
       --accent: #29d3ff; --accent-rgb: 41, 211, 255; --accent-dark-rgb: 10, 90, 130;
     }
     html[data-theme="hacker-matrix"] {
       --bg0: #070b07; --bg0-soft: #0c170c; --bg0-deep: #030602;
-      --bg1: #0e160e; --bg2: #162216; --bg3: #26392a;
+      --bg1: #0e160e; --bg1-rgb: 14, 22, 14; --bg2: #162216; --bg3: #26392a;
       --accent: #39ff6a; --accent-rgb: 57, 255, 106; --accent-dark-rgb: 10, 110, 45;
     }
     /* 2026-07-17ユーザーレビュー修正：8bitテーマ（レトロゲーム風の濃紺〜黒×限定色パレット）。文字トークンは
@@ -122,20 +123,27 @@
        ピクセルフォント（DotGothic16、下記フォント切替）と組み合わせたときに主に生まれる設計。 */
     html[data-theme="8bit"] {
       --bg0: #0a0a1a; --bg0-soft: #14143a; --bg0-deep: #050510;
-      --bg1: #14142c; --bg2: #1e1e42; --bg3: #3a3a6e;
+      --bg1: #14142c; --bg1-rgb: 20, 20, 44; --bg2: #1e1e42; --bg3: #3a3a6e;
       --accent: #ff004d; --accent-rgb: 255, 0, 77; --accent-dark-rgb: 140, 0, 40;
     }
     /* 2026-07-17ユーザーレビュー修正：ライトテーマ（明背景×暗文字）。他の3テーマと異なり文字トークン（--t0〜--t3）・
        意味色5色・アクセントの全てを明度調整して上書きする（意味の対応・使い分けは変えない。design_system.md §1.6）。 */
     html[data-theme="light"] {
       --bg0: #eef1f5; --bg0-soft: #ffffff; --bg0-deep: #dde3ea;
-      --bg1: #ffffff; --bg2: #f5f7fa; --bg3: #d3dae3;
+      --bg1: #ffffff; --bg1-rgb: 255, 255, 255; --bg2: #f5f7fa; --bg3: #d3dae3;
       --t0: #0d1117; --t0-rgb: 13, 17, 23; --t1: #1c2430; --t2: #57626e; --t3: #98a2ae;
       --blue: #1f6feb; --red: #cf222e; --green: #1a7f37; --yellow: #9a6700; --purple: #8250df;
       --accent: #d6294a; --accent-rgb: 214, 41, 74; --accent-dark-rgb: 150, 20, 45;
       --tut-btn-text: #1f6feb;
     }
-
+    /* 2026-07-17ユーザーレビュー第2弾：ライトテーマ実機確認の残修正。トークン化できない固定色（グラデーション・
+       ネオン系webp画像）はここでライトテーマのみの上書きにまとめる（他テーマ・デフォルトテーマは無変更）。 */
+    /* ①都市ガチャ（CPU易/普通の候補選択カード）・cityOrder選択カードの特殊能力/HP詳細部分が固定の紺グラデーション
+       背景だったため、白背景に浮いて見えていた。ライトテーマのみ淡いグレー系グラデーションへ */
+    html[data-theme="light"] .gacha-card-box,
+    html[data-theme="light"] .gacha-candidate-card {
+      background: linear-gradient(145deg, var(--bg2), var(--bg1));
+    }
     /* ── 1.3.1：グロー抑制モード。低スペック端末・バッテリー配慮（design_system.md §4.3関連）。
        主要な発光装飾（カード使用可能グロー・ネオンアイコンfilter・ターン演出のテキストグロー・警告バッジの点滅グロー等）
        のみを対象とし、全てのbox-shadow/text-shadowを網羅するものではない（適用範囲はTASKS.mdに記録）。 ── */
@@ -162,6 +170,14 @@
     html.ron-no-glow [id^="sni-"],
     html.ron-no-glow [id^="lni-"] {
       filter: none !important;
+    }
+    /* ②ホーム/待機画面の「ネオンアイコン」（images/icons/neon_*.webp）はmix-blend-mode:screenを前提にした
+       白ベースの発光アイコンで、ライトテーマ（明背景）では screen合成 が実質無効化されアイコンが消失する。
+       ライトテーマのみ通常合成＋反転して暗色シルエットとして視認できるようにする（発光アニメ自体は簡略化）。
+       html.ron-no-glowのfilter:none !importantより後段に置き、グローOFF併用時でも可視性を優先させる。 */
+    html[data-theme="light"] .lobby-neon-icon {
+      mix-blend-mode: normal;
+      filter: invert(0.88) !important;
     }
 
     /* ── 1.3.2：フォント切替（デジタル/SF調）。英数字のみOrbitronを適用し、日本語はフォントスタックの
@@ -1201,7 +1217,9 @@
 
     .opponent-zone,
     .player-zone {
-      background: rgba(22, 27, 34, 0.65);
+      /* 2026-07-17ユーザーレビュー第2弾：固定rgba(22,27,34,...)=--bg1のデフォルト値ハードコードだったため
+         ライトテーマで謎の黒背景として残っていた。rgba(var(--bg1-rgb),.65)化でテーマ反応させる（デフォルト値は同一） */
+      background: rgba(var(--bg1-rgb), 0.65);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border-radius: 12px;
@@ -1392,6 +1410,25 @@
       gap: 8px;
       flex-wrap: wrap
     }
+
+    /* ── デイリー防災UX刷新：備えフェーズの対応表レイアウト（左＝災害・右＝割当政策）。2026-07-17実装 ── */
+    .dd-prep-row { display:flex; align-items:center; gap:8px; background:var(--bg2,#161b22); border:1px solid var(--bg3,#30363d); border-radius:10px; padding:8px; margin-bottom:8px; cursor:pointer; }
+    .dd-prep-disaster { display:flex; align-items:center; gap:6px; flex-shrink:0; width:92px; min-width:0; }
+    .dd-prep-disaster-thumb { position:relative; flex-shrink:0; }
+    .dd-prep-disaster img { width:38px; height:38px; object-fit:cover; border-radius:7px; display:block; }
+    .dd-prep-disaster-info { min-width:0; }
+    .dd-prep-disaster-name { font-size:.68rem; font-weight:800; color:var(--red); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .dd-prep-disaster-dmg { font-size:.6rem; color:var(--t2); }
+    .dd-order-badge { position:absolute; top:-4px; left:-4px; width:16px; height:16px; border-radius:50%; background:rgba(0,0,0,.75); border:1.5px solid var(--red); color:#fff; font-size:.6rem; font-weight:900; display:flex; align-items:center; justify-content:center; }
+    .dd-slot-cell { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:4px; align-items:center; min-height:34px; border:1px dashed var(--bg3,#30363d); border-radius:8px; padding:4px 6px; transition:border-color .15s; }
+    .dd-slot-cell.dd-slot-hint { border-color:var(--blue); }
+    .dd-slot-empty { font-size:.64rem; color:var(--t3); }
+    .dd-slot-chip { display:flex; align-items:center; gap:4px; background:var(--bg1,#0d1117); border:1px solid var(--blue); border-radius:7px; padding:3px 6px; touch-action:pan-y; user-select:none; -webkit-user-select:none; cursor:grab; max-width:100%; }
+    .dd-slot-chip-name { font-size:.64rem; font-weight:700; color:var(--t0); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60px; }
+    .dd-slot-chip-cost { font-size:.6rem; color:var(--t2); flex-shrink:0; }
+    .dd-card-selected { outline:2px solid var(--blue); outline-offset:2px; }
+    .dd-tray-label { font-size:.72rem; color:var(--t2); margin:10px 0 6px; }
+    .dd-run-bar { position:fixed; left:0; right:0; bottom:0; z-index:2000; padding:10px 16px; background:var(--bg1); border-top:1px solid var(--bg3); box-shadow:0 -2px 12px rgba(0,0,0,.35); }
 
     .card-back {
       width: var(--card-w);
@@ -2236,9 +2273,11 @@
     .gallery-card { border-radius:8px; overflow:hidden; cursor:pointer; border:2px solid var(--bg3); transition:.15s; aspect-ratio:288/450; position:relative }
     .gallery-card img { width:100%; height:100%; object-fit:cover; display:block }
     .gallery-card:hover { transform:translateY(-3px); border-color:var(--yellow); box-shadow:0 6px 16px rgba(0,0,0,.5) }
-    .gallery-nav-arrow { width:36px; height:36px; border-radius:50%; background:rgba(10,18,40,.9); border:1.5px solid currentColor; color:var(--yellow); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0; transition:transform .15s,background .15s,filter .15s }
-    .gallery-nav-arrow:hover { background:rgba(255,255,255,.1); transform:scale(1.1); filter:brightness(1.15) }
-    .gallery-nav-arrow:active { transform:scale(.9) }
+    /* 2026-07-17ユーザーレビュー第2弾：ライトテーマで黒背景のまま浮いていたため、透明背景＋固定青枠のゴーストボタンへ統一
+       （全テーマで成立するデザイン。アイコン自体の色はカード種別ごとの currentColor 指定＝style="color:${_navColor}" を維持） */
+    .gallery-nav-arrow { width:36px; height:36px; border-radius:50%; background:transparent; border:1.5px solid var(--blue); color:var(--yellow); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0; transition:transform .15s,background .15s,filter .15s }
+    .gallery-nav-arrow:hover { background:rgba(56,139,253,.12); transform:scale(1.1); filter:brightness(1.15) }
+    .gallery-nav-arrow:active { transform:scale(.9); background:rgba(56,139,253,.18) }
     .city-tap-btn { background:rgba(56,139,253,.13); border:1px solid rgba(56,139,253,.4); border-radius:14px; padding:3px 10px; color:var(--blue); cursor:pointer; font-size:.82rem; font-weight:600; white-space:nowrap; transition:.15s }
     .city-tap-btn:hover,.city-tap-btn:active { background:rgba(56,139,253,.25) }
 
@@ -2430,6 +2469,7 @@
     .ui-tab-btn.active .ui-tab-label { font-weight:800; }
     body.ui-tabbar-active #app { padding-bottom:64px; }
     body.ui-tabbar-active .hint-btn { bottom:76px; }
+    body.ui-tabbar-active .dd-run-bar { bottom:64px; }
 
     /* ══ UI第3弾（試験実装）：B2 手札カード長押しプレビュー（design_system.md §9 B2。UI_LONGPRESS_PREVIEWで無効化可） ══ */
     .ui-card-preview-overlay { position:fixed; inset:0; z-index:9600; background:rgba(0,0,0,.72); display:flex; align-items:center; justify-content:center; padding:24px; pointer-events:none; }
@@ -2716,7 +2756,7 @@
       width: 1.3rem;
       height: 1.3rem;
       flex-shrink: 0;
-      color: white;
+      color: var(--t0); /* 2026-07-17ユーザーレビュー第2弾：ホーム画面のSVGアイコンが固定white(=常に白)でライトテーマで不可視だった。既定値#ffffffは白と同一のためデフォルトテーマは不変 */
     }
     @keyframes ron-flicker {
       0%,100% { opacity: 1 }
@@ -3608,6 +3648,12 @@
       body.ui-tabbar-active .hint-btn {
         bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 12px);
       }
+      .dd-run-bar {
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      }
+      body.ui-tabbar-active .dd-run-bar {
+        bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+      }
 
       /* ── 10. カードサイズ微調整 ── */
       :root {
@@ -4090,6 +4136,17 @@
     }
     function _lpOnTouchCancel() { _lpCancelTimer(); _lpClosePreview(); _lpFired = false; }
     function _lpOnContextMenu(e) { if (_lpEligibleCard(e.target)) e.preventDefault(); }
+    // デイリー防災UX刷新：開始前ページ（予報フェーズ）は手札タップに他の意味がないため、長押し待ちなしで
+    // 即座にプレビューを開くタップ版。既存の長押しプレビュー本体（_lpShowPreview/_lpClosePreview）をそのまま流用し、
+    // 新規のオーバーレイ・カードデータ参照は持たない。オーバーレイはpointer-events:noneのため、次のクリックで
+    // 閉じる1回限りのdocumentリスナーを仕込む（「外側タップで閉じる」の標準的な実装）。マウス・タッチ両対応。
+    function _lpTapPreview(cardEl) {
+      if (_lpOverlayEl) { _lpClosePreview(); return; }
+      if (!cardEl) return;
+      _lpShowPreview(cardEl);
+      const closeOnNext = () => { document.removeEventListener('click', closeOnNext, true); _lpClosePreview(); };
+      setTimeout(() => document.addEventListener('click', closeOnNext, true), 0);
+    }
     if (typeof document !== 'undefined' && document.addEventListener) {
       document.addEventListener('touchstart', _lpOnTouchStart, { passive: true });
       document.addEventListener('touchmove', _lpOnTouchMove, { passive: false });
@@ -5330,11 +5387,11 @@
         <div class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</div>
         <div style="font-size:.8rem;color:var(--t2);margin-top:6px">HP ${c.hp}</div>
         <div style="font-size:.75rem;color:var(--t2);margin-top:4px;line-height:1.4">${c.abilityDesc}</div>
-        <div style="margin-top:10px;padding:6px;background:rgba(56,139,253,.15);border-radius:6px;color:var(--blue);font-size:.8rem;font-weight:600">この都市を先発にする</div>
+        <div style="margin-top:10px;padding:6px;background:rgba(56,139,253,.15);border-radius:6px;color:var(--blue);font-size:.8rem;font-weight:600">この都市を先攻にする</div>
       </div>`;
       }
       return `<div class="screen active"><div class="gacha-stage">
-      <div style="text-align:center;margin-bottom:12px"><div class="section-title"><img src="images/icons/icon_city.webp" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px;margin-right:2px"> 戦闘順の選択</div><div style="color:var(--t2);font-size:.85rem;margin-top:4px">${p.name} — どちらの都市を先に戦わせますか？</div></div>
+      <div style="text-align:center;margin-bottom:12px"><div class="section-title"><img src="images/icons/icon_city.webp" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px;margin-right:2px"> 先攻を決めてください</div><div style="color:var(--t2);font-size:.85rem;margin-top:4px">${p.name} — どちらの都市を先に戦わせますか？</div></div>
       <div style="display:flex;gap:16px;justify-content:flex-start;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 16px 8px;width:100%;box-sizing:border-box;scroll-snap-type:x mandatory">${cityCard(c0, 0)}${cityCard(c1, 1)}</div>
       <div style="color:var(--t3);font-size:.75rem;margin-top:12px;text-align:center">先に選んだ都市が最初に戦います。壊滅後に残りの都市が登場します。</div>
     </div></div>`;
@@ -5658,7 +5715,7 @@
       }
       const SPLASH_DEFS = {
         my_main:  { icons: ['images/icons/icon_city.webp'],                                                      glow: '56,139,253',  bg: 'rgba(56,139,253,.16)',  border: 'rgba(56,139,253,.6)',  title: 'あなたのターン',  sub: 'カードをプレイしよう' },
-        opp_main: { svg: `<svg class="turn-splash-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 8px rgba(255,255,255,.35))"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>`, bg: 'rgba(80,85,110,.18)', border: 'rgba(180,185,210,.35)', title: '相手のターン', sub: '対応カードを準備しよう' },
+        opp_main: { svg: `<svg class="turn-splash-icon" viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 8px rgba(var(--t0-rgb),.35))"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>`, bg: 'rgba(80,85,110,.18)', border: 'rgba(180,185,210,.35)', title: '相手のターン', sub: '対応カードを準備しよう' },
         my_resp:  { icons: ['images/icons/icon_policy_yellow.webp', 'images/icons/icon_policy_green.webp'],      glow: '63,185,80',   bg: 'rgba(63,185,80,.12)',   border: 'rgba(63,185,80,.5)',   title: '対応フェーズ',    sub: '対応カードを選ぼう' },
         opp_resp: { icons: ['images/icons/icon_disaster.webp'],                                                  glow: '248,81,73',   bg: 'rgba(248,81,73,.09)',   border: 'rgba(248,81,73,.35)', title: '相手が対応中',    sub: '対応結果を待っています' },
       };
@@ -6308,8 +6365,8 @@
     }
 
     // 汎用スポットライトオーバーレイ（design_system.md §2/§5.2/§6準拠）：対象要素をSVGマスクでハイライトし、
-    // コールアウトへ最短経路のエルボー（L字）引き出し線＋端点ドットで接続する。showStepSpotlight（対戦／
-    // 1ターン体験チュートリアル）とshowCoopTutSpotlight（協力チュートリアル）で共用し、スタイル言語を統一する。
+    // コールアウトへ最短経路のエルボー（L字）引き出し線＋端点ドットで接続する。showStepSpotlight（対戦の
+    // チュートリアル）とshowCoopTutSpotlight（協力チュートリアル）で共用し、スタイル言語を統一する。
     function _renderTutSpotlight(overlayId, el, cfg) {
       if (!el) return;
       // UI修正バッチ③：同一idの旧オーバーレイが残留していれば先に除去する（多重描画による古い説明文の重なり表示を防ぐ防御的処理）
@@ -6860,7 +6917,8 @@
       </div></div>`;
     }
     // 1.3.3・3.2：Layer1「対戦する」の入口。既存のlobbyEnterCoopMode（協力側）と同じron_coopTutOfferedパターンを
-    // 対戦側にも展開し、初めて対戦を選んだときだけ「先に1ターン体験する？」を1回提案する
+    // 対戦側にも展開し、初めて対戦を選んだときだけ「先にチュートリアルを体験する？」を1回提案する
+    // （2026-07-17ユーザーレビュー第2弾：ホーム表記「1ターン体験」は「チュートリアル」に統一。関数名・localStorageキー等の内部IDは不変）
     // （localStorage ron_vsTutOffered。拒否・体験済みいずれでも以降は二度と出さず、直接Layer2へ進む）。
     function lobbyEnterVsMode() {
       let offered = false;
@@ -6880,7 +6938,7 @@
       const _svgGame2 = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1" fill="var(--t0)" stroke="none"/><circle cx="17" cy="13" r="1" fill="var(--t0)" stroke="none"/></svg>`;
       return `<div class="confirm-overlay" onclick="lobbyVsTutOfferNo()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:340px">
         <div style="text-align:center;margin-bottom:8px">${_svgGame2}</div>
-        <div class="confirm-card-preview" style="color:var(--t0)">先に1ターン体験する？</div>
+        <div class="confirm-card-preview" style="color:var(--t0)">先にチュートリアルを体験する？</div>
         <p style="color:var(--t0)">カードの使い方や対応フェーズなど、基本の流れを1分ほどで体験できます。<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">いつでもスキップでき、後からもう一度体験できます</span></p>
         <div class="confirm-btns"><button class="btn-ok" onclick="lobbyVsTutOfferYes()">体験する</button><button class="btn-cancel" onclick="lobbyVsTutOfferNo()">スキップ</button></div>
       </div></div>`;
@@ -7084,7 +7142,7 @@
       <button class="lobby-btn" onclick="lobbyEnterCoopMode()" aria-label="協力する：力を合わせて街を守る（ベータ版）"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力する</strong><span style="font-size:.72rem;color:var(--t2)">力を合わせて街を守る（ベータ版）</span></button>
     </div>
     <div style="display:flex;gap:8px;margin-top:2px">
-      <button class="lobby-btn-tut" onclick="startTutorial()" aria-label="対戦チュートリアル：1ターン体験">${_svgGame}対戦を1ターン体験</button>
+      <button class="lobby-btn-tut" onclick="startTutorial()" aria-label="対戦チュートリアルを体験する">${_svgGame}対戦チュートリアルを体験</button>
       <button class="lobby-btn-tut" onclick="startCoopTutorial()" aria-label="協力チュートリアル：1ラウンド体験"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>協力を1ラウンド体験</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin:4px 0 0">
@@ -7331,7 +7389,7 @@
     function renderWaiting() {
       let msg = '';
       switch (G.screen) {
-        case 'cityOrder': msg = _wc(`${G.players[G.cityOrderState?.playerIdx ?? 0].name} が`, '戦闘順を', '選んでいます'); break;
+        case 'cityOrder': msg = _wc(`${G.players[G.cityOrderState?.playerIdx ?? 0].name} が`, '先攻を', '選んでいます'); break;
         case 'gacha': msg = _wc(`${G.players[G.gachaCurrent?.playerIdx ?? 0].name} が`, '都市を', '選んでいます'); break;
         case 'draft': msg = _wc(`${G.players[G.draftState?.playerIdx ?? 0].name} が`, '手札を', '引いています'); break;
         case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? 0; msg = G.turnDrawState?.isHazardMap ? `${_wc(`${G.players[pi].name} が`, 'ハザードマップ', '整備で')}<br>${_wc('カードを', '引いています')}` : _wc(`${G.players[pi].name} が`, 'カードを', '引いています'); } break;
@@ -7366,9 +7424,11 @@
       const mi = myPlayerIdx, oi = mi === 0 ? 1 : 0;
       const defHasNegate = G.players[atk.defenderIdx].effects.negateSpecial;
       const isCompoundSkip = atk.card.specialType === 'skip_response' && !defHasNegate;
+      // 2026-07-17ユーザーレビュー第2弾：アイコンを固定'#fff'で強制していたため、.waiting-banner.redの
+      // 文字色（var(--red)、ライトテーマ対応済み）と食い違い視認性が崩れていた。currentColor化して統一する
       const banner = isCompoundSkip
-        ? `<div class="waiting-banner red">${coopZapIco(15,'#fff')} ${G.players[atk.attackerIdx].name}が「${cardIconSvg(atk.card.icon,15,'#fff')} ${atk.card.name}」を宣言！複合災害：対応フェーズが強制スキップされます...</div>`
-        : `<div class="waiting-banner red">${uiIcoSwords(15,'#fff')} ${G.players[atk.attackerIdx].name}が「${cardIconSvg(atk.card.icon,15,'#fff')} ${atk.card.name}」を宣言！対応フェーズへ自動移行中...</div>`;
+        ? `<div class="waiting-banner red">${coopZapIco(15,'currentColor')} ${G.players[atk.attackerIdx].name}が「${cardIconSvg(atk.card.icon,15)} ${atk.card.name}」を宣言！複合災害：対応フェーズが強制スキップされます...</div>`
+        : `<div class="waiting-banner red">${uiIcoSwords(15)} ${G.players[atk.attackerIdx].name}が「${cardIconSvg(atk.card.icon,15)} ${atk.card.name}」を宣言！対応フェーズへ自動移行中...</div>`;
       const notice = isCompoundSkip
         ? `<div class="response-pending-bar"><div class="rpb-icon">${coopZapIco(20)}</div><div class="rpb-text"><strong>複合災害：対応フェーズ強制スキップ</strong><br>攻撃の解決をお待ちください。</div></div>`
         : `<div class="response-pending-bar"><div class="rpb-icon">${uiIcoSwords(20)}</div><div class="rpb-text"><strong>${G.players[atk.attackerIdx].name}が「${cardIconSvg(atk.card.icon,15)} ${atk.card.name}」を使用！</strong><br>対応フェーズへ自動移行中...</div></div>`;
@@ -7411,7 +7471,7 @@
               ${(_gachaAllCities||[]).map((c,i) => `<div class="gacha-city-duo-item" style="animation-delay:${i*120}ms"><div class="gacha-city-duo-card"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><div class="gacha-city-duo-label">${c.name}</div></div>`).join('')}
             </div>
           </div>
-          <div style="display:flex;justify-content:center;padding:6px 0"><button class="btn-ho draft-confirm-appear" onclick="proceedToCityOrder()" style="padding:13px 44px;font-size:1rem">${uiIcoSwords(16)} 戦闘順を選ぶ</button></div>
+          <div style="display:flex;justify-content:center;padding:6px 0"><button class="btn-ho draft-confirm-appear" onclick="proceedToCityOrder()" style="padding:13px 44px;font-size:1rem">${uiIcoSwords(16)} 先攻を選ぶ</button></div>
         </div>`;
       }
 
@@ -8161,7 +8221,7 @@
         if (screen === 'turnDraw') { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? ap; drawMsg = _wc(`${G.players[pi].name} が`, 'カードを', '引いています'); }
         else if (screen === 'draft') { drawMsg = _wc(`${G.players[G.draftState?.playerIdx ?? ap].name} が`, '初期手札を', '引いています'); }
         else if (screen === 'gacha') { drawMsg = _wc(`${G.players[G.gachaCurrent?.playerIdx ?? ap].name} が`, '都市を', '選んでいます'); }
-        else if (screen === 'cityOrder') { drawMsg = _wc(`${G.players[G.cityOrderState?.playerIdx ?? ap].name} が`, '戦闘順を', '選んでいます'); }
+        else if (screen === 'cityOrder') { drawMsg = _wc(`${G.players[G.cityOrderState?.playerIdx ?? ap].name} が`, '先攻を', '選んでいます'); }
         const _SICONS = [{src:'images/icons/neon_disaster.webp'},{src:'images/icons/neon_jinzai.webp'},{src:'images/icons/neon_policy_instant.webp'},{src:'images/icons/neon_policy_shield.webp'},{src:'images/icons/neon_city.webp'}];
         const _sNeonHtml = `<div class="lobby-neon-icons">${_SICONS.map((ic,i) => `<img class="lobby-neon-icon" id="sni-${i}" src="${ic.src}" alt="" style="filter:brightness(0.04)">`).join('')}</div>`;
         return `<div class="screen active spec-screen">${header}<div class="spec-waiting">${_sNeonHtml}<div class="spec-waiting-text">${drawMsg}</div></div><button class="spec-exit-btn" onclick="restartGame()">ロビーに戻る</button></div>`;
@@ -11505,7 +11565,7 @@
       const _icoDisStr = `<img src="images/icons/icon_disaster.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block">`;
       const head = CO.mp ? `${_icoDisStr} あなたの都市への攻撃` : `${_icoDisStr} 迫りくる自然災害`;
       const note = previewCard ? `「${previewCard.name}」を適用した場合の予測を表示中。もう一度タップで対応を確定` : (CO.mp ? '政策カードをタップして対応しよう' : '政策カードをタップして対応する攻撃を選ぼう');
-      return `<div style="margin-top:10px"><div style="font-weight:700;color:#f85149;font-size:.85rem;margin-bottom:6px">${head}</div>${atks}</div><div style="text-align:center;color:${previewCard ? '#388bfd' : 'var(--t0)'};font-size:.78rem;margin:8px 0">${note}</div><div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${respCards || '<span style="color:var(--t0);font-size:.76rem">対応できる政策が手札にありません</span>'}</div><button onclick="coopSkipResponse()" style="width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#21262d;border:1px solid #30363d;color:#fff;font-weight:700;cursor:pointer">対応せず受ける ▶</button>`;
+      return `<div style="margin-top:10px"><div style="font-weight:700;color:#f85149;font-size:.85rem;margin-bottom:6px">${head}</div>${atks}</div><div style="text-align:center;color:${previewCard ? '#388bfd' : 'var(--t0)'};font-size:.78rem;margin:8px 0">${note}</div><div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${respCards || '<span style="color:var(--t0);font-size:.76rem">対応できる政策が手札にありません</span>'}</div><button onclick="coopSkipResponse()" style="width:100%;margin-top:12px;padding:12px;border-radius:10px;background:var(--bg2);border:1px solid var(--bg3);color:var(--t0);font-weight:700;cursor:pointer">対応せず受ける ▶</button>`;
     }
     // オンラインで自分の手番でないときの待機表示
     function coopWaitingArea() {
@@ -12480,7 +12540,9 @@
       // 柱2：採用済み候補の理論値はddBuildScenario内の検品で計算済みのため、scenario.qcから再利用する（再計算しない）
       const optimalResult = { best: scenario.qc.optimalBest, assign: scenario.qc.optimalAssign };
       const tip = ddPickDailyTip(dateKey, scenario);
-      // D1：dailyPlayCard が DD.hand から使用カードを splice するため、割当表示用に元の手札構成を別途保持しておく
+      // D1：解説棋譜（_ddBuildSolutionSteps）用に開始時点の手札構成を別途保持しておく（DD.handは
+      // UX刷新後は対応表の割当状態のみで管理し、spliceで中身を減らすことはない。DD.hand===fullHandの
+      // 内容は常に一致するが、既存の解説棋譜ロジックとの互換のためfullHandは残す）
       const fullHand = scenario.hand.slice();
       DD = {
         dateKey, city: scenario.city, disasters: scenario.disasters, hand: scenario.hand, fullHand,
@@ -12493,26 +12555,97 @@
       };
       render();
     }
-    function dailyBeginPlay() { if (!DD || DD.phase !== 'forecast') return; DD.phase = 'prep'; render(); }
-    function dailyPlayCard(uid) {
-      if (!DD || DD.phase !== 'prep') return;
-      const idx = DD.hand.findIndex(c => c.uid === uid); if (idx < 0) return;
-      const card = DD.hand[idx]; const left = DD.budget - DD.budgetUsed; // 柱4：可変予算対応（通常デイリーはDD.budget=DAILY_CFG.budgetのため挙動不変）
-      if (card.cost > left) return; // 予算超過の使用は拒否
-      DD.hand.splice(idx, 1); DD.budgetUsed += card.cost; DD.used.push(card);
-      if (card.effectType === 'heal') DD.hp = Math.min(DAILY_CFG.hp, DD.hp + card.value);
-      else if (card.effectType === 'shield_quake_fire') DD.shieldQuakeFire = true;
-      else if (card.effectType === 'shield_flood') DD.shieldFlood = true;
-      else if (card.effectType === 'damage_reduce_2t') DD.reduceHits += 2;
-      else if (card.effectType === 'negate_special') DD.negateSpecial = true;
+    // 開始前ページ（予報フェーズ）専用：デイリー防災のルール要点をタップでオンデマンド表示するトグル（design_system.md §10.3）
+    function dailyToggleRules() { if (!DD) return; DD.rulesOpen = !DD.rulesOpen; render(); }
+    // ══════════════════════════════════════════════════════════════════
+    // デイリー防災UX刷新（備えフェーズの対応表化）：DD.cardAssign は DD.hand と同じ長さの配列で、
+    // DD.cardAssign[i] が DD.hand[i] の割当先スロット番号（0..disasters.length-1）、未割当は -1。
+    // dailyComputeOptimal の assign（hand index→slot）と同じ表現形式に合わせてあるため、
+    // 「どのカードをどの災害の前に使うか」という対応表の読み方と理論値の読み方が一致する。
+    // 旧実装（dailyPlayCard）はカードを即時消費してDD.handをspliceしていたが、対応表UIでは
+    // 「全スロットを見ながら自由に割当・入替できる」必要があるため、割当は状態としてのみ持ち、
+    // 実際の効果適用（dailyResolveAttackの呼び出し）は「シミュレーション実行」ボタン（dailyRunSimulation）で
+    // 一括して行う。効果適用のswitch文自体はdailyComputeOptimal・ddGreedyPlayと同じ内容を保つ
+    // （計算ロジック本体には一切手を入れない。表示層のこの1関数のみが新規）。
+    // ══════════════════════════════════════════════════════════════════
+    function dailyBeginPlay() {
+      if (!DD || DD.phase !== 'forecast') return;
+      DD.phase = 'prep';
+      DD.cardAssign = new Array(DD.hand.length).fill(-1);
+      DD.selectedUid = null;
       render();
     }
-    function dailyNextPhase() {
+    function _ddBudgetUsed() {
+      if (!DD || !DD.cardAssign) return 0;
+      let sum = 0;
+      DD.hand.forEach((c, i) => { if (DD.cardAssign[i] !== -1) sum += c.cost; });
+      return sum;
+    }
+    function _ddSlotCardUids(slot) {
+      if (!DD || !DD.cardAssign) return [];
+      return DD.hand.filter((c, i) => DD.cardAssign[i] === slot).map(c => c.uid);
+    }
+    function _ddSetAssign(uid, slot) {
+      if (!DD || !DD.cardAssign) return;
+      const idx = DD.hand.findIndex(c => c.uid === uid); if (idx < 0) return;
+      DD.cardAssign[idx] = slot;
+    }
+    // 手札カードのタップ選択（対応表への割当の1手目）。同じカードを再タップすると選択解除する。
+    function dailySelectHandCard(uid) {
       if (!DD || DD.phase !== 'prep') return;
-      const atk = DD.disasters[DD.attackIndex];
-      const res = dailyResolveAttack(atk, DD.attackIndex);
-      DD.results.push(res); DD.hp = res.hpAfter; DD.attackIndex++;
-      if (DD.hp <= 0 || DD.attackIndex >= DD.disasters.length) dailyFinish(); else render();
+      DD.selectedUid = (DD.selectedUid === uid) ? null : uid;
+      render();
+    }
+    // 選択中の手札カードをスロットへ割当（対応表への割当の2手目）。新規割当（手札→スロット）のみ予算チェックする
+    // （既に割当済みのカードをスロット間で動かす場合は総予算が変わらないためチェック不要）。
+    function dailyAssignCard(uid, slot) {
+      if (!DD || DD.phase !== 'prep') return;
+      const idx = DD.hand.findIndex(c => c.uid === uid); if (idx < 0) return;
+      const card = DD.hand[idx];
+      if (DD.cardAssign[idx] === -1) {
+        const left = DD.budget - _ddBudgetUsed();
+        if (card.cost > left) { DD.selectedUid = null; render(); return; } // 予算不足は無視（選択解除のみ）
+      }
+      DD.cardAssign[idx] = slot;
+      DD.selectedUid = null;
+      render();
+    }
+    // 対応表の行をタップ：選択中の手札カードがあればそこへ割当。選択が無ければ何もしない。
+    function dailyTapSlot(slot) {
+      if (!DD || DD.phase !== 'prep' || !DD.selectedUid) return;
+      dailyAssignCard(DD.selectedUid, slot);
+    }
+    // 割当済みチップのタップ：手札トレイへ差し戻す
+    function dailyUnassignCard(uid) {
+      if (!DD || DD.phase !== 'prep') return;
+      const idx = DD.hand.findIndex(c => c.uid === uid); if (idx < 0) return;
+      DD.cardAssign[idx] = -1;
+      DD.selectedUid = null;
+      render();
+    }
+    // 「シミュレーション実行」：対応表の割当（DD.cardAssign）に従い、スロット0→最後まで一括で解決する。
+    // dailyComputeOptimal（12052行付近）の内側ループと同じ順序（スロットのカード適用→dailyResolveAttack）で、
+    // 同じ効果適用switch文をそのまま踏襲する（理論値計算と実プレイの乖離を防ぐため）。
+    // 未割当の災害（対応するカードが無い）はそのまま素通しダメージになる＝現行仕様どおり。
+    function dailyRunSimulation() {
+      if (!DD || DD.phase !== 'prep') return;
+      const disasters = DD.disasters, nSlots = disasters.length;
+      DD.results = []; DD.used = [];
+      for (let s = 0; s < nSlots; s++) {
+        DD.hand.forEach((card, i) => {
+          if (DD.cardAssign[i] !== s) return;
+          DD.used.push(card);
+          if (card.effectType === 'heal') DD.hp = Math.min(DAILY_CFG.hp, DD.hp + card.value);
+          else if (card.effectType === 'shield_quake_fire') DD.shieldQuakeFire = true;
+          else if (card.effectType === 'shield_flood') DD.shieldFlood = true;
+          else if (card.effectType === 'damage_reduce_2t') DD.reduceHits += 2;
+          else if (card.effectType === 'negate_special') DD.negateSpecial = true;
+        });
+        const res = dailyResolveAttack(disasters[s], s);
+        DD.results.push(res); DD.hp = res.hpAfter; DD.attackIndex = s + 1;
+        if (DD.hp <= 0) break;
+      }
+      dailyFinish();
     }
     function dailyFinish() {
       DD.phase = 'result';
@@ -12724,16 +12857,125 @@
       const badge = order ? `<div style="position:absolute;top:4px;left:4px;z-index:5;width:19px;height:19px;border-radius:50%;background:rgba(0,0,0,.75);border:1.5px solid var(--red);color:#fff;font-size:.68rem;font-weight:900;display:flex;align-items:center;justify-content:center">${order}</div>` : '';
       return `<div class="card disaster card-spectator" data-ctype="disaster">${badge}<div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}</div>`;
     }
-    // 政策カード（予報の手札プレビュー・備えフェーズの手札の両方で使用）。opts.clickable=true で dailyPlayCard を紐付ける。
+    // 政策カード（予報の手札プレビュー・備えフェーズの手札トレイの両方で使用）。
+    // opts.clickable=true で dailySelectHandCard（対応表への割当用の選択トグル）を紐付ける。
+    // opts.previewOnTap=true（clickable=falseと併用）で、開始前ページのタップ即時プレビュー（_lpTapPreview）を紐付ける。
+    // opts.selected=true で選択中カードの強調枠（.dd-card-selected）を付与する。
     function ddMkPolicyCard(card, opts) {
       opts = opts || {};
       const clickable = !!opts.clickable;
       const ok = opts.affordable !== false;
       const dis = clickable && !ok;
-      const cls = `card ${card.type} ${clickable ? (dis ? 'card-disabled' : 'card-usable') : 'card-spectator'}`;
-      const click = (clickable && !dis) ? ` onclick="dailyPlayCard('${card.uid}')"` : '';
+      const selected = !!opts.selected;
+      const cls = `card ${card.type} ${clickable ? (dis ? 'card-disabled' : 'card-usable') : 'card-spectator'}${selected ? ' dd-card-selected' : ''}`;
+      let click = '', cursor = 'default';
+      if (clickable && !dis) { click = ` onclick="dailySelectHandCard('${card.uid}')"`; cursor = 'pointer'; }
+      else if (!clickable && opts.previewOnTap) { click = ` onclick="_lpTapPreview(this)"`; cursor = 'pointer'; }
       const reason = dis ? '<div class="card-disabled-reason">予算不足</div>' : '';
-      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${(clickable && !dis) ? 'pointer' : 'default'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
+      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
+    }
+    // 対応表の割当スロット内に表示するコンパクトなチップ（アイコン＋名前＋コスト）。タップで手札へ戻し、
+    // 長押し(450ms)+ドラッグでスロット間の入れ替え・手札への差し戻しができる（ddDragPointerDown系。問題工房
+    // エディタのpzDragPointerDown系＝Notion風長押しドラッグと同じ設計：判定前はtouch-actionを制限せず
+    // スクロールと競合しない・ドラッグ中はrender()を呼ばずtransformのみ直接操作する）。
+    function ddMkSlotChip(card, slot) {
+      return `<div class="dd-slot-chip" data-uid="${_escHtml(card.uid)}" data-slot="${slot}"
+        onpointerdown="ddDragPointerDown(event,'${card.uid}',${slot})" onpointermove="ddDragPointerMove(event)"
+        onpointerup="ddDragPointerUp(event)" onpointercancel="ddDragPointerUp(event)"
+        onclick="event.stopPropagation();dailyUnassignCard('${card.uid}')">
+        <span style="width:14px;height:14px;flex-shrink:0;display:flex">${cardIconSvg(card.icon,14)}</span>
+        <span class="dd-slot-chip-name">${_escHtml(card.name)}</span>
+        <span class="dd-slot-chip-cost">${card.cost}</span>
+      </div>`;
+    }
+    // ══════════════════════════════════════════════════════════════════
+    // 割当済み政策チップの長押しドラッグ入替：問題工房エディタの来襲災害並べ替え（pzDragPointerDown系。
+    // 14886行付近）と同じ設計方針を流用する。相違点は、pz側が「1本のリスト内の並べ替え」なのに対し、
+    // こちらは「複数のドロップ先（スロット行・手札トレイ）のどれかへ移す」点。そのためtransformでの
+    // translateYシフトではなく、position:fixed化したチップをleft/topで指に追従させ、指の座標が
+    // どのドロップ先の矩形内にあるかを比較するヒットテスト方式にしている。
+    // ・長押し（約450ms）で移動モードに入る。判定前（タイマー待ち中）はtouch-actionを一切制限しないため、
+    //   指がDD_DRAG_CANCEL_PXを超えて動いた時点でスクロール操作とみなしタイマーをキャンセルする。
+    // ・移動モードに入った瞬間だけtouch-actionを'none'に切り替える。ドラッグ中は対象チップに
+    //   transformではなくleft/topを直接適用し、render()は一切呼ばない。
+    // ・スロットへドロップした場合、そのスロットに既存チップが1枚だけあればスワップ（元スロットへ入替）、
+    //   0枚または2枚以上ならそのまま追加する（複数枚割当も許容する仕様のため）。手札トレイへドロップした
+    //   場合は手札へ差し戻す。指を離した時（pointerup/cancel）にのみDD.cardAssignへ反映し、
+    //   その1回だけrender()する（カード工房・問題工房で踏襲してきたレイアウト安定の教訓のとおり）。
+    // ══════════════════════════════════════════════════════════════════
+    let _ddDrag = null;
+    const DD_DRAG_HOLD_MS = 450;
+    const DD_DRAG_CANCEL_PX = 10;
+    function ddDragPointerDown(e, uid, fromSlot) {
+      if (_ddDrag) return; // 二重開始防止
+      const chip = e.currentTarget;
+      try { chip.setPointerCapture(e.pointerId); } catch (err) { /* 非対応環境は無視（フォールバックはタップのみ） */ }
+      const st = { uid, fromSlot, pointerId: e.pointerId, chip, startX: e.clientX, startY: e.clientY, active: false, timer: null };
+      st.timer = setTimeout(() => ddDragActivate(st), DD_DRAG_HOLD_MS);
+      _ddDrag = st;
+    }
+    function ddDragActivate(st) {
+      if (_ddDrag !== st || !DD) return;
+      st.active = true;
+      const rect = st.chip.getBoundingClientRect();
+      st.origLeft = rect.left; st.origTop = rect.top; st.w = rect.width;
+      st.slotEls = Array.from(document.querySelectorAll('.dd-slot-cell'));
+      st.trayEl = document.getElementById('dd-hand-tray');
+      st.chip.style.touchAction = 'none';
+      st.chip.style.transition = 'none';
+      st.chip.style.position = 'fixed';
+      st.chip.style.left = st.origLeft + 'px';
+      st.chip.style.top = st.origTop + 'px';
+      st.chip.style.width = st.w + 'px';
+      st.chip.style.zIndex = '9500';
+      st.chip.style.boxShadow = '0 10px 24px rgba(0,0,0,.5)';
+      st.chip.style.transform = 'scale(1.06)';
+      st.chip.style.pointerEvents = 'none';
+    }
+    function _ddDragFindTarget(x, y, st) {
+      for (const el of st.slotEls) {
+        const r = el.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return { type: 'slot', slot: +el.dataset.slot, el };
+      }
+      if (st.trayEl) {
+        const r = st.trayEl.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return { type: 'tray' };
+      }
+      return null;
+    }
+    function ddDragPointerMove(e) {
+      const st = _ddDrag; if (!st || e.pointerId !== st.pointerId) return;
+      if (!st.active) {
+        if (Math.abs(e.clientX - st.startX) > DD_DRAG_CANCEL_PX || Math.abs(e.clientY - st.startY) > DD_DRAG_CANCEL_PX) { clearTimeout(st.timer); _ddDrag = null; } // スクロール操作とみなしキャンセル
+        return;
+      }
+      e.preventDefault();
+      const dx = e.clientX - st.startX, dy = e.clientY - st.startY;
+      st.chip.style.left = (st.origLeft + dx) + 'px';
+      st.chip.style.top = (st.origTop + dy) + 'px';
+      const target = _ddDragFindTarget(e.clientX, e.clientY, st);
+      st.slotEls.forEach(el => el.classList.remove('dd-slot-hint'));
+      if (st.trayEl) st.trayEl.style.outline = '';
+      if (target && target.type === 'slot') target.el.classList.add('dd-slot-hint');
+      else if (target && target.type === 'tray' && st.trayEl) st.trayEl.style.outline = '2px solid var(--blue)';
+      st.dropTarget = target;
+    }
+    function ddDragPointerUp(e) {
+      const st = _ddDrag; if (!st || e.pointerId !== st.pointerId) return;
+      _ddDrag = null;
+      clearTimeout(st.timer);
+      if (!st.active || !DD) return; // 長押し未成立＝通常のタップ。チップ側のonclick（dailyUnassignCard）に任せる
+      st.slotEls.forEach(el => el.classList.remove('dd-slot-hint'));
+      if (st.trayEl) st.trayEl.style.outline = '';
+      const target = st.dropTarget;
+      if (target && target.type === 'tray') {
+        _ddSetAssign(st.uid, -1); // スロット→手札へ戻す
+      } else if (target && target.type === 'slot' && target.slot !== st.fromSlot) {
+        const occupants = _ddSlotCardUids(target.slot).filter(u => u !== st.uid);
+        if (occupants.length === 1) _ddSetAssign(occupants[0], st.fromSlot); // AとBのスワップ
+        _ddSetAssign(st.uid, target.slot);
+      }
+      render(); // 確定時のみrender()（ドラッグ中は一切呼んでいない）
     }
     function dailyRenderForecast() {
       if (DD.pickerOpen) return dailyRenderCityPicker(); // C4：マイ都市選択画面（予報フェーズのサブビュー）
@@ -12748,7 +12990,19 @@
       // 柱2：良問オートフィルタで妙手度が高いと判定された日だけ表示するバッジ。妙手度の数値自体はプレイ前に見せない
       const masterpieceBadge = DD.isMasterpiece ? `<div style="text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(227,195,77,.14);border:1px solid rgba(227,195,77,.5);border-radius:10px;padding:8px;margin-bottom:10px;font-size:.8rem;color:#e3c34d;font-weight:800">${_ddIcoStar(16, '#e3c34d')}今日の名作</div>` : '';
       const disasterCards = DD.disasters.map((d, i) => ddMkDisasterCard(d, i + 1)).join('');
-      const handCards = DD.hand.map(c2 => ddMkPolicyCard(c2, { clickable: false })).join('');
+      // UX刷新①：開始前ページは手札タップに他の意味がないため、タップ即時プレビュー（_lpTapPreview）を有効化する
+      const handCards = DD.hand.map(c2 => ddMkPolicyCard(c2, { clickable: false, previewOnTap: true })).join('');
+      // UX刷新②：デイリー防災のルール説明（要点のみ・タップでオンデマンド表示。恒常UIには置かない＝design_system.md §10.3）
+      const rulesOverlay = DD.rulesOpen ? `<div class="confirm-overlay" onclick="dailyToggleRules()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:320px;text-align:left">
+        <div style="font-weight:800;color:var(--t0);margin-bottom:8px">デイリー防災とは</div>
+        <ul style="margin:0;padding-left:18px;color:var(--t0);font-size:.8rem;line-height:1.7">
+          <li>全国共通の1日1問。日付が変わると新しい局面になる</li>
+          <li>同じ日は誰がやっても同じ災害・手札（固定シード）</li>
+          <li>公式記録・ストリークが対象になるのはその日の初回クリアのみ</li>
+          <li>2回目以降・過去問・マイ都市・問題工房は練習扱い（記録は更新されない）</li>
+        </ul>
+        <button class="btn-ho" style="margin-top:12px" onclick="dailyToggleRules()">閉じる</button>
+      </div></div>` : '';
       // 改修2：正解（理論値）の数値そのものは開始前に見せ、手順は見せない＝「パズルである」ことを予告する
       const optimalBox = (typeof DD.optimal === 'number') ? `<div style="text-align:center;background:rgba(227,195,77,.10);border:1px solid rgba(227,195,77,.4);border-radius:10px;padding:9px;margin:12px 0;font-size:.78rem;color:#e3c34d;display:flex;align-items:center;justify-content:center;gap:6px">${_ddIcoGoldCheck(15, '#e3c34d')}<span>理論値：被害 <strong style="font-size:.95rem">${DD.optimal}</strong> が存在する（正解を探すパズルです）</span></div>` : '';
       // C4：盤面の都市表示はカスタム都市ならカード工房の合成カード（cwRenderArt）を使う
@@ -12762,8 +13016,12 @@
       // 柱4：問題工房プレイ中は「全国共通の1日1局面」という日付の文言が実態と合わないため専用の文言に差し替える
       const subtitleLine = DD.isPuzzle ? '問題工房で挑戦中（練習用・記録には反映されません）' : `${ddDateLabelSlash(DD.dateKey)}・全国共通の1日1局面`;
       return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto">
-        <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.15rem;margin-bottom:4px">${_ddIcoCalShield(24, '#388bfd')} 今日の予報</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px">
+          <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.15rem">${_ddIcoCalShield(24, '#388bfd')} 今日の予報</div>
+          <button onclick="dailyToggleRules()" aria-label="デイリー防災のルールを見る" style="width:26px;height:26px;flex-shrink:0;border-radius:50%;border:1.5px solid var(--t2);background:transparent;color:var(--t2);font-size:.78rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center">？</button>
+        </div>
         <div style="text-align:center;color:var(--t2);font-size:.78rem;margin-bottom:12px">${subtitleLine}</div>
+        ${rulesOverlay}
         ${archiveBadge}
         ${practiceNote}
         ${customCityBadge}
@@ -12785,42 +13043,57 @@
         <button onclick="dailyQuit()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.5);font-size:.78rem;cursor:pointer">ロビーに戻る（中断）</button>
       </div>`;
     }
+    // 備えフェーズ：対応表レイアウト（左＝来襲順の災害・▶＝対応関係・右＝割当済み政策スロット・下部＝未割当の手札トレイ）。
+    // design_system.md §10.3「説明テキストより構造で語る」に基づき、恒常的な操作指示文は置かず
+    // タブ・スロットという構造そのもので「どれに何を割り当てるか」を伝える。
+    // 操作：①手札カードをタップで選択→行をタップで割当（タップ完結の主経路）。②割当済みチップはタップで手札へ差し戻し。
+    // ③割当済みチップは長押し(450ms)+ドラッグでスロット間の入替・手札への差し戻しもできる（ddDrag*、pzDrag*パターンを流用）。
     function dailyRenderPrep() {
-      const atk = DD.disasters[DD.attackIndex]; const left = DD.budget - DD.budgetUsed; // 柱4：可変予算対応（通常デイリーは挙動不変）
+      const nSlots = DD.disasters.length;
+      const usedBudget = _ddBudgetUsed(); const left = DD.budget - usedBudget;
       const hpPct = Math.max(0, Math.round(DD.hp / DAILY_CFG.hp * 100));
-      const badges = [];
-      if (DD.shieldQuakeFire) badges.push('耐震補強：待機中');
-      if (DD.shieldFlood) badges.push('堤防建設：待機中');
-      if (DD.reduceHits > 0) badges.push(`防災庁設置：残${DD.reduceHits}回`);
-      if (DD.negateSpecial) badges.push('広域避難指示：待機中');
-      const badgeHtml = badges.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">${badges.map(b => `<span style="font-size:.7rem;font-weight:600;padding:3px 8px;border-radius:10px;background:rgba(63,185,80,.14);color:#3fb950;border:1px solid rgba(63,185,80,.3)">${_escHtml(b)}</span>`).join('')}</div>` : '';
-      const handHtml = DD.hand.length
-        ? `<div class="dd-card-row hand-cards-area">${DD.hand.map(c => ddMkPolicyCard(c, { clickable: true, affordable: c.cost <= left })).join('')}</div>`
-        : '<div style="color:var(--t3);font-size:.8rem;text-align:center;padding:10px">手札なし</div>';
       const archiveBadge = DD.isArchive ? `<div style="text-align:center;background:rgba(56,139,253,.12);border:1px solid #388bfd;border-radius:10px;padding:6px;margin-bottom:10px;font-size:.74rem;color:#388bfd;font-weight:700">${ddDateLabelSlash(DD.dateKey)}の過去問（練習）</div>` : '';
       // C4：マイ都市プレイ中であることの明示（プレイ中も継続表示する）
       const customCityBadge = DD.isCustomCity ? `<div style="text-align:center;background:rgba(63,185,80,.12);border:1px solid #3fb950;border-radius:10px;padding:6px;margin-bottom:10px;font-size:.72rem;color:#3fb950;font-weight:700">マイ都市：${_escHtml(DD.customCityName)}</div>` : '';
       // 柱4：問題工房プレイ中であることの明示（プレイ中も継続表示する）
       const puzzleBadge = DD.isPuzzle ? `<div style="text-align:center;background:rgba(210,153,34,.12);border:1px solid #d29922;border-radius:10px;padding:6px;margin-bottom:10px;font-size:.72rem;color:#d29922;font-weight:700">問題工房（練習）：${_escHtml(DD.puzzleTitle)}</div>` : '';
-      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto">
-        <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.05rem;margin-bottom:10px">備えフェーズ ${DD.attackIndex + 1} / ${DD.disasters.length}</div>
+      const slotHintCls = DD.selectedUid ? ' dd-slot-hint' : '';
+      const rows = DD.disasters.map((d, i) => {
+        const chipsHtml = DD.hand.map((c, hi) => DD.cardAssign[hi] === i ? ddMkSlotChip(c, i) : '').join('');
+        const emptyHtml = chipsHtml ? '' : `<div class="dd-slot-empty">未割当</div>`;
+        return `<div class="dd-prep-row" onclick="dailyTapSlot(${i})">
+          <div class="dd-prep-disaster">
+            <div class="dd-prep-disaster-thumb">
+              <img src="images/cards/${d.id}.webp" alt="" onerror="this.style.display='none'">
+              <div class="dd-order-badge">${i + 1}</div>
+            </div>
+            <div class="dd-prep-disaster-info">
+              <div class="dd-prep-disaster-name">${_escHtml(d.name)}</div>
+              <div class="dd-prep-disaster-dmg">基礎${d.baseDamage}</div>
+            </div>
+          </div>
+          ${_ddIcoArrowRight(16)}
+          <div class="dd-slot-cell${slotHintCls}" data-slot="${i}">${chipsHtml}${emptyHtml}</div>
+        </div>`;
+      }).join('');
+      const trayCards = DD.hand.filter((c, i) => DD.cardAssign[i] === -1);
+      const trayHtml = trayCards.length
+        ? trayCards.map(c => ddMkPolicyCard(c, { clickable: true, affordable: c.cost <= left, selected: DD.selectedUid === c.uid })).join('')
+        : `<div style="color:var(--t3,#8b949e);font-size:.74rem;text-align:center;padding:8px;width:100%">すべて割当済み</div>`;
+      return `<div class="screen active" style="padding:20px 20px 96px;max-width:520px;margin:0 auto">
+        <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.05rem;margin-bottom:10px">備えフェーズ・${nSlots}件の災害に対応する</div>
         ${archiveBadge}
         ${customCityBadge}
         ${puzzleBadge}
-        <div style="text-align:center;background:rgba(248,81,73,.12);border:1px solid #f85149;border-radius:10px;padding:10px;margin-bottom:12px">
-          <div style="font-size:.75rem;color:var(--t0);margin-bottom:6px">次に来る災害</div>
-          <img src="images/cards/${atk.id}.webp" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:8px;margin-bottom:4px" onerror="this.style.display='none'">
-          <div style="font-weight:900;color:#f85149;font-size:1.1rem">${_escHtml(atk.name)}</div><div style="font-size:.72rem;color:var(--t2)">${_escHtml(atk.desc)}</div>
-        </div>
         <div style="margin-bottom:4px;display:flex;justify-content:space-between;font-size:.74rem;color:var(--t0)"><span>HP</span><span>${DD.hp} / ${DAILY_CFG.hp}</span></div>
-        <div style="background:var(--bg3,#21262d);border-radius:5px;height:9px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${hpPct}%;background:${hpPct > 30 ? '#3fb950' : '#f85149'}"></div></div>
-        <div style="text-align:right;font-size:.74rem;color:var(--t2);margin-bottom:8px">残り予算 ${left} / ${DD.budget}</div>
-        ${badgeHtml}
-        <div style="color:var(--t0);font-weight:700;font-size:.85rem;margin-bottom:6px">手札から使う政策を選ぶ（使わなくてもよい）</div>
-        ${handHtml}
-        <button class="btn-ho" style="margin-top:10px" onclick="dailyNextPhase()">この災害を迎え撃つ →</button>
-        <button onclick="dailyQuit()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.5);font-size:.78rem;cursor:pointer">ロビーに戻る（中断）</button>
-      </div>`;
+        <div style="background:var(--bg3,#21262d);border-radius:5px;height:9px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${hpPct}%;background:${hpPct > 30 ? '#3fb950' : '#f85149'}"></div></div>
+        <div style="text-align:right;font-size:.74rem;color:var(--t2);margin-bottom:12px">残り予算 <strong style="color:var(--t0)">${left}</strong> / ${DD.budget}</div>
+        <div>${rows}</div>
+        <div class="dd-tray-label">手札（タップで選択→上の行をタップで割当／割当済みは長押しドラッグで移動）</div>
+        <div id="dd-hand-tray" class="dd-card-row hand-cards-area">${trayHtml}</div>
+        <button onclick="dailyQuit()" style="width:100%;margin-top:12px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.5);font-size:.78rem;cursor:pointer">ロビーに戻る（中断）</button>
+      </div>
+      <div class="dd-run-bar"><button class="btn-ho" onclick="dailyRunSimulation()">シミュレーション実行</button></div>`;
     }
     function dailyRenderResult() {
       const cBad = 'display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;padding:3px 8px;border-radius:10px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
@@ -12934,6 +13207,11 @@
     function _ddIcoStar(size, col) {
       const s = size || 16; const c = col || '#e3c34d';
       return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><polygon points="12 2 15 9 22 9.5 16.5 14 18.5 21.5 12 17.5 5.5 21.5 7.5 14 2 9.5 9 9"/></svg>`;
+    }
+    // 備えフェーズの対応表：災害→政策の対応関係を示す矢印アイコン（絵文字ではなく線画SVG。design_system.md §6）
+    function _ddIcoArrowRight(size, col) {
+      const s = size || 16; const c = col || 'var(--t2)';
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><line x1="4" y1="12" x2="18" y2="12"/><polyline points="12 6 18 12 12 18"/></svg>`;
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -14787,7 +15065,7 @@
 
     // ── 保存済みデータ（cityId/disasterIds/handIds/budget）→ 柱2の検品関数・DDエンジンが読めるscenarioオブジェクトへ変換 ──
     // 手札の各カードには柱2/柱3と同じ形式のuid（'pz_'+id+'_'+連番）を振る。同種カードのuidが重複しないようにするためで、
-    // dailyPlayCard等の既存ロジック（uid一致で1枚を特定）にそのまま渡せる。
+    // dailyAssignCard等の既存ロジック（uid一致で1枚を特定）にそのまま渡せる。
     function pzBuildHandFromIds(ids) {
       const counts = {};
       return (ids || []).map(id => {
