@@ -21,7 +21,9 @@
         var raw = localStorage.getItem('ron_settings_v1');
         var s = raw ? JSON.parse(raw) : null;
         if (!s || typeof s !== 'object') return;
-        var THEME_ACCENTS = { 'cyber-red': '#0d1117', 'dystopia-blue': '#050912', 'hacker-matrix': '#070b07' };
+        // 2026-07-17ユーザーレビュー修正：8bit・ライトの2テーマを追加（design_system.md §1.6）。theme-colorメタは
+        // 各テーマの--bg0（8bit=#0a0a1a／light=#eef1f5）と一致させ、初回ペイントからブラウザUIの色も揃える。
+        var THEME_ACCENTS = { 'cyber-red': '#0d1117', 'dystopia-blue': '#050912', 'hacker-matrix': '#070b07', '8bit': '#0a0a1a', 'light': '#eef1f5' };
         if (s.theme && s.theme !== 'cyber-red' && THEME_ACCENTS[s.theme]) {
           document.documentElement.setAttribute('data-theme', s.theme);
           var meta = document.getElementById('ron-theme-color-meta');
@@ -35,6 +37,13 @@
           link.id = 'ron-font-orbitron'; link.rel = 'stylesheet';
           link.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap';
           document.head.appendChild(link);
+        } else if (s.font === '8bit') {
+          // 2026-07-17ユーザーレビュー修正：8bitフォント（日本語対応のDotGothic16）。Orbitronと同じ早期取得パターン。
+          document.documentElement.classList.add('ron-font-8bit');
+          var link8 = document.createElement('link');
+          link8.id = 'ron-font-dotgothic16'; link8.rel = 'stylesheet';
+          link8.href = 'https://fonts.googleapis.com/css2?family=DotGothic16&display=swap';
+          document.head.appendChild(link8);
         }
       } catch (e) { /* localStorage不可・JSON破損時は既定（サイバー・レッド／グローON／デフォルトフォント）のまま続行 */ }
     })();
@@ -66,6 +75,8 @@
       --bg1: #161b22;
       --bg2: #21262d;
       --bg3: #30363d;
+      --t0: #ffffff;
+      --t0-rgb: 255, 255, 255;
       --t1: #e6edf3;
       --t2: #8b949e;
       --t3: #484f58;
@@ -81,9 +92,15 @@
       --card-w: 100px;
     }
 
-    /* ── 1.3.1・1.3.2：テーマプリセット（design_system.md §1.5・追記予定）。
-       意味色5色（--blue/--red/--green/--yellow/--purple）とテキストスケール（--t1/--t2/--t3）はテーマ間で不変。
-       テーマが変えるのは「背景の色相（--bg0系）」と「装飾アクセント（--accent系）」のみ。
+    /* ── 1.3.1・1.3.2・2026-07-17ユーザーレビュー修正（テーマ・フォント拡充）：テーマプリセット（design_system.md §1.6）。
+       意味色5色（--blue/--red/--green/--yellow/--purple）とテキストスケール（--t0〜--t3）は「サイバー・レッド／
+       ディストピア・ブルー／ハッカー・マトリクス／8bit」の4ダークテーマ間では不変（いずれも暗背景のため白系文字で
+       成立する）。テーマが変えるのは「背景の色相（--bg0系）」と「装飾アクセント（--accent系）」のみ、という従来原則を
+       維持する。唯一の例外は明背景の「ライト」テーマで、背景が反転するため文字トークン（--t0〜--t3）・意味色5色・
+       アクセントの全てをコントラスト確保のため明度調整した専用値で上書きする（意味の対応・使い分けは変えない）。
+       --t0は今回新設した「本文（--t1）より明るい強調・見出し」用トークンで、既定値#ffffffは<style>内に残っていた
+       素の#fff/#ffffffハードコードのうち「ページ/パネル背景に直接乗る自由文字・ゴーストボタン」箇所を対象に置き換えた
+       （適用範囲の詳細はdesign_system.md §1.6参照）。
        html[data-theme="cyber-red"] は現行デフォルトと同値（未指定=:root既定と完全一致、明示指定時の冗長フォールバックとして定義）。 ── */
     html[data-theme="cyber-red"] {
       --bg0: #0d1117; --bg0-soft: #111827; --bg0-deep: #080d14;
@@ -100,6 +117,24 @@
       --bg1: #0e160e; --bg2: #162216; --bg3: #26392a;
       --accent: #39ff6a; --accent-rgb: 57, 255, 106; --accent-dark-rgb: 10, 110, 45;
     }
+    /* 2026-07-17ユーザーレビュー修正：8bitテーマ（レトロゲーム風の濃紺〜黒×限定色パレット）。文字トークンは
+       他のダークテーマ同様--t0〜--t3を上書きしない（暗背景のため既定の白系文字のままで成立する）。ドット感は
+       ピクセルフォント（DotGothic16、下記フォント切替）と組み合わせたときに主に生まれる設計。 */
+    html[data-theme="8bit"] {
+      --bg0: #0a0a1a; --bg0-soft: #14143a; --bg0-deep: #050510;
+      --bg1: #14142c; --bg2: #1e1e42; --bg3: #3a3a6e;
+      --accent: #ff004d; --accent-rgb: 255, 0, 77; --accent-dark-rgb: 140, 0, 40;
+    }
+    /* 2026-07-17ユーザーレビュー修正：ライトテーマ（明背景×暗文字）。他の3テーマと異なり文字トークン（--t0〜--t3）・
+       意味色5色・アクセントの全てを明度調整して上書きする（意味の対応・使い分けは変えない。design_system.md §1.6）。 */
+    html[data-theme="light"] {
+      --bg0: #eef1f5; --bg0-soft: #ffffff; --bg0-deep: #dde3ea;
+      --bg1: #ffffff; --bg2: #f5f7fa; --bg3: #d3dae3;
+      --t0: #0d1117; --t0-rgb: 13, 17, 23; --t1: #1c2430; --t2: #57626e; --t3: #98a2ae;
+      --blue: #1f6feb; --red: #cf222e; --green: #1a7f37; --yellow: #9a6700; --purple: #8250df;
+      --accent: #d6294a; --accent-rgb: 214, 41, 74; --accent-dark-rgb: 150, 20, 45;
+      --tut-btn-text: #1f6feb;
+    }
 
     /* ── 1.3.1：グロー抑制モード。低スペック端末・バッテリー配慮（design_system.md §4.3関連）。
        主要な発光装飾（カード使用可能グロー・ネオンアイコンfilter・ターン演出のテキストグロー・警告バッジの点滅グロー等）
@@ -112,7 +147,6 @@
     html.ron-no-glow .card.card-usable[data-ctype="jinzai"]:hover,
     html.ron-no-glow .card.resp-previewing,
     html.ron-no-glow .hint-btn,
-    html.ron-no-glow .settings-btn,
     html.ron-no-glow .gacha-card-reveal-area.revealed,
     html.ron-no-glow .go-victory .go-big-title,
     html.ron-no-glow .go-defeat .go-big-title,
@@ -134,6 +168,12 @@
        後続フォールバック（Hiragino Sans/Segoe UI等）に自動的に委ねる（Orbitronは非CJKグリフのみ持つため）。 ── */
     html.ron-font-digital body {
       font-family: 'Orbitron', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+    }
+    /* ── 2026-07-17ユーザーレビュー修正：8bitフォント。DotGothic16は英数字・日本語（ひらがな/カタカナ/常用漢字相当）を
+       単一書体でカバーするピクセルフォントのため、Orbitronと違い先頭に置くだけでbody全体（和文含む）に適用される。
+       取得失敗・オフライン時は後続の既存フォントスタックへ自然にフォールバックする。 ── */
+    html.ron-font-8bit body {
+      font-family: 'DotGothic16', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
     }
 
     body {
@@ -288,6 +328,12 @@
       text-transform: uppercase
     }
 
+    /* ── 2026-07-17ユーザーレビュー修正：名前入力欄をホーム(Layer1)から対戦Layer2/協力ウィザードへ移動（§10.5 just-in-time）。
+       前回値がある場合（＝ほぼ常に2回目以降のプレイ）は控えめな1行表示にし、毎画面で目立つ入力欄を主張させない。 ── */
+    .lobby-name-compact { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .lobby-name-compact-label { font-size: .72rem; color: var(--t3); flex-shrink: 0; white-space: nowrap; }
+    .lobby-input.compact { padding: 6px 10px; font-size: .82rem; background: transparent; border-color: var(--bg3); }
+
     .lobby-mode-btns {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -361,6 +407,9 @@
     /* 1.3.3・3.2：Layer1のチュートリアル導線。対戦する/協力するの2枚（.lobby-btn）よりは控えめだが、
        その他の機能グループ（.lobby-btn-gallery）よりは目立つ中間の視覚的重みを持たせる。新規の意味色は割り当てず、
        既存の情報色=青（var(--blue)）のトーンを流用する（design_system.md §1.4準拠） */
+    /* 2026-07-17ユーザーレビュー修正：文字色#7db8ff（暗背景向けの薄い水色）はライトテーマの白背景に乗せると
+       コントラスト不足で読めなくなることをPuppeteer実レンダリングで確認したため、--tut-btn-textトークンへ切り出し、
+       ライトテーマのみ濃い青（--blueの明度調整値と同じ#1f6feb）で上書きする（design_system.md §1.6）。 */
     .lobby-btn-tut {
       flex: 1;
       display: flex;
@@ -371,7 +420,7 @@
       border: 1.5px solid rgba(56, 139, 253, .35);
       border-radius: 10px;
       padding: 10px 8px;
-      color: #7db8ff;
+      color: var(--tut-btn-text, #7db8ff);
       font-size: .8rem;
       font-weight: 700;
       cursor: pointer;
@@ -1028,7 +1077,7 @@
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
-      color: #fff;
+      color: var(--t0);
       font-size: 1.05rem;
       font-weight: 700;
       letter-spacing: .03em;
@@ -2168,11 +2217,11 @@
     .gallery-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:22px 20px; max-width:640px; width:100%; display:flex; flex-direction:column; gap:14px; box-shadow:0 12px 40px rgba(0,0,0,.5) }
     .gallery-header { display:flex; align-items:center; justify-content:space-between }
     .gallery-title { font-size:1.3rem; font-weight:700; text-align:center; flex:1 }
-    .gallery-btn-back { width:40px; height:40px; background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0; transition:.2s }
+    .gallery-btn-back { width:40px; height:40px; background:transparent; border:1.5px solid var(--t0); border-radius:0; color:var(--t0); cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0; transition:.2s }
     .gallery-btn-back:hover { background:rgba(var(--accent-rgb),.1); border-color:var(--accent); color:var(--accent) }
-    .sq-btn { background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:8px 14px; min-height:40px; display:inline-flex; align-items:center; justify-content:center; transition:.2s; white-space:nowrap }
+    .sq-btn { background:transparent; border:1.5px solid var(--t0); border-radius:0; color:var(--t0); cursor:pointer; font-size:.9rem; font-weight:700; padding:8px 14px; min-height:40px; display:inline-flex; align-items:center; justify-content:center; transition:.2s; white-space:nowrap }
     .sq-btn:hover { background:rgba(var(--accent-rgb),.1); border-color:var(--accent); color:var(--accent) }
-    .sq-btn-r { background:transparent; border:1.5px solid #fff; border-radius:0; color:#fff; cursor:pointer; font-size:.9rem; font-weight:700; padding:10px 14px; width:100%; display:flex; align-items:center; justify-content:center; transition:.2s; margin-top:4px }
+    .sq-btn-r { background:transparent; border:1.5px solid var(--t0); border-radius:0; color:var(--t0); cursor:pointer; font-size:.9rem; font-weight:700; padding:10px 14px; width:100%; display:flex; align-items:center; justify-content:center; transition:.2s; margin-top:4px }
     .sq-btn-r:hover { background:rgba(var(--accent-rgb),.1); border-color:var(--accent); color:var(--accent) }
     .gallery-tabs { display:flex; flex-direction:column; gap:8px }
     .gallery-tab-btn { padding:12px 16px; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:600; transition:.2s; text-align:left; display:flex; align-items:center; gap:10px }
@@ -2214,8 +2263,28 @@
        keep-all＋anywhereの折返し規則をhintedName()のZWSP挿入と組み合わせ、狭い都市パネルでも
        「ニューオーリンズ」等が語中で不自然に割れないようにする（例：ニューオーリン／ズ → ニュー／オーリンズ） */
     .coop-city-name { word-break:keep-all; overflow-wrap:anywhere; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden }
-    /* 1.3.4：4〜5人協力時の都市パネル2列グリッド（2〜3人時は既存のflex横並びのまま。coopRenderBoardのmanyCities分岐でのみ使用） */
+    /* 1.3.4：mySlotが無い場合（ソロ・自然側視点）の4〜5人協力時の都市パネル2列グリッド。2〜3人時は既存のflex横並びのまま。
+       coopRenderBoardの「自分の都市が存在しない」フォールバック分岐でのみ使用（無変更・従来どおり） */
     .coop-city-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
+    /* 2026-07-17：自分の都市パネル常時最上部＋仲間都市の横一列（MPで自分の都市が存在する場合に人数不問で統一。design_system.md §10.2/10.4）。
+       coopRenderBoardのmySlot分岐で使用。.coop-ally-rowの子要素は各パネルが自前でflex:1を持つためmin-widthのみ指定する。
+       320px幅で仲間4パネル（5人協力の最大構成）を検証：min-width88px×4+gap18px=370px > 296px（320px幅の実効コンテンツ幅）のため、
+       都市名の可読性を優先してoverflow-x:autoの横スクロールを許容する（詰め込みによる都市名の判読不能を避けた設計判断。TASKS.md記録済み） */
+    .coop-city-stack { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+    .coop-ally-row { display:flex; gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:1px; }
+    .coop-ally-row > * { min-width:88px; }
+    /* 仲間パネル（compact）の都市名タップで能力詳細を開閉するボタン。.coop-shield-toggleと同系統の作法（タップ可能を示す常時背景）。
+       アイコン・文字サイズを縮小し、狭いパネル幅（88px〜）でも都市名が収まるようにする */
+    .coop-city-name-tap { display:flex; align-items:center; gap:5px; width:100%; min-width:0; background:none; border:none; padding:2px 0; margin:0; color:inherit; font:inherit; text-align:left; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    .coop-city-name-tap .city-icon-sm { width:16px; height:16px; }
+    .coop-city-name-tap .coop-city-name { flex:1; min-width:0; font-size:.74rem; }
+    .coop-city-name-tap svg:last-child { flex-shrink:0; opacity:.6; transition:transform .15s ease; }
+    .coop-city-name-tap[aria-expanded="true"] svg:last-child { transform:rotate(180deg); }
+    /* 手札エリアの所有者タブ（自分＋仲間）。「政策カードをタップして都市を守ろう」等の恒常的な操作指示文の代替（design_system.md §10.3） */
+    .coop-hand-tabs { display:flex; gap:5px; flex-wrap:wrap; margin:8px 0 4px; }
+    .coop-hand-tab { padding:4px 12px; border-radius:10px; font-size:.72rem; font-weight:700; cursor:pointer; transition:.12s; background:transparent; color:#388bfd; border:1px solid rgba(56,139,253,.5); -webkit-tap-highlight-color:transparent; }
+    .coop-hand-tab.active { background:#388bfd; color:#fff; border-color:#388bfd; }
+    .coop-hand-view-note { text-align:center; color:rgba(255,255,255,.55); font-size:.7rem; margin:2px 0 6px; }
 
     /* 協力モード：都市パネルのシールドバッジ／仲間の手札 タップ詳細トグル
        1.4.2：常時うっすら見える背景+枠で「タップできる」ことを視認しやすくし（従来はhover/focus時のみ着色で
@@ -2229,7 +2298,7 @@
       border: 1px solid rgba(56,139,253,.3);
       padding: 3px 7px;
       margin: -3px -7px;
-      color: #fff;
+      color: var(--t0);
       cursor: pointer;
       font: inherit;
       -webkit-tap-highlight-color: transparent;
@@ -2257,15 +2326,8 @@
       border-radius: 6px;
       animation: ts-fade-in .18s ease both;
     }
-    .coop-shield-detail-row { display: flex; align-items: flex-start; gap: 5px; font-size: .66rem; color: #fff; line-height: 1.5; }
+    .coop-shield-detail-row { display: flex; align-items: flex-start; gap: 5px; font-size: .66rem; color: var(--t0); line-height: 1.5; }
     .coop-shield-detail-row + .coop-shield-detail-row { margin-top: 3px; }
-
-    /* 仲間の手札確認UI（1.2.8）：coop-shield-detail内でカード名・コストのみのコンパクト行を縦スクロール表示。
-       4〜5人時に1人あたりの表示が縦に伸びすぎないよう max-height+overflow-y で頭打ちにする */
-    .coop-ally-hand-compact { display:flex; flex-direction:column; gap:3px; max-height:150px; overflow-y:auto; }
-    .coop-ally-hand-chip { display:flex; align-items:center; gap:5px; font-size:.68rem; color:#fff; padding:3px 6px; background:rgba(255,255,255,.05); border-radius:5px; }
-    .coop-ally-hand-chip-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .coop-ally-hand-chip-cost { flex-shrink:0; font-weight:700; color:var(--green,#3fb950); }
 
     /* 協力：リーチ警告バッジ（HPバー右上に重ねる。シールドトグル行＝バー下部とは別レイヤーのためレイアウト競合なし） */
     .coop-reach-warn { position:absolute; top:-6px; right:-6px; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#0d1117; border:1.5px solid #f85149; box-shadow:0 0 6px rgba(248,81,73,.55); animation: coop-reach-pulse 1.6s ease-in-out infinite; z-index:2 }
@@ -2339,24 +2401,23 @@
     }
 
     /* ── 10. Hint overlay ── */
-    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid #fff; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; z-index:9100; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
+    .hint-btn { position:fixed; bottom:16px; right:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid var(--t0); color:var(--t0); font-size:1rem; font-weight:700; cursor:pointer; z-index:9100; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
     .hint-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(var(--accent-rgb),.1) }
 
-    /* ── 1.3.1・1.3.2：設定ボタン（ロビーのみ表示。hint-btnと対称の左下配置） ── */
-    .settings-btn { position:fixed; bottom:16px; left:16px; width:40px; height:40px; border-radius:50%; background:transparent; border:1.5px solid #fff; color:#fff; cursor:pointer; z-index:9100; transition:.2s; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.4) }
-    .settings-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(var(--accent-rgb),.1) }
-    body.ui-tabbar-active .settings-btn { bottom:76px; }
+    /* ── 1.3.1・1.3.2：設定パネル本体のスタイル（旧settings-btn歯車ボタンは2026-07-17にタブバー「設定」タブへ統合し廃止。§10.4） ── */
     .settings-theme-row { display:flex; gap:8px; flex-wrap:wrap }
     .settings-theme-chip { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--bg3); background:var(--bg2); cursor:pointer; flex:1; min-width:82px; transition:.15s; }
     .settings-theme-chip.active { border-color:var(--accent); background:rgba(var(--accent-rgb),.12); }
     .settings-theme-swatch { width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.18); flex-shrink:0; }
     .settings-theme-label { font-size:.7rem; color:var(--t1); font-weight:700; text-align:center; line-height:1.3; }
-    .settings-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; }
+    .settings-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; flex-wrap:wrap; }
     .settings-row-text { display:flex; flex-direction:column; gap:2px; }
     .settings-row-label { font-size:.85rem; color:var(--t1); font-weight:700; }
     .settings-row-desc { font-size:.7rem; color:var(--t3); }
-    .settings-seg { display:flex; gap:6px; }
-    .settings-seg-btn { padding:6px 12px; border-radius:8px; border:1.5px solid var(--bg3); background:var(--bg2); color:var(--t2); font-size:.78rem; font-weight:700; cursor:pointer; transition:.15s; }
+    /* 2026-07-17ユーザーレビュー修正：フォント選択が2択→3択（標準/デジタル/8bit）になったため、
+       .settings-rowにflex-wrapを追加（狭幅では説明文の下へ折り返し）、gapとpaddingも詰めて320px幅でも1行に収まりやすくした */
+    .settings-seg { display:flex; gap:5px; flex-wrap:wrap; }
+    .settings-seg-btn { padding:6px 10px; border-radius:8px; border:1.5px solid var(--bg3); background:var(--bg2); color:var(--t2); font-size:.76rem; font-weight:700; cursor:pointer; transition:.15s; white-space:nowrap; }
     .settings-seg-btn.active { border-color:var(--blue); color:var(--blue); background:rgba(56,139,253,.12); }
 
     /* ══ UI第3弾（試験実装）：A2 ボトムタブバー（design_system.md §9 A2。UI_TABBARで無効化可） ══ */
@@ -3536,10 +3597,6 @@
         right: calc(env(safe-area-inset-right, 0px) + 12px + 40px + 8px);
         bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
       }
-      .settings-btn {
-        left: calc(env(safe-area-inset-left, 0px) + 12px);
-        bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-      }
 
       /* ── 9b. UI第3弾（試験実装）：ボトムタブバーのsafe-area対応（design_system.md §5.2） ── */
       .ui-tabbar {
@@ -3549,9 +3606,6 @@
         padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
       }
       body.ui-tabbar-active .hint-btn {
-        bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 12px);
-      }
-      body.ui-tabbar-active .settings-btn {
         bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 12px);
       }
 
@@ -3889,6 +3943,11 @@
     // 含む全フェーズ（design_system.md §9 A2はホーム/デイリー/つくる/図鑑の4タブのみを定義しており、
     // オンライン協力はpresence/リスナーを張った生存ルームのためタブ遷移による離脱動線を増やさない
     // 安全側判断とした）。
+    // 2026-07-17ユーザーレビュー修正：タブバー最右に「設定」タブを追加（旧ロビー左下のsettings-btn歯車を廃止し統合。
+    // design_system.md §10.4「メタ機能はボトムタブバーに集約」）。設定は画面遷移ではなくオーバーレイのトグルのため
+    // 他4タブと違い _uiTabBarActiveTab() の戻り値には現れず、isActiveは_settingsOpenで別管理する。
+    // オーバーレイ自体（renderSettingsOverlay）はタブバーが出る5画面（render()/renderDaily()/
+    // renderCardWorkshop()/renderPuzzleWorkshop()の各呼び出し元）すべてで _settingsOpen 時に描画する。
     // ════════════════════════════════════════════════════════════════════
     const UI_TABBAR = true;
     function _uiTabBarActiveTab() {
@@ -3938,9 +3997,13 @@
           icon: '<path d="M2 20h20"/><path d="M4 20v-9l3.5 3.5V11L11 14.5V11l3.5 3.5V7l3.5 4v9"/>' },
         { key: 'gallery', label: '図鑑', onclick: '_uiTabGoGallery()',
           icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' },
+        // 2026-07-17ユーザーレビュー修正：ロビー左下の歯車ボタン（settings-btn）を廃止しタブバー最右へ統合（design_system.md §10.4）。
+        // 画面遷移ではなくオーバーレイのトグルのため onclick は toggleSettings()、アクティブ判定も _settingsOpen で別扱いする。
+        { key: 'settings', label: '設定', onclick: 'toggleSettings()',
+          icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>' },
       ];
       const btns = TABS.map(t => {
-        const isActive = t.key === active;
+        const isActive = t.key === 'settings' ? _settingsOpen : t.key === active;
         return `<button class="ui-tab-btn${isActive ? ' active' : ''}" onclick="${t.onclick}" aria-label="${t.label}" aria-current="${isActive ? 'page' : 'false'}"><span class="ui-tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:21px;height:21px">${t.icon}</svg></span><span class="ui-tab-label">${t.label}</span></button>`;
       }).join('');
       return `<nav class="ui-tabbar" role="navigation" aria-label="メインナビゲーション">${btns}</nav>`;
@@ -4224,10 +4287,13 @@
     // ─── 1.3.1・1.3.2：設定パネル（テーマ・フォント・グロー）。<head>早期適用script（FOUC対策）と
     // 同じlocalStorageキー・既定値を共有する。デフォルト（cyber-red/標準フォント/グローON）＝現行の見た目と完全一致。 ───
     const RON_SETTINGS_KEY = 'ron_settings_v1';
+    // 2026-07-17ユーザーレビュー修正：8bit・ライトの2テーマを追加（design_system.md §1.6・§10.6「カスタマイズは広めに試して削る」）
     const RON_THEMES = [
       { id: 'cyber-red',     label: 'サイバー・レッド',     swatchBg: '#0d1117', swatchAccent: '#fa2a4e' },
       { id: 'dystopia-blue', label: 'ディストピア・ブルー', swatchBg: '#050912', swatchAccent: '#29d3ff' },
       { id: 'hacker-matrix', label: 'ハッカー・マトリクス', swatchBg: '#070b07', swatchAccent: '#39ff6a' },
+      { id: '8bit',          label: '8bit',                 swatchBg: '#0a0a1a', swatchAccent: '#ff004d' },
+      { id: 'light',         label: 'ライト',               swatchBg: '#eef1f5', swatchAccent: '#d6294a' },
     ];
     const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', glow: true };
     function ronGetSettings() {
@@ -4256,6 +4322,26 @@
       });
       return _ronFontOrbitronPromise;
     }
+    // 2026-07-17ユーザーレビュー修正：8bitフォント（日本語対応のDotGothic16）。Orbitronと全く同じ
+    // 遅延取得パターン（選択時のみ<link>挿入・オフライン/失敗時はフォールバック続行）を踏襲する。
+    let _ronFontDotGothicPromise = null;
+    function _ronEnsure8bitFont() {
+      if (_ronFontDotGothicPromise) return _ronFontDotGothicPromise;
+      _ronFontDotGothicPromise = new Promise((resolve) => {
+        if (typeof document === 'undefined') { resolve(false); return; }
+        if (document.getElementById('ron-font-dotgothic16')) { resolve(true); return; }
+        try {
+          const link = document.createElement('link');
+          link.id = 'ron-font-dotgothic16'; link.rel = 'stylesheet';
+          link.href = 'https://fonts.googleapis.com/css2?family=DotGothic16&display=swap';
+          link.onload = () => resolve(true);
+          link.onerror = () => resolve(false);
+          document.head.appendChild(link);
+          setTimeout(() => resolve(false), 4000); // オフライン等は取得失敗としてフォールバック続行
+        } catch (e) { resolve(false); }
+      });
+      return _ronFontDotGothicPromise;
+    }
     function ronApplySettings(s) {
       if (typeof document === 'undefined') return;
       const html = document.documentElement;
@@ -4263,7 +4349,9 @@
       else html.removeAttribute('data-theme');
       html.classList.toggle('ron-no-glow', s.glow === false);
       html.classList.toggle('ron-font-digital', s.font === 'digital');
+      html.classList.toggle('ron-font-8bit', s.font === '8bit');
       if (s.font === 'digital') _ronEnsureDigitalFont();
+      else if (s.font === '8bit') _ronEnsure8bitFont();
       const meta = document.getElementById('ron-theme-color-meta');
       if (meta) { const t = RON_THEMES.find(t => t.id === s.theme) || RON_THEMES[0]; meta.setAttribute('content', t.swatchBg); }
     }
@@ -4280,13 +4368,14 @@
     function renderSettingsOverlay() {
       const s = ronGetSettings();
       const themeChips = RON_THEMES.map(t => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}"></span><span class="settings-theme-label">${t.label}</span></button>`).join('');
-      const fontSeg = [['default', '標準'], ['digital', 'デジタル']].map(([f, label]) => `<button class="settings-seg-btn${s.font === f ? ' active' : ''}" onclick="ronSetFont('${f}')">${label}</button>`).join('');
+      // 2026-07-17ユーザーレビュー修正：8bit（DotGothic16）を追加し3択に拡張
+      const fontSeg = [['default', '標準'], ['digital', 'デジタル'], ['8bit', '8bit']].map(([f, label]) => `<button class="settings-seg-btn${s.font === f ? ' active' : ''}" onclick="ronSetFont('${f}')">${label}</button>`).join('');
       const glowClass = s.glow !== false ? 'ios-switch on' : 'ios-switch';
       return `<div class="hint-overlay" onclick="toggleSettings()"><div class="hint-box" onclick="event.stopPropagation()">
         <div class="hint-box-header"><span class="hint-title">${uiIcoGear(15)} 設定</span><button class="hint-close" onclick="toggleSettings()">✕</button></div>
         <div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:8px">テーマカラー</div><div class="settings-theme-row">${themeChips}</div></div>
         <hr class="hint-divider">
-        <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">フォント</span><span class="settings-row-desc">数字・英字の書体を切り替えます（日本語は変わりません）</span></div><div class="settings-seg">${fontSeg}</div></div>
+        <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">フォント</span><span class="settings-row-desc">${s.font === '8bit' ? 'ピクセル書体（日本語も含めて変わります）' : '数字・英字の書体を切り替えます（日本語は変わりません）'}</span></div><div class="settings-seg">${fontSeg}</div></div>
         <hr class="hint-divider">
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">グロー効果</span><span class="settings-row-desc">発光演出を抑えて動作を軽くします</span></div><div class="${glowClass}" onclick="ronSetGlow(!this.classList.contains('on'))" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>
       </div></div>`;
@@ -6634,8 +6723,8 @@
       else if (!_cityModalViews.includes(view)) _cityInfoModal = null;
       if (view !== 'setup_required') html += `<button class="hint-btn" onclick="toggleHint()" title="ヒント">？</button>`;
       if (_hintOpen) html += renderHintOverlay();
-      // 1.3.1・1.3.2：設定ボタンはロビー（ホーム画面）のみに表示する。バトル中は開けなくてよい仕様のため他画面には出さない
-      if (view === 'lobby') html += `<button class="settings-btn" onclick="toggleSettings()" title="設定" aria-label="設定">${uiIcoGear(18)}</button>`;
+      // 2026-07-17ユーザーレビュー修正：設定ボタンはタブバー最右の「設定」タブへ統合したため、旧フローティング
+      // settings-btnは廃止した（design_system.md §10.4）。トグル自体（toggleSettings/_settingsOpen）は不変。
       if (_settingsOpen) html += renderSettingsOverlay();
       const _invBattleViews = ['main','response','turnSummary','discard','peek','waiting_response','waiting'];
       if (!isCpuMode && roomId && _invBattleViews.includes(view)) {
@@ -6757,12 +6846,16 @@
       lobbyState.coopTutOfferOpen = false;
       lobbyGoTo(() => { lobbyState.mode = 'coop'; lobbyState.coopStep = 1; lobbyState.coopNet = null; lobbyState.error = ''; }, 'forward');
     }
+    // 2026-07-17ユーザーレビュー修正：この.confirm-boxはbackground:var(--bg2)（テーマ反応）を使う一方、本文は
+    // 従来ハードコードのcolor:#fffだったため、ライトテーマでbg2が明色化すると白文字が読めなくなる不具合を
+    // Puppeteer実レンダリングで確認した。Layer1→Layer2の入口という主要導線のため、var(--t0)/rgba(var(--t0-rgb),.7)
+    // （デフォルト値は#fff/rgba(255,255,255,.7)のまま＝既存の見た目を維持しつつライトテーマのみ暗転）へ置き換えた。
     function renderCoopTutOfferOverlay() {
-      const _svgUsers2 = `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>`;
+      const _svgUsers2 = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>`;
       return `<div class="confirm-overlay" onclick="lobbyCoopTutOfferNo()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:340px">
         <div style="text-align:center;margin-bottom:8px">${_svgUsers2}</div>
-        <div class="confirm-card-preview" style="color:#fff">先に1ラウンド体験する？</div>
-        <p style="color:#fff">協力モードは対戦とルールが違います。90秒ほどで仕組みを体験できます。<br><span style="font-size:.78rem;color:rgba(255,255,255,.7)">いつでもスキップでき、後からもう一度体験できます</span></p>
+        <div class="confirm-card-preview" style="color:var(--t0)">先に1ラウンド体験する？</div>
+        <p style="color:var(--t0)">協力モードは対戦とルールが違います。90秒ほどで仕組みを体験できます。<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">いつでもスキップでき、後からもう一度体験できます</span></p>
         <div class="confirm-btns"><button class="btn-ok" onclick="lobbyCoopTutOfferYes()">体験する</button><button class="btn-cancel" onclick="lobbyCoopTutOfferNo()">スキップ</button></div>
       </div></div>`;
     }
@@ -6784,11 +6877,11 @@
       lobbyGoTo(() => { lobbyState.playMode = 'vs'; lobbyState.error = ''; }, 'forward');
     }
     function renderVsTutOfferOverlay() {
-      const _svgGame2 = `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1" fill="white" stroke="none"/><circle cx="17" cy="13" r="1" fill="white" stroke="none"/></svg>`;
+      const _svgGame2 = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1" fill="var(--t0)" stroke="none"/><circle cx="17" cy="13" r="1" fill="var(--t0)" stroke="none"/></svg>`;
       return `<div class="confirm-overlay" onclick="lobbyVsTutOfferNo()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:340px">
         <div style="text-align:center;margin-bottom:8px">${_svgGame2}</div>
-        <div class="confirm-card-preview" style="color:#fff">先に1ターン体験する？</div>
-        <p style="color:#fff">カードの使い方や対応フェーズなど、基本の流れを1分ほどで体験できます。<br><span style="font-size:.78rem;color:rgba(255,255,255,.7)">いつでもスキップでき、後からもう一度体験できます</span></p>
+        <div class="confirm-card-preview" style="color:var(--t0)">先に1ターン体験する？</div>
+        <p style="color:var(--t0)">カードの使い方や対応フェーズなど、基本の流れを1分ほどで体験できます。<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">いつでもスキップでき、後からもう一度体験できます</span></p>
         <div class="confirm-btns"><button class="btn-ok" onclick="lobbyVsTutOfferYes()">体験する</button><button class="btn-cancel" onclick="lobbyVsTutOfferNo()">スキップ</button></div>
       </div></div>`;
     }
@@ -6957,7 +7050,12 @@
       const _svgBook = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
       const _svgCpu = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="15" x2="22" y2="15"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="15" x2="4" y2="15"/></svg>`;
       // ── Layer2共通ウィザード部品（対戦Layer2・協力coopStepウィザードの両方で共用。段差表示の選択カード） ──
-      const nameField = `<div style="margin-bottom:12px"><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>`;
+      // 2026-07-17ユーザーレビュー修正：ホーム(Layer1)の名前欄を廃止し、対戦Layer2・協力ウィザードの各ステップへ
+      // 移動した（§10.5 just-in-time）。前回値（ron_lastName）がある場合は毎画面で主張しすぎないよう控えめな
+      // 1行表示にする（ラベル付きの目立つ入力欄は「前回値なし＝初回」のときのみ）。値・保存・バリデーションは不変。
+      const nameField = nv
+        ? `<div class="lobby-name-compact"><span class="lobby-name-compact-label">プレイヤー名</span><input id="lobby-name" class="lobby-input compact" style="flex:1" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>`
+        : `<div style="margin-bottom:12px"><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>`;
       let _bigCardSeq = 0;
       const bigCard = (onclick, icon, title, desc, color) => `<button onclick="${onclick}" aria-label="${title}：${desc}" style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:1.5px solid ${color || 'var(--bg3,#30363d)'};background:rgba(255,255,255,.02);color:#fff;cursor:pointer;text-align:left;margin-bottom:8px;transition:.15s;animation:yb-scale-in .32s cubic-bezier(.23,1,.32,1) both;animation-delay:${(_bigCardSeq++) * 70}ms" onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='rgba(255,255,255,.02)'"><span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:32px;height:32px">${icon}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:.98rem">${title}</span><span style="font-size:.72rem;color:var(--t2);font-weight:400;line-height:1.4">${desc}</span></span></button>`;
       const stepHead = t => `<div style="text-align:center;color:var(--t1);font-weight:800;font-size:1.02rem;margin:2px 0 12px">${t}</div>`;
@@ -6977,8 +7075,9 @@
       const icoDisasterSide = `<span style="display:inline-flex;vertical-align:middle;margin-right:5px">${_cardIco('icon_disaster.webp', 20)}</span>`;
       if (lobbyState.mode === 'select' && !lobbyState.playMode) {
         // ── Layer1：モード選択（対戦する／協力する）。色ではなくアイコン・文言のみで差別化（design_system.md §1.4/§8.3） ──
-        body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
-    ${err}
+        // 2026-07-17ユーザーレビュー修正：名前入力欄はここには置かない（§10.5 just-in-time）。対戦する/協力するを
+        // 選んだ後の画面（Layer2・協力ウィザード）でnameFieldとして配置する。
+        body = `${err}
     ${_lobbyDashboardCard()}
     <div class="lobby-mode-btns">
       <button class="lobby-btn" onclick="lobbyEnterVsMode()" aria-label="対戦する：1対1でぶつかり合う">${_svgGame}<strong>対戦する</strong><span style="font-size:.72rem;color:var(--t2)">1対1でぶつかり合う</span></button>
@@ -7010,7 +7109,9 @@
           { key: 'normal', label: 'NORMAL', color: '#d29922', rgb: '210,153,34', desc: 'バランス型<br>標準的な読み' },
           { key: 'hard',   label: 'HARD',   color: 'var(--accent)', rgb: '250,42,78',  desc: '戦略AI<br>全てを熟知' },
         ].map(d => `<button onclick="startCpuGame('${d.key}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:10px;background:rgba(${d.rgb},.12);border:1.5px solid ${d.color};color:${d.color};font-weight:700;font-size:1rem;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(${d.rgb},.22)'" onmouseout="this.style.background='rgba(${d.rgb},.12)'">${d.label}<span style="font-size:.68rem;font-weight:400;opacity:.8;text-align:center;line-height:1.5">${d.desc}</span></button>`).join('');
-        body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 田中" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
+        // ソロCPU戦は名前必須ではない（startCpuGameは未入力時「プレイヤー」既定にフォールバック）。§10.5どおり
+        // ここでも表示はするが強制はしない（nameFieldは前回値があれば控えめな1行表示になる）。
+        body = `${nameField}
     ${err}
     <div style="text-align:center;color:var(--t2);font-size:.82rem;margin:4px 0 10px">CPUと一人で対戦できます。難易度を選んでください。</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${_diffBtns}</div>
@@ -7128,7 +7229,7 @@
       <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');this.classList.toggle('on')" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid #fff;border-radius:0;color:#fff;cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='#fff';this.style.color='#fff'" onclick="lobbyState.coopCityHp=120;lobbyState.coopSocialVuln=true;render()">デフォルト設定に戻す</button>
+      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=120;lobbyState.coopSocialVuln=true;render()">デフォルト設定に戻す</button>
     </div>
     <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120)">部屋を作る</button>
     <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">${note}</div>`;
@@ -7144,7 +7245,7 @@
     <div style="text-align:center;color:var(--t1);font-size:.86rem;margin:2px 0 10px;font-weight:700"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-2px"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg> 協力モード（ベータ版）</div>
     ${wiz}`;
       } else {
-        body = `<div><label class="lobby-label">あなたの名前</label><input id="lobby-name" class="lobby-input" type="text" placeholder="例: 鈴木" maxlength="12" value="${nv}" oninput="lobbyState.nameInput=this.value"></div>
+        body = `${nameField}
     <div><label class="lobby-label">ルームコード（6文字）</label><input id="lobby-code" class="lobby-input code-input" type="text" placeholder="AB3K7X" maxlength="6" value="${jv}" oninput="lobbyState.joinCodeInput=this.value.toUpperCase();this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')handleJoinClick()"></div>
     <div style="font-size:.78rem;color:#fff;text-align:center;line-height:1.6;padding:2px 0">ホストの画面に表示されるQRコードはカメラから読み込んでください</div>
     ${err}${spectateOffer}
@@ -7611,7 +7712,7 @@
       if (c.fn === 'endTurn') {
         const left = getBudgetLeft(G.activePlayer);
         return `<div class="confirm-overlay" onclick="cancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
-          <div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div>
+          <div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div>
           <div class="confirm-card-preview"><strong>予算 ${left}pt が残っています</strong></div>
           <p>本当にターンを終了しますか？</p>
           <div class="confirm-btns"><button class="btn-ok" onclick="confirmWithAnim()" aria-label="ターン終了を確定する">終了する</button><button class="btn-cancel" onclick="cancelConfirm()" aria-label="ターン終了をキャンセル">キャンセル</button></div>
@@ -9211,15 +9312,15 @@
     // 都市パネル別にシールド詳細トグルの開閉状態を保持（Firebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
     let _coShieldDetailOpen = {};
     function coopToggleShieldDetail(idx) { _coShieldDetailOpen[idx] = !_coShieldDetailOpen[idx]; renderCoop(); }
-    // 仲間の手札確認UI（1.2.8）：都市スロット別に「仲間の状況」パネルの手札詳細トグル開閉状態を保持
-    // （_coShieldDetailOpenと同じくFirebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
-    let _coAllyHandOpen = {};
-    function coopToggleAllyHandOpen(idx) { _coAllyHandOpen[idx] = !_coAllyHandOpen[idx]; renderCoop(); }
-    // 仲間の手札を「カード名・コスト」のみのコンパクト行で表示（coopMkCardのフルカード描画は4〜5人時に縦に長くなりすぎるため不使用）
-    function coopAllyHandCompactHtml(hand) {
-      if (!hand || !hand.length) return '<div style="font-size:.68rem;color:rgba(255,255,255,.4);padding:2px 0">手札なし</div>';
-      return `<div class="coop-ally-hand-compact">${hand.map(c => `<div class="coop-ally-hand-chip">${cardIconSvg(c.icon, 12)}<span class="coop-ally-hand-chip-name">${_escHtml(c.name)}</span><span class="coop-ally-hand-chip-cost">${c.cost}</span></div>`).join('')}</div>`;
-    }
+    // 2026-07-17：仲間パネルのコンパクト化に伴い、能力詳細は都市名タップで開閉する（対戦モードの都市名タップ詳細と同じ体験）。
+    // 都市スロット別に開閉状態を保持（_coShieldDetailOpenと同じくFirebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
+    let _coCityDetailOpen = {};
+    function coopToggleCityDetail(idx) { _coCityDetailOpen[idx] = !_coCityDetailOpen[idx]; renderCoop(); }
+    // 2026-07-17：手札エリアの所有者タブ（自分＋仲間）。'me'=自分固定、それ以外はCO.cities内の都市インデックス。
+    // 昨日実装した_coAllyHandOpen/coopToggleAllyHandOpen/coopAllyHandCompactHtml（仲間の状況パネル内「手札を見る」）を置き換えて廃止した
+    // （Firebase同期には載せないローカル表示state。協力ゲーム開始時・各ターン開始時に'me'へリセット）
+    let _coHandTab = 'me';
+    function coopSelectHandTab(v) { _coHandTab = v; renderCoop(); }
     // 対応フェーズ：どの対応カードを「プレビュー中」か（Firebase同期には載せないローカル表示state。1タップ目でプレビュー、
     // 同じカードを2タップ目で実際の対応選択＝coopSelectResponseへ進む。対応フェーズを離れたら renderCoop 冒頭で自動クリア）
     let _coRespPreviewUid = null;
@@ -9282,7 +9383,6 @@
     let _coRoomPlayersRef = null, _coRoomPresRef = null, _coStartedRef = null; // MP：ロビーのロスター・在席・開始フラグ購読
     let _coRoleShown = false; // MP：配役発表スプラッシュを1度だけ出す
     let _coReconnOpen = false; // 盤面：再接続オーバーレイの開閉状態
-    let _coAllyHandId = null;  // 仲間手札タブで選択中の都市スロットインデックス
 
     // 勝敗を中立 outcome から自分視点に変換（オンライン用）
     function coopResultFor(side) {
@@ -9573,6 +9673,7 @@
     // 都市ターン開始（MP）：全スロットの予算・ドロー・各種フラグをリセット
     function coopStartCityTurnMP(initial) {
       if (_coAutoEndTimer) { clearTimeout(_coAutoEndTimer); _coAutoEndTimer = null; } // 前ターンの自動終了タイマーを破棄
+      _coHandTab = 'me'; // 2026-07-17：新しいターンの開始ごとに手札タブを自分に安全に戻す
       CO.phase = 'city'; CO.confirm = null; CO.intel = null; CO.intelPopup = false; CO.eventPopup = null;
       CO.cities.forEach(cs => { cs.effects.disastersReceivedThisTurn = 0; cs.ready = false; cs.ack = false; cs.resp = undefined; });
       coopApplyBudgetMP();
@@ -10082,7 +10183,7 @@
       }
       CO.budget = b; CO.budgetUsed = 0;
     }
-    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coAllyHandOpen = {}; _coRespPreviewUid = null; coopStartCityTurn(true); }
+    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; coopStartCityTurn(true); }
     // 都市ターン開始（humanSide によって人間操作／CPU防衛に分岐）
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
@@ -10640,12 +10741,13 @@
         ? `<img src="images/icons/icon_city.webp" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;display:inline-block"> 都市側（守る）`
         : `<img src="images/icons/icon_disaster.webp" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;display:inline-block"> 自然側（攻める）`;
       const oppSide = CO.mySide === 'city' ? 'nature' : 'city';
-      const cancelBtn = `<button onclick="coopQuit()" style="width:100%;max-width:280px;padding:11px;margin-top:18px;border-radius:10px;background:transparent;border:1px solid var(--bd,#30363d);color:#fff;cursor:pointer">キャンセルしてロビーへ</button>`;
+      // 2026-07-17ユーザーレビュー修正：ホスト待機画面（主要導線）のcolor:#fffをvar(--t0)へ（既定値は#fffのまま・ライトテーマのみ暗転）
+      const cancelBtn = `<button onclick="coopQuit()" style="width:100%;max-width:280px;padding:11px;margin-top:18px;border-radius:10px;background:transparent;border:1px solid var(--bd,#30363d);color:var(--t0);cursor:pointer">キャンセルしてロビーへ</button>`;
       if (CO.host) {
         return `<div class="screen active" style="padding:24px;max-width:480px;margin:0 auto;text-align:center">
           <h2 style="color:${d.color};margin:6px 0">オンライン協力（${d.label}）</h2>
-          <p style="color:#fff;font-size:.85rem;margin:4px 0 8px">このルームコードを相手に伝えてください</p>
-          <div style="font-size:2.6rem;font-weight:900;letter-spacing:.28em;color:#fff;background:var(--bg2,#161b22);border:2px solid ${d.color};border-radius:12px;padding:16px 8px;margin:10px 0">${code}</div>
+          <p style="color:var(--t0);font-size:.85rem;margin:4px 0 8px">このルームコードを相手に伝えてください</p>
+          <div style="font-size:2.6rem;font-weight:900;letter-spacing:.28em;color:var(--t0);background:var(--bg2,#161b22);border:2px solid ${d.color};border-radius:12px;padding:16px 8px;margin:10px 0">${code}</div>
           <div style="color:var(--t2);font-size:.8rem;line-height:1.7;margin-top:8px">あなた：${sideLabel(CO.mySide)}<br>相手：${sideLabel(oppSide)}</div>
           <div style="margin-top:16px;color:var(--t2);font-size:.9rem;font-weight:700"><span class="co-spinner"></span> 相手の参加を待っています…</div>
           ${cancelBtn}</div>`;
@@ -10774,7 +10876,27 @@
       const showTurn = CO.mp && (CO.phase === 'city' || CO.phase === 'draw');
       const readyChip = showTurn ? (cs.ready ? `<span style="display:inline-flex;align-items:center;gap:2px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>` : `<span style="display:inline-block;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(255,255,255,.05);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.15)">…</span>`) : '';
       const supportChip = (CO.mp && dead) ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>後方支援</span>` : '';
-      const owner = (CO.mp && cs.ownerName) ? `<div style="margin:3px 0 5px"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.66rem;font-weight:700;background:${mine ? 'rgba(56,139,253,.3)' : 'rgba(255,255,255,.08)'};color:#fff;border:1px solid ${mine ? '#388bfd' : 'rgba(255,255,255,.18)'}">${mine ? 'あなた' : cs.ownerName}</span>${supportChip}${readyChip}</div>` : '';
+      // 2026-07-17：都市パネルレイアウト刷新（design_system.md §10.1/10.2）。
+      // ・compact=true（仲間パネル／自然側視点の全都市表示）：能力詳細は既定で非表示にし、都市名タップで開閉する
+      //   （対戦モードの都市名タップ詳細と同じ体験。既存のcoopToggleShieldDetail/_coShieldDetailOpenと同じローカルUI状態パターンを別キー_coCityDetailOpenで踏襲）
+      // ・compact=false かつ mine=true（自分の都市）：能力詳細は常時表示のまま、「あなた」タグの右隣にインライン化して改行分の余白をなくす
+      // ・compact=false かつ mine=false（ソロの全都市／MP2〜3人時に自分の都市が存在しない視点）：従来どおり都市名の下に常時表示（無回帰）
+      const cityDetailOpen = !!_coCityDetailOpen[idx];
+      const panelPad = compact ? '6px 7px' : '10px';
+      const abilityStyle = compact
+        ? 'font-size:.62rem;color:#fff;opacity:.9;margin:3px 0 0;line-height:1.3'
+        : 'font-size:.64rem;color:#fff;opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px';
+      let nameBlock, ownerAbilityInline, standaloneAbility;
+      if (compact) {
+        nameBlock = `<button type="button" class="coop-city-name-tap" aria-expanded="${cityDetailOpen}" aria-label="${_escHtml(c.name)}の能力詳細を${cityDetailOpen ? '閉じる' : '表示する'}" onclick="coopToggleCityDetail(${idx})"><span class="city-icon-sm">${terrainImg(c, 16)}</span><strong class="coop-city-name">${_escHtml(hintedName(c.name))}</strong>${uiIcoChevronDown(9)}</button>`;
+        ownerAbilityInline = '';
+        standaloneAbility = cityDetailOpen ? `<div style="${abilityStyle}">${c.abilityDesc}</div>` : '';
+      } else {
+        nameBlock = `<div style="display:flex;align-items:center;gap:6px;min-width:0"><span class="city-icon-sm">${terrainImg(c, 22)}</span><strong class="coop-city-name" style="color:#fff;min-width:0">${_escHtml(hintedName(c.name))}</strong></div>`;
+        ownerAbilityInline = mine ? `<span style="font-size:.64rem;color:#fff;opacity:.85;line-height:1.3">${c.abilityDesc}</span>` : '';
+        standaloneAbility = mine ? '' : `<div style="${abilityStyle}">${c.abilityDesc}</div>`;
+      }
+      const owner = (CO.mp && cs.ownerName) ? `<div style="margin:3px 0 5px;display:flex;align-items:center;flex-wrap:wrap;gap:5px"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.66rem;font-weight:700;background:${mine ? 'rgba(56,139,253,.3)' : 'rgba(255,255,255,.08)'};color:#fff;border:1px solid ${mine ? '#388bfd' : 'rgba(255,255,255,.18)'}">${mine ? 'あなた' : cs.ownerName}</span>${supportChip}${readyChip}${ownerAbilityInline}</div>` : '';
       const panelBorder = mine ? '#388bfd' : 'var(--bg3,#21262d)';
       // A-2: 前回描画時のHPより減っていれば、バーを旧幅で描画して coopApplyCityHpFx で新幅へアニメさせる（ghost残像つき）。
       // 増えた（回復）場合もghostなしでdata-co-fill/targetを付け、フロート数字(+N緑)をcoopApplyCityHpFxで検知できるようにする
@@ -10789,16 +10911,12 @@
           ? `<div data-co-fill="${idx}" data-co-target="${pct}" style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${col}"></div>`
           : `<div style="position:absolute;left:0;top:0;width:${pct}%;height:100%;background:${col}"></div>`;
       const reachBadge = coopReachWarningBadge(cs);
-      // 1.3.4：compact時（4〜5人プレイのグリッド表示）は各要素の余白・行数を切り詰めてパネルの縦横フットプリントを縮小する。
-      // compactが偽（従来の全呼び出し）の場合は全項目が元の値のままになり、出力は無変更。
-      const panelPad = compact ? '7px 8px' : '10px';
-      const abilityStyle = compact
-        ? 'font-size:.6rem;color:#fff;opacity:.85;margin:2px 0 4px;line-height:1.25;min-height:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden'
-        : 'font-size:.64rem;color:#fff;opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px';
+      // 1.3.4：compact時（仲間パネル・自然側視点）は各要素の余白・行数を切り詰めてパネルの縦横フットプリントを縮小する。
+      // compactが偽（自分の都市・ソロの全都市）の場合は元の値のままになり出力は無変更。
       const hpBarH = compact ? 13 : 16;
       const badgeStyle = compact ? 'font-size:.78rem;margin-top:4px;min-height:16px' : 'font-size:.85rem;margin-top:5px;min-height:18px';
       // リーチ警告バッジはHPバーの外側（overflow:hiddenの影響を受けない position:relative ラッパー）に重ねる。バー内部のoverflow:hiddenでクリップされないようにするため
-      return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:${panelPad};${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}"><div style="display:flex;align-items:center;gap:6px;min-width:0"><span class="city-icon-sm">${terrainImg(c, 22)}</span><strong class="coop-city-name" style="color:#fff;min-width:0">${_escHtml(hintedName(c.name))}</strong></div>${owner}<div style="${abilityStyle}">${c.abilityDesc}</div><div style="display:flex;align-items:center;gap:6px"><span class="hp-label" style="flex-shrink:0">HP</span><div style="position:relative;flex:1;min-width:0">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:${hpBarH}px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:${hpBarH}px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div></div><div style="${badgeStyle}">${badges}</div></div>`;
+      return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:${panelPad};${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}">${nameBlock}${owner}${standaloneAbility}<div style="display:flex;align-items:center;gap:6px"><span class="hp-label" style="flex-shrink:0">HP</span><div style="position:relative;flex:1;min-width:0">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:${hpBarH}px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:${hpBarH}px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div></div><div style="${badgeStyle}">${badges}</div></div>`;
     }
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
     function coopMkCard(card, mode, support, readOnly) {
@@ -10829,11 +10947,11 @@
       const actBtnTall = 'background:var(--blue);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;padding:9px 11px;margin:5px 0;width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.35';
       const cancelBtn = 'background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:#fff;font-size:.9rem;cursor:pointer;padding:10px;margin-top:5px;width:100%';
       if (CO.confirm.quit) {
-        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div class="confirm-card-preview" style="color:#fff"><strong>ゲームを中断します</strong></div><p style="color:#fff">ロビーに戻りますか？<br><span style="font-size:.78rem;color:rgba(255,255,255,.7)">現在の進行状況は保存されません</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopQuit()">中断して戻る</button><button class="btn-cancel" onclick="coopCancelConfirm()">続ける</button></div></div></div>`;
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>ゲームを中断します</strong></div><p style="color:var(--t0)">ロビーに戻りますか？<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">現在の進行状況は保存されません</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopQuit()">中断して戻る</button><button class="btn-cancel" onclick="coopCancelConfirm()">続ける</button></div></div></div>`;
       }
       if (CO.confirm.endTurn) {
         const left = CO.budget - CO.budgetUsed;
-        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div><div class="confirm-card-preview" style="color:#fff"><strong>予算 ${left}pt が残っています</strong></div><p style="color:#fff">本当にターンを終了しますか？<br><span style="font-size:.78rem;color:rgba(255,255,255,.7)">終了すると自然の攻撃ターンに移ります</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmEndTurn()">終了する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div></div></div>`;
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>予算 ${left}pt が残っています</strong></div><p style="color:var(--t0)">本当にターンを終了しますか？<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">終了すると自然の攻撃ターンに移ります</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmEndTurn()">終了する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div></div></div>`;
       }
       if (CO.confirm.attack) {
         const c = DISASTER_CARDS.find(x => x.id === CO.confirm.attackId); if (!c) return '';
@@ -10974,23 +11092,41 @@
         const incomingBadge = incoming.length > 0
           ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(248,81,73,.15);color:#f85149;border:1px solid rgba(248,81,73,.4)">被弾予定${incoming.length > 1 ? ` ×${incoming.length}` : ''}</span>`
           : '';
-        // 1.2.8：自分のカード選択中でも仲間の手札を確認できるよう、行内トグルで開閉するコンパクト手札詳細を追加
-        // （既存のcoopToggleShieldDetail/_coShieldDetailOpenと同じローカルUI状態パターン。coop-shield-toggleのスタイルを流用）
-        const handOpen = !!_coAllyHandOpen[cidx];
-        const handToggle = `<button type="button" class="coop-shield-toggle" aria-expanded="${handOpen}" aria-label="${s.ownerName}の手札を${handOpen ? '閉じる' : '表示する'}" onclick="coopToggleAllyHandOpen(${cidx})">手札を見る${uiIcoChevronDown(10)}</button>`;
-        const handDetail = handOpen ? `<div class="coop-shield-detail" style="flex-basis:100%">${coopAllyHandCompactHtml(s.hand)}</div>` : '';
-        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:#e6edf3;flex-shrink:0">${s.ownerName} · ${s.city.name}</span>${readyBadge}${budgetBlock}${handCount}${incomingBadge}${handToggle}${handDetail}</div>`;
+        // 2026-07-17：1.2.8で実装した行内トグル（_coAllyHandOpen/coopToggleAllyHandOpen/coopAllyHandCompactHtml）は
+        // 手札エリアの所有者タブ方式（coopSelectHandTab）へ置き換えて廃止した。代わりにこの行から該当タブへ直接ジャンプできる
+        // ボタンを残し、「仲間の状況パネルから手札を見る」という導線自体は維持する（coop-shield-toggleのスタイルを流用）
+        const handJump = `<button type="button" class="coop-shield-toggle" aria-label="${s.ownerName}の手札をカード一覧タブで見る" onclick="coopSelectHandTab(${cidx})">手札を見る</button>`;
+        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:#e6edf3;flex-shrink:0">${s.ownerName} · ${s.city.name}</span>${readyBadge}${budgetBlock}${handCount}${incomingBadge}${handJump}</div>`;
       }).join('');
       return `<div style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px"><div style="font-size:.64rem;font-weight:700;color:rgba(255,255,255,.35);margin-bottom:6px">仲間の状況</div>${rows}</div>`;
     }
     function coopRenderCityHand(readOnly) {
       const myslot = CO.mp ? coopMySlot() : null;
       const support = !!(myslot && myslot.hp <= 0); // 壊滅都市は後方支援役
-      const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly)).join('');
       const supCap = support ? (COOP_SUPPORT_CAP + (myslot.city.abilityType === 'extra_budget' ? myslot.city.abilityValue : 0)) : 0;
       const _buoy = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>`;
       // 丸チェックSVGアイコン（ターン終了済み見出し用）
       const _svgCheck = `<svg viewBox="0 0 24 24" fill="none" stroke="#9ff0a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>`;
+
+      // 2026-07-17：手札所有者タブ（自分＋仲間）。「政策カードをタップして都市を守ろう」等の恒常的な操作指示文を削除し、
+      // タブ自体が「今誰の手札を見ているか」を伝える構造に置き換える（design_system.md §10.3）。
+      // 昨日実装した_coAllyHandId/coopSelectAllyHand（ターン終了後の仲間限定タブ）はこのタブへ統合し、
+      // 自分のタブも常時選べるようにした（自分のタブはreadOnly時のみ閲覧のみ＝ターン終了済みのため操作不可）
+      const allies = CO.mp ? (CO.cities || []).filter(s => s !== myslot && s.ownerName) : [];
+      // 選択中タブの解決：無効な参照（切断・スロット変化等）は自分にフォールバック
+      if (_coHandTab !== 'me' && !allies.some(s => CO.cities.indexOf(s) === _coHandTab)) _coHandTab = 'me';
+      const viewingAlly = allies.length > 0 && _coHandTab !== 'me';
+      const selAlly = viewingAlly ? allies.find(s => CO.cities.indexOf(s) === _coHandTab) : null;
+      const tabsHtml = allies.length ? (() => {
+        const meBtn = `<button type="button" class="coop-hand-tab${_coHandTab === 'me' ? ' active' : ''}" onclick="coopSelectHandTab('me')">あなた</button>`;
+        const allyBtns = allies.map(s => {
+          const i = CO.cities.indexOf(s);
+          return `<button type="button" class="coop-hand-tab${_coHandTab === i ? ' active' : ''}" onclick="coopSelectHandTab(${i})">${_escHtml(s.ownerName)}</button>`;
+        }).join('');
+        return `<div class="coop-hand-tabs">${meBtn}${allyBtns}</div>`;
+      })() : '';
+      const viewNote = viewingAlly ? `<div class="coop-hand-view-note">${_escHtml(selAlly ? selAlly.ownerName : '')}の手札を閲覧中（使用不可）</div>` : '';
+
       let head;
       if (readOnly) {
         const _roPending = (CO.cities || []).filter(cs => !cs.ready);
@@ -10999,35 +11135,30 @@
         const _roWait = _roNames.length
           ? `<span style="font-size:.72rem;color:rgba(255,255,255,.55);margin-right:2px">操作待ち（残り${_roNames.length}人）：</span>${_roChips}`
           : `<span style="font-size:.72rem;color:rgba(255,255,255,.55)">全員の操作が終わると自動で進みます</span>`;
-        head = `<div style="margin:8px 0;padding:6px 10px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">${_svgCheck}<span style="font-size:.78rem;font-weight:700;color:#9ff0a8">ターン終了済｜仲間の手札</span></div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">${_roWait}</div></div>`;
+        head = `<div style="margin:8px 0;padding:6px 10px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">${_svgCheck}<span style="font-size:.78rem;font-weight:700;color:#9ff0a8">ターン終了済</span></div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">${_roWait}</div></div>`;
       } else {
+        // 2026-07-17：恒常UIの操作指示文（「政策カードをタップして都市を守ろう」）は削除（design_system.md §10.3）。
+        // 後方支援ルールの案内（予算+1・仲間都市に使える旨）は操作指示文ではなく状態説明のため維持する
         head = support
           ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 0;color:#9ff0a8;font-size:.74rem;line-height:1.35;text-align:center">${_buoy}<span>予算は毎ターン +1（最大${supCap}）。仲間の都市に政策カードを使える</span></div>`
-          : '<div style="text-align:center;color:#fff;font-size:.76rem;margin:8px 0">政策カードをタップして都市を守ろう</div>';
+          : '';
       }
+
+      // 表示するカード群：閲覧中タブに応じて自分の手札／仲間の手札（常に閲覧のみ）を切替
+      let cardsHtml;
+      if (viewingAlly) {
+        const ac = ((selAlly && selAlly.hand) || []).map(c => coopMkCard(c, 'city', false, true)).join('');
+        cardsHtml = ac || '<span style="color:rgba(255,255,255,.45);font-size:.76rem">手札なし</span>';
+      } else {
+        const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly)).join('');
+        cardsHtml = cards || '<span style="color:#fff">手札なし</span>';
+      }
+      // coop-hand-cards：横スワイプでタブを切り替えるための対象マーカー（既存hand-group-cardsクラスと併用。
+      // flex-wrapで折返し表示のため横スクロールを持たず、既存の横スクロールUIとの競合は発生しない）
+      const cardsArea = `<div class="hand-group-cards coop-hand-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cardsHtml}</div>`;
+
       if (readOnly) {
-        // 仲間リスト（自分以外の ownerName を持つスロット）
-        const allies = (CO.cities || []).filter(s => s !== myslot && s.ownerName);
-        // 選択中スロットの解決：IDが無効なら先頭にフォールバック
-        let selAlly = allies.find(s => CO.cities.indexOf(s) === _coAllyHandId) || allies[0] || null;
-        if (selAlly) _coAllyHandId = CO.cities.indexOf(selAlly);
-        // タブ（仲間が2人以上のとき）
-        let allyTabHtml = '';
-        if (allies.length >= 2) {
-          const tabs = allies.map(s => {
-            const i = CO.cities.indexOf(s);
-            const active = i === _coAllyHandId;
-            return `<button onclick="coopSelectAllyHand(${i})" style="padding:3px 12px;border-radius:10px;font-size:.72rem;font-weight:700;cursor:pointer;transition:.12s;${active ? 'background:#388bfd;color:#fff;border:1px solid #388bfd' : 'background:transparent;color:#388bfd;border:1px solid rgba(56,139,253,.5)'}">${s.ownerName}</button>`;
-          }).join('');
-          allyTabHtml = `<div style="display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 4px">${tabs}</div>`;
-        }
-        // 表示するカード群（選択中の仲間 or 空）
-        let allyCards = '<span style="color:rgba(255,255,255,.45);font-size:.76rem">仲間はいません</span>';
-        if (selAlly) {
-          const ac = (selAlly.hand || []).map(c => coopMkCard(c, 'city', false, true)).join('');
-          allyCards = ac || '<span style="color:rgba(255,255,255,.45);font-size:.76rem">手札なし</span>';
-        }
-        return `${head}${allyTabHtml}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${allyCards}</div>${coopAllyStatusPanel()}`;
+        return `${tabsHtml}${head}${viewNote}${cardsArea}${coopAllyStatusPanel()}`;
       }
       const btnLabel = support ? '支援を終える ▶ 次へ' : 'ターン終了 ▶ 自然の攻撃へ';
       const _leftBudget = CO.budget - CO.budgetUsed;
@@ -11036,7 +11167,43 @@
       const _endStyle = _endReady
         ? 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#3fb950;border:none;color:#0d1117;font-weight:800;cursor:pointer;box-shadow:0 0 0 3px rgba(63,185,80,.25)'
         : 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:transparent;border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer';
-      return `${head}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cards || '<span style="color:#fff">手札なし</span>'}</div>${coopAllyStatusPanel()}<button onclick="coopRequestEndTurn()" style="${_endStyle}">${btnLabel}</button>`;
+      return `${tabsHtml}${head}${viewNote}${cardsArea}${coopAllyStatusPanel()}<button onclick="coopRequestEndTurn()" style="${_endStyle}">${btnLabel}</button>`;
+    }
+    // 2026-07-17：手札カード一覧の横スワイプで所有者タブを順に切り替える（design_system.md §10.7 操作は複数経路）。
+    // 既存の長押しプレビュー（_lpOnTouchStart等）と同じdocument委譲パターンを踏襲する。.coop-hand-cardsはflex-wrapで
+    // 折返し表示のため横スクロールを持たず、既存の横スクロールUIとの競合は発生しない（実装を保守的な閾値に留めた設計判断）
+    const UI_COOP_HAND_SWIPE_MIN_PX = 46;
+    let _coSwipeStartX = null, _coSwipeStartY = null, _coSwipeEligible = false;
+    function _coSwipeOnTouchStart(e) {
+      const t = e.touches && e.touches[0]; if (!t) return;
+      _coSwipeEligible = !!(e.target && e.target.closest && e.target.closest('.coop-hand-cards'));
+      if (!_coSwipeEligible) return;
+      _coSwipeStartX = t.clientX; _coSwipeStartY = t.clientY;
+    }
+    function _coSwipeOnTouchEnd(e) {
+      if (!_coSwipeEligible || _coSwipeStartX === null) { _coSwipeEligible = false; return; }
+      _coSwipeEligible = false;
+      const t = e.changedTouches && e.changedTouches[0];
+      const sx = _coSwipeStartX, sy = _coSwipeStartY || 0;
+      _coSwipeStartX = null; _coSwipeStartY = null;
+      if (!t) return;
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) < UI_COOP_HAND_SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.4) return; // 横方向優勢のスワイプのみ判定
+      coopSwipeHandTab(dx < 0 ? 1 : -1);
+    }
+    function coopSwipeHandTab(dir) {
+      if (!CO || !CO.cities) return;
+      const myslot = CO.mp ? coopMySlot() : null;
+      const allies = CO.mp ? (CO.cities || []).filter(s => s !== myslot && s.ownerName) : [];
+      if (!allies.length) return;
+      const order = ['me', ...allies.map(s => CO.cities.indexOf(s))];
+      let i = order.indexOf(_coHandTab); if (i < 0) i = 0;
+      i = (i + dir + order.length) % order.length;
+      _coHandTab = order[i]; renderCoop();
+    }
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('touchstart', _coSwipeOnTouchStart, { passive: true });
+      document.addEventListener('touchend', _coSwipeOnTouchEnd, { passive: true });
     }
     // 連鎖（二次災害）表示用の稲妻アイコン。協力モード選択ウィザードの icoZap と同じSVGラインデザインで統一。
     function coopZapIco(size, col) {
@@ -11366,7 +11533,7 @@
         : _wc(`${turnSide}（${CO.oppName || '相手'}）が`, '行動中…');
       return `<div style="text-align:center;padding:30px 18px;color:#fff"><div style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></div><div style="font-size:.92rem;font-weight:700">${txt}</div><div style="font-size:.74rem;color:rgba(255,255,255,.6);margin-top:6px">相手の操作が終わると自動で進みます</div></div>`;
     }
-    // ─── 情報パネル：自然側＝連鎖ガイド／都市側（MP）＝仲間の状況＋ヒント／都市側（ソロ）＝ヒント ───
+    // ─── 情報パネル：自然側＝連鎖ガイド／都市側＝なし（2026-07-17：協力コンテキストヒントは削除） ───
     function coopChainGuidePanel() {
       const _cl = { coastal: '海岸', mountain: '山間', inland: '内陸' };
       const _nm = id => { const d = DISASTER_CARDS.find(c => c.id === id); return d ? d.name : id; };
@@ -11403,28 +11570,16 @@
         (primedHtml ? `<div style="margin-top:5px;padding:5px 8px;background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.4);border-radius:6px">${primedHtml}</div>` : '') +
         `</div>`;
     }
-    function coopContextHints() {
-      const hints = [];
-      (CO.cities || []).forEach(slot => {
-        if (slot.hp <= 0) return;
-        const e = slot.effects || {};
-        if (slot.city.isCoastal && !e.shieldFlood) hints.push({ col: '#f8993a', t: `${slot.city.name}：洪水・津波への備えがありません` });
-        if (slot.hp / slot.maxHp < 0.35) hints.push({ col: '#f8993a', t: `${slot.city.name}：回復か耐震補強を検討しよう` });
-      });
-      if (hints.length === 0) hints.push({ col: 'rgba(63,185,80,.9)', t: 'ターンを終了しよう' });
-      return hints;
-    }
+    // 2026-07-17：協力バトル画面「ロビーに戻る」ボタン直上のヒントパネル（coopContextHints由来）をユーザーレビュー指摘により削除した。
+    // 表示関数が完全に不要になったため、coopContextHints自体も死にコードとして削除した（自然側の連鎖ガイドはcoopChainGuidePanelのまま維持）
     function coopInfoPanel() {
       if (!['city', 'draw', 'natureHuman', 'coopResponse'].includes(CO.phase)) return '';
       if (CO.humanSide === 'nature') return coopChainGuidePanel();
-      const hints = coopContextHints();
-      return `<div style="margin-top:10px;background:var(--bg1,#0d1117);border:1px solid #21262d;border-radius:8px;padding:8px 10px"><div style="font-size:.66rem;font-weight:700;color:rgba(255,255,255,.45);margin-bottom:4px">ヒント</div>${hints.slice(0,2).map(h => `<div style="font-size:.7rem;color:${h.col};line-height:1.5">${h.t}</div>`).join('')}</div>`;
+      return '';
     }
     // 再接続オーバーレイの開閉
     function coopToggleReconn() { _coReconnOpen = !_coReconnOpen; renderCoop(); }
     function coopOpenReconn()   { _coReconnOpen = true;  renderCoop(); }
-    // 仲間手札タブの切り替え
-    function coopSelectAllyHand(idx) { _coAllyHandId = idx; renderCoop(); }
     // 再接続用QRオーバーレイ（ハテナボタンまたは切断バナーから開く）
     function coopRenderReconnOverlay() {
       if (!_coReconnOpen || !CO || !CO.online || !CO.roomId) return '';
@@ -11441,16 +11596,22 @@
       return `<div class="confirm-overlay" onclick="coopToggleReconn()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:340px;padding:20px 18px;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="display:flex;align-items:center;gap:7px;font-weight:800;font-size:1rem;color:#388bfd">${_svgQRico}再接続用QR</span><button onclick="coopToggleReconn()" style="background:transparent;border:none;color:rgba(255,255,255,.5);font-size:1.1rem;cursor:pointer;line-height:1;padding:0 2px">✕</button></div><div onclick="coopCopyLobbyCode()" style="font-size:1.15rem;font-weight:900;color:#388bfd;letter-spacing:.14em;text-align:center;cursor:pointer;padding:8px;border-radius:8px;border:1px solid rgba(56,139,253,.35);background:rgba(56,139,253,.08)">${CO.roomId} <span style="font-size:.65rem;font-weight:400;color:var(--t3)">タップでコピー</span></div><div style="text-align:center"><div id="${qrId}" style="display:inline-block;background:#0d1117;padding:6px;border-radius:8px"></div></div><div style="font-size:.68rem;color:var(--t3);text-align:center;line-height:1.6">前回と同じ名前を入力して参加ボタンを押すと再接続できる</div></div></div>`;
     }
     function coopRenderBoard() {
-      // 1.3.4：4〜5人協力時（CO.cities.length>=4）は横1列flexだと1パネルあたりの幅が極端に狭くなり
-      // 情報が読めなくなるテストプレイ指摘への対応。2〜3人（cities.length<=3）は既存のflex横並びを完全に維持する。
-      const manyCities = CO.cities.length >= 4;
+      // 2026-07-17：自分の都市パネル刷新（design_system.md §10.1/10.2/10.4）。MPで自分が都市を持つ場合
+      // （coopMySlot()が存在する場合）は、人数不問で「自分の都市を常に最上部に固定・仲間都市はその下に横一列」に統一する。
+      // 昨日実装した4〜5人時の2列グリッド（1.3.4）は、自分の都市が仲間の間や下に来て不定形の余白ができる問題があったため
+      // この新方式に置き換えた。mySlotが無い場合（ソロ協力＝全都市が自分の共有手札で「仲間」データ自体が存在しない、
+      // または自然側として全都市を攻撃対象として見る視点）は「自分＞仲間」という非対称が成立しないため、
+      // 1.3.4までの従来レイアウト（2〜3人flex／4〜5人2列グリッド）を無変更のまま維持する
+      const mySlot = CO.mp ? coopMySlot() : null;
       let cityPanels;
-      if (manyCities) {
-        const cells = CO.cities.map((cs, i) => {
-          const isMine = CO.mp && cs.ownerId && cs.ownerId === CO.myId;
-          // 自都市は2列グリッドを横断してフル幅表示（情報量を維持）、仲間都市はcompact=trueで縮約表示にする
-          return `<div${isMine ? ' style="grid-column:1 / -1"' : ''}>${coopCityPanel(cs, i, !isMine)}</div>`;
-        }).join('');
+      if (mySlot) {
+        const myIdx = CO.cities.indexOf(mySlot);
+        const myPanel = coopCityPanel(mySlot, myIdx, false);
+        const allyPanels = CO.cities.map((cs, i) => i === myIdx ? '' : coopCityPanel(cs, i, true)).filter(Boolean).join('');
+        cityPanels = `<div class="coop-city-stack">${myPanel}${allyPanels ? `<div class="coop-ally-row">${allyPanels}</div>` : ''}</div>`;
+      } else if (CO.cities.length >= 4) {
+        // 1.3.4：4〜5人時（mySlotが無い視点のみ）の縮約2列グリッド。従来どおり無変更
+        const cells = CO.cities.map((cs, i) => coopCityPanel(cs, i, true)).join('');
         cityPanels = `<div class="coop-city-grid">${cells}</div>`;
       } else {
         cityPanels = `<div style="display:flex;gap:8px;margin-top:8px">${CO.cities.map((cs, i) => coopCityPanel(cs, i)).join('')}</div>`;
@@ -11673,7 +11834,9 @@
       const otherSide = natureMode ? 'city' : 'nature';
       const otherLabel = natureMode ? `${_icoC16} 今度は都市を守ってみる` : `${_icoD16} 今度は自然を操ってみる`;
       // オンラインはネット版リマッチ未対応のため、ソロ用の再戦・逆サイドは出さない
-      const switchBtn = CO.online ? '' : `<button class="go-inview go-rematch-btn" onclick="coopPlayOtherSide('${otherSide}')" style="background:var(--bg2);color:#fff;border:1px solid var(--bg3)">${otherLabel}</button>`;
+      // 2026-07-17ユーザーレビュー修正：var(--bg2)背景に固定#fff文字だとライトテーマでbg2が明色化した際に
+      // 読めなくなるため、他のライト対応済み箇所と同じvar(--t0)に変更（design_system.md §1.6）。
+      const switchBtn = CO.online ? '' : `<button class="go-inview go-rematch-btn" onclick="coopPlayOtherSide('${otherSide}')" style="background:var(--bg2);color:var(--t0);border:1px solid var(--bg3)">${otherLabel}</button>`;
       const rematchBtn = CO.online ? '' : `<button class="go-inview go-rematch-btn" onclick="coopRestart()">${uiIcoSwords(15)} もう一度（${d.label}）</button>`;
 
       // 戦略ティップ（都市側・リザルト画面専用。自分視点の勝敗で出し分け）
@@ -12550,6 +12713,9 @@
       else if (DD.phase === 'calendar') html = dailyRenderCalendar();
       else html = dailyRenderResult();
       html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：デイリー防災は表示対象
+      // 2026-07-17ユーザーレビュー修正：タブバー「設定」タブはこの画面からも呼べるため、renderCoop()と違い
+      // ここでもオーバーレイを描画する（render()側の分岐がDD設定時にこの関数で早期returnするため個別に必要）。
+      if (_settingsOpen) html += renderSettingsOverlay();
       app.innerHTML = html;
     }
     // ── カード画像表示（改修1）：対戦・協力モードの .card 画像形式を流用した読み取り専用カード ──
@@ -14395,6 +14561,9 @@
       else if (CW.view === 'wizard') html = cwRenderWizard();
       else html = cwRenderList();
       html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：カード工房は表示対象（つくるタブがアクティブ）
+      // 2026-07-17ユーザーレビュー修正：タブバー「設定」タブをこの画面からも開けるようにする（render()経由だと
+      // CW設定時にこの関数で早期returnするため、renderDaily/renderPuzzleWorkshopと同様に個別描画が必要）。
+      if (_settingsOpen) html += renderSettingsOverlay();
       app.innerHTML = html;
       window.scrollTo(0, _cwScrollY);
       // エディタ画面はテキスト入力以外（地形・能力・アートタブ切替）もrender()を経由するフルDOM差し替えのため、
@@ -15084,6 +15253,9 @@
       else if (PZ.view === 'import') html = pzRenderImport();
       else html = pzRenderList();
       html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：問題工房は表示対象（つくるタブがアクティブ）
+      // 2026-07-17ユーザーレビュー修正：タブバー「設定」タブをこの画面からも開けるようにする（個別描画が必要な理由は
+      // renderDaily/renderCardWorkshopの同旨コメント参照）。
+      if (_settingsOpen) html += renderSettingsOverlay();
       app.innerHTML = html;
     }
     function pzRenderList() {
