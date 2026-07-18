@@ -23,7 +23,7 @@
         if (!s || typeof s !== 'object') return;
         // 2026-07-17ユーザーレビュー修正：8bit・ライトの2テーマを追加（design_system.md §1.6）。theme-colorメタは
         // 各テーマの--bg0（8bit=#0a0a1a／light=#eef1f5）と一致させ、初回ペイントからブラウザUIの色も揃える。
-        var THEME_ACCENTS = { 'cyber-red': '#0d1117', 'dystopia-blue': '#050912', 'hacker-matrix': '#070b07', '8bit': '#0a0a1a', 'light': '#eef1f5' };
+        var THEME_ACCENTS = { 'cyber-red': '#0d1117', 'dystopia-blue': '#050912', 'hacker-matrix': '#070b07', '8bit': '#0a0a1a', 'light': '#f2f0ea' };
         if (s.theme && s.theme !== 'cyber-red' && THEME_ACCENTS[s.theme]) {
           document.documentElement.setAttribute('data-theme', s.theme);
           var meta = document.getElementById('ron-theme-color-meta');
@@ -141,10 +141,13 @@
       --accent: #ff004d; --accent-rgb: 255, 0, 77; --accent-dark-rgb: 140, 0, 40;
     }
     /* 2026-07-17ユーザーレビュー修正：ライトテーマ（明背景×暗文字）。他の3テーマと異なり文字トークン（--t0〜--t3）・
-       意味色5色・アクセントの全てを明度調整して上書きする（意味の対応・使い分けは変えない。design_system.md §1.6）。 */
+       意味色5色・アクセントの全てを明度調整して上書きする（意味の対応・使い分けは変えない。design_system.md §1.6）。
+       2026-07-18worldview.md §11「昼の対策本部・紙のハザードマップ」再定義：背景トークンを純白寄りの冷たいグレーから
+       わずかに暖色寄りの「紙白」へ微調整した（例：bg0 #eef1f5→#f2f0ea）。明度（輝度）はほぼ据え置きのままR/G>Bへ
+       ごくわずかに寄せただけのため、--t0〜--t3・意味色5色とのコントラスト比は旧トークンと同等を維持する。 */
     html[data-theme="light"] {
-      --bg0: #eef1f5; --bg0-soft: #ffffff; --bg0-deep: #dde3ea;
-      --bg1: #ffffff; --bg1-rgb: 255, 255, 255; --bg2: #f5f7fa; --bg3: #d3dae3;
+      --bg0: #f2f0ea; --bg0-soft: #fbf9f4; --bg0-deep: #e4ded0;
+      --bg1: #fdfbf7; --bg1-rgb: 253, 251, 247; --bg2: #f6f3ec; --bg3: #d8d1bf;
       --t0: #0d1117; --t0-rgb: 13, 17, 23; --t1: #1c2430; --t2: #57626e; --t3: #98a2ae;
       --blue: #1f6feb; --red: #cf222e; --green: #1a7f37; --yellow: #9a6700; --purple: #8250df;
       --accent: #d6294a; --accent-rgb: 214, 41, 74; --accent-dark-rgb: 150, 20, 45;
@@ -192,6 +195,73 @@
     html[data-theme="light"] .lobby-neon-icon {
       mix-blend-mode: normal;
       filter: invert(0.88) !important;
+    }
+
+    /* ── worldview.md §11「昼の対策本部・紙のハザードマップ」再定義（2026-07-18実装）。
+       ①「紙は光らない」：ライトテーマは常時 ron-no-glow 相当の発光オフを適用する（グロー設定トグルと併用されても
+       同じ box-shadow/text-shadow:none !important の冪等な上書きのため二重適用で壊れない）。対象セレクタは
+       ron-no-glow（上記164-178行目）と同一だが、ネオンアイコン（.lobby-neon-icon等）は直上で独自のfilter:invert
+       処理を持つためミラー対象から除外する。 ── */
+    html[data-theme="light"] .card.card-usable.policy,
+    html[data-theme="light"] .card.card-usable.disaster,
+    html[data-theme="light"] .card.card-usable[data-ctype="disaster"]:hover,
+    html[data-theme="light"] .card.card-usable[data-ctype="instant"]:hover,
+    html[data-theme="light"] .card.card-usable[data-ctype="shield"]:hover,
+    html[data-theme="light"] .card.card-usable[data-ctype="jinzai"]:hover,
+    html[data-theme="light"] .card.resp-previewing,
+    html[data-theme="light"] .hint-btn,
+    html[data-theme="light"] .gacha-card-reveal-area.revealed,
+    html[data-theme="light"] .go-victory .go-big-title,
+    html[data-theme="light"] .go-defeat .go-big-title,
+    html[data-theme="light"] .tneon-blue,
+    html[data-theme="light"] .tneon-white,
+    html[data-theme="light"] .tneon-yellow,
+    html[data-theme="light"] .coop-reach-warn {
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+    /* 危険バッジの常時パルス点滅も「紙は光らない」の対象（box-shadowではなくopacity明滅のためron-no-glow対象外
+       だったが、印刷物として常時明滅させない）。停止後は既存の半透明色背景＋枠線がそのまま静止した
+       「マーカーハイライト」として機能するため新規装飾は追加しない。 */
+    html[data-theme="light"] .hp-bar-fill.hp-warn,
+    html[data-theme="light"] .hp-danger-badge,
+    html[data-theme="light"] .hp-critical-badge,
+    html[data-theme="light"] .coop-reach-warn {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+    /* 危険バッジは静止後も蛍光ペン風の半透明背景がはっきり視認できるよう濃度・枠線を強める（意味色トークンに揃え、
+       ライトテーマ専用の暗色ハードコード値rgba(248,81,73,*)/rgba(210,153,34,*)から明るい背景向けの値へ差し替え） */
+    html[data-theme="light"] .hp-critical-badge {
+      background: rgba(207, 34, 46, .16) !important;
+      border: 1.5px solid var(--red) !important;
+    }
+    html[data-theme="light"] .hp-danger-badge {
+      background: rgba(154, 103, 0, .16) !important;
+      border: 1.5px solid var(--yellow) !important;
+    }
+    html[data-theme="light"] .coop-reach-warn {
+      border-color: var(--red) !important;
+    }
+
+    /* ②「印刷の強調」：カード使用可能グローの代わりに太めの2px意味色アウトライン（ぼかし半径0＝発光ではなく縁取り）。
+       上のbox-shadow:none!important（同一セレクタ・同一詳細度）より後段に置くことでカスケードで上書きする。 ── */
+    html[data-theme="light"] .card.card-usable.policy   { box-shadow: 0 0 0 2px var(--blue) !important; }
+    html[data-theme="light"] .card.card-usable.disaster { box-shadow: 0 0 0 2px var(--red)  !important; }
+    @media (hover:hover) {
+      html[data-theme="light"] .card.card-usable[data-ctype="disaster"]:hover { box-shadow: 0 0 0 2px var(--red)    !important; }
+      html[data-theme="light"] .card.card-usable[data-ctype="instant"]:hover  { box-shadow: 0 0 0 2px var(--yellow) !important; }
+      html[data-theme="light"] .card.card-usable[data-ctype="shield"]:hover   { box-shadow: 0 0 0 2px var(--green)  !important; }
+      html[data-theme="light"] .card.card-usable[data-ctype="jinzai"]:hover   { box-shadow: 0 0 0 2px var(--purple) !important; }
+    }
+
+    /* ③「方眼・地図罫」：ホーム/ロビー背景限定でごく薄い地図格子を敷く（工房.ws-editor-screenと同じ
+       repeating-linear-gradient手法・同じ透明度4.5%。バトル/デイリー等の他画面には付与しない＝worldview.md §10の
+       「部屋の区別」原則を踏襲）。 ── */
+    html[data-theme="light"] .lobby-wrap {
+      background-image:
+        repeating-linear-gradient(0deg, rgba(var(--t0-rgb),.045) 0, rgba(var(--t0-rgb),.045) 1px, transparent 1px, transparent 28px),
+        repeating-linear-gradient(90deg, rgba(var(--t0-rgb),.045) 0, rgba(var(--t0-rgb),.045) 1px, transparent 1px, transparent 28px);
     }
 
     /* ── 1.3.2：フォント切替（デジタル/SF調）。英数字のみOrbitronを適用し、日本語はフォントスタックの
@@ -1575,6 +1645,52 @@
     .dd-picker-row-cost { flex-shrink:0; font-size:.7rem; font-weight:800; color:var(--blue); }
     /* ddMkDisasterCard（予報・解説棋譜）の来襲順バッジ：画像の外（上）に出すためのラッパー */
     .dd-card-order-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       2026-07-18脱AI感刷新②（worldview.md §10）：デイリー防災＝「日課訓練室」・
+       カード工房/問題工房＝「設計室」の形状言語。計算ロジック・記録ロジック・操作フローは無変更、
+       見た目の言語（§2〜4のパターン集）だけをこのモードにも展開する。
+       ═══════════════════════════════════════════════════════════════════ */
+
+    /* §10.1 日付を主役に：日めくりカレンダーの文法（計器的表記）。予報/開始画面の上部に大きく表示する */
+    .dd-date-hero { display:flex; align-items:baseline; justify-content:center; gap:8px; margin-bottom:6px; }
+    .dd-date-hero .dd-date-num { font-size:1.9rem; font-weight:900; color:var(--t0); font-variant-numeric:tabular-nums; letter-spacing:.01em; line-height:1; }
+    .dd-date-hero .dd-date-dow { font-size:.7rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--blue); align-self:flex-end; margin-bottom:3px; }
+
+    /* §3.1コーナーブラケット：理論値パー・解説棋譜（「本部の模範解答」）を一段フォーマルな格で扱う。
+       全周枠＋塗りつぶし背景をやめ、四隅のみの枠＋bg1背景に置き換える（worldview.md §2.1「均一角丸＋1px枠線の箱」対策）。
+       shorthand内に直接var()を書く理由は729e602のコーナーブラケット実装と同じ罠（border-*-colorのcurrentResetへの回避）。 */
+    .dd-formal-frame { position:relative; background:var(--bg1); padding:12px 14px; }
+    .dd-formal-frame::before, .dd-formal-frame::after { content:''; position:absolute; width:9px; height:9px; pointer-events:none; }
+    .dd-formal-frame::before { top:0; left:0; border-top:2px solid var(--yellow); border-left:2px solid var(--yellow); }
+    .dd-formal-frame::after  { bottom:0; right:0; border-bottom:2px solid var(--yellow); border-right:2px solid var(--yellow); }
+
+    /* 訓練日誌のスタンプ意匠：既存の形状差別化ドット（塗り丸/白ハロー/リング/角丸・色覚対応）はそのまま維持し、
+       外側に薄い印影のリング（SVG円）を添えて「達成印」らしさを足すだけに留める（_ddCalDotHtml参照） */
+    .dd-cal-stamp { position:relative; width:14px; height:14px; margin:3px auto 0; }
+    .dd-cal-stamp svg { position:absolute; inset:0; width:100%; height:100%; }
+    .dd-cal-stamp .dd-cal-stamp-inner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+
+    /* §10.2 カード工房・問題工房＝「設計室」：エディタ領域限定の方眼紙背景（1px線・透明度4.5%）。
+       --t0-rgbは全テーマで定義済み（ダーク=白系グリッド／ライト=インク系グリッド、design_system.md §11と同根）。
+       バトル・デイリー・ホームのscreenには付与しない（部屋の区別、worldview.md §10.2） */
+    .ws-editor-screen {
+      background-image:
+        repeating-linear-gradient(0deg, rgba(var(--t0-rgb),.045) 0, rgba(var(--t0-rgb),.045) 1px, transparent 1px, transparent 24px),
+        repeating-linear-gradient(90deg, rgba(var(--t0-rgb),.045) 0, rgba(var(--t0-rgb),.045) 1px, transparent 1px, transparent 24px);
+    }
+
+    /* §3.3片辺アクセント＋§3.4計器の文法：スライダー・数値設定を「仕様書の項目行」へ。
+       既存の全周dashed枠の縦積み（囲みボックス）をやめ、左辺2pxアクセント＋下辺1px罫線のリスト構造にする（§3.5）。
+       アクセント色は呼び出し側でstyle="border-left-color:var(--blue/--green/--yellow)"を直接指定する
+       （.ws-spec-rowは既に完全なshorthandでborder-leftを宣言済みのため、729e602のshorthand罠は発生しない）。 */
+    .ws-spec-block { margin:8px 0 12px; }
+    .ws-spec-row { border-left:2px solid var(--bg3); border-bottom:1px solid var(--bg3); padding:8px 0 10px 12px; }
+    .ws-spec-row:last-child { border-bottom:none; }
+    .ws-spec-label { font-size:.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--t2); }
+
+    /* 図面番号タグ（保存カード一覧・自作問題一覧）：§3.4の小型英字ラベル文法。データスキーマは変更せず表示時に保存順の連番を導出する */
+    .ws-no-tag { font-size:.6rem; font-weight:800; letter-spacing:.08em; color:var(--t2); margin-bottom:2px; }
 
     .card-back {
       width: var(--card-w);
@@ -4692,7 +4808,7 @@
       { id: 'dystopia-blue', label: 'ディストピア・ブルー', swatchBg: '#050912', swatchAccent: '#29d3ff' },
       { id: 'hacker-matrix', label: 'ハッカー・マトリクス', swatchBg: '#070b07', swatchAccent: '#39ff6a' },
       { id: '8bit',          label: '8bit',                 swatchBg: '#0a0a1a', swatchAccent: '#ff004d' },
-      { id: 'light',         label: 'ライト',               swatchBg: '#eef1f5', swatchAccent: '#d6294a' },
+      { id: 'light',         label: 'ハザードマップ',       swatchBg: '#f2f0ea', swatchAccent: '#d6294a' },
     ];
     const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', glow: true };
     function ronGetSettings() {
@@ -12559,6 +12675,15 @@
       return `${dt.getUTCFullYear()}${String(dt.getUTCMonth() + 1).padStart(2, '0')}${String(dt.getUTCDate()).padStart(2, '0')}`;
     }
     function ddDateLabelSlash(dateKey) { return `${+dateKey.slice(4, 6)}/${+dateKey.slice(6, 8)}`; }
+    // 2026-07-18脱AI感刷新②：日課訓練室（worldview.md §10.1）の「日付を主役に」。日めくりカレンダーの文法で
+    // 「MM.DD」＋英字曜日の計器的表記にする。dateKeyがpuzzle_始まり（問題工房プレイ）等の非日付形式のときは
+    // 空文字を返し、呼び出し側でヒーロー自体を出さない（既存のddDateLabelSlash等の他表示ロジックは無変更）。
+    function _ddDateHeroHtml(dateKey) {
+      if (!dateKey || !/^\d{8}$/.test(dateKey)) return '';
+      const y = +dateKey.slice(0, 4), mo = +dateKey.slice(4, 6), d = +dateKey.slice(6, 8);
+      const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][new Date(Date.UTC(y, mo - 1, d)).getUTCDay()];
+      return `<div class="dd-date-hero"><span class="dd-date-num">${String(mo).padStart(2, '0')}.${String(d).padStart(2, '0')}</span><span class="dd-date-dow">${dow}</span></div>`;
+    }
     // ── D2：過去7日アーカイブ用の日付演算。YYYYMMDD文字列の単純な数値比較は月末・年末をまたぐと壊れるため、
     //    必ずUTC日付に変換してから日数差を計算する（うるう年・月境界でも正確）。
     function _ddKeyToUTCDate(key) {
@@ -13590,7 +13715,11 @@
       // 開発者視点の文言（「全国共通・1日1局面」等）は書かず、プレイの仕方が分かる内容だけに絞る（design_system.md §10.3）。
       const rulesLine = `<div style="text-align:center;color:var(--t2);font-size:.74rem;margin-bottom:10px;line-height:1.5">来襲する災害に手持ちの政策カードを割り当てて、被害を最小限に抑えよう。</div>`;
       // 改修2：正解（理論値）の数値そのものは開始前に見せ、手順は見せない＝「パズルである」ことを予告する
-      const optimalBox = (typeof DD.optimal === 'number') ? `<div style="text-align:center;background:rgba(227,195,77,.10);border:1px solid rgba(227,195,77,.4);border-radius:10px;padding:9px;margin:12px 0;font-size:.78rem;color:#e3c34d;display:flex;align-items:center;justify-content:center;gap:6px">${_ddIcoGoldCheck(15, '#e3c34d')}<span>理論値：被害 <strong style="font-size:.95rem">${DD.optimal}</strong> が存在する（正解を探すパズルです）</span></div>` : '';
+      // 2026-07-18脱AI感刷新②：「本部の模範解答」の格として§3.1コーナーブラケット（.dd-formal-frame）に統一
+      const optimalBox = (typeof DD.optimal === 'number') ? `<div class="dd-formal-frame" style="text-align:center;margin:12px 0;font-size:.78rem;color:#e3c34d;display:flex;align-items:center;justify-content:center;gap:6px">${_ddIcoGoldCheck(15, '#e3c34d')}<span>理論値：被害 <strong style="font-size:.95rem">${DD.optimal}</strong> が存在する（正解を探すパズルです）</span></div>` : '';
+      // 2026-07-18脱AI感刷新②：日課訓練室（worldview.md §10.1）の「日付を主役に」。問題工房プレイ（dateKeyが
+      // puzzle_始まり）では_ddDateHeroHtmlが空文字を返すため自動的に非表示になる
+      const dateHero = _ddDateHeroHtml(DD.dateKey);
       // C4：盤面の都市表示はカスタム都市ならカード工房の合成カード（cwRenderArt）を使う
       const cityThumb = c.custom
         ? `<div style="width:56px;height:56px;border-radius:8px;overflow:hidden;position:relative;flex-shrink:0">${cwRenderArt(c)}</div>`
@@ -13599,11 +13728,13 @@
       const myCityControl = (DD.isArchive || DD.isPuzzle) ? '' : DD.isCustomCity
         ? `<button onclick="dailyStart()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #388bfd;color:#388bfd;font-size:.78rem;font-weight:700;cursor:pointer">公式の都市に戻す</button>`
         : (cwLoadAll().length ? `<button onclick="dailyOpenCityPicker()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #3fb950;color:#3fb950;font-size:.78rem;font-weight:700;cursor:pointer">マイ都市で挑戦</button>` : '');
-      // 柱4：問題工房プレイ中は日付の文言が実態と合わないため専用の文言に差し替える
-      const subtitleLine = DD.isPuzzle ? '問題工房で挑戦中（練習用・記録には反映されません）' : ddDateLabelSlash(DD.dateKey);
+      // 柱4：問題工房プレイ中は日付の文言が実態と合わないため専用の文言に差し替える。
+      // 2026-07-18脱AI感刷新②：通常時の日付（旧「7/18」表記）はdateHeroが大きく表示するため、ここでの重複表示はやめる
+      const subtitleLine = DD.isPuzzle ? '問題工房で挑戦中（練習用・記録には反映されません）' : '';
       return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto;width:100%">
+        ${dateHero}
         <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.15rem;margin-bottom:4px">${_ddIcoCalShield(24, '#388bfd')} 今日の予報</div>
-        <div style="text-align:center;color:var(--t2);font-size:.78rem;margin-bottom:6px">${subtitleLine}</div>
+        ${subtitleLine ? `<div style="text-align:center;color:var(--t2);font-size:.78rem;margin-bottom:6px">${subtitleLine}</div>` : ''}
         ${rulesLine}
         ${archiveBadge}
         ${practiceNote}
@@ -13757,7 +13888,8 @@
       const bodyHtml = _ddRenderSolutionStepBody(step, isLast, total);
       const prevAttr = isFirst ? 'disabled style="flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.3);font-size:.76rem;font-weight:700;cursor:default"' : 'style="flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid #e3c34d;color:#e3c34d;font-size:.76rem;font-weight:700;cursor:pointer"';
       const nextAttr = isLast ? 'disabled style="flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.3);font-size:.76rem;font-weight:700;cursor:default"' : 'style="flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid #e3c34d;color:#e3c34d;font-size:.76rem;font-weight:700;cursor:pointer"';
-      return `<div style="text-align:left;background:rgba(227,195,77,.08);border:1px solid rgba(227,195,77,.35);border-radius:10px;padding:10px;margin-bottom:12px">
+      // 2026-07-18脱AI感刷新②：「本部の模範解答」の格として§3.1コーナーブラケット（.dd-formal-frame）に統一
+      return `<div class="dd-formal-frame" style="text-align:left;margin-bottom:12px">
         <div style="font-size:.8rem;font-weight:800;color:#e3c34d;margin-bottom:6px;display:flex;align-items:center;gap:5px">${_ddIcoGoldCheck(14, '#e3c34d')}解説棋譜（理論値の一例・被害${DD.optimal}）</div>
         <div style="font-size:.68rem;color:var(--t2);margin-bottom:8px">ステップ ${idx + 1} / ${steps.length}</div>
         ${bodyHtml}
@@ -13885,12 +14017,16 @@
     }
     // デザインシステム改善②：色のみに依存しないよう、色に加えて形状（塗り丸/白ハロー/リング/角丸）で階級を区別する
     // （完全防災=白ハローつき塗り丸・優秀=塗り丸・健闘=リング・要訓練/壊滅=角丸四角。design_system.md §1.5-2）。
+    // 2026-07-18脱AI感刷新②：訓練日誌（worldview.md §10.1）の「達成印」意匠。既存の形状差別化（塗り丸/白ハロー/
+    // リング/角丸・色覚対応）はinner側にそのまま残し、外側に薄い印影のSVGリングを重ねて「スタンプを押した」
+    // 見た目にするだけに留める（未プレイ日は従来どおり何も表示しない）。
     function _ddCalDotHtml(color) {
-      if (!color) return '<div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:transparent"></div>';
-      if (color === '#e3c34d') return `<div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:${color};box-shadow:0 0 0 2px rgba(255,255,255,.55)"></div>`;
-      if (color === '#3fb950') return `<div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:${color}"></div>`;
-      if (color === '#d29922') return `<div style="width:7px;height:7px;border-radius:50%;margin:3px auto 0;background:transparent;border:1.5px solid ${color}"></div>`;
-      return `<div style="width:7px;height:7px;border-radius:2px;margin:3px auto 0;background:${color}"></div>`;
+      if (!color) return '<div style="width:14px;height:14px;margin:3px auto 0"></div>';
+      const inner = color === '#e3c34d' ? `<div style="width:6px;height:6px;border-radius:50%;background:${color};box-shadow:0 0 0 1.5px rgba(255,255,255,.55)"></div>`
+        : color === '#3fb950' ? `<div style="width:6px;height:6px;border-radius:50%;background:${color}"></div>`
+        : color === '#d29922' ? `<div style="width:6px;height:6px;border-radius:50%;background:transparent;border:1.3px solid ${color}"></div>`
+        : `<div style="width:6px;height:6px;border-radius:1.5px;background:${color}"></div>`;
+      return `<div class="dd-cal-stamp"><svg viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.3" opacity=".55"><circle cx="12" cy="12" r="10"/></svg><div class="dd-cal-stamp-inner">${inner}</div></div>`;
     }
     function dailyRenderCalendar() {
       const store = _ddStore(); const days = store.days || {};
@@ -13927,8 +14063,13 @@
         cells.push(`<div${clickAttr} style="text-align:center;padding:4px 0;border-radius:6px;${boxStyle}"><div style="font-size:.7rem;color:${numColor}">${d}</div>${_ddCalDotHtml(dot)}</div>`);
       }
       const statTile = (label, value) => `<div style="flex:1;background:var(--bg2,#161b22);border:1px solid var(--bg3,#21262d);border-radius:10px;padding:8px;text-align:center"><div style="font-size:1.15rem;font-weight:900;color:var(--t0);font-variant-numeric:tabular-nums">${value}</div><div style="font-size:.62rem;color:var(--t2);margin-top:2px">${label}</div></div>`;
+      // 2026-07-18脱AI感刷新②：見出しのタイポ階層強化（worldview.md §10.1「訓練記録簿」の文法）。
+      // 小型英字ラベル（TRAINING LOG）を主見出しの上に添え、計器の文法（§3.4）で格上げする。表示文言・記録ロジックは無変更
       return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto;width:100%">
-        <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.05rem;margin-bottom:12px">${_ddIcoCalShield(22, '#388bfd')} デイリー防災 記録</div>
+        <div style="text-align:center;margin-bottom:12px">
+          <div style="font-size:.62rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--t2);margin-bottom:2px">TRAINING LOG</div>
+          <div style="color:var(--t0);font-weight:900;font-size:1.08rem;display:flex;align-items:center;justify-content:center;gap:5px">${_ddIcoCalShield(22, '#388bfd')}デイリー防災 記録</div>
+        </div>
         <div style="display:flex;gap:8px;margin-bottom:14px">
           ${statTile('現在ストリーク', streak + '日')}
           ${statTile('通算プレイ日数', playedDays + '日')}
@@ -15512,6 +15653,7 @@
           <div style="display:flex;align-items:center;gap:10px">
             ${flipCard}
             <div style="flex:1;min-width:0">
+              <div class="ws-no-tag">NO.${String(i + 1).padStart(2, '0')}</div>
               <div style="font-weight:800;color:var(--t0);font-size:.9rem">${_escHtml(c.name)}</div>
               <div style="font-size:.7rem;color:var(--t2,#8b949e);margin-top:2px">${t.label}・${_escHtml(info.label)}${[CW_CUSTOM_RESIST_ID, CW_CUSTOM_REGEN_ID, CW_CUSTOM_BUDGET_ID].includes(c.abilityId) ? `（${_escHtml(info.desc)}）` : ''}</div>
               ${c.flavor ? `<div style="font-size:.68rem;color:var(--t3,#8b949e);margin-top:2px;font-style:italic">${_escHtml(c.flavor)}</div>` : ''}
@@ -15562,46 +15704,54 @@
       const sliderTicks = CW_CUSTOM_RESIST_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
       const targetErr = `<div style="font-size:.66rem;color:#d29922;margin:2px 0 6px;visibility:${cr.targets.length === 0 ? 'visible' : 'hidden'}">軽減・無効化する災害を1〜2つ選んでください</div>`;
       const hasNatural = cr.targets.some(t => CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(t));
-      return `<div style="margin:2px 0 10px;padding:10px;border:1px dashed rgba(255,255,255,.2);border-radius:10px">
-        <div style="font-size:.72rem;color:var(--t2,#8b949e);margin-bottom:6px">対象は最大2つ（タップで選択/解除）</div>
-        <div style="font-size:.66rem;color:var(--t3,#8b949e);margin-bottom:4px">自然災害（ダメージを軽減）</div>
-        <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${naturalChips}</div>
-        <div style="font-size:.66rem;color:var(--t3,#8b949e);margin-bottom:4px">人為災害（効果を無効化）</div>
-        <div style="display:flex;flex-wrap:wrap">${jinzaiChips}</div>
-        ${targetErr}
-        <div style="display:flex;align-items:center;gap:6px;margin:8px 0 6px">
-          <span style="font-size:.72rem;color:var(--t2,#8b949e)">軽減値${hasNatural ? '' : '（自然災害を選ぶと適用）'}</span>
-          <span id="cw-resist-val-label" style="color:#388bfd;font-weight:700;font-size:.84rem">−${cr.value}</span>
+      // 2026-07-18脱AI感刷新②：仕様書の項目行（worldview.md §10.2・§3.3・§3.4）。全周dashed枠の縦積みをやめ、
+      // 左辺2pxアクセント＋下辺1px罫線の.ws-spec-rowへ。計算ロジック（cwSetCustomResistValue等）は無変更
+      return `<div class="ws-spec-block">
+        <div class="ws-spec-row" style="border-left-color:var(--blue)">
+          <div class="ws-spec-label">対象（最大2つ・タップで選択/解除）</div>
+          <div style="font-size:.66rem;color:var(--t3,#8b949e);margin:6px 0 4px">自然災害（ダメージを軽減）</div>
+          <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${naturalChips}</div>
+          <div style="font-size:.66rem;color:var(--t3,#8b949e);margin-bottom:4px">人為災害（効果を無効化）</div>
+          <div style="display:flex;flex-wrap:wrap">${jinzaiChips}</div>
+          ${targetErr}
         </div>
-        <input type="range" min="10" max="40" step="5" value="${cr.value}" style="width:100%;accent-color:#388bfd" oninput="cwSetCustomResistValue(this.value)">
-        <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
+        <div class="ws-spec-row" style="border-left-color:var(--blue)">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+            <span class="ws-spec-label">軽減値${hasNatural ? '' : '（自然災害を選ぶと適用）'}</span>
+            <span id="cw-resist-val-label" style="color:#388bfd;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">−${cr.value}</span>
+          </div>
+          <input type="range" min="10" max="40" step="5" value="${cr.value}" style="width:100%;accent-color:#388bfd" oninput="cwSetCustomResistValue(this.value)">
+          <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
+        </div>
       </div>`;
     }
     // カスタム回復：ターン終了時HP回復量スライダー（5/10/15の3値）のUI。CW.abilityId==='custom_regen'の時だけcwRenderEditorから呼ばれる。
     function cwRenderCustomRegenSection() {
       const cr = cwNormalizeCustomRegen(CW.customRegen);
       const sliderTicks = CW_CUSTOM_REGEN_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
-      return `<div style="margin:2px 0 10px;padding:10px;border:1px dashed rgba(255,255,255,.2);border-radius:10px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <span style="font-size:.72rem;color:var(--t2,#8b949e)">ターン終了時のHP回復量</span>
-          <span id="cw-regen-val-label" style="color:#3fb950;font-weight:700;font-size:.84rem">+${cr.value}</span>
+      // 2026-07-18脱AI感刷新②：仕様書の項目行（worldview.md §10.2）。全周dashed枠→.ws-spec-row（左辺2pxアクセント）
+      return `<div class="ws-spec-block"><div class="ws-spec-row" style="border-left-color:var(--green)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+          <span class="ws-spec-label">ターン終了時のHP回復量</span>
+          <span id="cw-regen-val-label" style="color:#3fb950;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">+${cr.value}</span>
         </div>
         <input type="range" min="5" max="15" step="5" value="${cr.value}" style="width:100%;accent-color:#3fb950" oninput="cwSetCustomRegenValue(this.value)">
         <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
-      </div>`;
+      </div></div>`;
     }
     // カスタム予算：毎ターン予算増加量スライダー（1/2の2値）のUI。CW.abilityId==='custom_budget'の時だけcwRenderEditorから呼ばれる。
     function cwRenderCustomBudgetSection() {
       const cb = cwNormalizeCustomBudget(CW.customBudget);
       const sliderTicks = CW_CUSTOM_BUDGET_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
-      return `<div style="margin:2px 0 10px;padding:10px;border:1px dashed rgba(255,255,255,.2);border-radius:10px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <span style="font-size:.72rem;color:var(--t2,#8b949e)">毎ターンの予算増加量</span>
-          <span id="cw-budget-val-label" style="color:#d29922;font-weight:700;font-size:.84rem">+${cb.value}</span>
+      // 2026-07-18脱AI感刷新②：仕様書の項目行（worldview.md §10.2）。全周dashed枠→.ws-spec-row（左辺2pxアクセント）
+      return `<div class="ws-spec-block"><div class="ws-spec-row" style="border-left-color:var(--yellow)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+          <span class="ws-spec-label">毎ターンの予算増加量</span>
+          <span id="cw-budget-val-label" style="color:#d29922;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">+${cb.value}</span>
         </div>
         <input type="range" min="1" max="2" step="1" value="${cb.value}" style="width:100%;accent-color:#d29922" oninput="cwSetCustomBudgetValue(this.value)">
         <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
-      </div>`;
+      </div></div>`;
     }
     function cwRenderEditor() {
       const atCap = cwLoadAll().length >= CW_MAX_CARDS;
@@ -15624,7 +15774,8 @@
       })();
       const capMsg = atCap ? `<div style="text-align:center;color:#d29922;font-size:.72rem;margin:6px 0">保存済みカードが上限（${CW_MAX_CARDS}枚）に達しています。一覧から削除してから保存してください。</div>` : '';
       const errMsg = CW.error ? `<div style="text-align:center;color:#f85149;font-size:.76rem;margin:6px 0;font-weight:700">${_escHtml(CW.error)}</div>` : '';
-      return `<div class="screen active" style="padding:18px;max-width:520px;margin:0 auto">
+      // 2026-07-18脱AI感刷新②：設計室（worldview.md §10.2）。方眼紙背景（.ws-editor-screen）はエディタ画面限定
+      return `<div class="screen active ws-editor-screen" style="padding:18px;max-width:520px;margin:0 auto">
         <button class="gallery-btn-back" style="margin-bottom:10px" onclick="cwBackToList()">＜</button>
         <h2 style="text-align:center;color:var(--t0);margin:4px 0 14px">ご当地カードメーカー</h2>
         <div id="cw-live-mount" style="width:288px;max-width:100%;aspect-ratio:288/450;margin:0 auto 8px;display:flex;justify-content:center;align-items:center">${_cwPreviewLastDataUrl ? _cwPreviewImgHtml(_cwPreviewLastDataUrl) : cwRenderCardVisual(cwCurrentDraftCard())}</div>
@@ -15890,10 +16041,13 @@
       // 理論値バー：「無策の被害」を全長（100%）とし、そのうち理論値（最善プレイでも避けられない被害）が占める割合を
       // マーカーで示す。マーカーより右側＝工夫（政策カードの使い方）で防げる被害の幅。
       const markerPct = noAction > 0 ? Math.max(0, Math.min(100, (optimal.best / noAction) * 100)) : 0;
+      // 2026-07-18脱AI感刷新②：計器の文法（worldview.md §3.4）。ラベルは小型英字寄りのmuted表記、数値は
+      // tabular-numsで大きく強調する（検品スコア・妙手度ゲージの計算ロジック自体は無変更）
       const theoryBar = `<div style="margin:8px 0 4px">
-        <div style="display:flex;justify-content:space-between;font-size:.66rem;color:var(--t2,#8b949e);margin-bottom:4px">
-          <span>理論値で防げる被害</span>
-          <span>無策${noAction} → 理論値<strong style="color:#e3c34d">${optimal.best}</strong></span>
+        <div class="ws-spec-label" style="margin-bottom:4px">理論値で防げる被害</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+          <span style="font-size:.7rem;color:var(--t2,#8b949e)">無策<span style="font-variant-numeric:tabular-nums">${noAction}</span></span>
+          <span style="font-size:1.15rem;font-weight:900;color:#e3c34d;font-variant-numeric:tabular-nums">${optimal.best}</span>
         </div>
         <div style="position:relative;height:10px;border-radius:5px;background:rgba(248,81,73,.32)">
           <div style="position:absolute;left:${markerPct}%;top:0;bottom:0;right:0;border-radius:0 5px 5px 0;background:rgba(63,185,80,.55)"></div>
@@ -15903,9 +16057,9 @@
       // 妙手度ゲージ：定石どおりに打った場合（内部実装は貪欲bot。ユーザー向けにはこう言い換える）との被害差を可視化する。
       const cleverPct = Math.max(0, Math.min(100, (cleverness / PZ_CLEVER_GAUGE_MAX) * 100));
       const cleverGauge = `<div style="margin:8px 0 4px">
-        <div style="display:flex;justify-content:space-between;font-size:.66rem;color:var(--t2,#8b949e);margin-bottom:4px">
-          <span>妙手度スコア（定石どおりに打った場合との被害差）</span>
-          <span style="color:var(--t0);font-weight:700">${cleverness}</span>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+          <span class="ws-spec-label">妙手度スコア（定石どおりとの被害差）</span>
+          <span style="color:var(--t0);font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">${cleverness}</span>
         </div>
         <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden">
           <div style="height:100%;width:${cleverPct}%;border-radius:4px;background:linear-gradient(90deg,#388bfd,#3fb950)"></div>
@@ -16188,6 +16342,7 @@
           <div style="display:flex;align-items:center;gap:10px">
             <img src="images/cities/${city ? city.id : ''}.webp" alt="" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">
             <div style="flex:1;min-width:0">
+              <div class="ws-no-tag">NO.${String(i + 1).padStart(2, '0')}</div>
               <div style="font-weight:800;color:var(--t0);font-size:.86rem">${_escHtml(p.title)}</div>
               <div style="font-size:.68rem;color:var(--t2,#8b949e);margin-top:2px">${city ? _escHtml(city.name) : '?'}・災害${p.disasterIds.length}枚・予算${p.budget}${sourceTag}</div>
               ${cleverness != null ? `<div style="font-size:.66rem;color:#e3c34d;margin-top:2px">妙手度 ${cleverness}</div>` : ''}
@@ -16257,14 +16412,18 @@
       // 予算：カード工房カスタム軽減のスライダーと同じ意匠（アイコン行＋値ラベル＋range＋目盛り）。
       // ドラッグ中（oninput）はラベルのみ更新しrender()せず、指を離した時（onchange）にpzEditorSetBudgetで確定する。
       const budgetTicks = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
-      const budgetSlider = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <span style="font-size:.72rem;color:var(--t2,#8b949e)">予算</span>
-          <span id="pz-budget-val-label" style="color:#e3c34d;font-weight:700;font-size:.84rem">${e.budget}</span>
+      // 2026-07-18脱AI感刷新②：仕様書の項目行（worldview.md §10.2・§3.4）。ラベル小・値大の計器の文法に統一
+      const budgetSlider = `<div class="ws-spec-row" style="border-left-color:var(--yellow)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+          <span class="ws-spec-label">予算</span>
+          <span id="pz-budget-val-label" style="color:#e3c34d;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">${e.budget}</span>
         </div>
         <input type="range" min="${PZ_MIN_BUDGET}" max="${PZ_MAX_BUDGET}" step="1" value="${e.budget}" style="width:100%;accent-color:#e3c34d" oninput="pzSetBudgetDraft(this.value)" onchange="pzEditorSetBudget(this.value)">
-        <div style="display:flex;justify-content:space-between;margin-top:3px">${budgetTicks}</div>`;
+        <div style="display:flex;justify-content:space-between;margin-top:3px">${budgetTicks}</div>
+      </div>`;
       const errMsg = e.error ? `<div style="text-align:center;color:#f85149;font-size:.76rem;margin:6px 0;font-weight:700">${_escHtml(e.error)}</div>` : '';
-      return `<div class="screen active" style="padding:18px;max-width:520px;margin:0 auto">
+      // 2026-07-18脱AI感刷新②：設計室（worldview.md §10.2）。方眼紙背景（.ws-editor-screen）はエディタ画面限定
+      return `<div class="screen active ws-editor-screen" style="padding:18px;max-width:520px;margin:0 auto">
         <button class="gallery-btn-back" style="margin-bottom:10px" onclick="pzBackToList()">＜</button>
         <h2 style="text-align:center;color:var(--t0);margin:4px 0 14px">出題エディタ</h2>
         <label class="lobby-label">問題タイトル（最大${PZ_TITLE_MAXLEN}文字）</label>
@@ -16278,8 +16437,7 @@
         <label class="lobby-label" style="margin-top:12px">手札（最大${PZ_MAX_HAND}枚・同じカードは${PZ_HAND_SAME_ID_MAX}枚まで）</label>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${handPickBtns}</div>
         ${handRows}
-        <label class="lobby-label" style="margin-top:12px">予算</label>
-        <div style="margin-bottom:8px">${budgetSlider}</div>
+        <div class="ws-spec-block" style="margin-top:12px">${budgetSlider}</div>
         ${pzRenderInspectionPanel()}
         ${errMsg}
         <button class="btn-ho" style="margin-top:10px" onclick="pzSaveCurrent()">この問題を保存</button>
