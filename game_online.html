@@ -62,10 +62,24 @@
       padding: 0
     }
 
+    /* ── 2026-07-18：オーバースクロール白画面修正。html自体の背景は元々var(--bg0-deep)でテーマ反応していたが、
+       (a) overflow-x未指定だったため横方向のラバーバンドで真っ白が見えるケースが残っていた、
+       (b) overscroll-behaviorが未指定でPull-to-Refresh・端到達時のバウンスをブラウザ既定のまま許容していた。
+       overscroll-behaviorはゲーム内の個別スクロール要素（.hand-groups等のoverflow-x:auto領域）の
+       スクロール自体は妨げず、あくまで「その要素の端に達した後、外側のdocumentへスクロールを伝播させない」
+       だけなので、既存の横スクロール演出への副作用はない。iOS Safariの旧バージョンはoverscroll-behaviorを
+       無視するため、その場合も本命であるvar(--bg0-deep)のテーマ反応背景が効いて白は見えない。 ── */
     html {
       background: #080d14;
       background: var(--bg0-deep);
       touch-action: pan-x pan-y;
+      overflow-x: hidden;
+      overscroll-behavior: none;
+      /* 2026-07-18モーション強化：テーマ切替時、html/body/#appは（render()によるinnerHTML全置換の対象外＝
+         DOMノードが常に同一のまま）data-theme属性変更でCSS変数だけが再計算されるため、この3要素にだけ
+         transitionを付ければ「テーマ全体色のスムーズな遷移」が実現する（内部の各パネルはrender()毎に
+         DOMごと再生成されるため、transitionを付けても初回ペイントに使われるだけで意味を持たない）。 */
+      transition: background-color .3s ease-out;
     }
 
     :root {
@@ -194,11 +208,21 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+      /* background:のショートハンドはbackground-imageのみを指定すると背景色を初期値（透明）にリセットするため、
+         次行で明示的にbackground-colorを敷き直す。エンジンによってはオーバースクロール時の塗り足しに
+         html側ではなくbody側のbackground-colorを参照する場合があり、それが透明のままだと下のhtml背景（暗い側）
+         との組み合わせによっては意図しない見え方になり得るため、グラデーションの端の色と揃えて明示する。 */
       background: radial-gradient(ellipse at 30% 0%, var(--bg0-soft) 0%, var(--bg0) 45%, var(--bg0-deep) 100%);
+      background-color: var(--bg0-deep);
       color: var(--t1);
       min-height: 100vh;
       min-height: 100dvh;
-      overflow-x: hidden
+      overflow-x: hidden;
+      overscroll-behavior: none;
+      /* 2026-07-18モーション強化：テーマ切替時の色遷移をなめらかにする（html側コメント参照）。
+         background-imageのグラデーション自体は構造が同一（3停止点のradial-gradient）な限り対応ブラウザでは
+         滑らかに補間される。非対応環境は単に即時切替のままで、破綻はしない（progressive enhancement）。 */
+      transition: background-color .3s ease-out, background-image .3s ease-out, color .3s ease-out
     }
 
     #app {
@@ -371,8 +395,12 @@
       color: var(--t1);
       font-size: .78rem;
       text-align: left;
-      cursor: pointer
+      cursor: pointer;
+      transition: transform .15s cubic-bezier(.23,1,.32,1), box-shadow .15s, border-color .15s;
+      animation: lobby-dash-fade-in .4s cubic-bezier(.23,1,.32,1) both;
     }
+    .lobby-dash-card:hover { border-color: var(--blue); box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+    @keyframes lobby-dash-fade-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
     .lobby-dash-text {
       flex: 1;
       display: flex;
@@ -1412,23 +1440,65 @@
     }
 
     /* ── デイリー防災UX刷新：備えフェーズの対応表レイアウト（左＝災害・右＝割当政策）。2026-07-17実装 ── */
-    .dd-prep-row { display:flex; align-items:center; gap:8px; background:var(--bg2,#161b22); border:1px solid var(--bg3,#30363d); border-radius:10px; padding:8px; margin-bottom:8px; cursor:pointer; }
-    .dd-prep-disaster { display:flex; align-items:center; gap:6px; flex-shrink:0; width:92px; min-width:0; }
-    .dd-prep-disaster-thumb { position:relative; flex-shrink:0; }
-    .dd-prep-disaster img { width:38px; height:38px; object-fit:cover; border-radius:7px; display:block; }
-    .dd-prep-disaster-info { min-width:0; }
-    .dd-prep-disaster-name { font-size:.68rem; font-weight:800; color:var(--red); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .dd-prep-disaster-dmg { font-size:.6rem; color:var(--t2); }
-    .dd-order-badge { position:absolute; top:-4px; left:-4px; width:16px; height:16px; border-radius:50%; background:rgba(0,0,0,.75); border:1.5px solid var(--red); color:#fff; font-size:.6rem; font-weight:900; display:flex; align-items:center; justify-content:center; }
-    .dd-slot-cell { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:4px; align-items:center; min-height:34px; border:1px dashed var(--bg3,#30363d); border-radius:8px; padding:4px 6px; transition:border-color .15s; }
+    /* 2026-07-18再改修：横はみ出し修正のため.screenに明示width:100%を付与（詳細はdailyRenderForecast等の
+       呼び出し箇所コメント参照）。カードは名前を画像の外（下）に出す新設ミニカード方式に統一し、
+       手札トレイは廃止して「＋」ピッカー方式へ。ddDrag*（長押しドラッグ）は新レイアウトの.dd-mini-slot-col
+       に適合させ、ドロップ先も.dd-slot-cell（スロット間の移動・スワップのみ）に一本化した。 */
+    .dd-prep-row { display:flex; align-items:flex-start; gap:8px; background:var(--bg2,#161b22); border:1px solid var(--bg3,#30363d); border-radius:10px; padding:8px; margin-bottom:8px; }
+    /* 災害カード列：固定幅58px。順番バッジ（上・画像の外）→画像（アスペクト比288:450でcontain＝全体表示・欠けなし）→名前（下） */
+    .dd-disaster-col { display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; width:58px; min-width:0; }
+    .dd-order-chip { font-size:.62rem; font-weight:900; color:var(--red); background:rgba(248,81,73,.14); border:1px solid var(--red); border-radius:999px; padding:1px 7px; line-height:1.4; white-space:nowrap; }
+    .dd-mini-imgbox { width:100%; aspect-ratio:288/450; border-radius:8px; overflow:hidden; border:1.5px solid var(--red); background:var(--bg1,#0d1117); position:relative; cursor:pointer; }
+    .dd-mini-imgbox img { width:100%; height:100%; object-fit:contain; display:block; }
+    /* .card-name（.card内で使う共通クラス、font-size:.75rem・padding:4px 6pxを持つ）を流用してテキストだけ
+       _lpShowPreview()に読ませているため、後段の.card-name定義に上書きされないよう子孫セレクタで詳細度を上げる */
+    .dd-disaster-col .dd-mini-name, .dd-mini-slot-col .dd-mini-name { width:100%; padding:0; font-size:.6rem; font-weight:700; color:var(--t0); text-align:center; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    /* スロットセル：割当済みミニカード（複数可）＋末尾に「＋」タイル。flex-wrapで折返し、行の高さは可変 */
+    .dd-slot-cell { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start; align-content:flex-start; min-height:76px; border:1px dashed var(--bg3,#30363d); border-radius:8px; padding:6px; transition:border-color .15s; }
     .dd-slot-cell.dd-slot-hint { border-color:var(--blue); }
-    .dd-slot-empty { font-size:.64rem; color:var(--t3); }
-    .dd-slot-chip { display:flex; align-items:center; gap:4px; background:var(--bg1,#0d1117); border:1px solid var(--blue); border-radius:7px; padding:3px 6px; touch-action:pan-y; user-select:none; -webkit-user-select:none; cursor:grab; max-width:100%; }
-    .dd-slot-chip-name { font-size:.64rem; font-weight:700; color:var(--t0); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60px; }
-    .dd-slot-chip-cost { font-size:.6rem; color:var(--t2); flex-shrink:0; }
-    .dd-card-selected { outline:2px solid var(--blue); outline-offset:2px; }
-    .dd-tray-label { font-size:.72rem; color:var(--t2); margin:10px 0 6px; }
+    /* 割当済み政策ミニカード：上部にpadding-topを確保し「－」ボタンをその中に置く＝画像に重ねない */
+    .dd-mini-slot-col { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; width:46px; min-width:0; position:relative; padding-top:15px; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
+    .dd-mini-slot-col .dd-mini-imgbox { border-color:var(--blue); }
+    .dd-mini-remove { position:absolute; top:0; right:2px; width:15px; height:15px; padding:0; border:none; background:transparent; color:var(--red); cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; transition:transform .12s cubic-bezier(.23,1,.32,1); }
+    .dd-mini-remove:active { transform:scale(.85); }
+    /* 2026-07-18モーション強化：スロットへ割当直後のミニカードに軽いポップイン（design_system.md §4.1「弾力のあるポップ」系カーブ）。
+       fill-modeは既定（none）のままにする：ddDragActivate()がドラッグ確定後にこの同じ要素へstyle.transformを
+       直接セットして追従させる実装（transform:scale(1.06)）のため、'forwards'/'both'でアニメの終端値を固定すると
+       後からのstyle.transform書き込みと競合し、ドラッグ中の見た目が壊れる（動作確認済みの回避）。 */
+    @keyframes dd-slot-pop { from { opacity:0; transform:scale(.82); } to { opacity:1; transform:scale(1); } }
+    .dd-mini-slot-col { animation:dd-slot-pop .22s cubic-bezier(.34,1.56,.64,1); }
+    .dd-mini-cost { position:absolute; top:0; left:2px; font-size:.56rem; font-weight:800; color:var(--t2); }
+    .dd-mini-slot-col .dd-mini-name { font-size:.54rem; }
+    /* 画像フォールバック時の.card-text-fallback付き.card-descはimg-fail時のみ表示される想定だが、
+       ミニカードは.card親クラスを持たないため常時display:noneのまま（プレビュー抽出専用の隠しテキスト） */
+    /* 「＋」追加タイル：未割当スロット（＝これ単体のみ表示）・割当済みスロットへの追加割当の両方で使う */
+    .dd-add-tile { flex-shrink:0; width:46px; align-self:flex-start; margin-top:15px; aspect-ratio:288/450; border-radius:8px; border:1.5px dashed var(--bg3,#30363d); background:transparent; color:var(--t2); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color .15s,color .15s,transform .15s cubic-bezier(.23,1,.32,1); }
+    /* 2026-07-18モーション強化：hoverでわずかに拡大（誘目）・activeで押し込み（scale.93）という
+       2段階のフィードバックにする（design_system.md §4.1標準カーブ）。 */
+    .dd-add-tile:hover { border-color:var(--blue); color:var(--blue); transform:scale(1.06); }
+    .dd-add-tile:active { border-color:var(--blue); color:var(--blue); transform:scale(.93); }
     .dd-run-bar { position:fixed; left:0; right:0; bottom:0; z-index:2000; padding:10px 16px; background:var(--bg1); border-top:1px solid var(--bg3); box-shadow:0 -2px 12px rgba(0,0,0,.35); }
+    /* 政策カードピッカー（＋タップで開くカード選択）。.confirm-overlay/.confirm-boxと同系統の中央モーダルだが、
+       一覧が縦に伸びるためmax-heightとoverflow-y:autoを持つ専用ボックスにする。
+       2026-07-18モーション強化：.confirm-box既存のyb-drop-inをそのまま流用し出現演出を追加（新規keyframes不要）。 */
+    .dd-picker-box { background:var(--bg2); border:1px solid var(--bg3); border-radius:14px; padding:16px; max-width:340px; width:90%; max-height:78vh; display:flex; flex-direction:column; gap:10px; box-shadow:0 12px 40px rgba(0,0,0,.6); animation:yb-drop-in .32s cubic-bezier(.23,1,.32,1) both; }
+    .dd-picker-list { overflow-y:auto; display:flex; flex-direction:column; gap:8px; -webkit-overflow-scrolling:touch; }
+    .dd-picker-row { display:flex; align-items:center; gap:10px; background:var(--bg1,#0d1117); border:1px solid var(--bg3,#30363d); border-radius:10px; padding:8px; cursor:pointer; text-align:left; width:100%; transition:background-color .15s,border-color .15s,transform .12s cubic-bezier(.23,1,.32,1); }
+    .dd-picker-row:not(.dd-picker-row-disabled):hover { border-color:var(--blue); }
+    .dd-picker-row:not(.dd-picker-row-disabled):active { transform:scale(.98); background:var(--bg2,#21262d); }
+    /* 一覧の登場を軽くスタッガー（.hand-group-cardsと同じ考え方。5行目以降は追加delayなしで揃える） */
+    .dd-picker-row { animation:yb-drop-in .28s cubic-bezier(.23,1,.32,1) both; }
+    .dd-picker-list .dd-picker-row:nth-child(1) { animation-delay:.02s; }
+    .dd-picker-list .dd-picker-row:nth-child(2) { animation-delay:.06s; }
+    .dd-picker-list .dd-picker-row:nth-child(3) { animation-delay:.10s; }
+    .dd-picker-list .dd-picker-row:nth-child(4) { animation-delay:.14s; }
+    .dd-picker-row.dd-picker-row-disabled { opacity:.5; cursor:not-allowed; }
+    .dd-picker-row img { width:40px; height:40px; object-fit:cover; border-radius:6px; flex-shrink:0; }
+    .dd-picker-row-name { font-weight:800; color:var(--t0); font-size:.82rem; }
+    .dd-picker-row-desc { font-size:.66rem; color:var(--t2); margin-top:2px; line-height:1.4; }
+    .dd-picker-row-cost { flex-shrink:0; font-size:.7rem; font-weight:800; color:var(--blue); }
+    /* ddMkDisasterCard（予報・解説棋譜）の来襲順バッジ：画像の外（上）に出すためのラッパー */
+    .dd-card-order-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
 
     .card-back {
       width: var(--card-w);
@@ -2320,10 +2390,35 @@
     .coop-city-name-tap svg:last-child { flex-shrink:0; opacity:.6; transition:transform .15s ease; }
     .coop-city-name-tap[aria-expanded="true"] svg:last-child { transform:rotate(180deg); }
     /* 手札エリアの所有者タブ（自分＋仲間）。「政策カードをタップして都市を守ろう」等の恒常的な操作指示文の代替（design_system.md §10.3） */
-    .coop-hand-tabs { display:flex; gap:5px; flex-wrap:wrap; margin:8px 0 4px; }
-    .coop-hand-tab { padding:4px 12px; border-radius:10px; font-size:.72rem; font-weight:700; cursor:pointer; transition:.12s; background:transparent; color:#388bfd; border:1px solid rgba(56,139,253,.5); -webkit-tap-highlight-color:transparent; }
-    .coop-hand-tab.active { background:#388bfd; color:#fff; border-color:#388bfd; }
-    .coop-hand-view-note { text-align:center; color:rgba(var(--t0-rgb),.55); font-size:.7rem; margin:2px 0 6px; }
+    /* 2026-07-17ユーザーレビュー第3弾（タブUI刷新）：PCブラウザのタブのような形状に変更。
+       上辺のみ角丸・アクティブタブはカード一覧エリアと同じ面色（--bg2）で下辺の境界線が消えて一体化、
+       非アクティブタブは一段沈んだ色（rgba(t0,.06)）。プレイヤー名タップ時のアクティブ切替は
+       タブ自体の背景/文字色のCSSトランジション（200ms・標準イージング）で表現する
+       （design_system.md §4.1標準カーブ・prefers-reduced-motion対応）。JS側（_coApplyHandTabLocalUpdate）は
+       タブボタンを再生成せずactiveクラスの付け替えのみを行うため、このトランジションが同一DOMノード上で機能する */
+    .coop-hand-tabs { display:flex; gap:3px; flex-wrap:wrap; margin:8px 0 0; }
+    .coop-hand-tab {
+      padding:6px 13px;
+      border-radius:9px 9px 0 0;
+      font-size:.72rem;
+      font-weight:700;
+      cursor:pointer;
+      background:rgba(var(--t0-rgb),.06);
+      color:var(--t2);
+      border:1px solid var(--bg3,#30363d);
+      border-bottom:none;
+      box-shadow:inset 0 -2px 0 0 transparent;
+      -webkit-tap-highlight-color:transparent;
+      transition:background-color .2s cubic-bezier(.23,1,.32,1), color .2s cubic-bezier(.23,1,.32,1), box-shadow .2s cubic-bezier(.23,1,.32,1);
+    }
+    .coop-hand-tab.active { background:var(--bg2,#21262d); color:var(--blue,#388bfd); box-shadow:inset 0 2px 0 0 var(--blue,#388bfd); }
+    @media (prefers-reduced-motion: reduce) { .coop-hand-tab { transition:none; } }
+    .coop-hand-view-note { text-align:center; color:rgba(var(--t0-rgb),.55); font-size:.7rem; margin:4px 0 6px; padding-top:6px; }
+    /* 2026-07-18モーション強化：タブ切替時、手札一覧（#co-hand-cards）の中身をクロスフェードする。
+       _coApplyHandTabLocalUpdate()がinnerHTML差替え直後にclassの付け外し+void offsetWidth（reflow）で
+       このanimationを毎回再トリガーする（同一DOMノードはchildren入替だけではanimationが再生しないため）。 */
+    .co-hand-tabfade { animation:co-hand-tabfade-in .16s cubic-bezier(.23,1,.32,1); }
+    @keyframes co-hand-tabfade-in { from { opacity:.35; } to { opacity:1; } }
 
     /* 協力モード：都市パネルのシールドバッジ／仲間の手札 タップ詳細トグル
        1.4.2：常時うっすら見える背景+枠で「タップできる」ことを視認しやすくし（従来はhover/focus時のみ着色で
@@ -2447,7 +2542,11 @@
     .settings-theme-row { display:flex; gap:8px; flex-wrap:wrap }
     .settings-theme-chip { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--bg3); background:var(--bg2); cursor:pointer; flex:1; min-width:82px; transition:.15s; }
     .settings-theme-chip.active { border-color:var(--accent); background:rgba(var(--accent-rgb),.12); }
-    .settings-theme-swatch { width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.18); flex-shrink:0; }
+    .settings-theme-swatch { width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.18); flex-shrink:0; position:relative; }
+    /* 2026-07-18モーション強化：選択チップにチェックマークをポップ表示する（既存coopIcoCheckCircleを流用）。
+       fill-mode既定（none）でポップ後は通常のcascadeへ戻すため、選択状態が変わらない限り再アニメはしない。 */
+    .settings-theme-check { position:absolute; top:-4px; right:-4px; width:16px; height:16px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; animation:settings-check-pop .22s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes settings-check-pop { from { opacity:0; transform:scale(.4); } to { opacity:1; transform:scale(1); } }
     .settings-theme-label { font-size:.7rem; color:var(--t1); font-weight:700; text-align:center; line-height:1.3; }
     .settings-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; flex-wrap:wrap; }
     .settings-row-text { display:flex; flex-direction:column; gap:2px; }
@@ -2461,7 +2560,7 @@
 
     /* ══ UI第3弾（試験実装）：A2 ボトムタブバー（design_system.md §9 A2。UI_TABBARで無効化可） ══ */
     .ui-tabbar { position:fixed; left:0; right:0; bottom:0; z-index:9050; display:flex; background:var(--bg1); border-top:1px solid var(--bg3); padding:4px 4px; box-shadow:0 -2px 12px rgba(0,0,0,.35); }
-    .ui-tab-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:48px; padding:6px 4px; background:transparent; border:none; color:var(--t2); cursor:pointer; -webkit-tap-highlight-color:transparent; font:inherit; }
+    .ui-tab-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:48px; padding:6px 4px; background:transparent; border:none; color:var(--t2); cursor:pointer; -webkit-tap-highlight-color:transparent; font:inherit; transition:transform .12s cubic-bezier(.23,1,.32,1); }
     .ui-tab-icon-wrap { width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s; }
     .ui-tab-btn.active { color:var(--blue); }
     .ui-tab-btn.active .ui-tab-icon-wrap { background:rgba(56,139,253,.16); color:var(--blue); }
@@ -2491,7 +2590,10 @@
     .spec-invite-close::before { content:''; position:absolute; top:50%; left:50%; width:44px; height:44px; transform:translate(-50%,-50%); }
     .spec-invite-copy-btn { width:100%; padding:10px; border-radius:10px; border:none; background:#388bfd; color:#fff; font-size:.85rem; font-weight:700; cursor:pointer; }
     .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:9200; display:flex; align-items:flex-end; justify-content:center; padding:12px }
-    .hint-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:20px 18px; max-width:520px; width:100%; max-height:72vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px }
+    /* 2026-07-18モーション強化：設定パネル（含む「？」ヒントパネル全般）の登場を下からのスライドインにする。
+       align-items:flex-endの底部シートUIに合わせ、yb-drop-in（上からdrop-in）ではなく専用の下スライドkeyframesを使う。 */
+    .hint-box { background:var(--bg1); border:1px solid var(--bg3); border-radius:20px; padding:20px 18px; max-width:520px; width:100%; max-height:72vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px; animation:hint-box-slide-up .28s cubic-bezier(.23,1,.32,1) both }
+    @keyframes hint-box-slide-up { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
     .hint-box-header { display:flex; align-items:center; justify-content:space-between }
     .hint-title { font-size:.95rem; font-weight:700; color:var(--blue) }
     /* 1.4.2：見た目のサイズは変えず、::beforeで44px四方のヒットエリアを確保（Apple HIG基準） */
@@ -2863,6 +2965,11 @@
       .card.card-usable[data-ctype="shield"]:hover   { box-shadow:0 12px 28px rgba(63,185,80,.6),  0 0 0 1px rgba(63,185,80,.35)  !important; }
       .card.card-usable[data-ctype="jinzai"]:hover   { box-shadow:0 12px 28px rgba(168,85,247,.6), 0 0 0 1px rgba(168,85,247,.35) !important; }
     }
+    /* 2026-07-18モーション強化：タップ時の押し込みフィードバック（タッチデバイス含む全般に適用）。
+       上のtransition定義は@media(hover:hover)内＝PCのみのため、タッチ操作でも:activeが滑らかに効くよう
+       ここで別途transitionを付与する（hover用transformとは独立してcascadeされ、競合しない）。 */
+    .card.card-usable { transition: transform .12s cubic-bezier(.23,1,.32,1); }
+    .card.card-usable:active { transform: scale(.96); }
 
     /* ── Phase 1-C: Hand card enter stagger ── */
     .hand-group-cards .card { animation:yb-fadeInUp .38s cubic-bezier(.23,1,.32,1) both; }
@@ -3021,6 +3128,43 @@
       .hp-critical-badge { animation: none !important; opacity: 1 !important; }
       /* UI第3弾（試験実装）B2：長押しプレビューの拡大アニメを無効化 */
       .ui-card-preview-card { animation: none !important; }
+
+      /* ── 2026-07-18モーション強化スイープで追加した演出を無効化する（design_system.md §4.3・今回タスク指示の必須事項）。
+         登場アニメ（animation）は即時表示へ、押下フィードバック（:active transform）とテーマ切替の色遷移
+         （transition）は瞬時切替へフォールバックする。既存の.confirm-box/.dd-picker-box等が共用するyb-drop-inも
+         このタイミングで合わせて無効化対象に含めた（従来ここが未対応だった既存の抜けを合わせて解消）。 ── */
+      html, body { transition: none !important; }
+      .confirm-box, .dd-picker-box, .hint-box, .lobby-dash-card,
+      .dd-mini-slot-col, .dd-picker-row, .settings-theme-check,
+      .co-hand-tabfade {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+      .lobby-btn:active,
+      .lobby-btn-tut:active,
+      .lobby-btn-single:active,
+      .lobby-btn-back:active,
+      .lobby-btn-solo:active,
+      .lobby-btn-gallery:active,
+      .lobby-dash-card:active,
+      .btn-ho:active,
+      .sq-btn:active,
+      .sq-btn-r:active,
+      .hint-btn:active,
+      .confirm-btns .btn-ok:active,
+      .confirm-btns .btn-cancel:active,
+      .settings-theme-chip:active,
+      .settings-seg-btn:active,
+      .dd-add-tile:hover,
+      .dd-add-tile:active,
+      .dd-mini-remove:active,
+      .btn-accept:active,
+      .ui-tab-btn:active,
+      .dd-picker-row:active,
+      .card.card-usable:active {
+        transform: none !important;
+      }
     }
 
     /* ── D-2: Confirm drop-in ── */
@@ -3686,7 +3830,7 @@
         scrollbar-width: none;
       }
       .dd-card-row::-webkit-scrollbar { display: none; }
-      .dd-card-row > .card { flex-shrink: 0; }
+      .dd-card-row > .card, .dd-card-row > .dd-card-order-wrap { flex-shrink: 0; }
 
       /* ── 12. ターンサマリー：タイトルを下方向にずらす ── */
       .turn-summary-box {
@@ -3748,6 +3892,35 @@
     }
     @media (prefers-reduced-motion: reduce) {
       .boot-splash-title { animation: none; }
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       2026-07-18 モーション強化スイープ：主要ボタン群への統一的な押下フィードバック。
+       design_system.md §4.1（transform/opacityベース・150〜300ms以内）に沿い、:active時にscale(.97)へ
+       軽く縮める。対象クラスの大半は既存の transition:.15s〜.2s（一括指定）がそのままtransformにも効くため、
+       ここではtransformの値だけを追加する。<style>ブロックの最後（各クラスの:hover定義より後）に置くことで、
+       タップ時（モバイルは:hoverと:activeが同時に真になりやすい）はこの:activeが確実にcascadeで優先される。
+       reduced-motion時の無効化は上記の「§9.4積み残し」ブロックにまとめて記載済み。 ══════════════════════════════════════ */
+    .lobby-btn:active,
+    .lobby-btn-tut:active,
+    .lobby-btn-single:active,
+    .lobby-btn-back:active,
+    .lobby-btn-solo:active,
+    .lobby-btn-gallery:active,
+    .lobby-dash-card:active,
+    .btn-ho:active,
+    .sq-btn:active,
+    .sq-btn-r:active,
+    .hint-btn:active,
+    .confirm-btns .btn-ok:active,
+    .confirm-btns .btn-cancel:active,
+    .settings-theme-chip:active,
+    .settings-seg-btn:active,
+    .dd-mini-remove:active,
+    .btn-accept:active,
+    .ui-tab-btn:active,
+    .dd-picker-row:not(.dd-picker-row-disabled):active {
+      transform: scale(.97);
     }
   </style>
 </head>
@@ -4424,7 +4597,8 @@
     function toggleSettings() { _settingsOpen = !_settingsOpen; render(); }
     function renderSettingsOverlay() {
       const s = ronGetSettings();
-      const themeChips = RON_THEMES.map(t => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}"></span><span class="settings-theme-label">${t.label}</span></button>`).join('');
+      // 2026-07-18モーション強化：選択中テーマのスウォッチ右上にチェックマークをポップ表示する（coopIcoCheckCircle流用）
+      const themeChips = RON_THEMES.map(t => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}">${s.theme === t.id ? `<span class="settings-theme-check">${coopIcoCheckCircle(11,'#fff')}</span>` : ''}</span><span class="settings-theme-label">${t.label}</span></button>`).join('');
       // 2026-07-17ユーザーレビュー修正：8bit（DotGothic16）を追加し3択に拡張
       const fontSeg = [['default', '標準'], ['digital', 'デジタル'], ['8bit', '8bit']].map(([f, label]) => `<button class="settings-seg-btn${s.font === f ? ' active' : ''}" onclick="ronSetFont('${f}')">${label}</button>`).join('');
       const glowClass = s.glow !== false ? 'ios-switch on' : 'ios-switch';
@@ -9371,16 +9545,55 @@
     }
     // 都市パネル別にシールド詳細トグルの開閉状態を保持（Firebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
     let _coShieldDetailOpen = {};
-    function coopToggleShieldDetail(idx) { _coShieldDetailOpen[idx] = !_coShieldDetailOpen[idx]; renderCoop(); }
+    // 2026-07-17ユーザーレビュー第3弾（ちらつき根本修正・方針1）：シールド/能力トグルはローカルUI状態の開閉のみで
+    // ゲーム状態（CO）を一切変更しないため、renderCoop()（app.innerHTML全置換）を呼ばず、該当都市パネルのDOMノードだけを
+    // outerHTMLで差し替える。手札カード列など無関係な領域には一切触れないため、対戦モードの都市名タップ詳細相当の
+    // トグル操作で自分の手札列が消える問題が起きなくなる（問題工房ドラッグ実装のrender()回避方針と同じ考え方）
+    function _coPatchCityPanel(idx) {
+      if (!CO || !CO.cities || !CO.cities[idx]) { renderCoop(); return; } // フォールバック：状態不整合時は通常経路
+      const el = document.querySelector('[data-city-idx="' + idx + '"]');
+      if (!el) { renderCoop(); return; } // フォールバック：DOM未生成（初回描画前）時は通常のrenderCoopに委ねる
+      const compact = el.getAttribute('data-compact') === '1';
+      el.outerHTML = coopCityPanel(CO.cities[idx], idx, compact);
+      delete _coContainerCache.cities; // 次回のrenderCoop()でcitiesコンテナだけを最新化させる（手札等の他コンテナには影響しない）
+    }
+    function coopToggleShieldDetail(idx) { _coShieldDetailOpen[idx] = !_coShieldDetailOpen[idx]; _coPatchCityPanel(idx); }
     // 2026-07-17：仲間パネルのコンパクト化に伴い、能力詳細は都市名タップで開閉する（対戦モードの都市名タップ詳細と同じ体験）。
     // 都市スロット別に開閉状態を保持（_coShieldDetailOpenと同じくFirebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
     let _coCityDetailOpen = {};
-    function coopToggleCityDetail(idx) { _coCityDetailOpen[idx] = !_coCityDetailOpen[idx]; renderCoop(); }
+    function coopToggleCityDetail(idx) { _coCityDetailOpen[idx] = !_coCityDetailOpen[idx]; _coPatchCityPanel(idx); }
     // 2026-07-17：手札エリアの所有者タブ（自分＋仲間）。'me'=自分固定、それ以外はCO.cities内の都市インデックス。
     // 昨日実装した_coAllyHandOpen/coopToggleAllyHandOpen/coopAllyHandCompactHtml（仲間の状況パネル内「手札を見る」）を置き換えて廃止した
     // （Firebase同期には載せないローカル表示state。協力ゲーム開始時・各ターン開始時に'me'へリセット）
     let _coHandTab = 'me';
-    function coopSelectHandTab(v) { _coHandTab = v; renderCoop(); }
+    // 2026-07-17ユーザーレビュー第3弾（ちらつき根本修正・タブUI刷新）：タブ切替もローカルUI状態のみの変更のため
+    // renderCoop()を呼ばない。タブボタン自体は再生成せずactiveクラスだけを切替える（CSSトランジションが同一DOMノード上で
+    // 連続することでタブ自体の背景遷移モーションが機能する）。手札カード一覧・閲覧中ラベルの2要素のみ差し替える
+    function _coApplyHandTabLocalUpdate() {
+      const root = document.getElementById('co-hand-root');
+      if (!root || !CO) { renderCoop(); return; } // フォールバック：DOM未生成時は通常のrenderCoopに委ねる
+      const readOnly = root.dataset.readonly === '1';
+      const p = coopHandParts(readOnly);
+      const tabsHost = document.getElementById('co-hand-tabs');
+      if (tabsHost) {
+        tabsHost.querySelectorAll('.coop-hand-tab').forEach(btn => {
+          btn.classList.toggle('active', btn.getAttribute('data-tabkey') === String(_coHandTab));
+        });
+      }
+      const viewEl = document.getElementById('co-hand-viewnote');
+      if (viewEl) viewEl.innerHTML = p.viewNote;
+      const cardsEl = document.getElementById('co-hand-cards');
+      if (cardsEl) {
+        cardsEl.innerHTML = p.cards;
+        // 2026-07-18モーション強化：タブ切替のクロスフェード。同一DOMノードなのでclass付け外し+reflowで毎回再トリガーする
+        cardsEl.classList.remove('co-hand-tabfade');
+        void cardsEl.offsetWidth;
+        cardsEl.classList.add('co-hand-tabfade');
+      }
+      // area差分キャッシュとも同期させ、次のrenderCoop()実行時に不要な再差分（cardsの二重更新）が起きないようにする
+      if (_coAreaCache) { _coAreaCache.viewnote = p.viewNote; _coAreaCache.cards = p.cards; }
+    }
+    function coopSelectHandTab(v) { _coHandTab = v; _coApplyHandTabLocalUpdate(); }
     // 対応フェーズ：どの対応カードを「プレビュー中」か（Firebase同期には載せないローカル表示state。1タップ目でプレビュー、
     // 同じカードを2タップ目で実際の対応選択＝coopSelectResponseへ進む。対応フェーズを離れたら renderCoop 冒頭で自動クリア）
     let _coRespPreviewUid = null;
@@ -9426,7 +9639,7 @@
     }
     function coopReroll() { const pool = shuffle([...CITIES]); CO.cities = [pool[0], pool[1]].map(c => ({ city: c, hp: CO.diff.hp, maxHp: CO.diff.hp, effects: mkEffects() })); renderCoop(); }
     function coopRequestQuit() { CO.confirm = { quit: true }; renderCoop(); }
-    function coopQuit() { _coCancelTimer(); coopCleanupOnline(); _coClearSession(); CO = null; lobbyState.mode = 'select'; lobbyState.error = ''; render(); }
+    function coopQuit() { _coCancelTimer(); coopCleanupOnline(); _coClearSession(); CO = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; lobbyState.mode = 'select'; lobbyState.error = ''; render(); }
     function coopRestart() { startCoopGame(CO.diff.key, CO.humanSide); }
     function coopPlayOtherSide(side) { startCoopGame(CO.diff.key, side); }
 
@@ -10243,7 +10456,7 @@
       }
       CO.budget = b; CO.budgetUsed = 0;
     }
-    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; coopStartCityTurn(true); }
+    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; coopStartCityTurn(true); }
     // 都市ターン開始（humanSide によって人間操作／CPU防衛に分岐）
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
@@ -10768,6 +10981,14 @@
     function coopSplashCpuCity() { coopSplash(`ターン ${CO.turn}`, 'CPU都市が防衛中…', '56,139,253', 'images/icons/icon_city.webp'); }
 
     // ── 描画（対戦モードのデザインに合わせる） ──
+    // 2026-07-17ユーザーレビュー第3弾（ちらつき根本修正・方針2）：協力盤面（coopRenderBoard）用のコンテナ単位HTML
+    // キャッシュ。renderCoop()が呼ばれるたびに主要コンテナ（都市パネル・手札・仲間の状況等）ごとにHTML文字列を
+    // 生成し直すのは変わらないが、前回描画分と文字列比較して「変化したコンテナだけ」DOMのinnerHTMLを差し替える。
+    // 生成コストそのものは削減しないが、img等のDOMノードを不要に再生成しない（＝再デコード・再ペイントの空白
+    // フレームを出さない）ことが目的。app.innerHTML全置換（原因(a)(b)）を避けるための最小実装。
+    let _coContainerCache = {};
+    let _coAreaCache = {};
+    let _coLastFullHtml = null; // 盤面以外の画面（ロビー・サマリー等）向け：内容が完全一致する再描画はDOM書き換え自体を省略する
     function renderCoop() {
       cwRecordCoopResult(CO); // A2修正：ソロ協力の育つカード戦績（over初回のみ・オンラインMPでは何もしない・失敗しても無害）
       if (CO.phase !== 'coopResponse' && _coRespPreviewUid) _coRespPreviewUid = null; // 対応フェーズを離れたらプレビュー状態を自動クリア（ホスト/ゲスト/ソロいずれの経路でも同期状態の変化を拾える唯一の共通点）
@@ -10782,9 +11003,20 @@
       else if (CO.phase === 'summary') html = coopRenderSummary();
       else if (CO.phase === 'draw' && !waiting) html = coopRenderDraw();
       else if (CO.phase === 'cpuReview') html = coopRenderCpuReview();
-      else { html = coopRenderBoard(); _boardShown = true; }
-      html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：協力(CO)は常に非対象のため空文字を返す（body.ui-tabbar-active解除のためだけに呼ぶ）
-      app.innerHTML = html;
+      else _boardShown = true;
+      _uiTabBarHtml(); // UI第3弾（試験実装）A2：協力(CO)は常に非対象のため空文字を返す（body.ui-tabbar-active解除のためだけに呼ぶ副作用専用の呼び出し）
+
+      // 盤面表示中はまずコンテナ差分描画を試みる（既にco-board-rootがDOMにある＝画面遷移を伴わない再描画の場合のみ成立）。
+      // 遷移直後・初回はco-board-rootが存在せずfalseが返るため、下のフルHTML経路へ自然にフォールバックする
+      const handledByDiff = _boardShown && coopDiffRenderBoard();
+      if (!handledByDiff) {
+        if (_boardShown) html = coopRenderBoard(); // フル組み立て（差分キャッシュもここで最新化される）
+        // リモート由来の再描画で内容が前回と完全一致する場合（例：他プレイヤーの操作が自分の画面に無関係）は
+        // DOM書き換え自体を省略し、既存ノード（画像・アニメーション状態）をそのまま保持する
+        if (html !== _coLastFullHtml) { app.innerHTML = html; _coLastFullHtml = html; }
+      } else {
+        _coLastFullHtml = null; // 差分経路を使った直後はフル文字列キャッシュの前提が崩れるため無効化し、次にフル経路へ落ちた際は必ず書き込む
+      }
       if (CO.phase === 'over' && typeof initGoObserver === 'function') setTimeout(initGoObserver, 60);
       if (CO.phase === 'lobby' && CO.host) setTimeout(coopGenLobbyQR, 30);
       // A-2: 都市パネルのHPバー被弾演出（盤面表示時のみ・直近HP記録の更新も兼ねる）
@@ -10976,7 +11208,10 @@
       const hpBarH = compact ? 13 : 16;
       const badgeStyle = compact ? 'font-size:.78rem;margin-top:4px;min-height:16px' : 'font-size:.85rem;margin-top:5px;min-height:18px';
       // リーチ警告バッジはHPバーの外側（overflow:hiddenの影響を受けない position:relative ラッパー）に重ねる。バー内部のoverflow:hiddenでクリップされないようにするため
-      return `<div style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:${panelPad};${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}">${nameBlock}${owner}${standaloneAbility}<div style="display:flex;align-items:center;gap:6px"><span class="hp-label" style="flex-shrink:0">HP</span><div style="position:relative;flex:1;min-width:0">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:${hpBarH}px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:${hpBarH}px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div></div><div style="${badgeStyle}">${badges}</div></div>`;
+      // data-city-idx/data-compact：2026-07-17ユーザーレビュー第3弾（ちらつき根本修正）で追加。
+      // シールド/能力トグル（coopToggleShieldDetail/coopToggleCityDetail）がrenderCoop()を呼ばず
+      // このパネル1枚だけをouterHTMLで差し替えるための識別子（_coPatchCityPanel参照）
+      return `<div data-city-idx="${idx}" data-compact="${compact ? 1 : 0}" style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:${panelPad};${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}">${nameBlock}${owner}${standaloneAbility}<div style="display:flex;align-items:center;gap:6px"><span class="hp-label" style="flex-shrink:0">HP</span><div style="position:relative;flex:1;min-width:0">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:${hpBarH}px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:${hpBarH}px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div></div><div style="${badgeStyle}">${badges}</div></div>`;
     }
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
     function coopMkCard(card, mode, support, readOnly) {
@@ -11152,15 +11387,26 @@
         const incomingBadge = incoming.length > 0
           ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(248,81,73,.15);color:#f85149;border:1px solid rgba(248,81,73,.4)">被弾予定${incoming.length > 1 ? ` ×${incoming.length}` : ''}</span>`
           : '';
-        // 2026-07-17：1.2.8で実装した行内トグル（_coAllyHandOpen/coopToggleAllyHandOpen/coopAllyHandCompactHtml）は
-        // 手札エリアの所有者タブ方式（coopSelectHandTab）へ置き換えて廃止した。代わりにこの行から該当タブへ直接ジャンプできる
-        // ボタンを残し、「仲間の状況パネルから手札を見る」という導線自体は維持する（coop-shield-toggleのスタイルを流用）
-        const handJump = `<button type="button" class="coop-shield-toggle" aria-label="${s.ownerName}の手札をカード一覧タブで見る" onclick="coopSelectHandTab(${cidx})">手札を見る</button>`;
-        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:var(--t1);flex-shrink:0">${s.ownerName} · ${s.city.name}</span>${readyBadge}${budgetBlock}${handCount}${incomingBadge}${handJump}</div>`;
+        // 2026-07-17ユーザーレビュー第3弾：ここにあった「手札を見る」ボタン（coopSelectHandTabへのジャンプ）を削除した。
+        // 手札エリア上部の所有者タブ（.coop-hand-tabs、c44191aで実装済み）が同じ機能（誰の手札を見るか切替）を
+        // 既に常設で提供しており、このパネル内のボタンは完全な機能重複だった（TASKS.md 2026-07-17レビュー指摘）
+        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:var(--t1);flex-shrink:0">${s.ownerName} · ${s.city.name}</span>${readyBadge}${budgetBlock}${handCount}${incomingBadge}</div>`;
       }).join('');
       return `<div style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px"><div style="font-size:.64rem;font-weight:700;color:rgba(var(--t0-rgb),.35);margin-bottom:6px">仲間の状況</div>${rows}</div>`;
     }
-    function coopRenderCityHand(readOnly) {
+    // タブが存在する（MPで仲間がいる）場合のみ、カード一覧エリアにタブと同じ面色（--bg2）の背景を敷き、
+    // アクティブタブの下辺境界線（box-shadowで消去済み）と繋げて「タブがカード面と一体化」して見えるようにする。
+    // タブが無い（ソロ協力・仲間がいないMP）場合は従来どおり背景なしの素の並び（無回帰）
+    function _coHandCardsWrapStyle(hasTabs) {
+      return hasTabs
+        ? 'display:flex;flex-wrap:wrap;gap:6px;justify-content:center;background:var(--bg2,#21262d);border-radius:0 10px 10px 10px;padding:10px 8px'
+        : 'display:flex;flex-wrap:wrap;gap:6px;justify-content:center';
+    }
+    // 2026-07-17ユーザーレビュー第3弾：旧coopRenderCityHand（かつては手札エリアのHTMLを1つの文字列として
+    // 一括生成していた）の中身をパーツ単位（tabs/head/viewNote/cards/ally/btn）のオブジェクトを返すヘルパーへ
+    // 分離した。盤面の可変領域を組み立てる_coBuildAreaResult（フル組み立て・差分描画の両方の唯一の呼び出し元）と、
+    // タブ切替時のローカル差分更新（_coApplyHandTabLocalUpdate）の2箇所から共用することで二重管理を避ける。
+    function coopHandParts(readOnly) {
       const myslot = CO.mp ? coopMySlot() : null;
       const support = !!(myslot && myslot.hp <= 0); // 壊滅都市は後方支援役
       const supCap = support ? (COOP_SUPPORT_CAP + (myslot.city.abilityType === 'extra_budget' ? myslot.city.abilityValue : 0)) : 0;
@@ -11177,13 +11423,15 @@
       if (_coHandTab !== 'me' && !allies.some(s => CO.cities.indexOf(s) === _coHandTab)) _coHandTab = 'me';
       const viewingAlly = allies.length > 0 && _coHandTab !== 'me';
       const selAlly = viewingAlly ? allies.find(s => CO.cities.indexOf(s) === _coHandTab) : null;
-      const tabsHtml = allies.length ? (() => {
-        const meBtn = `<button type="button" class="coop-hand-tab${_coHandTab === 'me' ? ' active' : ''}" onclick="coopSelectHandTab('me')">あなた</button>`;
+      // data-tabkey：タブ切替時にactiveクラスだけを付け替えるための識別子（_coApplyHandTabLocalUpdate参照。
+      // タブボタン自体を再生成しないため、CSSトランジション（ブラウザタブ風の背景遷移）が同一DOMノード上で機能する）
+      const tabsInner = allies.length ? (() => {
+        const meBtn = `<button type="button" class="coop-hand-tab${_coHandTab === 'me' ? ' active' : ''}" data-tabkey="me" onclick="coopSelectHandTab('me')">あなた</button>`;
         const allyBtns = allies.map(s => {
           const i = CO.cities.indexOf(s);
-          return `<button type="button" class="coop-hand-tab${_coHandTab === i ? ' active' : ''}" onclick="coopSelectHandTab(${i})">${_escHtml(s.ownerName)}</button>`;
+          return `<button type="button" class="coop-hand-tab${_coHandTab === i ? ' active' : ''}" data-tabkey="${i}" onclick="coopSelectHandTab(${i})">${_escHtml(s.ownerName)}</button>`;
         }).join('');
-        return `<div class="coop-hand-tabs">${meBtn}${allyBtns}</div>`;
+        return `${meBtn}${allyBtns}`;
       })() : '';
       const viewNote = viewingAlly ? `<div class="coop-hand-view-note">${_escHtml(selAlly ? selAlly.ownerName : '')}の手札を閲覧中（使用不可）</div>` : '';
 
@@ -11213,22 +11461,26 @@
         const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly)).join('');
         cardsHtml = cards || '<span style="color:var(--t0)">手札なし</span>';
       }
-      // coop-hand-cards：横スワイプでタブを切り替えるための対象マーカー（既存hand-group-cardsクラスと併用。
-      // flex-wrapで折返し表示のため横スクロールを持たず、既存の横スクロールUIとの競合は発生しない）
-      const cardsArea = `<div class="hand-group-cards coop-hand-cards" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${cardsHtml}</div>`;
 
-      if (readOnly) {
-        return `${tabsHtml}${head}${viewNote}${cardsArea}${coopAllyStatusPanel()}`;
+      const ally = coopAllyStatusPanel();
+      let btn = '';
+      if (!readOnly) {
+        const btnLabel = support ? '支援を終える ▶ 次へ' : 'ターン終了 ▶ 自然の攻撃へ';
+        const _leftBudget = CO.budget - CO.budgetUsed;
+        const _hasPlayable = CO.hand.some(c => c.cost <= _leftBudget);
+        const _endReady = _leftBudget <= 0 || !_hasPlayable;
+        const _endStyle = _endReady
+          ? 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#3fb950;border:none;color:#0d1117;font-weight:800;cursor:pointer;box-shadow:0 0 0 3px rgba(63,185,80,.25)'
+          : 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:transparent;border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer';
+        btn = `<button onclick="coopRequestEndTurn()" style="${_endStyle}">${btnLabel}</button>`;
       }
-      const btnLabel = support ? '支援を終える ▶ 次へ' : 'ターン終了 ▶ 自然の攻撃へ';
-      const _leftBudget = CO.budget - CO.budgetUsed;
-      const _hasPlayable = CO.hand.some(c => c.cost <= _leftBudget);
-      const _endReady = _leftBudget <= 0 || !_hasPlayable;
-      const _endStyle = _endReady
-        ? 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#3fb950;border:none;color:#0d1117;font-weight:800;cursor:pointer;box-shadow:0 0 0 3px rgba(63,185,80,.25)'
-        : 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:transparent;border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer';
-      return `${tabsHtml}${head}${viewNote}${cardsArea}${coopAllyStatusPanel()}<button onclick="coopRequestEndTurn()" style="${_endStyle}">${btnLabel}</button>`;
+      return { tabs: tabsInner, head, viewNote, cards: cardsHtml, ally, btn };
     }
+    // coop-hand-cards：横スワイプでタブを切り替えるための対象マーカー（既存hand-group-cardsクラスと併用。
+    // flex-wrapで折返し表示のため横スクロールを持たず、既存の横スクロールUIとの競合は発生しない）。
+    // 各パーツをid付きdivで包む組み立ては_coBuildAreaResult（盤面の可変領域を組み立てる唯一の呼び出し元）に
+    // 一本化した。以前あった単独のcoopRenderCityHand()はこれと完全に重複する組み立てだったため統合・削除した
+    // （2026-07-17ユーザーレビュー第3弾：ちらつき根本修正のリファクタ時に整理）
     // 2026-07-17：手札カード一覧の横スワイプで所有者タブを順に切り替える（design_system.md §10.7 操作は複数経路）。
     // 既存の長押しプレビュー（_lpOnTouchStart等）と同じdocument委譲パターンを踏襲する。.coop-hand-cardsはflex-wrapで
     // 折返し表示のため横スクロールを持たず、既存の横スクロールUIとの競合は発生しない（実装を保守的な閾値に留めた設計判断）
@@ -11259,7 +11511,7 @@
       const order = ['me', ...allies.map(s => CO.cities.indexOf(s))];
       let i = order.indexOf(_coHandTab); if (i < 0) i = 0;
       i = (i + dir + order.length) % order.length;
-      _coHandTab = order[i]; renderCoop();
+      _coHandTab = order[i]; _coApplyHandTabLocalUpdate(); // 2026-07-17：スワイプもタップと同じくローカル差分更新（renderCoop()を呼ばない）
     }
     if (typeof document !== 'undefined' && document.addEventListener) {
       document.addEventListener('touchstart', _coSwipeOnTouchStart, { passive: true });
@@ -11655,7 +11907,39 @@
       const _svgQRico = `<svg style="width:18px;height:18px;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M5 5h3v3H5zm11 0h3v3h-3zM5 16h3v3H5z" fill="currentColor" stroke="none"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2z" fill="currentColor" stroke="none"/></svg>`;
       return `<div class="confirm-overlay" onclick="coopToggleReconn()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:340px;padding:20px 18px;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="display:flex;align-items:center;gap:7px;font-weight:800;font-size:1rem;color:#388bfd">${_svgQRico}再接続用QR</span><button onclick="coopToggleReconn()" style="background:transparent;border:none;color:rgba(var(--t0-rgb),.5);font-size:1.1rem;cursor:pointer;line-height:1;padding:0 2px">✕</button></div><div onclick="coopCopyLobbyCode()" style="font-size:1.15rem;font-weight:900;color:#388bfd;letter-spacing:.14em;text-align:center;cursor:pointer;padding:8px;border-radius:8px;border:1px solid rgba(56,139,253,.35);background:rgba(56,139,253,.08)">${CO.roomId} <span style="font-size:.65rem;font-weight:400;color:var(--t3)">タップでコピー</span></div><div style="text-align:center"><div id="${qrId}" style="display:inline-block;background:#0d1117;padding:6px;border-radius:8px"></div></div><div style="font-size:.68rem;color:var(--t3);text-align:center;line-height:1.6">前回と同じ名前を入力して参加ボタンを押すと再接続できる</div></div></div>`;
     }
-    function coopRenderBoard() {
+    // 2026-07-17ユーザーレビュー第3弾（ちらつき根本修正）：盤面中央の可変領域（手札／対応フェーズ／攻撃プール等）を
+    // 組み立てる。mode==='hand'（自分の手札を操作/閲覧する場面）のときだけparts（tabs/head/viewNote/cards/ally/btn）を
+    // 個別に返し、coopDiffRenderBoardがそれぞれを独立してDOM差分適用できるようにする（＝仲間の状況パネルや
+    // ヘッダーだけが変化しても手札カードのDOMノードには触れない）。それ以外の画面（対応フェーズ・攻撃プール等）は
+    // 従来どおり1つのHTML文字列として扱う（フル文字列比較のみ・十分な粒度と判断）
+    function _coBuildAreaResult(waiting, myTurnActive) {
+      let mode = 'other', readOnly = false, full = '', parts = null;
+      if (waiting) {
+        const _mySlot = coopMySlot();
+        const _showReadOnlyHand = CO.mp && CO.mySide === 'city' &&
+          (CO.phase === 'city' || CO.phase === 'draw') &&
+          !!_mySlot && !!_mySlot.ready;
+        if (_showReadOnlyHand) { mode = 'hand'; readOnly = true; }
+        else full = coopWaitingArea();
+      }
+      else if (CO.phase === 'natureHuman') full = coopRenderNaturePool();
+      else if (CO.phase === 'city') {
+        if (CO.humanSide === 'city') { mode = 'hand'; readOnly = false; }
+        else full = `<div style="text-align:center;padding:18px;color:var(--t0)"><img src="images/icons/icon_city.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block"> CPU都市が防衛中…</div>`;
+      }
+      else if (CO.phase === 'coopResponse') full = coopRenderResponse();
+      else full = `<div style="text-align:center;padding:18px;color:var(--t0)">${CO.responseBlocked && CO.blockReason ? CO.blockReason : '解決中…'}</div>`;
+      if (mode === 'hand') {
+        const p = coopHandParts(readOnly);
+        const tabsDiv = p.tabs ? `<div class="coop-hand-tabs" id="co-hand-tabs">${p.tabs}</div>` : '';
+        parts = { tabs: tabsDiv, head: p.head, viewnote: p.viewNote, cards: p.cards, ally: p.ally, btn: p.btn };
+        full = `<div id="co-hand-root" data-readonly="${readOnly ? 1 : 0}">${tabsDiv}<div id="co-hand-head">${p.head}</div><div id="co-hand-viewnote">${p.viewNote}</div><div class="hand-group-cards coop-hand-cards" id="co-hand-cards" style="${_coHandCardsWrapStyle(!!p.tabs)}">${p.cards}</div><div id="co-hand-ally">${p.ally}</div><div id="co-hand-btn">${p.btn}</div></div>`;
+      }
+      return { mode, readOnly, full, parts };
+    }
+    // 盤面全体を構成する各コンテナのHTML文字列をまとめて生成する。coopRenderBoard（フル組み立て）と
+    // coopDiffRenderBoard（差分適用）の両方から呼ばれる唯一の生成元にすることで二重管理を避ける
+    function _coBuildBoardSections() {
       // 2026-07-17：自分の都市パネル刷新（design_system.md §10.1/10.2/10.4）。MPで自分が都市を持つ場合
       // （coopMySlot()が存在する場合）は、人数不問で「自分の都市を常に最上部に固定・仲間都市はその下に横一列」に統一する。
       // 昨日実装した4〜5人時の2列グリッド（1.3.4）は、自分の都市が仲間の間や下に来て不定形の余白ができる問題があったため
@@ -11682,19 +11966,7 @@
       const waiting = CO.online && !coopMyPhase();
       // D-1: 自分が操作すべき状態のとき、手札／攻撃プールのエリアラッパーに枠パルスを付与
       const myTurnActive = !waiting && ['city', 'natureHuman', 'coopResponse', 'draw'].includes(CO.phase);
-      let area = '';
-      if (waiting) {
-        const _mySlot = coopMySlot();
-        const _showReadOnlyHand = CO.mp && CO.mySide === 'city' &&
-          (CO.phase === 'city' || CO.phase === 'draw') &&
-          !!_mySlot && !!_mySlot.ready;
-        area = _showReadOnlyHand ? coopRenderCityHand(true) : coopWaitingArea();
-      }
-      else if (CO.phase === 'natureHuman') area = coopRenderNaturePool();
-      else if (CO.phase === 'city') area = (CO.humanSide === 'city') ? coopRenderCityHand() : `<div style="text-align:center;padding:18px;color:var(--t0)"><img src="images/icons/icon_city.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block"> CPU都市が防衛中…</div>`;
-      else if (CO.phase === 'coopResponse') area = coopRenderResponse();
-      else area = `<div style="text-align:center;padding:18px;color:var(--t0)">${CO.responseBlocked && CO.blockReason ? CO.blockReason : '解決中…'}</div>`;
-      if (myTurnActive) area = `<div class="coop-my-turn" style="padding:8px">${area}</div>`;
+      const areaResult = _coBuildAreaResult(waiting, myTurnActive);
       // D-3: MP配置フェーズが操作可能になった瞬間、固定バナーを1ターン1回だけ表示（ソロでは出さない）
       if (CO.mp && myTurnActive && CO.phase === 'city' && _coFxMPBannerTurn !== CO.turn) {
         _coFxMPBannerTurn = CO.turn;
@@ -11720,7 +11992,95 @@
       const reconnHintBtn = (CO.mp && CO.online && CO.roomId)
         ? `<button class="hint-btn" onclick="coopToggleReconn()" title="再接続QR">？</button>`
         : '';
-      return `<div class="screen active" style="padding:12px;max-width:560px;margin:0 auto">${dc}${coopStatusBar()}${cityPanels}${intel}${area}${infoPanel}<button onclick="coopRequestQuit()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:var(--t0);font-size:.76rem;cursor:pointer">ロビーに戻る（中断）</button></div>${overlay}${reconnOverlay}${reconnHintBtn}`;
+      return { dc, status: coopStatusBar(), cities: cityPanels, intel, areaResult, myTurnActive, info: infoPanel, overlay, reconn: reconnOverlay, hint: reconnHintBtn };
+    }
+    // 空になり得るコンテナは中身が空文字のときstyle="display:none"を付けて、.screen.active（display:flex;gap:12px）の
+    // gapが空コンテナの分だけ余分な空白（デッドスペース）を生まないようにする（design_system.md §10.1）
+    function _coSecAttr(html) { return html ? '' : ' style="display:none"'; }
+    function coopRenderBoard() {
+      const s = _coBuildBoardSections();
+      const areaAttrs = s.myTurnActive ? ' class="coop-my-turn" style="padding:8px"' : '';
+      const body = `<div class="screen active" id="co-board-root" style="padding:12px;max-width:560px;margin:0 auto">`
+        + `<div id="co-sec-dc"${_coSecAttr(s.dc)}>${s.dc}</div>`
+        + `<div id="co-sec-status">${s.status}</div>`
+        + `<div id="co-sec-cities">${s.cities}</div>`
+        + `<div id="co-sec-intel"${_coSecAttr(s.intel)}>${s.intel}</div>`
+        + `<div id="co-sec-area"${areaAttrs} data-co-area-mode="${s.areaResult.mode}" data-co-area-readonly="${s.areaResult.readOnly ? 1 : 0}">${s.areaResult.full}</div>`
+        + `<div id="co-sec-info"${_coSecAttr(s.info)}>${s.info}</div>`
+        + `<button onclick="coopRequestQuit()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:var(--t0);font-size:.76rem;cursor:pointer">ロビーに戻る（中断）</button>`
+        + `</div>`
+        + `<div id="co-sec-overlay"${_coSecAttr(s.overlay)}>${s.overlay}</div>`
+        + `<div id="co-sec-reconn"${_coSecAttr(s.reconn)}>${s.reconn}</div>`
+        + `<div id="co-sec-hint"${_coSecAttr(s.hint)}>${s.hint}</div>`;
+      // フル文字列を組み立てた直後は実DOMが必ずこの内容と一致するため、差分キャッシュもここで丸ごと最新化する
+      _coContainerCache = { dc: s.dc, status: s.status, cities: s.cities, intel: s.intel, info: s.info, overlay: s.overlay, reconn: s.reconn, hint: s.hint };
+      _coAreaCache = s.areaResult.mode === 'hand' ? { ...s.areaResult.parts } : { full: s.areaResult.full };
+      return body;
+    }
+    // コンテナ単位の差分適用（汎用部分）：cache[key]と今回のsections[key]を比較し、変化したコンテナだけ
+    // innerHTMLを差し替える。空文字⇔非空の遷移時はdisplay:noneも同期させ、デッドスペースを発生させない
+    function _coDiffApplySections(idPrefix, cache, sections) {
+      for (const key in sections) {
+        const html = sections[key];
+        if (cache[key] === html) continue;
+        const el = document.getElementById(idPrefix + key);
+        if (!el) continue;
+        el.innerHTML = html;
+        el.style.display = html ? '' : 'none';
+        cache[key] = html;
+      }
+    }
+    // area（手札／対応フェーズ等の可変領域）専用の差分適用。mode（hand/other）や readOnly が前回と変わった場合のみ
+    // コンテナ全体を作り直し、変わっていなければ 'hand' モード時はサブコンテナ（tabs/head/viewnote/cards/ally/btn）を
+    // 個別に差分適用する。これにより「仲間の状況パネルの更新」や「ヘッダーの更新」が手札カードのDOMノードに一切
+    // 波及しない（受け入れ条件①②の核心部分）
+    function _coPatchAreaSection(areaResult, myTurnActive) {
+      const wrap = document.getElementById('co-sec-area');
+      if (!wrap) return;
+      wrap.classList.toggle('coop-my-turn', !!myTurnActive);
+      wrap.style.padding = myTurnActive ? '8px' : '';
+      const prevMode = wrap.dataset.coAreaMode || '';
+      const prevReadOnly = wrap.dataset.coAreaReadonly || '0';
+      const curReadOnly = areaResult.readOnly ? '1' : '0';
+      const structureChanged = areaResult.mode !== prevMode
+        || (areaResult.mode === 'hand' && (prevReadOnly !== curReadOnly || !document.getElementById('co-hand-root')));
+      if (structureChanged) {
+        wrap.innerHTML = areaResult.full;
+        wrap.dataset.coAreaMode = areaResult.mode;
+        wrap.dataset.coAreaReadonly = curReadOnly;
+        _coAreaCache = areaResult.mode === 'hand' ? { ...areaResult.parts } : { full: areaResult.full };
+        return;
+      }
+      if (areaResult.mode === 'other') {
+        if (_coAreaCache.full !== areaResult.full) { wrap.innerHTML = areaResult.full; _coAreaCache.full = areaResult.full; }
+        return;
+      }
+      // 'hand'モード・構造不変：サブコンテナ単位で差分適用（手札カード列を無用に触らない核心部分）
+      const p = areaResult.parts;
+      if (_coAreaCache.tabs !== p.tabs) {
+        const tabsHost = document.getElementById('co-hand-tabs');
+        if (tabsHost) { if (p.tabs) tabsHost.outerHTML = p.tabs; else tabsHost.remove(); }
+        else if (p.tabs) { const root2 = document.getElementById('co-hand-root'); if (root2) root2.insertAdjacentHTML('afterbegin', p.tabs); }
+        _coAreaCache.tabs = p.tabs;
+      }
+      const idMap = { head: 'co-hand-head', viewnote: 'co-hand-viewnote', cards: 'co-hand-cards', ally: 'co-hand-ally', btn: 'co-hand-btn' };
+      Object.keys(idMap).forEach(key => {
+        if (_coAreaCache[key] !== p[key]) {
+          const el = document.getElementById(idMap[key]);
+          if (el) { el.innerHTML = p[key]; _coAreaCache[key] = p[key]; }
+        }
+      });
+    }
+    // 盤面の差分描画エントリポイント。co-board-rootが既にDOMにある（＝画面遷移を伴わない再描画）場合のみ成立し、
+    // trueを返す。falseの場合は呼び出し元（renderCoop）がcoopRenderBoard()によるフル組み立てにフォールバックする
+    function coopDiffRenderBoard() {
+      if (!CO) return false;
+      const root = document.getElementById('co-board-root');
+      if (!root) return false;
+      const s = _coBuildBoardSections();
+      _coDiffApplySections('co-sec-', _coContainerCache, { dc: s.dc, status: s.status, cities: s.cities, intel: s.intel, info: s.info, overlay: s.overlay, reconn: s.reconn, hint: s.hint });
+      _coPatchAreaSection(s.areaResult, s.myTurnActive);
+      return true;
     }
     // 自然の攻撃まとめ（対戦モードの renderTurnSummary に合わせる。2都市＋残りターン対応）
     function coopRenderSummary() {
@@ -12555,8 +12915,6 @@
       };
       render();
     }
-    // 開始前ページ（予報フェーズ）専用：デイリー防災のルール要点をタップでオンデマンド表示するトグル（design_system.md §10.3）
-    function dailyToggleRules() { if (!DD) return; DD.rulesOpen = !DD.rulesOpen; render(); }
     // ══════════════════════════════════════════════════════════════════
     // デイリー防災UX刷新（備えフェーズの対応表化）：DD.cardAssign は DD.hand と同じ長さの配列で、
     // DD.cardAssign[i] が DD.hand[i] の割当先スロット番号（0..disasters.length-1）、未割当は -1。
@@ -12572,7 +12930,8 @@
       if (!DD || DD.phase !== 'forecast') return;
       DD.phase = 'prep';
       DD.cardAssign = new Array(DD.hand.length).fill(-1);
-      DD.selectedUid = null;
+      DD.pickerSlot = null;
+      DD.runConfirmPending = false;
       render();
     }
     function _ddBudgetUsed() {
@@ -12590,45 +12949,50 @@
       const idx = DD.hand.findIndex(c => c.uid === uid); if (idx < 0) return;
       DD.cardAssign[idx] = slot;
     }
-    // 手札カードのタップ選択（対応表への割当の1手目）。同じカードを再タップすると選択解除する。
-    function dailySelectHandCard(uid) {
+    // 2026-07-18再改修（実機フィードバック⑥）：手札一覧を廃止し「＋」ピッカー方式へ。未割当スロットの「＋」
+    // タイル（.dd-add-tile）をタップすると、そのスロット向けのカード選択ピッカーを開く。
+    function dailyOpenPicker(slot) {
       if (!DD || DD.phase !== 'prep') return;
-      DD.selectedUid = (DD.selectedUid === uid) ? null : uid;
+      DD.pickerSlot = slot;
       render();
     }
-    // 選択中の手札カードをスロットへ割当（対応表への割当の2手目）。新規割当（手札→スロット）のみ予算チェックする
-    // （既に割当済みのカードをスロット間で動かす場合は総予算が変わらないためチェック不要）。
+    function dailyClosePicker() { if (!DD) return; DD.pickerSlot = null; render(); }
+    // ピッカーでカードをタップ→そのスロットへ割当して閉じる。新規割当（手札→スロット）のみ予算チェックする
+    // （既に割当済みのカードをスロット間で動かす場合は総予算が変わらないためチェック不要。ddDragPointerUp経由）。
+    // 予算不足のカードはピッカー側でdisabled表示にしているため、ここでも二重に防御する（何もせずピッカーは開いたまま）。
     function dailyAssignCard(uid, slot) {
       if (!DD || DD.phase !== 'prep') return;
       const idx = DD.hand.findIndex(c => c.uid === uid); if (idx < 0) return;
       const card = DD.hand[idx];
       if (DD.cardAssign[idx] === -1) {
         const left = DD.budget - _ddBudgetUsed();
-        if (card.cost > left) { DD.selectedUid = null; render(); return; } // 予算不足は無視（選択解除のみ）
+        if (card.cost > left) return; // 予算不足なら何もしない
       }
       DD.cardAssign[idx] = slot;
-      DD.selectedUid = null;
+      DD.pickerSlot = null;
       render();
     }
-    // 対応表の行をタップ：選択中の手札カードがあればそこへ割当。選択が無ければ何もしない。
-    function dailyTapSlot(slot) {
-      if (!DD || DD.phase !== 'prep' || !DD.selectedUid) return;
-      dailyAssignCard(DD.selectedUid, slot);
-    }
-    // 割当済みチップのタップ：手札トレイへ差し戻す
+    // 割当済みミニカードの「－」ボタン：即座に手札（ピッカーの選択肢）へ戻す（実機フィードバック⑧）。
     function dailyUnassignCard(uid) {
       if (!DD || DD.phase !== 'prep') return;
       const idx = DD.hand.findIndex(c => c.uid === uid); if (idx < 0) return;
       DD.cardAssign[idx] = -1;
-      DD.selectedUid = null;
       render();
     }
+    // 「シミュレーション実行」ボタンは確認ポップを挟む（実機フィードバック⑪）。
+    function dailyRequestRunSimulation() {
+      if (!DD || DD.phase !== 'prep') return;
+      DD.runConfirmPending = true;
+      render();
+    }
+    function dailyCancelRunSimulation() { if (!DD) return; DD.runConfirmPending = false; render(); }
     // 「シミュレーション実行」：対応表の割当（DD.cardAssign）に従い、スロット0→最後まで一括で解決する。
     // dailyComputeOptimal（12052行付近）の内側ループと同じ順序（スロットのカード適用→dailyResolveAttack）で、
     // 同じ効果適用switch文をそのまま踏襲する（理論値計算と実プレイの乖離を防ぐため）。
     // 未割当の災害（対応するカードが無い）はそのまま素通しダメージになる＝現行仕様どおり。
     function dailyRunSimulation() {
       if (!DD || DD.phase !== 'prep') return;
+      DD.runConfirmPending = false;
       const disasters = DD.disasters, nSlots = disasters.length;
       DD.results = []; DD.used = [];
       for (let s = 0; s < nSlots; s++) {
@@ -12808,7 +13172,7 @@
           </div>
         </div>`;
       }).join('') || `<div style="text-align:center;color:var(--t3,#8b949e);font-size:.8rem;padding:20px 0">保存済みのマイ都市がありません。</div>`;
-      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto">
+      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto;width:100%">
         <button class="gallery-btn-back" style="margin-bottom:10px" onclick="dailyCloseCityPicker()">＜</button>
         <h2 style="text-align:center;color:var(--t0);margin:4px 0 10px">マイ都市を選ぶ</h2>
         <p style="text-align:center;color:var(--t2,#8b949e);font-size:.74rem;margin-bottom:12px">今日の災害・手札構成のまま、都市だけをあなたのマイ都市に差し替えて挑戦します（結果は公式記録と別枠になります）。</p>
@@ -12852,62 +13216,80 @@
       app.innerHTML = html;
     }
     // ── カード画像表示（改修1）：対戦・協力モードの .card 画像形式を流用した読み取り専用カード ──
-    // 災害カード（予報・解決内訳用）。order を渡すと来襲順バッジ（1・2・3）を左上に重ねる。
+    // 災害カード（予報・解説棋譜用）。order を渡すと来襲順バッジを付与する。2026-07-18再改修：
+    // バッジは.card（overflow:hidden）の外に置く必要があるため.dd-card-order-wrapで包み、画像の上ではなく
+    // カードの外側（上）に配置する（design_system.md §10 実機フィードバック②）。タップで効果ポップも追加。
     function ddMkDisasterCard(card, order) {
-      const badge = order ? `<div style="position:absolute;top:4px;left:4px;z-index:5;width:19px;height:19px;border-radius:50%;background:rgba(0,0,0,.75);border:1.5px solid var(--red);color:#fff;font-size:.68rem;font-weight:900;display:flex;align-items:center;justify-content:center">${order}</div>` : '';
-      return `<div class="card disaster card-spectator" data-ctype="disaster">${badge}<div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}</div>`;
+      const inner = `<div class="card disaster card-spectator" data-ctype="disaster" onclick="_lpTapPreview(this)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}</div>`;
+      if (!order) return inner;
+      return `<div class="dd-card-order-wrap"><div class="dd-order-chip">${order}</div>${inner}</div>`;
     }
-    // 政策カード（予報の手札プレビュー・備えフェーズの手札トレイの両方で使用）。
-    // opts.clickable=true で dailySelectHandCard（対応表への割当用の選択トグル）を紐付ける。
-    // opts.previewOnTap=true（clickable=falseと併用）で、開始前ページのタップ即時プレビュー（_lpTapPreview）を紐付ける。
-    // opts.selected=true で選択中カードの強調枠（.dd-card-selected）を付与する。
+    // 政策カード（予報の手札プレビュー用）。opts.previewOnTap=true でタップ即時プレビュー（_lpTapPreview）を紐付ける。
+    // 備えフェーズの対応表（割当済みミニカード・ピッカー）は専用の_ddMiniSlotCard/_ddPickerRowを使う（下記）。
     function ddMkPolicyCard(card, opts) {
       opts = opts || {};
       const clickable = !!opts.clickable;
       const ok = opts.affordable !== false;
       const dis = clickable && !ok;
-      const selected = !!opts.selected;
-      const cls = `card ${card.type} ${clickable ? (dis ? 'card-disabled' : 'card-usable') : 'card-spectator'}${selected ? ' dd-card-selected' : ''}`;
+      const cls = `card ${card.type} ${clickable ? (dis ? 'card-disabled' : 'card-usable') : 'card-spectator'}`;
       let click = '', cursor = 'default';
-      if (clickable && !dis) { click = ` onclick="dailySelectHandCard('${card.uid}')"`; cursor = 'pointer'; }
-      else if (!clickable && opts.previewOnTap) { click = ` onclick="_lpTapPreview(this)"`; cursor = 'pointer'; }
+      if (!clickable && opts.previewOnTap) { click = ` onclick="_lpTapPreview(this)"`; cursor = 'pointer'; }
       const reason = dis ? '<div class="card-disabled-reason">予算不足</div>' : '';
       return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
     }
-    // 対応表の割当スロット内に表示するコンパクトなチップ（アイコン＋名前＋コスト）。タップで手札へ戻し、
-    // 長押し(450ms)+ドラッグでスロット間の入れ替え・手札への差し戻しができる（ddDragPointerDown系。問題工房
-    // エディタのpzDragPointerDown系＝Notion風長押しドラッグと同じ設計：判定前はtouch-actionを制限せず
-    // スクロールと競合しない・ドラッグ中はrender()を呼ばずtransformのみ直接操作する）。
-    function ddMkSlotChip(card, slot) {
-      return `<div class="dd-slot-chip" data-uid="${_escHtml(card.uid)}" data-slot="${slot}"
+    // 対応表の災害列（左側）：来襲順バッジ（画像の外・上）→画像（object-fit:containで全体表示・欠けなし）→名前（下）。
+    // 画像タップで効果ポップ（_lpTapPreview、実機フィードバック③）。
+    function _ddDisasterCol(d, order) {
+      return `<div class="dd-disaster-col">
+        <div class="dd-order-chip">${order}</div>
+        <div class="dd-mini-imgbox" onclick="_lpTapPreview(this.parentElement)">
+          <img class="card-img" src="images/cards/${d.id}.webp" alt="" onerror="this.style.display='none'">
+        </div>
+        <div class="dd-mini-name card-name">${_escHtml(d.name)}</div>
+        <div class="card-desc" style="display:none">${_escHtml(d.desc)}</div>
+      </div>`;
+    }
+    // 割当済み政策ミニカード：画像（全体表示）＋名前（下）＋「－」ボタン（画像の外・上の予約余白に配置）。
+    // 長押し(450ms)+ドラッグでスロット間の移動・入替ができる（ddDragPointerDown系）。
+    function _ddMiniSlotCard(card, slot) {
+      return `<div class="dd-mini-slot-col" data-uid="${_escHtml(card.uid)}" data-slot="${slot}"
         onpointerdown="ddDragPointerDown(event,'${card.uid}',${slot})" onpointermove="ddDragPointerMove(event)"
-        onpointerup="ddDragPointerUp(event)" onpointercancel="ddDragPointerUp(event)"
-        onclick="event.stopPropagation();dailyUnassignCard('${card.uid}')">
-        <span style="width:14px;height:14px;flex-shrink:0;display:flex">${cardIconSvg(card.icon,14)}</span>
-        <span class="dd-slot-chip-name">${_escHtml(card.name)}</span>
-        <span class="dd-slot-chip-cost">${card.cost}</span>
+        onpointerup="ddDragPointerUp(event)" onpointercancel="ddDragPointerUp(event)">
+        <span class="dd-mini-cost">${card.cost}</span>
+        <button type="button" class="dd-mini-remove" aria-label="外す" onclick="event.stopPropagation();dailyUnassignCard('${card.uid}')">${_pzIcoRemoveCircle(13,'#f85149')}</button>
+        <div class="dd-mini-imgbox" onclick="_lpTapPreview(this.parentElement)">
+          <img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+        </div>
+        <div class="dd-mini-name card-name">${_escHtml(card.name)}</div>
+        <div class="card-desc" style="display:none">${_escHtml(card.desc)}</div>
       </div>`;
     }
     // ══════════════════════════════════════════════════════════════════
-    // 割当済み政策チップの長押しドラッグ入替：問題工房エディタの来襲災害並べ替え（pzDragPointerDown系。
+    // 割当済み政策ミニカードの長押しドラッグ入替：問題工房エディタの来襲災害並べ替え（pzDragPointerDown系。
     // 14886行付近）と同じ設計方針を流用する。相違点は、pz側が「1本のリスト内の並べ替え」なのに対し、
-    // こちらは「複数のドロップ先（スロット行・手札トレイ）のどれかへ移す」点。そのためtransformでの
-    // translateYシフトではなく、position:fixed化したチップをleft/topで指に追従させ、指の座標が
-    // どのドロップ先の矩形内にあるかを比較するヒットテスト方式にしている。
+    // こちらは「複数のドロップ先（スロット）のどれかへ移す」点。そのためtransformでのtranslateYシフトではなく、
+    // position:fixed化したミニカードをleft/topで指に追従させ、指の座標がどのドロップ先の矩形内にあるかを
+    // 比較するヒットテスト方式にしている。
     // ・長押し（約450ms）で移動モードに入る。判定前（タイマー待ち中）はtouch-actionを一切制限しないため、
     //   指がDD_DRAG_CANCEL_PXを超えて動いた時点でスクロール操作とみなしタイマーをキャンセルする。
-    // ・移動モードに入った瞬間だけtouch-actionを'none'に切り替える。ドラッグ中は対象チップに
+    // ・移動モードに入った瞬間だけtouch-actionを'none'に切り替える。ドラッグ中は対象カードに
     //   transformではなくleft/topを直接適用し、render()は一切呼ばない。
-    // ・スロットへドロップした場合、そのスロットに既存チップが1枚だけあればスワップ（元スロットへ入替）、
-    //   0枚または2枚以上ならそのまま追加する（複数枚割当も許容する仕様のため）。手札トレイへドロップした
-    //   場合は手札へ差し戻す。指を離した時（pointerup/cancel）にのみDD.cardAssignへ反映し、
-    //   その1回だけrender()する（カード工房・問題工房で踏襲してきたレイアウト安定の教訓のとおり）。
+    // ・スロットへドロップした場合、そのスロットに既存カードが1枚だけあればスワップ（元スロットへ入替）、
+    //   0枚または2枚以上ならそのまま追加する（複数枚割当も許容する仕様のため）。指を離した時
+    //   （pointerup/cancel）にのみDD.cardAssignへ反映し、その1回だけrender()する
+    //   （カード工房・問題工房で踏襲してきたレイアウト安定の教訓のとおり）。
+    // 2026-07-18再改修：手札トレイを廃止（＋ピッカー方式へ）したため、ドロップ先は.dd-slot-cell（スロット間の
+    // 移動・スワップ）のみに一本化した。手札へ戻す操作は専用の「－」ボタン（dailyUnassignCard）に集約している。
     // ══════════════════════════════════════════════════════════════════
     let _ddDrag = null;
     const DD_DRAG_HOLD_MS = 450;
     const DD_DRAG_CANCEL_PX = 10;
     function ddDragPointerDown(e, uid, fromSlot) {
       if (_ddDrag) return; // 二重開始防止
+      // 「－」ボタン上のpointerdownはドラッグを開始しない。setPointerCaptureは以降のpointerup/click（合成含む）を
+      // 呼び出し元要素（.dd-mini-slot-col）へ強制的に retarget するため、開始してしまうとボタン自身のonclickが
+      // 二度と発火しなくなる（実機フィードバック⑧「－」ボタン検証で発見・Puppeteer実測で確認済みの回帰）。
+      if (e.target && e.target.closest && e.target.closest('.dd-mini-remove')) return;
       const chip = e.currentTarget;
       try { chip.setPointerCapture(e.pointerId); } catch (err) { /* 非対応環境は無視（フォールバックはタップのみ） */ }
       const st = { uid, fromSlot, pointerId: e.pointerId, chip, startX: e.clientX, startY: e.clientY, active: false, timer: null };
@@ -12920,7 +13302,6 @@
       const rect = st.chip.getBoundingClientRect();
       st.origLeft = rect.left; st.origTop = rect.top; st.w = rect.width;
       st.slotEls = Array.from(document.querySelectorAll('.dd-slot-cell'));
-      st.trayEl = document.getElementById('dd-hand-tray');
       st.chip.style.touchAction = 'none';
       st.chip.style.transition = 'none';
       st.chip.style.position = 'fixed';
@@ -12937,10 +13318,6 @@
         const r = el.getBoundingClientRect();
         if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return { type: 'slot', slot: +el.dataset.slot, el };
       }
-      if (st.trayEl) {
-        const r = st.trayEl.getBoundingClientRect();
-        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return { type: 'tray' };
-      }
       return null;
     }
     function ddDragPointerMove(e) {
@@ -12955,22 +13332,17 @@
       st.chip.style.top = (st.origTop + dy) + 'px';
       const target = _ddDragFindTarget(e.clientX, e.clientY, st);
       st.slotEls.forEach(el => el.classList.remove('dd-slot-hint'));
-      if (st.trayEl) st.trayEl.style.outline = '';
-      if (target && target.type === 'slot') target.el.classList.add('dd-slot-hint');
-      else if (target && target.type === 'tray' && st.trayEl) st.trayEl.style.outline = '2px solid var(--blue)';
+      if (target) target.el.classList.add('dd-slot-hint');
       st.dropTarget = target;
     }
     function ddDragPointerUp(e) {
       const st = _ddDrag; if (!st || e.pointerId !== st.pointerId) return;
       _ddDrag = null;
       clearTimeout(st.timer);
-      if (!st.active || !DD) return; // 長押し未成立＝通常のタップ。チップ側のonclick（dailyUnassignCard）に任せる
+      if (!st.active || !DD) return; // 長押し未成立＝通常のタップ。render()を呼ばずカード側の各onclickに任せる
       st.slotEls.forEach(el => el.classList.remove('dd-slot-hint'));
-      if (st.trayEl) st.trayEl.style.outline = '';
       const target = st.dropTarget;
-      if (target && target.type === 'tray') {
-        _ddSetAssign(st.uid, -1); // スロット→手札へ戻す
-      } else if (target && target.type === 'slot' && target.slot !== st.fromSlot) {
+      if (target && target.slot !== st.fromSlot) {
         const occupants = _ddSlotCardUids(target.slot).filter(u => u !== st.uid);
         if (occupants.length === 1) _ddSetAssign(occupants[0], st.fromSlot); // AとBのスワップ
         _ddSetAssign(st.uid, target.slot);
@@ -12992,17 +13364,9 @@
       const disasterCards = DD.disasters.map((d, i) => ddMkDisasterCard(d, i + 1)).join('');
       // UX刷新①：開始前ページは手札タップに他の意味がないため、タップ即時プレビュー（_lpTapPreview）を有効化する
       const handCards = DD.hand.map(c2 => ddMkPolicyCard(c2, { clickable: false, previewOnTap: true })).join('');
-      // UX刷新②：デイリー防災のルール説明（要点のみ・タップでオンデマンド表示。恒常UIには置かない＝design_system.md §10.3）
-      const rulesOverlay = DD.rulesOpen ? `<div class="confirm-overlay" onclick="dailyToggleRules()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:320px;text-align:left">
-        <div style="font-weight:800;color:var(--t0);margin-bottom:8px">デイリー防災とは</div>
-        <ul style="margin:0;padding-left:18px;color:var(--t0);font-size:.8rem;line-height:1.7">
-          <li>全国共通の1日1問。日付が変わると新しい局面になる</li>
-          <li>同じ日は誰がやっても同じ災害・手札（固定シード）</li>
-          <li>公式記録・ストリークが対象になるのはその日の初回クリアのみ</li>
-          <li>2回目以降・過去問・マイ都市・問題工房は練習扱い（記録は更新されない）</li>
-        </ul>
-        <button class="btn-ho" style="margin-top:12px" onclick="dailyToggleRules()">閉じる</button>
-      </div></div>` : '';
+      // 2026-07-18再改修（実機フィードバック④）：？ボタン方式を廃止し、「今日の予報」見出しの下に短文で常設する。
+      // 開発者視点の文言（「全国共通・1日1局面」等）は書かず、プレイの仕方が分かる内容だけに絞る（design_system.md §10.3）。
+      const rulesLine = `<div style="text-align:center;color:var(--t2);font-size:.74rem;margin-bottom:10px;line-height:1.5">来襲する災害に手持ちの政策カードを割り当てて、被害を最小限に抑えよう。</div>`;
       // 改修2：正解（理論値）の数値そのものは開始前に見せ、手順は見せない＝「パズルである」ことを予告する
       const optimalBox = (typeof DD.optimal === 'number') ? `<div style="text-align:center;background:rgba(227,195,77,.10);border:1px solid rgba(227,195,77,.4);border-radius:10px;padding:9px;margin:12px 0;font-size:.78rem;color:#e3c34d;display:flex;align-items:center;justify-content:center;gap:6px">${_ddIcoGoldCheck(15, '#e3c34d')}<span>理論値：被害 <strong style="font-size:.95rem">${DD.optimal}</strong> が存在する（正解を探すパズルです）</span></div>` : '';
       // C4：盤面の都市表示はカスタム都市ならカード工房の合成カード（cwRenderArt）を使う
@@ -13013,15 +13377,12 @@
       const myCityControl = (DD.isArchive || DD.isPuzzle) ? '' : DD.isCustomCity
         ? `<button onclick="dailyStart()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #388bfd;color:#388bfd;font-size:.78rem;font-weight:700;cursor:pointer">公式の都市に戻す</button>`
         : (cwLoadAll().length ? `<button onclick="dailyOpenCityPicker()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #3fb950;color:#3fb950;font-size:.78rem;font-weight:700;cursor:pointer">マイ都市で挑戦</button>` : '');
-      // 柱4：問題工房プレイ中は「全国共通の1日1局面」という日付の文言が実態と合わないため専用の文言に差し替える
-      const subtitleLine = DD.isPuzzle ? '問題工房で挑戦中（練習用・記録には反映されません）' : `${ddDateLabelSlash(DD.dateKey)}・全国共通の1日1局面`;
-      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto">
-        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px">
-          <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.15rem">${_ddIcoCalShield(24, '#388bfd')} 今日の予報</div>
-          <button onclick="dailyToggleRules()" aria-label="デイリー防災のルールを見る" style="width:26px;height:26px;flex-shrink:0;border-radius:50%;border:1.5px solid var(--t2);background:transparent;color:var(--t2);font-size:.78rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center">？</button>
-        </div>
-        <div style="text-align:center;color:var(--t2);font-size:.78rem;margin-bottom:12px">${subtitleLine}</div>
-        ${rulesOverlay}
+      // 柱4：問題工房プレイ中は日付の文言が実態と合わないため専用の文言に差し替える
+      const subtitleLine = DD.isPuzzle ? '問題工房で挑戦中（練習用・記録には反映されません）' : ddDateLabelSlash(DD.dateKey);
+      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto;width:100%">
+        <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.15rem;margin-bottom:4px">${_ddIcoCalShield(24, '#388bfd')} 今日の予報</div>
+        <div style="text-align:center;color:var(--t2);font-size:.78rem;margin-bottom:6px">${subtitleLine}</div>
+        ${rulesLine}
         ${archiveBadge}
         ${practiceNote}
         ${customCityBadge}
@@ -13043,11 +13404,20 @@
         <button onclick="dailyQuit()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.5);font-size:.78rem;cursor:pointer">ロビーに戻る（中断）</button>
       </div>`;
     }
-    // 備えフェーズ：対応表レイアウト（左＝来襲順の災害・▶＝対応関係・右＝割当済み政策スロット・下部＝未割当の手札トレイ）。
+    // 備えフェーズ：対応表レイアウト（左＝来襲順の災害・▶＝対応関係・右＝割当済み政策スロット/「＋」ピッカー）。
+    // 2026-07-18再改修（2304eadへの実機フィードバック11点）：
+    //  ①横はみ出し修正：.screenにwidth:100%を明示（原因はflexクロス軸ストレッチが入れ子のnowrap行の
+    //    自動最小サイズに引きずられる挙動。Puppeteerで実測・検証済み）。
+    //  ②番号は画像の外（.dd-order-chip、.dd-mini-imgboxの外側の予約領域）に配置。
+    //  ③災害カードもタップで効果ポップ（_ddDisasterColのonclick=_lpTapPreview）。
+    //  ⑤カード画像はobject-fit:containで全体表示（欠けなし）。
+    //  ⑥下部の手札一覧を廃止し「＋」ピッカー方式へ（dailyOpenPicker/dailyRenderPicker）。
+    //  ⑦⑧長押しドラッグでの移動・スワップ（ddDrag*）と「－」ボタンでの即時解除（dailyUnassignCard）を維持。
+    //  ⑨カード名称はカードの下（.dd-mini-name）。
+    //  ⑩予算はバトル画面と同じ緑コインpip（budgetPipsHtml）に統一。
+    //  ⑪シミュレーション実行は確認ポップを挟む（dailyRequestRunSimulation）。
     // design_system.md §10.3「説明テキストより構造で語る」に基づき、恒常的な操作指示文は置かず
-    // タブ・スロットという構造そのもので「どれに何を割り当てるか」を伝える。
-    // 操作：①手札カードをタップで選択→行をタップで割当（タップ完結の主経路）。②割当済みチップはタップで手札へ差し戻し。
-    // ③割当済みチップは長押し(450ms)+ドラッグでスロット間の入替・手札への差し戻しもできる（ddDrag*、pzDrag*パターンを流用）。
+    // スロット・「＋」タイルという構造そのもので「どれに何を割り当てるか」を伝える。
     function dailyRenderPrep() {
       const nSlots = DD.disasters.length;
       const usedBudget = _ddBudgetUsed(); const left = DD.budget - usedBudget;
@@ -13057,43 +13427,42 @@
       const customCityBadge = DD.isCustomCity ? `<div style="text-align:center;background:rgba(63,185,80,.12);border:1px solid #3fb950;border-radius:10px;padding:6px;margin-bottom:10px;font-size:.72rem;color:#3fb950;font-weight:700">マイ都市：${_escHtml(DD.customCityName)}</div>` : '';
       // 柱4：問題工房プレイ中であることの明示（プレイ中も継続表示する）
       const puzzleBadge = DD.isPuzzle ? `<div style="text-align:center;background:rgba(210,153,34,.12);border:1px solid #d29922;border-radius:10px;padding:6px;margin-bottom:10px;font-size:.72rem;color:#d29922;font-weight:700">問題工房（練習）：${_escHtml(DD.puzzleTitle)}</div>` : '';
-      const slotHintCls = DD.selectedUid ? ' dd-slot-hint' : '';
       const rows = DD.disasters.map((d, i) => {
-        const chipsHtml = DD.hand.map((c, hi) => DD.cardAssign[hi] === i ? ddMkSlotChip(c, i) : '').join('');
-        const emptyHtml = chipsHtml ? '' : `<div class="dd-slot-empty">未割当</div>`;
-        return `<div class="dd-prep-row" onclick="dailyTapSlot(${i})">
-          <div class="dd-prep-disaster">
-            <div class="dd-prep-disaster-thumb">
-              <img src="images/cards/${d.id}.webp" alt="" onerror="this.style.display='none'">
-              <div class="dd-order-badge">${i + 1}</div>
-            </div>
-            <div class="dd-prep-disaster-info">
-              <div class="dd-prep-disaster-name">${_escHtml(d.name)}</div>
-              <div class="dd-prep-disaster-dmg">基礎${d.baseDamage}</div>
-            </div>
-          </div>
+        const assignedCards = DD.hand.filter((c, hi) => DD.cardAssign[hi] === i);
+        const chipsHtml = assignedCards.map(c => _ddMiniSlotCard(c, i)).join('');
+        // 未割当スロットは「＋」タイルのみ。割当済みでも残り手札があれば追加割当できるよう末尾に小さな「＋」を添える
+        // （複数枚割当は理論値の再現に必要な場合があるため、既存の唯一解チェック・理論値計算との整合を崩さない）。
+        const hasRemainingHand = DD.hand.some((c, hi) => DD.cardAssign[hi] === -1);
+        const addTile = hasRemainingHand ? `<button type="button" class="dd-add-tile" onclick="dailyOpenPicker(${i})" aria-label="対応する政策カードを追加">${_ddIcoAddCircle(assignedCards.length ? 16 : 20)}</button>` : '';
+        return `<div class="dd-prep-row">
+          ${_ddDisasterCol(d, i + 1)}
           ${_ddIcoArrowRight(16)}
-          <div class="dd-slot-cell${slotHintCls}" data-slot="${i}">${chipsHtml}${emptyHtml}</div>
+          <div class="dd-slot-cell" data-slot="${i}">${chipsHtml}${addTile}</div>
         </div>`;
       }).join('');
-      const trayCards = DD.hand.filter((c, i) => DD.cardAssign[i] === -1);
-      const trayHtml = trayCards.length
-        ? trayCards.map(c => ddMkPolicyCard(c, { clickable: true, affordable: c.cost <= left, selected: DD.selectedUid === c.uid })).join('')
-        : `<div style="color:var(--t3,#8b949e);font-size:.74rem;text-align:center;padding:8px;width:100%">すべて割当済み</div>`;
-      return `<div class="screen active" style="padding:20px 20px 96px;max-width:520px;margin:0 auto">
+      const budgetRow = `<div class="budget-display" style="justify-content:center;margin-bottom:12px">
+        <span class="budget-label">予算</span>${budgetPipsHtml(DD.budget, usedBudget, 0)}
+        <span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${DD.budget}</span></span>
+      </div>`;
+      const pickerOverlay = dailyRenderPicker();
+      const runConfirmOverlay = DD.runConfirmPending ? `<div class="confirm-overlay" onclick="dailyCancelRunSimulation()"><div class="confirm-box" onclick="event.stopPropagation()">
+        <p>シミュレーションを実行しますか？<br>対応していない災害はそのままダメージを受けます。</p>
+        <div class="confirm-btns"><button class="btn-ok" onclick="dailyRunSimulation()">実行</button><button class="btn-cancel" onclick="dailyCancelRunSimulation()">キャンセル</button></div>
+      </div></div>` : '';
+      return `<div class="screen active" style="padding:20px 20px 96px;max-width:520px;margin:0 auto;width:100%">
         <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.05rem;margin-bottom:10px">備えフェーズ・${nSlots}件の災害に対応する</div>
         ${archiveBadge}
         ${customCityBadge}
         ${puzzleBadge}
         <div style="margin-bottom:4px;display:flex;justify-content:space-between;font-size:.74rem;color:var(--t0)"><span>HP</span><span>${DD.hp} / ${DAILY_CFG.hp}</span></div>
-        <div style="background:var(--bg3,#21262d);border-radius:5px;height:9px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${hpPct}%;background:${hpPct > 30 ? '#3fb950' : '#f85149'}"></div></div>
-        <div style="text-align:right;font-size:.74rem;color:var(--t2);margin-bottom:12px">残り予算 <strong style="color:var(--t0)">${left}</strong> / ${DD.budget}</div>
+        <div style="background:var(--bg3,#21262d);border-radius:5px;height:9px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${hpPct}%;background:${hpPct > 30 ? '#3fb950' : '#f85149'}"></div></div>
+        ${budgetRow}
         <div>${rows}</div>
-        <div class="dd-tray-label">手札（タップで選択→上の行をタップで割当／割当済みは長押しドラッグで移動）</div>
-        <div id="dd-hand-tray" class="dd-card-row hand-cards-area">${trayHtml}</div>
         <button onclick="dailyQuit()" style="width:100%;margin-top:12px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.5);font-size:.78rem;cursor:pointer">ロビーに戻る（中断）</button>
       </div>
-      <div class="dd-run-bar"><button class="btn-ho" onclick="dailyRunSimulation()">シミュレーション実行</button></div>`;
+      <div class="dd-run-bar"><button class="btn-ho" onclick="dailyRequestRunSimulation()">シミュレーション実行</button></div>
+      ${pickerOverlay}
+      ${runConfirmOverlay}`;
     }
     function dailyRenderResult() {
       const cBad = 'display:inline-flex;align-items:center;font-size:.72rem;font-weight:600;padding:3px 8px;border-radius:10px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
@@ -13124,7 +13493,7 @@
       // 改修3：今日の防災知識（シナリオ連動・シード決定）
       const tip = DD.tip;
       const tipBox = tip ? `<div style="text-align:left;display:flex;gap:10px;align-items:flex-start;background:var(--bg2,#161b22);border:1px solid #388bfd;border-radius:10px;padding:10px;margin:12px 0"><img src="${tip.thumb}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'"><div><div style="font-size:.68rem;font-weight:700;color:#388bfd;margin-bottom:3px">今日の防災知識・${_escHtml(tip.label)}</div><div style="font-size:.74rem;color:var(--t0);line-height:1.5">${_escHtml(tip.text)}</div></div></div>` : '';
-      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto;text-align:center">
+      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto;text-align:center;width:100%">
         <div style="font-size:.8rem;color:var(--t2);margin-bottom:4px">デイリー防災 結果</div>
         <div style="font-size:1.8rem;font-weight:900;color:${DD.evalColor}">${DD.evalLabel}</div>
         <div style="font-size:.85rem;color:var(--t0);margin:6px 0 8px">総被害 <strong>${DD.totalDamage}</strong> ／ 残りHP <strong>${DD.hp}</strong> / ${DAILY_CFG.hp}</div>
@@ -13213,6 +13582,42 @@
       const s = size || 16; const c = col || 'var(--t2)';
       return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><line x1="4" y1="12" x2="18" y2="12"/><polyline points="12 6 18 12 12 18"/></svg>`;
     }
+    // 「＋」追加タイル用：丸で囲んだプラスのSVG（絵文字は使わない。_pzIcoRemoveCircleの追加版）
+    function _ddIcoAddCircle(size, col) {
+      const s = size || 18; const c = col || 'currentColor';
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
+    }
+    // 政策カードピッカー（実機フィードバック⑥）の1行。タップでそのカードをスロットへ割当する。
+    // 予算不足の場合はdisabled表示（タップしても何も起きない・.dd-picker-row-disabled）。
+    function _ddPickerRow(card, slot, affordable) {
+      const cls = affordable ? 'dd-picker-row' : 'dd-picker-row dd-picker-row-disabled';
+      const click = affordable ? ` onclick="dailyAssignCard('${_escHtml(card.uid)}',${slot})"` : '';
+      const reason = affordable ? '' : `<span class="dd-picker-row-cost" style="color:var(--red)">予算不足</span>`;
+      return `<div class="${cls}"${click}>
+        <img src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+        <div style="flex:1;min-width:0">
+          <div class="dd-picker-row-name">${_escHtml(card.name)}</div>
+          <div class="dd-picker-row-desc">${_escHtml(card.desc)}</div>
+        </div>
+        ${reason || `<span class="dd-picker-row-cost">${card.cost}</span>`}
+      </div>`;
+    }
+    // ピッカー本体：DD.pickerSlotが指す災害スロットへ割当できる未割当の手札一覧をリスト表示する。
+    function dailyRenderPicker() {
+      if (!DD || DD.pickerSlot == null) return '';
+      const slot = DD.pickerSlot;
+      const left = DD.budget - _ddBudgetUsed();
+      const cards = DD.hand.filter((c, i) => DD.cardAssign[i] === -1);
+      const d = DD.disasters[slot];
+      const rows = cards.length
+        ? cards.map(c => _ddPickerRow(c, slot, c.cost <= left)).join('')
+        : `<div style="text-align:center;color:var(--t3,#8b949e);font-size:.78rem;padding:12px 0">割り当てられる手札がありません</div>`;
+      return `<div class="confirm-overlay" onclick="dailyClosePicker()"><div class="dd-picker-box" onclick="event.stopPropagation()">
+        <div style="font-weight:800;color:var(--t0);font-size:.88rem">${_escHtml(d ? d.name : '')}に対応するカードを選ぶ</div>
+        <div class="dd-picker-list">${rows}</div>
+        <button class="btn-ho" onclick="dailyClosePicker()">閉じる</button>
+      </div></div>`;
+    }
 
     // ══════════════════════════════════════════════════════════════════
     // デイリー防災：カレンダー実績画面（改修4）。予報・リザルトから遷移し、localStorage(ron_daily_v1)の記録から描画する。
@@ -13291,7 +13696,7 @@
         cells.push(`<div${clickAttr} style="text-align:center;padding:4px 0;border-radius:6px;${boxStyle}"><div style="font-size:.7rem;color:${numColor}">${d}</div>${_ddCalDotHtml(dot)}</div>`);
       }
       const statTile = (label, value) => `<div style="flex:1;background:var(--bg2,#161b22);border:1px solid var(--bg3,#21262d);border-radius:10px;padding:8px;text-align:center"><div style="font-size:1.15rem;font-weight:900;color:var(--t0);font-variant-numeric:tabular-nums">${value}</div><div style="font-size:.62rem;color:var(--t2);margin-top:2px">${label}</div></div>`;
-      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto">
+      return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto;width:100%">
         <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.05rem;margin-bottom:12px">${_ddIcoCalShield(22, '#388bfd')} デイリー防災 記録</div>
         <div style="display:flex;gap:8px;margin-bottom:14px">
           ${statTile('現在ストリーク', streak + '日')}
