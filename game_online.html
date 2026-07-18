@@ -1250,18 +1250,50 @@
       background: rgba(var(--bg1-rgb), 0.65);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
-      border-radius: 12px;
-      padding: 12px
+      border-radius: 4px;
+      padding: 14px 12px 12px;
+      position: relative
     }
 
-    .opponent-zone {
-      border: 1px solid rgba(139, 148, 158, 0.2)
+    /* 2026-07-18脱AI感刷新：全周枠＋均一角丸の「箱」をコーナーブラケット（四隅のみの枠）へ置き換える
+       （worldview.md §3.1・§7-1）。自分ゾーンは--accent、相手ゾーンは--bg3を既定色とし、
+       isHolder（現在の操作主体）の場合はJS側でstyle="--zone-bracket:var(--green/--red)"を要素に付けて上書きする。
+       グローは追加しない（色を変えるのみ）。 */
+    .opponent-zone::before, .opponent-zone::after,
+    .player-zone::before, .player-zone::after {
+      content: '';
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      pointer-events: none;
+      transition: border-color .25s ease
     }
+    /* border-top/left等のshorthandは色を書かないとborder-*-colorが暗黙にcurrentColorへリセットされ、
+       上のborder-colorでの一括指定が無効化される（CSSの仕様上の罠）ため、各shorthand内に直接var()を書く */
+    .opponent-zone::before, .player-zone::before { top: 0; left: 0; border-top: 2px solid var(--zone-bracket); border-left: 2px solid var(--zone-bracket) }
+    .opponent-zone::after,  .player-zone::after  { bottom: 0; right: 0; border-bottom: 2px solid var(--zone-bracket); border-right: 2px solid var(--zone-bracket) }
 
-    .player-zone {
-      border: 2px solid rgba(var(--accent-rgb), 0.35);
-      box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.08)
+    .opponent-zone { --zone-bracket: var(--bg3) }
+    .player-zone   { --zone-bracket: var(--accent) }
+
+    /* 2026-07-18脱AI感刷新：協力モードの都市パネル（coopCityPanel）にも同じブラケット言語を展開する
+       （worldview.md §7-4）。自分の都市は--accent、仲間の都市は--bg3の非対称は据え置き、
+       全周枠＋inset box-shadowの二重囲みをブラケットのみに一本化した。
+       data-city-idx/data-compactはcoopDiffRenderBoard/_coPatchCityPanelが参照する識別子のため変更しない。 */
+    .coop-city-frame {
+      position: relative
     }
+    .coop-city-frame::before, .coop-city-frame::after {
+      content: '';
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      pointer-events: none
+    }
+    /* border-top/left等のshorthandに色を書かないとborder-*-colorがcurrentColorへリセットされるため、
+       各shorthand内に直接var()を書く（.opponent-zone/.player-zoneと同じ罠の回避） */
+    .coop-city-frame::before { top: 0; left: 0; border-top: 2px solid var(--zone-bracket); border-left: 2px solid var(--zone-bracket) }
+    .coop-city-frame::after  { bottom: 0; right: 0; border-bottom: 2px solid var(--zone-bracket); border-right: 2px solid var(--zone-bracket) }
 
     .zone-header {
       display: flex;
@@ -1278,6 +1310,18 @@
       text-transform: uppercase;
       letter-spacing: .05em
     }
+
+    /* 2026-07-18脱AI感刷新：計器の文法（worldview.md §3.4・§7-1）に沿った小型英字帰属タグ。
+       既存の日本語zone-label（対応中/操作中等の状態表示）は残し、こちらは装飾的な計器ラベルとして追加する。 */
+    .zone-tag {
+      font-size: .6rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      flex-shrink: 0
+    }
+    .player-zone .zone-tag   { color: var(--accent) }
+    .opponent-zone .zone-tag { color: var(--t3) }
 
     .city-name-display {
       font-size: 1rem;
@@ -1301,12 +1345,14 @@
       margin-bottom: 4px
     }
 
-    /* 1.1.1：HPゲージの左側に添えるラベル。既存の数値表示（hp-text）はそのまま維持し、ゲージ自体に文脈を追加する */
+    /* 1.1.1：HPゲージの左側に添えるラベル。既存の数値表示（hp-text）はそのまま維持し、ゲージ自体に文脈を追加する
+       2026-07-18脱AI感刷新：計器の文法（worldview.md §3.4）に合わせてラベルを小型化・var(--t2)化した */
     .hp-label {
-      font-size: .68rem;
+      font-size: .6rem;
       font-weight: 800;
-      letter-spacing: .03em;
-      color: var(--t3);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--t2);
       flex-shrink: 0
     }
 
@@ -1344,6 +1390,13 @@
       min-width: 56px;
       text-align: right;
       font-variant-numeric: tabular-nums
+    }
+
+    /* 2026-07-18脱AI感刷新：計器の文法（worldview.md §3.4）。分母側（/60など）を小さく・var(--t2)で弱める */
+    .hp-max {
+      font-size: .72rem;
+      font-weight: 400;
+      color: var(--t2)
     }
 
     .backup-city-row {
@@ -1761,9 +1814,12 @@
       font-variant-numeric: tabular-nums
     }
 
+    /* 2026-07-18脱AI感刷新：計器の文法（worldview.md §3.4）。ラベルを小型化・var(--t2)化し数値側を相対的に強調する */
     .budget-label {
-      font-size: .75rem;
-      color: var(--t1)
+      font-size: .64rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      color: var(--t2)
     }
 
     .budget-pips {
@@ -2183,6 +2239,10 @@
       flex-direction: column;
       gap: 10px;
       padding: 16px;
+      /* 2026-07-18脱AI感刷新：ts-ev個々の箱を外した分、階層を保つため親パネル自体にbg1の背景を持たせる
+         （worldview.md §3.5「囲いを外した結果、情報のグループが曖昧にならないよう背景明度差で階層を作る」） */
+      background: var(--bg1);
+      border-radius: 12px;
       animation: ts-fade-in .35s cubic-bezier(.23,1,.32,1) both;
     }
 
@@ -2195,36 +2255,41 @@
 
     .ts-events {
       display: flex;
-      flex-direction: column;
-      gap: 7px
+      flex-direction: column
     }
 
+    /* 2026-07-18脱AI感刷新：「箱の中の箱」（背景付きの角丸ボックスの羅列）から片辺アクセント＋水平罫線の
+       リスト構造へ（worldview.md §3.3・§3.5・§7-2）。個々のイベントは自前の背景・角丸を持たず、
+       親のturn-summary-box（1画面の中で許容される囲いの1つ）の中の行として並ぶ。 */
     .ts-ev {
-      background: var(--bg2);
-      border-radius: 8px;
-      padding: 9px 13px;
+      padding: 10px 4px 10px 12px;
       font-size: .83rem;
-      border-left: 3px solid var(--bg3)
+      border-left: 2px solid var(--bg3);
+      border-bottom: 1px solid var(--bg3)
+    }
+
+    .ts-ev:last-child {
+      border-bottom: none
     }
 
     .ts-ev.damage {
-      border-color: var(--red)
+      border-left-color: var(--red)
     }
 
     .ts-ev.heal {
-      border-color: var(--green)
+      border-left-color: var(--green)
     }
 
     .ts-ev.budget {
-      border-color: var(--blue)
+      border-left-color: var(--blue)
     }
 
     .ts-ev.typhoon {
-      border-color: var(--yellow)
+      border-left-color: var(--yellow)
     }
 
     .ts-ev.warn {
-      border-color: var(--yellow)
+      border-left-color: var(--yellow)
     }
 
     .ts-ev-title {
@@ -2734,6 +2799,18 @@
     .tut-resp-anim { animation:tut-resp-pulse 1.3s ease-in-out infinite }
     @keyframes tut-zero-anim { 0%{opacity:0;transform:translate(-50%,-50%) scale(.45)} 25%{opacity:1;transform:translate(-50%,-50%) scale(1.2)} 65%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(.85)} }
     @keyframes neon-use-fade { from{opacity:.8} to{opacity:0} }
+
+    /* ── チュートリアル：提案A（隣接吹き出し方式・2026-07-18ユーザー決定・worldview.md §6.3）──
+       _renderTutSpotlight共通実装。エルボー引き出し線＋端点ドットを全廃し、①ターゲット周囲の脈動リング
+       （tut-pulse-ring）②ターゲット隣接配置のコールアウト（tut-spotlight-callout）③短いtail（tut-spotlight-tail）
+       の3要素で構成する。対戦チュートリアル・1ターン体験・協力1ラウンド体験の3系統すべてがこのCSSを共用する。 */
+    .tut-spotlight-callout { position:absolute; background:var(--bg2); border:2px solid var(--blue); border-radius:12px; padding:10px 14px; font-size:.8rem; color:var(--t1); line-height:1.55; pointer-events:auto; z-index:2; box-shadow:0 8px 24px rgba(0,0,0,.35) }
+    .tut-spotlight-tail { position:absolute; width:12px; height:12px; background:var(--bg2); transform:rotate(45deg); z-index:1; pointer-events:none }
+    .tut-pulse-ring { position:absolute; box-sizing:border-box; border:2px solid var(--tpr-color,var(--blue)); border-radius:8px; pointer-events:none; z-index:0; animation:tut-pulse-ring 1.5s cubic-bezier(.4,0,.2,1) infinite }
+    @keyframes tut-pulse-ring { 0% { box-shadow:0 0 0 0 var(--tpr-color,var(--blue)); opacity:.85 } 100% { box-shadow:0 0 0 14px var(--tpr-color,var(--blue)); opacity:0 } }
+    @media (prefers-reduced-motion: reduce) {
+      .tut-pulse-ring { animation:none; box-shadow:0 0 0 2px var(--tpr-color,var(--blue)); opacity:1 }
+    }
 
     /* ── ロビー登場アニメーション ── */
     @keyframes lobby-fade-in { from { opacity:0; transform:translateY(18px) scale(.97) } to { opacity:1; transform:translateY(0) scale(1) } }
@@ -3254,12 +3331,15 @@
       to   { opacity:1; transform:translateY(0)     scale(1);   }
     }
 
-    /* ── E-2: Zone border neon pulse when your turn ── */
+    /* ── E-2: Zone border neon pulse when your turn ──
+       2026-07-18脱AI感刷新：全周枠パルスからコーナーブラケット（::before/::after）のパルスへ移行。
+       グローを追加するのではなく既存演出をブラケットの形状に合わせて付け替えるだけ（worldview.md §4） */
     @keyframes zone-border-pulse {
       0%,100% { border-color:rgba(var(--accent-rgb),.35); }
       50%     { border-color:rgba(var(--accent-rgb),.8);  }
     }
-    .player-zone.my-turn-active { animation:zone-border-pulse 2s ease-in-out infinite; }
+    .player-zone.my-turn-active::before,
+    .player-zone.my-turn-active::after { animation:zone-border-pulse 2s ease-in-out infinite; }
 
     /* ═══════════════════════════════════════════════════
        協力モード専用アニメーション（既存keyframesの流用＋最小限の新規追加）
@@ -4800,7 +4880,7 @@
       // 1.2.7・3.1：手札を捨てる操作の体験ステップ。実ゲーム状態（playerHp/budgetUsed/shieldActive/usedUids）には影響しない独立デモ
       else if (action === 'discard_demo') { ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} 1枚捨てました！手札が少ないほど、次のターンに多くカードを引けます。`; ts.step++; }
       else if (action === 'respond')   { ts.usedUids.push('tu_agr'); ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} 洪水ダメージ 15 − 相互支援協定 +15 = 実ダメージ 0！`; ts.step++; _vfx = 'respond'; }
-      else if (action === 'finish')    { _lobbyEnter = true; tutorialState = null; G.screen = 'lobby'; }
+      else if (action === 'finish')    { _lobbyEnter = true; tutorialState = null; G.screen = 'lobby'; _removeTutSpotlightOverlays(); }
       else if (action === 'back') {
         const prev = ts.step - 1;
         if (prev >= 0 && TUT_STEP_STATES[prev]) {
@@ -4846,7 +4926,16 @@
     function tutorialCloseCityPopup() { if (tutorialState) { tutorialState.cityPopup = null; render(); } }
     function tutorialShowConfirm(uid) { if (!tutorialState) return; const card = tutorialState.hand.find(c => c.uid === uid); if (card) { tutorialState.confirmCard = card; render(); } }
     function tutorialCancelConfirm() { if (tutorialState) { tutorialState.confirmCard = null; render(); } }
-    function exitTutorial() { _lobbyEnter = true; tutorialState = null; G.screen = 'lobby'; render(); }
+    // スポットライトはdocument.body直下に独立追加されるため、render()のDOM差し替えでは消えない。通常の操作導線では
+    // オーバーレイをタップして閉じてから次の操作に進む設計上リークしないが、exitCoopTutorial()と同じ防御的処理として
+    // 退出時に明示的に除去する（main-tutorial-overlayも同様。overlayIdは_renderTutSpotlight呼び出し元と同一）。
+    function _removeTutSpotlightOverlays() {
+      ['step-spotlight-overlay', 'main-tutorial-overlay'].forEach(id => {
+        const ov = document.getElementById(id); if (ov) ov.remove();
+      });
+      document.body.style.overflow = '';
+    }
+    function exitTutorial() { _lobbyEnter = true; tutorialState = null; G.screen = 'lobby'; _removeTutSpotlightOverlays(); render(); }
 
     function renderTutorial() {
       const ts = tutorialState; const step = TUT_STEPS[ts.step];
@@ -4952,9 +5041,9 @@
 
       // ── 相手ゾーン ──
       const isAttackActive = ts.step >= 7; // 1.2.7・3.1：index6に手札整理デモを挿入したため+1
-      const oppZone = `<div class="opponent-zone" style="border-left:3px solid var(--red)">
-        <div class="zone-header"><span class="zone-label">相手</span><span class="city-icon-sm"><img src="images/icons/terrain_inland.webp" alt="" style="width:22px;height:22px;object-fit:contain"></span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('tokyo')">東京 ⓘ</button><span class="terrain-badge">(内陸)</span></div>
-        <div class="hp-section"><span class="hp-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:100%;background:var(--green)"></div></div><div class="hp-text" style="color:var(--green)">60/60</div></div>
+      const oppZone = `<div class="opponent-zone" style="--zone-bracket:var(--red)">
+        <div class="zone-header"><span class="zone-tag">OPPONENT</span><span class="zone-label">相手</span><span class="city-icon-sm"><img src="images/icons/terrain_inland.webp" alt="" style="width:22px;height:22px;object-fit:contain"></span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('tokyo')">東京 ⓘ</button><span class="terrain-badge">(内陸)</span></div>
+        <div class="hp-section"><span class="hp-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:100%;background:var(--green)"></div></div><div class="hp-text" style="color:var(--green)">60<span class="hp-max">/60</span></div></div>
         <div style="margin-top:4px">${isAttackActive ? `<div style="background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);border-radius:6px;padding:4px 10px;font-size:.75rem;color:var(--red);display:inline-block">${uiIcoDroplet(14,'var(--red)')} 洪水 発動中</div>` : `<div class="hand-back-row">${Array(3).fill('<div class="card-back"><img src="images/cards/back.webp" alt=""></div>').join('')}</div>`}</div>
       </div>`;
 
@@ -4987,9 +5076,9 @@
 
       // ── プレイヤーゾーン ──
       const hpColor = ts.playerHp > 30 ? 'var(--green)' : ts.playerHp > 10 ? 'var(--yellow)' : 'var(--red)';
-      const playerZone = `<div class="player-zone" style="border-left:3px solid var(--green)">
-        <div class="zone-header"><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm"><img src="images/icons/terrain_coastal.webp" alt="" style="width:22px;height:22px;object-fit:contain"></span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('sendai')">仙台 ⓘ</button><span class="terrain-badge">(海岸)</span></div>
-        <div class="hp-section"><span class="hp-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:${ts.playerHp/60*100}%;background:${hpColor}"></div></div><div class="hp-text" style="color:${hpColor}">${ts.playerHp}/60</div></div>
+      const playerZone = `<div class="player-zone" style="--zone-bracket:var(--green)">
+        <div class="zone-header"><span class="zone-tag">YOU</span><span class="zone-label">${isResp ? 'あなた（対応中）' : 'あなた'}</span><span class="city-icon-sm"><img src="images/icons/terrain_coastal.webp" alt="" style="width:22px;height:22px;object-fit:contain"></span><button class="city-tap-btn${ts.step === 2 ? ' tut-pulse' : ''}" onclick="tutorialShowCity('sendai')">仙台 ⓘ</button><span class="terrain-badge">(海岸)</span></div>
+        <div class="hp-section"><span class="hp-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:${ts.playerHp/60*100}%;background:${hpColor}"></div></div><div class="hp-text" style="color:${hpColor}">${ts.playerHp}<span class="hp-max">/60</span></div></div>
         <div style="margin-top:4px;min-height:24px">${shieldBadge}</div>
         <div class="hand-cards-area">${handHtml}</div>
         ${isResp ? respBar : actionBar}
@@ -5902,7 +5991,7 @@
       fill.style.transition = 'none'; fill.style.width = Math.max(0, fh / mxHp * 100) + '%'; fill.style.background = hpColor(fh, mxHp); fill.offsetWidth;
       if (ghost) { ghost.style.transition = 'none'; ghost.style.width = Math.max(0, fh / mxHp * 100) + '%'; ghost.offsetWidth; }
       fill.style.transition = 'width .6s cubic-bezier(.25,.8,.25,1), background .6s ease'; fill.style.width = Math.max(0, th / mxHp * 100) + '%'; fill.style.background = hpColor(th, mxHp);
-      text.style.color = hpColor(th, mxHp); text.textContent = Math.max(0, th) + '/' + mxHp;
+      text.style.color = hpColor(th, mxHp); text.innerHTML = Math.max(0, th) + '<span class="hp-max">/' + mxHp + '</span>';
       if (th <= 10) text.classList.add('hp-text-warn'); else text.classList.remove('hp-text-warn');
       if (isDamage) {
         fill.classList.remove('hp-flash'); fill.offsetWidth; fill.classList.add('hp-flash');
@@ -6535,124 +6624,63 @@
       const badge = document.querySelector('.player-zone .terrain-badge');
       const budget = document.querySelector('.budget-display');
       if (!btn) return;
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const PAD = 8;
-      function elR(el) {
-        const r = el.getBoundingClientRect();
-        return { x: r.left-PAD, y: r.top-PAD, w: r.width+PAD*2, h: r.height+PAD*2, cx: r.left+r.width/2, cy: r.top+r.height/2 };
-      }
-      const b1 = elR(btn);
-      const b2 = badge ? elR(badge) : null;
-      const b3 = budget ? elR(budget) : null;
-      // 2026-07-18ユーザーレビュー第4弾②③（worldview.md §6.1/§6.3）：3コールアウト同時表示時の交差回避。
-      // 対象の実際の縦位置（画面上の並び順）でコールアウトの積み順・番号を振り直す（固定順①都市②地形③予算の
-      // まま積むと、予算表示はステータスバー内＝画面上部、都市名・地形バッジはプレイヤーゾーン内＝画面下部という
-      // 実際の並びと食い違い、予算の線が他の2本を突き抜けて交差していた）。各線の折れ位置（縦レーン）は
-      // 第2のrequestAnimationFrame内でboxCy確定後に、対象までの縦距離が大きい順へ外側レーンを割り当てる。
-      const RAW_ITEMS = [
-        { b: b1, color: '#388bfd', rx: '8', sw: '2.5', title: '都市名をタップ', desc: '地形・都市の特殊能力を確認できます' },
-        b2 ? { b: b2, color: '#d29922', rx: '6', sw: '2', title: '地形属性', desc: '特定の災害で追加ダメージが発生' } : null,
-        b3 ? { b: b3, color: '#3fb950', rx: '8', sw: '2', title: '予算', desc: '1ターンの使用上限。カードのコスト分を消費' } : null
+      // worldview.md §6.3 提案A（2026-07-18ユーザー決定）：3コールアウト同時表示（旧実装は右カラム縦積み＋
+      // エルボー引き出し線）を廃止し、①都市名 ②地形 ③予算 の3ステップへ順次表示化した。各ステップは
+      // _renderTutSpotlight（隣接配置＋tail＋パルスリング）を1回ずつ呼び出し、cfg.onNextで次ステップへ進む。
+      const STEPS = [
+        { el: btn,    title: '都市名をタップ', body: '地形・都市の特殊能力を確認できます', color: '#388bfd' },
+        badge  ? { el: badge,  title: '地形属性', body: '特定の災害で追加ダメージが発生', color: '#d29922' } : null,
+        budget ? { el: budget, title: '予算',     body: '1ターンの使用上限。カードのコスト分を消費', color: '#3fb950' } : null,
       ].filter(Boolean);
-      const NUM_LABELS = ['①', '②', '③', '④', '⑤'];
-      const ITEMS = RAW_ITEMS.slice().sort((x, y) => x.b.cy - y.b.cy).map((it, i) => ({ ...it, num: NUM_LABELS[i] || String(i + 1) }));
-      // design_system.md §2/§5.2準拠：コールアウトは画面右端の1カラムに整列し（浮遊感のあるバラバラな
-      // 縦位置をやめる）、各対象要素へは最短経路のエルボー（L字）引き出し線＋端点ドットで接続する
-      // （旧実装は引き出し線そのものが存在しなかった）。背景は--bg2系＋色付きボーダーで統一する。
-      const safeR = _safeInset('right');
-      // 2026-07-18ユーザーレビュー第4弾①②③（worldview.md §6.1/§6.3）：経路は「起点から垂直にboxCyの高さまで
-      // 上下し、その高さのままbox列へ水平移動する」2区間（V→H）のみにする。各線の垂直区間は必ずそのアイテム
-      // 自身のsrcX（対象右辺の中点のX）に留まるため、共有レーンを複数アイテムで奪い合って隣接対象（例：都市名
-      // ボタンのすぐ右の地形バッジ）を横切ってしまう問題が構造的に起こらない。水平区間もボックス縦積みで
-      // 自然に別の高さ（boxCy）になるため、複雑なレーン計算なしで交差・矩形侵入の両方を避けやすい
-      // （実測値でのゼロ交差はdev/_tut_spotlight_geom.jsで検証）。box列の左端lxだけは対象矩形の右端より
-      // 必ず右へ出るよう補正する（旧実装はlxを画面幅だけから決めていたため、対象が広い場合＝長い都市名・
-      // プレイヤー名等でボタン/バッジの右端がlxを超える場合に、水平区間が逆走して対象矩形の内部に戻って
-      // しまっていた。worldview.md §6.1「線が対象矩形の内部を通らない」の要件を満たせなかった根本原因）
-      const maxTargetRight = Math.max(...ITEMS.map(c => c.b.x + c.b.w));
-      const lx = Math.max(vw - Math.min(152, Math.floor(vw * 0.38)) - 8 - safeR, maxTargetRight + 20);
-      const bw = Math.max(60, vw - lx - 8 - safeR);
-      const maskHoles = ITEMS.map(c => `<rect x="${c.b.x}" y="${c.b.y}" width="${c.b.w}" height="${c.b.h}" rx="${c.rx}" fill="black"/>`).join('');
-      const hilights  = ITEMS.map(c => `<rect x="${c.b.x}" y="${c.b.y}" width="${c.b.w}" height="${c.b.h}" rx="${c.rx}" fill="none" stroke="${c.color}" stroke-width="${c.sw}"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="1.4s" repeatCount="indefinite"/></rect>`).join('');
-      const boxes = ITEMS.map((c, i) =>
-        `<div class="mto-box-outer" id="mto-box${i}" style="position:absolute;left:${lx}px;top:-999px;width:${bw}px;overflow:hidden;border-radius:6px;z-index:1">` +
-        `<div class="mto-mask-inner" style="position:absolute;inset:0;background:#0d1117;z-index:2"></div>` +
-        `<div class="mto-box-content" style="background:var(--bg2);border:1.5px solid ${c.color};border-radius:6px;padding:8px 10px;font-size:.76rem;color:var(--t1);line-height:1.5;pointer-events:auto;opacity:0;transform:scale(1.06)" onclick="event.stopPropagation()">` +
-        `<div style="font-weight:700;color:${c.color};margin-bottom:3px">${c.num} ${c.title}</div>` +
-        `<div>${c.desc}</div>` +
-        `</div></div>`
-      ).join('');
-      const overlay = document.createElement('div');
-      overlay.id = 'main-tutorial-overlay';
-      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
-      overlay.innerHTML =
-        `<svg id="mto-svg" style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg"><defs><mask id="mto-mask"><rect width="${vw}" height="${vh}" fill="white"/>${maskHoles}</mask></defs><rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.78)" mask="url(#mto-mask)"/>${hilights}</svg>` +
-        boxes +
-        `<button onclick="event.stopPropagation();document.getElementById('main-tutorial-overlay').remove();document.body.style.overflow=''" style="position:fixed;top:calc(${_safeInset('top')}px + 12px);right:calc(${safeR}px + 16px);z-index:5;background:rgba(22,27,34,0.92);border:1.5px solid #484f58;border-radius:50%;color:#fff;font-size:1.1rem;cursor:pointer;width:34px;height:34px;line-height:34px;text-align:center;padding:0">×</button>`;
-      overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; };
-      document.body.style.overflow = 'hidden';
-      document.body.appendChild(overlay);
-      // Stack boxes vertically ①②③ from top, no overlaps
-      requestAnimationFrame(() => {
-        let nextTop = 60 + _safeInset('top');
-        ITEMS.forEach((_, i) => {
-          const boxEl = document.getElementById(`mto-box${i}`);
-          if (!boxEl) return;
-          boxEl.style.top = nextTop + 'px';
-          nextTop += boxEl.getBoundingClientRect().height + 10;
+      let idx = 0;
+      function step() {
+        if (idx >= STEPS.length) return;
+        const s = STEPS[idx];
+        _renderTutSpotlight('main-tutorial-overlay', s.el, {
+          title: s.title, body: s.body, color: s.color, width: 240,
+          stepIndex: idx + 1, stepCount: STEPS.length,
+          onNext: () => { idx++; step(); }
         });
-        requestAnimationFrame(() => {
-          const svg = document.getElementById('mto-svg');
-          const ns = 'http://www.w3.org/2000/svg';
-          // box列（lx）はDOM追加前に確定済み（上記参照）。ここでは実測boxCy（実際に描画されたボックス高さ
-          // からの正確な終点Y）を使って経路を組み立てる（実測値でのゼロ交差はdev/_tut_spotlight_geom.jsで検証）
-          const geo = ITEMS.map((c, i) => {
-            const boxEl = document.getElementById(`mto-box${i}`);
-            if (!boxEl) return null;
-            const br = boxEl.getBoundingClientRect();
-            const boxCy = br.top + br.height / 2;
-            const srcX = c.b.x + c.b.w, srcY = c.b.cy;
-            return { i, c, boxEl, boxCy, srcX, srcY };
-          }).filter(Boolean);
-          geo.forEach(g => {
-            const { i, c, boxEl, boxCy, srcX, srcY } = g;
-            const maskEl = boxEl.querySelector('.mto-mask-inner');
-            const contentEl = boxEl.querySelector('.mto-box-content');
-            // 引き出し線（V→Hのエルボー）：ハイライト右端（対象矩形の、コールアウトに最も近い辺の中点）から
-            // 自身のX（srcX）のまま垂直にboxCyの高さまで移動し、その高さのままボックス左端へ水平移動＋端点ドット
-            if (svg) {
-              const leader = document.createElementNS(ns, 'path');
-              leader.setAttribute('d', `M ${srcX} ${srcY} L ${srcX} ${boxCy} L ${lx - 4} ${boxCy}`);
-              leader.setAttribute('stroke', c.color); leader.setAttribute('stroke-width', '1.5');
-              leader.setAttribute('fill', 'none'); leader.setAttribute('stroke-linecap', 'round'); leader.setAttribute('stroke-linejoin', 'round');
-              leader.setAttribute('opacity', '0');
-              const dotA = document.createElementNS(ns, 'circle');
-              dotA.setAttribute('cx', srcX); dotA.setAttribute('cy', srcY); dotA.setAttribute('r', '3'); dotA.setAttribute('fill', c.color); dotA.setAttribute('opacity', '0');
-              const dotB = document.createElementNS(ns, 'circle');
-              dotB.setAttribute('cx', lx - 4); dotB.setAttribute('cy', boxCy); dotB.setAttribute('r', '3'); dotB.setAttribute('fill', c.color); dotB.setAttribute('opacity', '0');
-              svg.appendChild(leader); svg.appendChild(dotA); svg.appendChild(dotB);
-              setTimeout(() => {
-                maskEl.animate(
-                  [{ transform: 'translateX(0)' }, { transform: 'translateX(101%)' }],
-                  { duration: 750, easing: 'cubic-bezier(0.25,1,0.5,1)', fill: 'forwards' }
-                );
-                setTimeout(() => {
-                  contentEl.animate(
-                    [{ opacity: 0, transform: 'scale(1.06)' }, { opacity: 1, transform: 'scale(1.0)' }],
-                    { duration: 900, easing: 'cubic-bezier(0.215,0.61,0.355,1)', fill: 'forwards' }
-                  );
-                  [leader, dotA, dotB].forEach(el => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, easing: 'ease-out', fill: 'forwards' }));
-                }, 60);
-              }, i * 150);
-            }
-          });
-        });
-      });
+      }
+      step();
     }
 
-    // 汎用スポットライトオーバーレイ（design_system.md §2/§5.2/§6準拠）：対象要素をSVGマスクでハイライトし、
-    // コールアウトへ最短経路のエルボー（L字）引き出し線＋端点ドットで接続する。showStepSpotlight（対戦の
-    // チュートリアル）とshowCoopTutSpotlight（協力チュートリアル）で共用し、スタイル言語を統一する。
+    // ターゲット隣接コールアウトの配置側を決める（worldview.md §6.3 提案A）：下→上→右→左の優先順で、
+    // コールアウトが画面内（safe-area考慮）に完全に収まる最初の側を採用する。対象矩形bとの間は隣接配置
+    // （GAP）を保つため、選ばれた側の矩形はbと軸方向に必ず分離しており、対象矩形を覆うことはない。
+    // dev/_tut_spotlight_geom.jsに同一ロジックを複製し、幾何ハーネスで全ステップ×画面幅を検証する。
+    function _tutCalloutSide(b, cw, ch, vw, vh, safeL, safeR, safeT, safeB) {
+      const GAP = 10, MARGIN = 16;
+      const hLeft = Math.max(safeL + MARGIN, Math.min(vw - safeR - MARGIN - cw, Math.round(b.cx - cw / 2)));
+      const vTop  = Math.max(safeT + MARGIN, Math.min(vh - safeB - MARGIN - ch, Math.round(b.cy - ch / 2)));
+      const candidates = [
+        { side: 'bottom', top: b.y + b.h + GAP,      left: hLeft },
+        { side: 'top',    top: b.y - GAP - ch,        left: hLeft },
+        { side: 'right',  left: b.x + b.w + GAP,      top: vTop },
+        { side: 'left',   left: b.x - GAP - cw,       top: vTop },
+      ];
+      // fits()は選んだ辺の外側だけでなく、コールアウト自身の両端（上下 or 左右）が両方ともsafe-area込みの
+      // 画面内に収まるかを見る。片側しか見ないと、対象がsafe-area際にある場合に「反対側の判定は満たすが
+      // 実際にはsafe-areaへめり込む」配置を誤って合格させてしまう（幾何ハーネスで検出・修正済みの回帰）。
+      function fits(c) {
+        if (c.side === 'bottom' || c.side === 'top') return c.top >= safeT + MARGIN && c.top + ch <= vh - safeB - MARGIN;
+        return c.left >= safeL + MARGIN && c.left + cw <= vw - safeR - MARGIN; // right / left
+      }
+      let chosen = candidates.find(fits);
+      if (!chosen) {
+        // どの側も完全には収まらない場合（極端に小さい画面等）：下側を採用し縦位置のみ画面内へクランプする
+        chosen = candidates[0];
+        chosen.top = Math.max(safeT + MARGIN, Math.min(vh - safeB - MARGIN - ch, chosen.top));
+      }
+      return chosen;
+    }
+
+    // 汎用スポットライトオーバーレイ（design_system.md §2/§5.2/§6・worldview.md §6.3提案A準拠）：対象要素を
+    // SVGマスクで切り抜いてディムし、周囲にパルスリング（脈動リング、prefers-reduced-motionで静的ハイライトに
+    // フォールバック）を表示、説明はターゲット隣接配置のコールアウト＋短いtail（吹き出しの三角）で示す。
+    // エルボー引き出し線・端点ドットは提案Aで全廃した。showStepSpotlight（対戦チュートリアル）・
+    // showCoopTutSpotlight（協力チュートリアル）・showMainTutorial（1ターン体験の3ステップ順次表示）で共用し、
+    // スタイル言語を統一する。cfg.onNextを渡すとクリックで次ステップへ進む（渡さなければ従来通りクリックで閉じる）。
     function _renderTutSpotlight(overlayId, el, cfg) {
       if (!el) return;
       // UI修正バッチ③：同一idの旧オーバーレイが残留していれば先に除去する（多重描画による古い説明文の重なり表示を防ぐ防御的処理）
@@ -6662,13 +6690,12 @@
       const r = el.getBoundingClientRect();
       const b = { x: r.left-PAD, y: r.top-PAD, w: r.width+PAD*2, h: r.height+PAD*2, cx: r.left+r.width/2, cy: r.top+r.height/2 };
       const vw = window.innerWidth, vh = window.innerHeight;
-      const safeL = _safeInset('left'), safeR = _safeInset('right'), safeB = _safeInset('bottom');
-      const cw = Math.min(cfg.width || 220, vw - 40 - safeL - safeR);
-      const cx = Math.max(16 + safeL, Math.min(vw - cw - 16 - safeR, Math.round((vw-cw)/2)));
-      const above = b.cy > vh*0.5;
-      const cy = above ? Math.max(16, Math.round(b.y - (cfg.calloutH || 110))) : Math.min(vh - 40 - safeB, Math.round(b.y + b.h + 20));
+      const safeL = _safeInset('left'), safeR = _safeInset('right'), safeT = _safeInset('top'), safeB = _safeInset('bottom');
       const color = cfg.color;
       const maskId = overlayId + '-mask';
+      const cw = Math.min(cfg.width || 240, vw - 32 - safeL - safeR);
+      const stepBadge = (cfg.stepIndex && cfg.stepCount > 1) ? `<div style="font-size:.66rem;font-weight:700;color:${color};opacity:.8;letter-spacing:.04em;margin-bottom:3px">STEP ${cfg.stepIndex}/${cfg.stepCount}</div>` : '';
+      const nextBtn = cfg.onNext ? `<button id="${overlayId}-next" style="margin-top:8px;width:100%;padding:7px;border-radius:8px;border:1.5px solid ${color};background:transparent;color:${color};font-size:.76rem;font-weight:700;cursor:pointer">${cfg.stepIndex < cfg.stepCount ? '次へ ＞' : '完了'}</button>` : '';
       const overlay = document.createElement('div');
       overlay.id = overlayId;
       overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9500;cursor:pointer';
@@ -6676,35 +6703,49 @@
         `<svg style="position:absolute;top:0;left:0;pointer-events:none" width="${vw}" height="${vh}" xmlns="http://www.w3.org/2000/svg">` +
           `<defs><mask id="${maskId}"><rect width="${vw}" height="${vh}" fill="white"/><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="black"/></mask></defs>` +
           `<rect width="${vw}" height="${vh}" fill="rgba(0,0,0,0.72)" mask="url(#${maskId})"/>` +
-          `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="none" stroke="${color}" stroke-width="2.5"><animate attributeName="stroke-opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/><animate attributeName="stroke-width" values="2.5;4.5;2.5" dur="1.2s" repeatCount="indefinite"/></rect>` +
-          `<path id="${overlayId}-leader" d="" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
-          `<circle id="${overlayId}-dotA" cx="0" cy="0" r="3" fill="${color}"/>` +
-          `<circle id="${overlayId}-dotB" cx="0" cy="0" r="3" fill="${color}"/>` +
+          `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="8" fill="none" stroke="${color}" stroke-width="2"/>` +
         `</svg>` +
-        `<div id="${overlayId}-callout" style="position:absolute;left:${cx}px;top:${cy}px;width:${cw}px;background:var(--bg2);border:2px solid ${color};border-radius:12px;padding:10px 14px;font-size:.8rem;color:var(--t1);line-height:1.55;pointer-events:auto" onclick="event.stopPropagation()">` +
-          `<button class="tut-callout-close" onclick="event.stopPropagation();document.getElementById('${overlayId}').remove();document.body.style.overflow=''">×</button>` +
+        `<div class="tut-pulse-ring" style="left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px;--tpr-color:${color}"></div>` +
+        `<div id="${overlayId}-callout" class="tut-spotlight-callout" style="left:-999px;top:-999px;width:${cw}px;visibility:hidden;border-color:${color}" onclick="event.stopPropagation()">` +
+          `<button class="tut-callout-close" onclick="event.stopPropagation();document.getElementById('${overlayId}').remove();document.body.style.overflow='';">×</button>` +
+          stepBadge +
           `<div style="font-weight:700;color:${color};margin-bottom:5px;padding-right:20px">${cfg.title}</div><div>${cfg.body}</div>` +
+          nextBtn +
         `</div>`;
-      overlay.onclick = () => { overlay.remove(); document.body.style.overflow = ''; if (cfg.onClose) cfg.onClose(); };
+      overlay.onclick = () => {
+        overlay.remove(); document.body.style.overflow = '';
+        if (cfg.onNext) cfg.onNext(); else if (cfg.onClose) cfg.onClose();
+      };
       document.body.style.overflow = 'hidden';
       document.body.appendChild(overlay);
       requestAnimationFrame(() => {
         const callout = document.getElementById(`${overlayId}-callout`);
-        const path = document.getElementById(`${overlayId}-leader`);
-        const dotA = document.getElementById(`${overlayId}-dotA`);
-        const dotB = document.getElementById(`${overlayId}-dotB`);
-        if (!callout || !path) return;
-        const cr = callout.getBoundingClientRect();
-        const calloutY = above ? cr.bottom : cr.top;
-        const calloutX = cr.left + cr.width/2;
-        // 2026-07-18ユーザーレビュー第4弾①：起点＝対象矩形の「コールアウトに最も近い辺」の中点
-        // （worldview.md §6.1）。コールアウトが対象の上にあれば対象の上辺、下にあれば下辺の中点を使うことで、
-        // 線が対象矩形の内部を通らずに済む（旧実装は矩形の中心cyを起点にしており、対象の上に線が被っていた）
-        const srcY = above ? b.y : (b.y + b.h);
-        const midY = Math.round((srcY + calloutY) / 2);
-        path.setAttribute('d', `M ${b.cx} ${srcY} L ${b.cx} ${midY} L ${calloutX} ${midY} L ${calloutX} ${calloutY}`);
-        if (dotA) { dotA.setAttribute('cx', b.cx); dotA.setAttribute('cy', srcY); }
-        if (dotB) { dotB.setAttribute('cx', calloutX); dotB.setAttribute('cy', calloutY); }
+        if (!callout) return;
+        const ch = callout.getBoundingClientRect().height;
+        const placed = _tutCalloutSide(b, cw, ch, vw, vh, safeL, safeR, safeT, safeB);
+        callout.style.left = placed.left + 'px';
+        callout.style.top = placed.top + 'px';
+        callout.style.visibility = 'visible';
+        // tail（吹き出しの三角）：コールアウトのターゲット側の辺に、ターゲット中心へ最も近い位置（箱内へクランプ）で配置する
+        const TAIL_MARGIN = 16;
+        const tail = document.createElement('div');
+        tail.className = 'tut-spotlight-tail';
+        if (placed.side === 'bottom' || placed.side === 'top') {
+          const tx = Math.max(TAIL_MARGIN, Math.min(Math.max(cw - TAIL_MARGIN, TAIL_MARGIN), Math.round(b.cx - placed.left))) - 6;
+          tail.style.cssText = placed.side === 'bottom'
+            ? `top:-6px;left:${tx}px;border-left:1.5px solid ${color};border-top:1.5px solid ${color}`
+            : `bottom:-6px;left:${tx}px;border-right:1.5px solid ${color};border-bottom:1.5px solid ${color}`;
+        } else {
+          const ty = Math.max(TAIL_MARGIN, Math.min(Math.max(ch - TAIL_MARGIN, TAIL_MARGIN), Math.round(b.cy - placed.top))) - 6;
+          tail.style.cssText = placed.side === 'right'
+            ? `left:-6px;top:${ty}px;border-left:1.5px solid ${color};border-bottom:1.5px solid ${color}`
+            : `right:-6px;top:${ty}px;border-right:1.5px solid ${color};border-top:1.5px solid ${color}`;
+        }
+        callout.appendChild(tail);
+        if (cfg.onNext) {
+          const nb = document.getElementById(`${overlayId}-next`);
+          if (nb) nb.onclick = (e) => { e.stopPropagation(); overlay.remove(); document.body.style.overflow = ''; cfg.onNext(); };
+        }
       });
     }
 
@@ -6737,8 +6778,8 @@
     //   と同じ「呼び出し経路そのものを持たない」隔離方針）。Firebase通信も発生させない（完全ローカル）。
     // ・都市・手札・予報は固定シード（常に同一の仙台＝あなた／大阪・東京＝CPU仲間、耐震補強・避難訓練・防災協定の
     //   3枚、次の災害＝地震→台風）とし、各ステップの説明文と盤面が必ず一致するようにする。
-    // ・スポットライト演出は_renderTutSpotlight（design_system.md §2/§5.2 準拠のエルボー引き出し線＋SVGマスク）
-    //   を対戦チュートリアルと共用し、見た目のスタイル言語を統一する。
+    // ・スポットライト演出は_renderTutSpotlight（worldview.md §6.3提案A準拠のターゲット隣接コールアウト＋tail＋
+    //   パルスリング＋SVGマスク）を対戦チュートリアルと共用し、見た目のスタイル言語を統一する。
     function _coopTutFixedCities() {
       return {
         player: CITIES.find(c => c.id === 'sendai'),
@@ -7736,9 +7777,10 @@
       const p = G.players[idx]; if (!p || !p.cities || p.cities.length === 0) return '';
       const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
       const isMe = (idx === myPlayerIdx);
+      const zoneTag = isMe ? 'YOU' : 'OPPONENT';
       return `<div class="${position}-zone">
-    <div class="zone-header"><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? terrainImg(c) : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}</div>
-    <div class="hp-section" id="hp-section-${idx}"><span class="hp-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? `<span class="hp-critical-badge">${coopIcoWarnTriangle(12,'var(--red)')} 壊滅寸前</span>` : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
+    <div class="zone-header"><span class="zone-tag">${zoneTag}</span><span class="zone-label">${isMe ? 'あなた' : '相手'}</span><span class="city-icon-sm">${c ? terrainImg(c) : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : ''}</div>
+    <div class="hp-section" id="hp-section-${idx}"><span class="hp-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}<span class="hp-max">/${mxHp}</span></div>${hp <= 10 ? `<span class="hp-critical-badge">${coopIcoWarnTriangle(12,'var(--red)')} 壊滅寸前</span>` : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
     ${renderBackupCity(idx)}
     <div class="effects-row">${renderEffectBadges(p.effects, idx)}</div>
     <div class="hand-cards-area">
@@ -8012,12 +8054,15 @@
         const p = G.players[idx]; const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
         const isHolder = (idx === deviceHolder); const isMe = (idx === mi);
         const label = isMe ? (isResponsePhase ? 'あなた（対応中）' : 'あなた') : (isHolder ? '相手（操作中）' : '相手（待機中）');
-        const bdr = isHolder && isMe ? 'border-left:3px solid var(--green)' : isHolder && !isMe ? 'border-left:3px solid var(--red)' : '';
+        // 2026-07-18脱AI感刷新：全周枠→コーナーブラケット化に伴い、border-leftによる「現在の操作主体」表示を
+        // ブラケット色の上書き（--zone-bracket）に置き換える。既定色（自分=accent/相手=bg3）はCSS側で設定済み
+        const bdr = isHolder && isMe ? '--zone-bracket:var(--green)' : isHolder && !isMe ? '--zone-bracket:var(--red)' : '';
         const terrainLabel = c ? `<span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span>` : '';
         const isMyActive = isMe && ap === mi && !hasPending && !isResponsePhase;
+        const zoneTag = isMe ? 'YOU' : 'OPPONENT';
         return `<div class="${position}-zone${isMyActive ? " my-turn-active" : ""}" style="${bdr}">
-      <div class="zone-header"><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? terrainImg(c) : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${terrainLabel}</div>
-      <div class="hp-section" id="hp-section-${idx}"><span class="hp-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}/${mxHp}</div>${hp <= 10 ? `<span class="hp-critical-badge">${coopIcoWarnTriangle(12,'var(--red)')} 壊滅寸前</span>` : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
+      <div class="zone-header"><span class="zone-tag">${zoneTag}</span><span class="zone-label">${label}</span><span class="city-icon-sm">${c ? terrainImg(c) : ''}</span><button class="city-tap-btn" onclick="showCityInfo(${idx})">${c ? c.name : '?'} ⓘ</button>${terrainLabel}</div>
+      <div class="hp-section" id="hp-section-${idx}"><span class="hp-label">HP</span><div class="hp-bar-wrap"><div class="hp-bar-ghost" id="hp-ghost-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%"></div><div class="hp-bar-fill${hp <= 10 ? ' hp-warn' : ''}" id="hp-fill-${idx}" style="width:${_cityEnterAnimPi === idx ? 0 : Math.max(0, hp / mxHp * 100)}%;background:${hpColor(hp, mxHp)}"></div></div><div class="hp-text" id="hp-text-${idx}" style="color:${hpColor(hp, mxHp)}">${Math.max(0, hp)}<span class="hp-max">/${mxHp}</span></div>${hp <= 10 ? `<span class="hp-critical-badge">${coopIcoWarnTriangle(12,'var(--red)')} 壊滅寸前</span>` : hp <= 30 ? '<span class="hp-danger-badge">危険</span>' : ''}</div>
       ${renderBackupCity(idx)}
       <div class="effects-row">${renderEffectBadges(p.effects, idx)}</div>
       ${!isMe ? usedHistoryChipsHtml(idx) : ''}
@@ -11333,7 +11378,9 @@
         standaloneAbility = mine ? '' : `<div style="${abilityStyle}">${c.abilityDesc}</div>`;
       }
       const owner = (CO.mp && cs.ownerName) ? `<div style="margin:3px 0 5px;display:flex;align-items:center;flex-wrap:wrap;gap:5px"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.66rem;font-weight:700;background:${mine ? 'rgba(56,139,253,.3)' : 'rgba(255,255,255,.08)'};color:var(--t0);border:1px solid ${mine ? '#388bfd' : 'rgba(255,255,255,.18)'}">${mine ? 'あなた' : cs.ownerName}</span>${supportChip}${readyChip}${ownerAbilityInline}</div>` : '';
-      const panelBorder = mine ? '#388bfd' : 'var(--bg3,#21262d)';
+      // 2026-07-18脱AI感刷新：全周枠＋inset box-shadowの二重囲み（panelBorder）をコーナーブラケットへ置き換え。
+      // 自分=accent／仲間=bg3の非対称はそのまま踏襲する（worldview.md §7-4）
+      const bracketColor = mine ? 'var(--accent)' : 'var(--bg3)';
       // A-2: 前回描画時のHPより減っていれば、バーを旧幅で描画して coopApplyCityHpFx で新幅へアニメさせる（ghost残像つき）。
       // 増えた（回復）場合もghostなしでdata-co-fill/targetを付け、フロート数字(+N緑)をcoopApplyCityHpFxで検知できるようにする
       const prevHp = _coFxHpPrev[idx];
@@ -11355,7 +11402,7 @@
       // data-city-idx/data-compact：2026-07-17ユーザーレビュー第3弾（ちらつき根本修正）で追加。
       // シールド/能力トグル（coopToggleShieldDetail/coopToggleCityDetail）がrenderCoop()を呼ばず
       // このパネル1枚だけをouterHTMLで差し替えるための識別子（_coPatchCityPanel参照）
-      return `<div data-city-idx="${idx}" data-compact="${compact ? 1 : 0}" style="flex:1;background:var(--bg2,#161b22);border-radius:10px;padding:${panelPad};${dead ? 'opacity:.65;' : ''}border:1px solid ${panelBorder}${mine ? ';box-shadow:0 0 0 1px #388bfd inset' : ''}">${nameBlock}${owner}${standaloneAbility}<div style="display:flex;align-items:center;gap:6px"><span class="hp-label" style="flex-shrink:0">HP</span><div style="position:relative;flex:1;min-width:0">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:${hpBarH}px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:${hpBarH}px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div></div><div style="${badgeStyle}">${badges}</div></div>`;
+      return `<div data-city-idx="${idx}" data-compact="${compact ? 1 : 0}" class="coop-city-frame" style="--zone-bracket:${bracketColor};flex:1;background:var(--bg2,#161b22);border-radius:6px;padding:${panelPad};${dead ? 'opacity:.65;' : ''}">${nameBlock}${owner}${standaloneAbility}<div style="display:flex;align-items:center;gap:6px"><span class="hp-label" style="flex-shrink:0">HP</span><div style="position:relative;flex:1;min-width:0">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:${hpBarH}px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:${hpBarH}px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div></div><div style="${badgeStyle}">${badges}</div></div>`;
     }
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
     function coopMkCard(card, mode, support, readOnly) {
