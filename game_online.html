@@ -1444,22 +1444,45 @@
        呼び出し箇所コメント参照）。カードは名前を画像の外（下）に出す新設ミニカード方式に統一し、
        手札トレイは廃止して「＋」ピッカー方式へ。ddDrag*（長押しドラッグ）は新レイアウトの.dd-mini-slot-col
        に適合させ、ドロップ先も.dd-slot-cell（スロット間の移動・スワップのみ）に一本化した。 */
-    .dd-prep-row { display:flex; align-items:flex-start; gap:8px; background:var(--bg2,#161b22); border:1px solid var(--bg3,#30363d); border-radius:10px; padding:8px; margin-bottom:8px; }
-    /* 災害カード列：固定幅58px。順番バッジ（上・画像の外）→画像（アスペクト比288:450でcontain＝全体表示・欠けなし）→名前（下） */
-    .dd-disaster-col { display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; width:58px; min-width:0; }
+    /* 2026-07-18再改修（実機フィードバック5点）：
+       ①1災害=政策1枚が基本のため.dd-slot-cellのflex:1（無制限に伸びる余白）を廃止し、
+       政策側は内容量に応じたコンパクト幅（自然サイズ・上限190px）にとどめる。浮いた横幅は
+       .dd-disaster-col／.dd-mini-imgbox系（政策側）双方の実寸拡大に還元した（58→70px・46→56px）。
+       ドラッグの受け入れ判定（④）は視覚幅に縛られず.dd-prep-row全体の矩形で行うため、
+       .dd-slot-cellを狭めても「行全体が受け皿」という体験は保たれる（ddDragPointerMove/_ddDragFindTarget参照）。
+       ②来襲順バッジは.dd-disaster-colの外（.dd-order-badge、行の左端）へ独立させた。
+       ⑤「－」ボタンは視覚サイズを保ちつつ::beforeで44px四方のヒットエリアを確保し、
+       画像側（.dd-mini-imgbox、position:relativeでz-index:auto）より手前に出るようz-index:2を付与した。 */
+    .dd-prep-row { display:flex; align-items:flex-start; gap:6px; background:var(--bg2,#161b22); border:1px solid var(--bg3,#30363d); border-radius:10px; padding:8px; margin-bottom:8px; transition:border-color .15s,background-color .15s; }
+    /* 来襲順バッジ：行の左端・単独の丸ピル。垂直方向は行の中央に揃える */
+    .dd-order-badge { flex-shrink:0; align-self:center; width:18px; text-align:center; font-size:.64rem; font-weight:900; color:var(--red); background:rgba(248,81,73,.14); border:1px solid var(--red); border-radius:999px; padding:2px 0; line-height:1.3; white-space:nowrap; }
+    /* 災害カード列：固定幅70px。画像（アスペクト比288:450でcontain＝全体表示・欠けなし）→名前（下） */
+    .dd-disaster-col { display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; width:70px; min-width:0; }
     .dd-order-chip { font-size:.62rem; font-weight:900; color:var(--red); background:rgba(248,81,73,.14); border:1px solid var(--red); border-radius:999px; padding:1px 7px; line-height:1.4; white-space:nowrap; }
     .dd-mini-imgbox { width:100%; aspect-ratio:288/450; border-radius:8px; overflow:hidden; border:1.5px solid var(--red); background:var(--bg1,#0d1117); position:relative; cursor:pointer; }
     .dd-mini-imgbox img { width:100%; height:100%; object-fit:contain; display:block; }
     /* .card-name（.card内で使う共通クラス、font-size:.75rem・padding:4px 6pxを持つ）を流用してテキストだけ
        _lpShowPreview()に読ませているため、後段の.card-name定義に上書きされないよう子孫セレクタで詳細度を上げる */
     .dd-disaster-col .dd-mini-name, .dd-mini-slot-col .dd-mini-name { width:100%; padding:0; font-size:.6rem; font-weight:700; color:var(--t0); text-align:center; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    /* スロットセル：割当済みミニカード（複数可）＋末尾に「＋」タイル。flex-wrapで折返し、行の高さは可変 */
-    .dd-slot-cell { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start; align-content:flex-start; min-height:76px; border:1px dashed var(--bg3,#30363d); border-radius:8px; padding:6px; transition:border-color .15s; }
+    /* スロットセル：割当済みミニカード（複数可）＋末尾に「＋」タイル。flex-wrapで折返し、行の高さは可変。
+       改修①：flex:1を廃止し内容量に応じたコンパクト幅にする（無制限に伸びる余白＝デッドスペースを避ける）。
+       視覚上の受け皿は狭くなるが、ドラッグのドロップ判定は.dd-prep-row全体を対象にしているため
+       操作性は損なわない（④の改善、_ddDragFindTarget参照）。 */
+    .dd-slot-cell { flex:0 1 auto; max-width:190px; min-width:0; display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start; align-content:flex-start; min-height:84px; border:1px dashed var(--bg3,#30363d); border-radius:8px; padding:6px; transition:border-color .15s; }
     .dd-slot-cell.dd-slot-hint { border-color:var(--blue); }
-    /* 割当済み政策ミニカード：上部にpadding-topを確保し「－」ボタンをその中に置く＝画像に重ねない */
-    .dd-mini-slot-col { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; width:46px; min-width:0; position:relative; padding-top:15px; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
+    /* ④実機フィードバック：ドラッグ中に受け入れ可能な行を行全体でハイライトする（Notionのブロック移動に近い
+       「持ち上げ→移動先が視覚化→離して確定」の体験にするため）。.dd-slot-cellの点線ハイライトと併用する */
+    .dd-prep-row.dd-prep-row-hint { border-color:var(--blue); background:rgba(56,139,253,.10); }
+    /* 割当済み政策ミニカード：上部にpadding-topを確保し「－」ボタンをその中に置く＝画像との重なりを最小化する */
+    .dd-mini-slot-col { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; width:56px; min-width:0; position:relative; padding-top:18px; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
     .dd-mini-slot-col .dd-mini-imgbox { border-color:var(--blue); }
-    .dd-mini-remove { position:absolute; top:0; right:2px; width:15px; height:15px; padding:0; border:none; background:transparent; color:var(--red); cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; transition:transform .12s cubic-bezier(.23,1,.32,1); }
+    /* ⑤実機フィードバック：視覚サイズは18px四方のコンパクトな丸バッジのまま、::beforeで44px四方のヒットエリアを
+       確保する（design_system.md §5.2・.coop-shield-toggle等と同じ手法）。z-index:2は同じ.dd-mini-slot-col内で
+       後からDOMに現れる.dd-mini-imgbox（position:relative・z-index:auto）にヒットエリアが食われないための指定。
+       ::beforeはボタン自身が生成する疑似要素のため、ここをタップしてもe.targetはボタン本体になり、
+       ddDragPointerDownの「.dd-mini-removeの上ならドラッグ開始しない」ガードはそのまま機能する。 */
+    .dd-mini-remove { position:absolute; top:0; right:0; z-index:2; width:18px; height:18px; padding:0; border:none; border-radius:50%; background:rgba(var(--bg1-rgb,13,17,23),.82); box-shadow:0 1px 3px rgba(0,0,0,.4); color:var(--red); cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; transition:transform .12s cubic-bezier(.23,1,.32,1); }
+    .dd-mini-remove::before { content:''; position:absolute; top:50%; left:50%; width:44px; height:44px; transform:translate(-50%,-50%); }
     .dd-mini-remove:active { transform:scale(.85); }
     /* 2026-07-18モーション強化：スロットへ割当直後のミニカードに軽いポップイン（design_system.md §4.1「弾力のあるポップ」系カーブ）。
        fill-modeは既定（none）のままにする：ddDragActivate()がドラッグ確定後にこの同じ要素へstyle.transformを
@@ -1467,12 +1490,12 @@
        後からのstyle.transform書き込みと競合し、ドラッグ中の見た目が壊れる（動作確認済みの回避）。 */
     @keyframes dd-slot-pop { from { opacity:0; transform:scale(.82); } to { opacity:1; transform:scale(1); } }
     .dd-mini-slot-col { animation:dd-slot-pop .22s cubic-bezier(.34,1.56,.64,1); }
-    .dd-mini-cost { position:absolute; top:0; left:2px; font-size:.56rem; font-weight:800; color:var(--t2); }
+    .dd-mini-cost { position:absolute; top:2px; left:3px; font-size:.56rem; font-weight:800; color:var(--t2); }
     .dd-mini-slot-col .dd-mini-name { font-size:.54rem; }
     /* 画像フォールバック時の.card-text-fallback付き.card-descはimg-fail時のみ表示される想定だが、
        ミニカードは.card親クラスを持たないため常時display:noneのまま（プレビュー抽出専用の隠しテキスト） */
     /* 「＋」追加タイル：未割当スロット（＝これ単体のみ表示）・割当済みスロットへの追加割当の両方で使う */
-    .dd-add-tile { flex-shrink:0; width:46px; align-self:flex-start; margin-top:15px; aspect-ratio:288/450; border-radius:8px; border:1.5px dashed var(--bg3,#30363d); background:transparent; color:var(--t2); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color .15s,color .15s,transform .15s cubic-bezier(.23,1,.32,1); }
+    .dd-add-tile { flex-shrink:0; width:56px; align-self:flex-start; margin-top:18px; aspect-ratio:288/450; border-radius:8px; border:1.5px dashed var(--bg3,#30363d); background:transparent; color:var(--t2); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color .15s,color .15s,transform .15s cubic-bezier(.23,1,.32,1); }
     /* 2026-07-18モーション強化：hoverでわずかに拡大（誘目）・activeで押し込み（scale.93）という
        2段階のフィードバックにする（design_system.md §4.1標準カーブ）。 */
     .dd-add-tile:hover { border-color:var(--blue); color:var(--blue); transform:scale(1.06); }
@@ -2356,6 +2379,19 @@
     .hand-group-label { display:none }
     .card-img-wrap { flex:1; position:relative; overflow:hidden; min-height:0 }
     .card-img { width:100%; height:100%; object-fit:cover; object-position:top center; display:block }
+    /* 実機フィードバック③：カード画像の保存防止。iOSの長押し「画像を保存」メニュー（-webkit-touch-callout）と
+       画像選択・ドラッグ保存を抑止する。カード画像全般（.card-img＝対戦・協力・デイリー共通）・
+       長押し拡大プレビュー（.ui-card-preview-card img）・デイリー防災の＋ピッカー一覧（.dd-picker-row img）・
+       ギャラリー（.gallery-card img）に一律適用する。既存の長押しドラッグ（ddDrag系・pzDrag系）や
+       長押しプレビュー（_lp*）はいずれもJS側のtouchstart/pointerdownで完結しており、
+       画像そのもののuser-select/touch-calloutには依存していないため動作は変わらない。 */
+    .card-img, .ui-card-preview-card img, .dd-picker-row img, .gallery-card img {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
     /* A案：名前バー＝左:名称(flex:1・左寄せ)/右:種類バッジ(固定)の1行フレックス。重なりが構造的に起きない */
     .card-name-bar { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,.88) 55%); padding:20px 4px 3px; font-size:.6rem; font-weight:700; color:#fff; text-align:left; line-height:1.15; pointer-events:none; display:flex; align-items:flex-end; gap:3px }
     /* 名称：keep-all＋​分割ヒントで自然な位置を優先して折返し、ヒントが無い長名はanywhereで緊急折返し。最大2行clamp */
@@ -2375,6 +2411,38 @@
     /* 1.3.4：mySlotが無い場合（ソロ・自然側視点）の4〜5人協力時の都市パネル2列グリッド。2〜3人時は既存のflex横並びのまま。
        coopRenderBoardの「自分の都市が存在しない」フォールバック分岐でのみ使用（無変更・従来どおり） */
     .coop-city-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
+    /* 2026-07-18ユーザーレビュー第4弾：協力・社会的脆弱性イベントの常設バナー（worldview.md §3.6/§4）。
+       ターン開始ポップ（coopRenderEventPopup）を閉じた後も画面上部に「今何が起きているか」を残す。
+       上下の縁のみ紫×黄の斜めストライプ（ハザードテープ風・人為災害=紫のセマンティクス）、帯本体は--bg1系背景。
+       常時発光・常時アニメーションは世界観のglow規律（§4）に反するため静止表示のみとし、prefers-reduced-motion
+       の分岐は不要（アニメーションさせていないため）。CO.diff.eventsから毎ターン導出する完全な派生表示のため
+       新規の同期フィールドはCO本体に追加しない（コンテナ単位の差分render機構にそのまま乗る） */
+    .coop-event-banner {
+      position: relative;
+      margin: 6px 0;
+      padding: 8px 10px 7px;
+      background: var(--bg1, #0d1117);
+      border-left: 2px solid var(--purple, #a371f7);
+      border-right: 2px solid var(--purple, #a371f7);
+      font-size: .72rem;
+      line-height: 1.4;
+      color: var(--t0);
+    }
+    .coop-event-banner::before, .coop-event-banner::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 4px;
+      background: repeating-linear-gradient(45deg,
+        var(--purple, #a371f7) 0, var(--purple, #a371f7) 7px,
+        var(--yellow, #e3b341) 7px, var(--yellow, #e3b341) 14px);
+    }
+    .coop-event-banner::before { top: 0; }
+    .coop-event-banner::after { bottom: 0; }
+    .coop-event-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .coop-event-row + .coop-event-row { margin-top: 3px; }
+    .coop-event-name { font-weight: 800; color: var(--purple, #a371f7); flex-shrink: 0; }
+    .coop-event-effect { color: var(--t0); }
     /* 2026-07-17：自分の都市パネル常時最上部＋仲間都市の横一列（MPで自分の都市が存在する場合に人数不問で統一。design_system.md §10.2/10.4）。
        coopRenderBoardのmySlot分岐で使用。.coop-ally-rowの子要素は各パネルが自前でflex:1を持つためmin-widthのみ指定する。
        320px幅で仲間4パネル（5人協力の最大構成）を検証：min-width88px×4+gap18px=370px > 296px（320px幅の実効コンテンツ幅）のため、
@@ -2390,29 +2458,42 @@
     .coop-city-name-tap svg:last-child { flex-shrink:0; opacity:.6; transition:transform .15s ease; }
     .coop-city-name-tap[aria-expanded="true"] svg:last-child { transform:rotate(180deg); }
     /* 手札エリアの所有者タブ（自分＋仲間）。「政策カードをタップして都市を守ろう」等の恒常的な操作指示文の代替（design_system.md §10.3） */
-    /* 2026-07-17ユーザーレビュー第3弾（タブUI刷新）：PCブラウザのタブのような形状に変更。
-       上辺のみ角丸・アクティブタブはカード一覧エリアと同じ面色（--bg2）で下辺の境界線が消えて一体化、
-       非アクティブタブは一段沈んだ色（rgba(t0,.06)）。プレイヤー名タップ時のアクティブ切替は
-       タブ自体の背景/文字色のCSSトランジション（200ms・標準イージング）で表現する
-       （design_system.md §4.1標準カーブ・prefers-reduced-motion対応）。JS側（_coApplyHandTabLocalUpdate）は
-       タブボタンを再生成せずactiveクラスの付け替えのみを行うため、このトランジションが同一DOMノード上で機能する */
-    .coop-hand-tabs { display:flex; gap:3px; flex-wrap:wrap; margin:8px 0 0; }
+    /* 2026-07-18ユーザーレビュー第4弾（JUNOPARK型翻訳・worldview.md §5.1）：等幅タブ・上辺のみ角丸（5px）・
+       アクティブタブはカード一覧エリアと同じ面色（--bg2）で下辺の境界線が消えて完全に一体化、非アクティブタブは
+       一段沈んだ明度（--bg1）＋margin-topで2px低く沈める。アクティブタブの上辺2pxアクセントラインは各タブの
+       box-shadowではなく、タブ列に対して絶対配置した単一の#co-hand-tab-indicator（_coUpdateHandTabIndicator
+       が位置を更新）で表現し、タブ切替時にoffsetLeft/Widthの差分をCSS transitionで200msスライドさせる
+       （design_system.md §4.1標準カーブ）。JS側（_coApplyHandTabLocalUpdate）はタブボタンを再生成せず
+       activeクラスの付け替えのみを行うため、インジケータのノードも同一DOMノードのまま位置だけが動く */
+    .coop-hand-tabs { display:flex; gap:3px; flex-wrap:nowrap; margin:8px 0 0; position:relative; align-items:flex-end; }
     .coop-hand-tab {
-      padding:6px 13px;
-      border-radius:9px 9px 0 0;
+      flex:1 1 0;
+      min-width:0;
+      padding:6px 8px;
+      border-radius:5px 5px 0 0;
       font-size:.72rem;
       font-weight:700;
+      text-align:center;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
       cursor:pointer;
-      background:rgba(var(--t0-rgb),.06);
+      background:var(--bg1,#0d1117);
       color:var(--t2);
       border:1px solid var(--bg3,#30363d);
       border-bottom:none;
-      box-shadow:inset 0 -2px 0 0 transparent;
+      margin-top:2px;
       -webkit-tap-highlight-color:transparent;
-      transition:background-color .2s cubic-bezier(.23,1,.32,1), color .2s cubic-bezier(.23,1,.32,1), box-shadow .2s cubic-bezier(.23,1,.32,1);
+      transition:background-color .2s cubic-bezier(.23,1,.32,1), color .2s cubic-bezier(.23,1,.32,1), margin-top .2s cubic-bezier(.23,1,.32,1);
     }
-    .coop-hand-tab.active { background:var(--bg2,#21262d); color:var(--blue,#388bfd); box-shadow:inset 0 2px 0 0 var(--blue,#388bfd); }
-    @media (prefers-reduced-motion: reduce) { .coop-hand-tab { transition:none; } }
+    .coop-hand-tab.active { background:var(--bg2,#21262d); color:var(--blue,#388bfd); margin-top:0; }
+    .coop-hand-tab-indicator {
+      position:absolute; top:0; left:0; width:0; height:2px;
+      background:var(--blue,#388bfd);
+      transition:left .2s cubic-bezier(.23,1,.32,1), width .2s cubic-bezier(.23,1,.32,1);
+      pointer-events:none;
+    }
+    @media (prefers-reduced-motion: reduce) { .coop-hand-tab, .coop-hand-tab-indicator { transition:none; } }
     .coop-hand-view-note { text-align:center; color:rgba(var(--t0-rgb),.55); font-size:.7rem; margin:4px 0 6px; padding-top:6px; }
     /* 2026-07-18モーション強化：タブ切替時、手札一覧（#co-hand-cards）の中身をクロスフェードする。
        _coApplyHandTabLocalUpdate()がinnerHTML差替え直後にclassの付け外し+void offsetWidth（reflow）で
@@ -4274,7 +4355,7 @@
       const badge = badgeEl ? badgeEl.textContent : '';
       const ov = document.createElement('div');
       ov.className = 'ui-card-preview-overlay';
-      ov.innerHTML = `<div class="ui-card-preview-card"><img src="${src}" alt=""><div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div></div>`;
+      ov.innerHTML = `<div class="ui-card-preview-card"><img src="${src}" alt="" draggable="false"><div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div></div>`;
       document.body.appendChild(ov);
       _lpOverlayEl = ov;
       document.body.classList.add('ui-lp-noscroll');
@@ -4308,7 +4389,15 @@
       }
     }
     function _lpOnTouchCancel() { _lpCancelTimer(); _lpClosePreview(); _lpFired = false; }
-    function _lpOnContextMenu(e) { if (_lpEligibleCard(e.target)) e.preventDefault(); }
+    // 実機フィードバック③：contextmenu抑止は「長押しプレビューが起動する文脈」（_lpEligibleCard、バトル中の
+    // 手札のみ）より広く、カード画像要素全般（.card-img・.dd-mini-imgbox＝デイリー対応表の災害/政策ミニカード・
+    // .ui-card-preview-card＝長押し拡大プレビュー本体・.dd-picker-row＝＋ピッカー一覧・.gallery-card/
+    // .gallery-zoom-img＝図鑑）を対象にする。ページ全体のcontextmenuは殺さない（カード画像要素のみに限定）。
+    function _lpIsCardImgTarget(target) {
+      if (!target || !target.closest) return false;
+      return !!target.closest('.card-img, .dd-mini-imgbox, .ui-card-preview-card, .dd-picker-row, .gallery-card, .gallery-zoom-img');
+    }
+    function _lpOnContextMenu(e) { if (_lpEligibleCard(e.target) || _lpIsCardImgTarget(e.target)) e.preventDefault(); }
     // デイリー防災UX刷新：開始前ページ（予報フェーズ）は手札タップに他の意味がないため、長押し待ちなしで
     // 即座にプレビューを開くタップ版。既存の長押しプレビュー本体（_lpShowPreview/_lpClosePreview）をそのまま流用し、
     // 新規のオーバーレイ・カードデータ参照は持たない。オーバーレイはpointer-events:noneのため、次のクリックで
@@ -4815,7 +4904,7 @@
           const oc = isTarget ? `onclick="tutorialAction('discard_demo')"` : '';
           return `<div class="card policy${isTarget ? ' tut-glow' : ' tut-dim'}" data-ctype="${cardCtype(card)}" style="cursor:${isTarget ? 'pointer' : 'default'}" ${oc}>
           <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
-          <div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
+          <div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>
           ${cardTypeBadgeFallback(cardTypeLabel(card))}
         </div>`;
@@ -4879,7 +4968,7 @@
         const tBadge = isResp ? '対応可' : card.color === 'green' ? 'シールド' : '即時';
         return `<div class="card policy${isGlow ? ' tut-glow' : ''}${isDim ? ' tut-dim' : isDimSoft ? ' tut-dim-soft' : ''}" data-ctype="${cardCtype(card)}" style="cursor:pointer" ${oc}>
           <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${isResp ? '無料' : card.cost}</span></div>
-          <div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, tBadge)}</div>
+          <div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, tBadge)}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>
           ${cardTypeBadgeFallback(tBadge)}
         </div>`;
@@ -6455,17 +6544,34 @@
       const b1 = elR(btn);
       const b2 = badge ? elR(badge) : null;
       const b3 = budget ? elR(budget) : null;
-      const ITEMS = [
-        { b: b1, num: '①', color: '#388bfd', rx: '8', sw: '2.5', title: '都市名をタップ', desc: '地形・都市の特殊能力を確認できます' },
-        b2 ? { b: b2, num: '②', color: '#d29922', rx: '6', sw: '2', title: '地形属性', desc: '特定の災害で追加ダメージが発生' } : null,
-        b3 ? { b: b3, num: '③', color: '#3fb950', rx: '8', sw: '2', title: '予算', desc: '1ターンの使用上限。カードのコスト分を消費' } : null
+      // 2026-07-18ユーザーレビュー第4弾②③（worldview.md §6.1/§6.3）：3コールアウト同時表示時の交差回避。
+      // 対象の実際の縦位置（画面上の並び順）でコールアウトの積み順・番号を振り直す（固定順①都市②地形③予算の
+      // まま積むと、予算表示はステータスバー内＝画面上部、都市名・地形バッジはプレイヤーゾーン内＝画面下部という
+      // 実際の並びと食い違い、予算の線が他の2本を突き抜けて交差していた）。各線の折れ位置（縦レーン）は
+      // 第2のrequestAnimationFrame内でboxCy確定後に、対象までの縦距離が大きい順へ外側レーンを割り当てる。
+      const RAW_ITEMS = [
+        { b: b1, color: '#388bfd', rx: '8', sw: '2.5', title: '都市名をタップ', desc: '地形・都市の特殊能力を確認できます' },
+        b2 ? { b: b2, color: '#d29922', rx: '6', sw: '2', title: '地形属性', desc: '特定の災害で追加ダメージが発生' } : null,
+        b3 ? { b: b3, color: '#3fb950', rx: '8', sw: '2', title: '予算', desc: '1ターンの使用上限。カードのコスト分を消費' } : null
       ].filter(Boolean);
+      const NUM_LABELS = ['①', '②', '③', '④', '⑤'];
+      const ITEMS = RAW_ITEMS.slice().sort((x, y) => x.b.cy - y.b.cy).map((it, i) => ({ ...it, num: NUM_LABELS[i] || String(i + 1) }));
       // design_system.md §2/§5.2準拠：コールアウトは画面右端の1カラムに整列し（浮遊感のあるバラバラな
       // 縦位置をやめる）、各対象要素へは最短経路のエルボー（L字）引き出し線＋端点ドットで接続する
       // （旧実装は引き出し線そのものが存在しなかった）。背景は--bg2系＋色付きボーダーで統一する。
       const safeR = _safeInset('right');
-      const bw = Math.min(152, Math.floor(vw * 0.38));
-      const lx = vw - bw - 8 - safeR;
+      // 2026-07-18ユーザーレビュー第4弾①②③（worldview.md §6.1/§6.3）：経路は「起点から垂直にboxCyの高さまで
+      // 上下し、その高さのままbox列へ水平移動する」2区間（V→H）のみにする。各線の垂直区間は必ずそのアイテム
+      // 自身のsrcX（対象右辺の中点のX）に留まるため、共有レーンを複数アイテムで奪い合って隣接対象（例：都市名
+      // ボタンのすぐ右の地形バッジ）を横切ってしまう問題が構造的に起こらない。水平区間もボックス縦積みで
+      // 自然に別の高さ（boxCy）になるため、複雑なレーン計算なしで交差・矩形侵入の両方を避けやすい
+      // （実測値でのゼロ交差はdev/_tut_spotlight_geom.jsで検証）。box列の左端lxだけは対象矩形の右端より
+      // 必ず右へ出るよう補正する（旧実装はlxを画面幅だけから決めていたため、対象が広い場合＝長い都市名・
+      // プレイヤー名等でボタン/バッジの右端がlxを超える場合に、水平区間が逆走して対象矩形の内部に戻って
+      // しまっていた。worldview.md §6.1「線が対象矩形の内部を通らない」の要件を満たせなかった根本原因）
+      const maxTargetRight = Math.max(...ITEMS.map(c => c.b.x + c.b.w));
+      const lx = Math.max(vw - Math.min(152, Math.floor(vw * 0.38)) - 8 - safeR, maxTargetRight + 20);
+      const bw = Math.max(60, vw - lx - 8 - safeR);
       const maskHoles = ITEMS.map(c => `<rect x="${c.b.x}" y="${c.b.y}" width="${c.b.w}" height="${c.b.h}" rx="${c.rx}" fill="black"/>`).join('');
       const hilights  = ITEMS.map(c => `<rect x="${c.b.x}" y="${c.b.y}" width="${c.b.w}" height="${c.b.h}" rx="${c.rx}" fill="none" stroke="${c.color}" stroke-width="${c.sw}"><animate attributeName="stroke-opacity" values="1;0.35;1" dur="1.4s" repeatCount="indefinite"/></rect>`).join('');
       const boxes = ITEMS.map((c, i) =>
@@ -6498,19 +6604,25 @@
         requestAnimationFrame(() => {
           const svg = document.getElementById('mto-svg');
           const ns = 'http://www.w3.org/2000/svg';
-          ITEMS.forEach((c, i) => {
+          // box列（lx）はDOM追加前に確定済み（上記参照）。ここでは実測boxCy（実際に描画されたボックス高さ
+          // からの正確な終点Y）を使って経路を組み立てる（実測値でのゼロ交差はdev/_tut_spotlight_geom.jsで検証）
+          const geo = ITEMS.map((c, i) => {
             const boxEl = document.getElementById(`mto-box${i}`);
-            if (!boxEl) return;
-            const maskEl = boxEl.querySelector('.mto-mask-inner');
-            const contentEl = boxEl.querySelector('.mto-box-content');
-            // 引き出し線（エルボー型）：ハイライト右端 → 中間Xで1回だけ折れ曲がりボックス左端へ最短接続＋端点ドット
+            if (!boxEl) return null;
             const br = boxEl.getBoundingClientRect();
             const boxCy = br.top + br.height / 2;
             const srcX = c.b.x + c.b.w, srcY = c.b.cy;
-            const midX = Math.round((srcX + lx) / 2);
+            return { i, c, boxEl, boxCy, srcX, srcY };
+          }).filter(Boolean);
+          geo.forEach(g => {
+            const { i, c, boxEl, boxCy, srcX, srcY } = g;
+            const maskEl = boxEl.querySelector('.mto-mask-inner');
+            const contentEl = boxEl.querySelector('.mto-box-content');
+            // 引き出し線（V→Hのエルボー）：ハイライト右端（対象矩形の、コールアウトに最も近い辺の中点）から
+            // 自身のX（srcX）のまま垂直にboxCyの高さまで移動し、その高さのままボックス左端へ水平移動＋端点ドット
             if (svg) {
               const leader = document.createElementNS(ns, 'path');
-              leader.setAttribute('d', `M ${srcX} ${srcY} L ${midX} ${srcY} L ${midX} ${boxCy} L ${lx - 4} ${boxCy}`);
+              leader.setAttribute('d', `M ${srcX} ${srcY} L ${srcX} ${boxCy} L ${lx - 4} ${boxCy}`);
               leader.setAttribute('stroke', c.color); leader.setAttribute('stroke-width', '1.5');
               leader.setAttribute('fill', 'none'); leader.setAttribute('stroke-linecap', 'round'); leader.setAttribute('stroke-linejoin', 'round');
               leader.setAttribute('opacity', '0');
@@ -6585,9 +6697,13 @@
         const cr = callout.getBoundingClientRect();
         const calloutY = above ? cr.bottom : cr.top;
         const calloutX = cr.left + cr.width/2;
-        const midY = Math.round((b.cy + calloutY) / 2);
-        path.setAttribute('d', `M ${b.cx} ${b.cy} L ${b.cx} ${midY} L ${calloutX} ${midY} L ${calloutX} ${calloutY}`);
-        if (dotA) { dotA.setAttribute('cx', b.cx); dotA.setAttribute('cy', b.cy); }
+        // 2026-07-18ユーザーレビュー第4弾①：起点＝対象矩形の「コールアウトに最も近い辺」の中点
+        // （worldview.md §6.1）。コールアウトが対象の上にあれば対象の上辺、下にあれば下辺の中点を使うことで、
+        // 線が対象矩形の内部を通らずに済む（旧実装は矩形の中心cyを起点にしており、対象の上に線が被っていた）
+        const srcY = above ? b.y : (b.y + b.h);
+        const midY = Math.round((srcY + calloutY) / 2);
+        path.setAttribute('d', `M ${b.cx} ${srcY} L ${b.cx} ${midY} L ${calloutX} ${midY} L ${calloutX} ${calloutY}`);
+        if (dotA) { dotA.setAttribute('cx', b.cx); dotA.setAttribute('cy', srcY); }
         if (dotB) { dotB.setAttribute('cx', calloutX); dotB.setAttribute('cy', calloutY); }
       });
     }
@@ -6686,7 +6802,7 @@
     }
     function coopTutMkCard(card, glow, disabled) {
       const click = disabled ? '' : `coopTutCardTap('${card.uid}')`;
-      return `<div class="card ${card.type} ${disabled ? 'card-disabled' : 'card-usable'}${glow ? ' tut-glow' : ''}" onclick="${click}" style="cursor:${disabled ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}</div>`;
+      return `<div class="card ${card.type} ${disabled ? 'card-disabled' : 'card-usable'}${glow ? ' tut-glow' : ''}" onclick="${click}" style="cursor:${disabled ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}</div>`;
     }
     function coopTutStatusBar() {
       const ts = coopTutorialState;
@@ -7246,18 +7362,18 @@
             return _zc.color === 'green' ? 'var(--green)' : 'var(--yellow)';
           })();
           const _posLabel = _zi >= 0 ? `<div style="text-align:center;font-size:.74rem;color:var(--t2);font-family:'Roboto Condensed',sans-serif;letter-spacing:.04em">${_zi + 1} / ${_order.length}</div>` : '';
-          const _imgRow = `<div style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%">${_navArrows ? `<button class="gallery-nav-arrow" style="color:${_navColor}" onclick="galleryZoomNav(-1)" aria-label="前のカード">${_chevL}</button>` : ''}<img src="${src}" alt="${z.name}" style="max-height:260px;max-width:min(200px,70vw);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.6)" onerror="this.style.opacity='.3'">${_navArrows ? `<button class="gallery-nav-arrow" style="color:${_navColor}" onclick="galleryZoomNav(1)" aria-label="次のカード">${_chevR}</button>` : ''}</div>`;
+          const _imgRow = `<div style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%">${_navArrows ? `<button class="gallery-nav-arrow" style="color:${_navColor}" onclick="galleryZoomNav(-1)" aria-label="前のカード">${_chevL}</button>` : ''}<img class="gallery-zoom-img" src="${src}" alt="${z.name}" draggable="false" style="max-height:260px;max-width:min(200px,70vw);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.6);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none" onerror="this.style.opacity='.3'">${_navArrows ? `<button class="gallery-nav-arrow" style="color:${_navColor}" onclick="galleryZoomNav(1)" aria-label="次のカード">${_chevR}</button>` : ''}</div>`;
           contentHtml = `<button class="lobby-btn-back" style="width:auto;padding:8px 16px;margin:0;align-self:flex-start" onclick="lobbyState.galleryZoom=null;render()">← 一覧に戻る</button><div style="display:flex;flex-direction:column;align-items:center;gap:10px">${_imgRow}${_posLabel}<div style="width:100%;display:flex;flex-direction:column;gap:8px">${infoHtml}</div></div>`;
         } else if (lobbyState.galleryTab) {
           let gridHtml = '';
           if (lobbyState.galleryTab === 'city') {
-            gridHtml = CITIES.map(c => `<div class="gallery-card" onclick="openGalleryZoom('city','${c.id}','${c.name}')"><img src="images/cities/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
+            gridHtml = CITIES.map(c => `<div class="gallery-card" onclick="openGalleryZoom('city','${c.id}','${c.name}')"><img src="images/cities/${c.id}.webp" alt="${c.name}" loading="lazy" draggable="false"></div>`).join('');
           } else if (lobbyState.galleryTab === 'policy') {
-            const yellows = POLICY_CARDS.filter(c => c.color === 'yellow').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
-            const greens  = POLICY_CARDS.filter(c => c.color === 'green').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`).join('');
+            const yellows = POLICY_CARDS.filter(c => c.color === 'yellow').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy" draggable="false"></div>`).join('');
+            const greens  = POLICY_CARDS.filter(c => c.color === 'green').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy" draggable="false"></div>`).join('');
             contentHtml = `<div class="gallery-grid">${yellows}${greens}</div>`;
           } else if (lobbyState.galleryTab === 'disaster') {
-            const mkG = c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy"></div>`;
+            const mkG = c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy" draggable="false"></div>`;
             const nat = DISASTER_CARDS.map(mkG).join('');
             const jin = JINZAI_DISASTER_CARDS.map(mkG).join('');
             contentHtml = `<div class="gallery-section-label"><img class="gallery-section-icon" src="images/icons/icon_disaster.webp" alt="">自然災害</div><div class="gallery-grid">${nat}</div><div class="gallery-section-divider"></div><div class="gallery-section-label gallery-section-label-jinzai"><img class="gallery-section-icon" src="images/icons/icon_jinzai.webp" alt="">人為災害</div><div class="gallery-grid">${jin}</div>`;
@@ -7746,7 +7862,7 @@
         const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
         const _isNew = card.uid === _lastDrawnCardUid;
         const _isPlaying = card.uid === _playingCardUid;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -7760,7 +7876,7 @@
 
     // ─── 手札描画（読み取り専用：自分のターン外） ───
     function renderPlayerHandReadOnly(p) {
-      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`; }
+      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`; }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
       const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => a.cost - b.cost);
@@ -7775,7 +7891,7 @@
     function renderPlayerHandSpectator(p) {
       function mkCard(card) {
         const isNew = card.uid === _lastDrawnCardUid;
-        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`;
+        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis  = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -7804,7 +7920,7 @@
         // ④ カードごとのHP予測をバッジに表示
         const hpBand = (!dis && atkCard) ? `<div class="card-hp-band" style="white-space:nowrap">予測HP<strong>${Math.max(0, curHp - computeResponseEst(atkCard, mi, card))}</strong></div>` : '';
         const bLabel = dis ? `${card.type === 'jinzai' ? '人為' : '自然'}（使用不可）` : '対応';
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -8039,7 +8155,7 @@
     // ─── 捨て札選択 ───
     function renderDiscard() {
       const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi]; const excess = p.hand.length - 5;
-      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`).join('');
+      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`).join('');
       return `<div class="screen active"><div class="section-title">${uiIcoUpload(15)} ${p.name} — 捨てるカードを選んでください</div>
     <div class="discard-info"><strong style="color:var(--red)">${excess}枚</strong>を捨ててください</div>
     <div style="font-size:.8rem;color:var(--t2);text-align:center">現在の手札：<strong style="color:var(--yellow)">${p.hand.length}枚</strong>　→　目標：5枚</div>
@@ -9580,6 +9696,7 @@
           btn.classList.toggle('active', btn.getAttribute('data-tabkey') === String(_coHandTab));
         });
       }
+      _coUpdateHandTabIndicator(false); // タブ切替＝実際のスライドアニメーション（200ms）を見せる
       const viewEl = document.getElementById('co-hand-viewnote');
       if (viewEl) viewEl.innerHTML = p.viewNote;
       const cardsEl = document.getElementById('co-hand-cards');
@@ -9594,6 +9711,29 @@
       if (_coAreaCache) { _coAreaCache.viewnote = p.viewNote; _coAreaCache.cards = p.cards; }
     }
     function coopSelectHandTab(v) { _coHandTab = v; _coApplyHandTabLocalUpdate(); }
+    // 2026-07-18ユーザーレビュー第4弾：手札タブのアクセントラインインジケータ（JUNOPARK型翻訳・worldview.md §5.1）。
+    // タブDOMノード自体は_coApplyHandTabLocalUpdate／差分render経路のいずれでも再生成されない（後者は
+    // p.tabs文字列が変化した場合のみ#co-hand-tabsごとouterHTMLで置き換わるが、その場合もこの関数を呼び直せば
+    // 新しいインジケータノードを即座に再配置できる）。instant=true は初期描画・構造変更直後のスナップ用
+    // （スライドさせない）、false（既定）はタブ切替時の実スライド用
+    function _coUpdateHandTabIndicator(instant) {
+      const tabsHost = document.getElementById('co-hand-tabs');
+      const ind = document.getElementById('co-hand-tab-indicator');
+      if (!tabsHost || !ind) return;
+      const activeBtn = tabsHost.querySelector('.coop-hand-tab.active');
+      if (!activeBtn) { ind.style.width = '0'; return; }
+      const left = activeBtn.offsetLeft, width = activeBtn.offsetWidth;
+      if (instant) {
+        ind.style.transition = 'none';
+        ind.style.left = left + 'px';
+        ind.style.width = width + 'px';
+        void ind.offsetWidth; // reflowでno-transition状態を確定させてから通常のtransitionへ戻す
+        ind.style.transition = '';
+      } else {
+        ind.style.left = left + 'px';
+        ind.style.width = width + 'px';
+      }
+    }
     // 対応フェーズ：どの対応カードを「プレビュー中」か（Firebase同期には載せないローカル表示state。1タップ目でプレビュー、
     // 同じカードを2タップ目で実際の対応選択＝coopSelectResponseへ進む。対応フェーズを離れたら renderCoop 冒頭で自動クリア）
     let _coRespPreviewUid = null;
@@ -11021,6 +11161,10 @@
       if (CO.phase === 'lobby' && CO.host) setTimeout(coopGenLobbyQR, 30);
       // A-2: 都市パネルのHPバー被弾演出（盤面表示時のみ・直近HP記録の更新も兼ねる）
       if (_boardShown) setTimeout(coopApplyCityHpFx, 20);
+      // 2026-07-18ユーザーレビュー第4弾：手札タブのインジケータ初期配置（フル組み立て・差分適用のどちらでも
+      // タブDOMが変化し得るため毎回スナップし直す。ユーザー操作によるタブ切替のスライドは
+      // _coApplyHandTabLocalUpdate側で別途animateさせるため、ここは常にinstant=trueで瞬時配置に留める）
+      if (_boardShown) setTimeout(() => _coUpdateHandTabIndicator(true), 20);
       // A-1/F-2: サマリー画面の被弾フィードバック（shake/赤フラッシュ・1ターン1回）とHPバートランジション
       if (CO.phase === 'summary') setTimeout(() => { coopSummaryFx(); coopApplySummaryFx(); }, 20);
       if (CO.online && CO.host && !CO._applying) coopPushState(); // ホストは状態変化のたびに配信（dedupで重複writeは抑止／_applying中はインテント処理側で一括push）
@@ -11223,7 +11367,7 @@
       const reason = readOnly ? '' : (noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : ''));
       const _roExtra = readOnly ? ';pointer-events:none' : '';
       const previewing = mode === 'resp' && _coRespPreviewUid === card.uid;
-      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${readOnly ? 'default' : (dis ? 'not-allowed' : 'pointer')}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
+      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${readOnly ? 'default' : (dis ? 'not-allowed' : 'pointer')}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
@@ -11334,6 +11478,23 @@
       const evBtn = canAdv ? `<button class="btn-ok" onclick="coopDismissEventPopup()">確認</button>` : `<button class="btn-ok" disabled style="opacity:.5;cursor:default">${_wc('都市側の', '確認を', '待っています…')}</button>`;
       const ovClick = canAdv ? 'coopDismissEventPopup()' : '';
       return `<div class="confirm-overlay" onclick="${ovClick}"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:480px;border:1px solid rgba(168,85,247,.5)"><div style="text-align:center;font-weight:800;color:#c084fc;font-size:1.05rem">${coopIcoWarnTriangle(18,'#c084fc')} 社会的脆弱性イベント発生</div><div style="text-align:center;color:var(--t0);font-size:.8rem;margin:4px 0 12px">ターン ${CO.turn}：人為災害が${natureMode ? '都市を襲う' : '発生した'}</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div class="confirm-btns" style="margin-top:14px">${evBtn}</div></div></div>`;
+    }
+    // 2026-07-18ユーザーレビュー第4弾：社会的脆弱性の常設バナー。coopRenderEventPopup（ターン開始ポップ）を
+    // 閉じた後も「今何が起きているか」を画面上部に残す。CO.diff.events（_COOP_EVENTS_ALL等のスケジュール）から
+    // CO.turnに一致するイベントを毎回導出するだけの完全な派生表示のため、新規の同期フィールドをCO本体に追加
+    // する必要がない（ターンが進めばCO.turnとの一致が外れ自動的に消える。ソロ・MP協力どちらも同じCO.turn/
+    // CO.diff.eventsを参照するため両対応）。既存のresponseBlocked/blockReasonとは独立（あちらは対応フェーズ
+    // 中のみの一時的な状態表示、こちらはターン中ずっと出す固定バナー）
+    function coopEventBannerHtml() {
+      if (!CO || !CO.diff || !CO.diff.events) return '';
+      const active = CO.diff.events.filter(ev => ev.t === CO.turn).map(ev => COOP_EVENT_INFO[ev.id]).filter(Boolean);
+      if (!active.length) return '';
+      const natureMode = CO.humanSide === 'nature';
+      const rows = active.map(info => {
+        const effect = natureMode ? info.effectNature : info.effectCity;
+        return `<div class="coop-event-row">${cardIconSvg(info.icon, 15)}<span class="coop-event-name">${info.name}</span><span class="coop-event-effect">：${effect}</span></div>`;
+      }).join('');
+      return `<div class="coop-event-banner">${rows}</div>`;
     }
     // 防災協定（情報共有）の結果ポップ。対戦モードの renderPeek（peek-card-big）の見た目に合わせる
     function coopCloseIntel() { if (CO.mp && !CO._applying) { if (!CO.host) coopSendIntent('dismissIntel', {}); CO.intelPopup = false; renderCoop(); return; } if (CO.online && !CO.host) { coopSendIntent('dismissIntel', {}); CO.intelPopup = false; renderCoop(); return; } CO.intelPopup = false; renderCoop(); }
@@ -11766,7 +11927,7 @@
       const click = !dis ? `coopSelectAttackType('${c.id}')` : '';
       const cntCol = usedType ? 'var(--yellow,#d29922)' : (n > 0 ? '#fff' : 'var(--t3,#8b949e)');
       const cntLabel = usedType ? '今ターン使用済' : `残り ${n}`;
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="card ${c.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="disaster" data-atk-id="${c.id}" onclick="${click}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(c.icon,16)}</span><span class="card-cost">${c.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(c.name, '自然')}</div><div class="card-name card-text-fallback">${c.name}</div><div class="card-desc card-text-fallback">${c.desc}</div>${cardTypeBadgeFallback('自然')}</div><div style="font-size:.74rem;font-weight:800;color:${cntCol}">${cntLabel}</div></div>`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="card ${c.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="disaster" data-atk-id="${c.id}" onclick="${click}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(c.icon,16)}</span><span class="card-cost">${c.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${c.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(c.name, '自然')}</div><div class="card-name card-text-fallback">${c.name}</div><div class="card-desc card-text-fallback">${c.desc}</div>${cardTypeBadgeFallback('自然')}</div><div style="font-size:.74rem;font-weight:800;color:${cntCol}">${cntLabel}</div></div>`;
     }
     function coopRenderNaturePool() {
       const total = Object.values(CO.naturePool).reduce((a, b) => a + b, 0);
@@ -11931,7 +12092,7 @@
       else full = `<div style="text-align:center;padding:18px;color:var(--t0)">${CO.responseBlocked && CO.blockReason ? CO.blockReason : '解決中…'}</div>`;
       if (mode === 'hand') {
         const p = coopHandParts(readOnly);
-        const tabsDiv = p.tabs ? `<div class="coop-hand-tabs" id="co-hand-tabs">${p.tabs}</div>` : '';
+        const tabsDiv = p.tabs ? `<div class="coop-hand-tabs" id="co-hand-tabs">${p.tabs}<div class="coop-hand-tab-indicator" id="co-hand-tab-indicator"></div></div>` : '';
         parts = { tabs: tabsDiv, head: p.head, viewnote: p.viewNote, cards: p.cards, ally: p.ally, btn: p.btn };
         full = `<div id="co-hand-root" data-readonly="${readOnly ? 1 : 0}">${tabsDiv}<div id="co-hand-head">${p.head}</div><div id="co-hand-viewnote">${p.viewNote}</div><div class="hand-group-cards coop-hand-cards" id="co-hand-cards" style="${_coHandCardsWrapStyle(!!p.tabs)}">${p.cards}</div><div id="co-hand-ally">${p.ally}</div><div id="co-hand-btn">${p.btn}</div></div>`;
       }
@@ -11992,7 +12153,7 @@
       const reconnHintBtn = (CO.mp && CO.online && CO.roomId)
         ? `<button class="hint-btn" onclick="coopToggleReconn()" title="再接続QR">？</button>`
         : '';
-      return { dc, status: coopStatusBar(), cities: cityPanels, intel, areaResult, myTurnActive, info: infoPanel, overlay, reconn: reconnOverlay, hint: reconnHintBtn };
+      return { dc, status: coopStatusBar(), evbanner: coopEventBannerHtml(), cities: cityPanels, intel, areaResult, myTurnActive, info: infoPanel, overlay, reconn: reconnOverlay, hint: reconnHintBtn };
     }
     // 空になり得るコンテナは中身が空文字のときstyle="display:none"を付けて、.screen.active（display:flex;gap:12px）の
     // gapが空コンテナの分だけ余分な空白（デッドスペース）を生まないようにする（design_system.md §10.1）
@@ -12003,6 +12164,7 @@
       const body = `<div class="screen active" id="co-board-root" style="padding:12px;max-width:560px;margin:0 auto">`
         + `<div id="co-sec-dc"${_coSecAttr(s.dc)}>${s.dc}</div>`
         + `<div id="co-sec-status">${s.status}</div>`
+        + `<div id="co-sec-evbanner"${_coSecAttr(s.evbanner)}>${s.evbanner}</div>`
         + `<div id="co-sec-cities">${s.cities}</div>`
         + `<div id="co-sec-intel"${_coSecAttr(s.intel)}>${s.intel}</div>`
         + `<div id="co-sec-area"${areaAttrs} data-co-area-mode="${s.areaResult.mode}" data-co-area-readonly="${s.areaResult.readOnly ? 1 : 0}">${s.areaResult.full}</div>`
@@ -12013,7 +12175,7 @@
         + `<div id="co-sec-reconn"${_coSecAttr(s.reconn)}>${s.reconn}</div>`
         + `<div id="co-sec-hint"${_coSecAttr(s.hint)}>${s.hint}</div>`;
       // フル文字列を組み立てた直後は実DOMが必ずこの内容と一致するため、差分キャッシュもここで丸ごと最新化する
-      _coContainerCache = { dc: s.dc, status: s.status, cities: s.cities, intel: s.intel, info: s.info, overlay: s.overlay, reconn: s.reconn, hint: s.hint };
+      _coContainerCache = { dc: s.dc, status: s.status, evbanner: s.evbanner, cities: s.cities, intel: s.intel, info: s.info, overlay: s.overlay, reconn: s.reconn, hint: s.hint };
       _coAreaCache = s.areaResult.mode === 'hand' ? { ...s.areaResult.parts } : { full: s.areaResult.full };
       return body;
     }
@@ -12078,7 +12240,7 @@
       const root = document.getElementById('co-board-root');
       if (!root) return false;
       const s = _coBuildBoardSections();
-      _coDiffApplySections('co-sec-', _coContainerCache, { dc: s.dc, status: s.status, cities: s.cities, intel: s.intel, info: s.info, overlay: s.overlay, reconn: s.reconn, hint: s.hint });
+      _coDiffApplySections('co-sec-', _coContainerCache, { dc: s.dc, status: s.status, evbanner: s.evbanner, cities: s.cities, intel: s.intel, info: s.info, overlay: s.overlay, reconn: s.reconn, hint: s.hint });
       _coPatchAreaSection(s.areaResult, s.myTurnActive);
       return true;
     }
@@ -13220,7 +13382,7 @@
     // バッジは.card（overflow:hidden）の外に置く必要があるため.dd-card-order-wrapで包み、画像の上ではなく
     // カードの外側（上）に配置する（design_system.md §10 実機フィードバック②）。タップで効果ポップも追加。
     function ddMkDisasterCard(card, order) {
-      const inner = `<div class="card disaster card-spectator" data-ctype="disaster" onclick="_lpTapPreview(this)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}</div>`;
+      const inner = `<div class="card disaster card-spectator" data-ctype="disaster" onclick="_lpTapPreview(this)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}</div>`;
       if (!order) return inner;
       return `<div class="dd-card-order-wrap"><div class="dd-order-chip">${order}</div>${inner}</div>`;
     }
@@ -13235,15 +13397,15 @@
       let click = '', cursor = 'default';
       if (!clickable && opts.previewOnTap) { click = ` onclick="_lpTapPreview(this)"`; cursor = 'pointer'; }
       const reason = dis ? '<div class="card-disabled-reason">予算不足</div>' : '';
-      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
+      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
     }
-    // 対応表の災害列（左側）：来襲順バッジ（画像の外・上）→画像（object-fit:containで全体表示・欠けなし）→名前（下）。
-    // 画像タップで効果ポップ（_lpTapPreview、実機フィードバック③）。
-    function _ddDisasterCol(d, order) {
+    // 対応表の災害列（左側）：画像（object-fit:containで全体表示・欠けなし）→名前（下）。
+    // 画像タップで効果ポップ（_lpTapPreview、実機フィードバック③）。来襲順バッジは2026-07-18再改修で
+    // この列の外（行の左端・.dd-order-badge）へ切り出したため、ここでは受け取らない。
+    function _ddDisasterCol(d) {
       return `<div class="dd-disaster-col">
-        <div class="dd-order-chip">${order}</div>
         <div class="dd-mini-imgbox" onclick="_lpTapPreview(this.parentElement)">
-          <img class="card-img" src="images/cards/${d.id}.webp" alt="" onerror="this.style.display='none'">
+          <img class="card-img" draggable="false" src="images/cards/${d.id}.webp" alt="" onerror="this.style.display='none'">
         </div>
         <div class="dd-mini-name card-name">${_escHtml(d.name)}</div>
         <div class="card-desc" style="display:none">${_escHtml(d.desc)}</div>
@@ -13256,9 +13418,9 @@
         onpointerdown="ddDragPointerDown(event,'${card.uid}',${slot})" onpointermove="ddDragPointerMove(event)"
         onpointerup="ddDragPointerUp(event)" onpointercancel="ddDragPointerUp(event)">
         <span class="dd-mini-cost">${card.cost}</span>
-        <button type="button" class="dd-mini-remove" aria-label="外す" onclick="event.stopPropagation();dailyUnassignCard('${card.uid}')">${_pzIcoRemoveCircle(13,'#f85149')}</button>
+        <button type="button" class="dd-mini-remove" aria-label="外す" onclick="event.stopPropagation();dailyUnassignCard('${card.uid}')">${_pzIcoRemoveCircle(15,'#f85149')}</button>
         <div class="dd-mini-imgbox" onclick="_lpTapPreview(this.parentElement)">
-          <img class="card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+          <img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
         </div>
         <div class="dd-mini-name card-name">${_escHtml(card.name)}</div>
         <div class="card-desc" style="display:none">${_escHtml(card.desc)}</div>
@@ -13280,6 +13442,10 @@
     //   （カード工房・問題工房で踏襲してきたレイアウト安定の教訓のとおり）。
     // 2026-07-18再改修：手札トレイを廃止（＋ピッカー方式へ）したため、ドロップ先は.dd-slot-cell（スロット間の
     // 移動・スワップ）のみに一本化した。手札へ戻す操作は専用の「－」ボタン（dailyUnassignCard）に集約している。
+    // 2026-07-18再々改修（実機フィードバック④）：.dd-slot-cellのflex:1を廃止しコンパクト幅化した（改修A）ため、
+    // ヒットテストの対象を視覚的に狭くなった.dd-slot-cellではなく行全体（.dd-prep-row、data-slotを保持）に
+    // 拡大した。「行のどこに落としてもその行のスロットへ入る」という広い受け皿にし、ハイライト表示だけは
+    // 従来どおり.dd-slot-cell（点線ボックス）に出す。
     // ══════════════════════════════════════════════════════════════════
     let _ddDrag = null;
     const DD_DRAG_HOLD_MS = 450;
@@ -13301,7 +13467,9 @@
       st.active = true;
       const rect = st.chip.getBoundingClientRect();
       st.origLeft = rect.left; st.origTop = rect.top; st.w = rect.width;
-      st.slotEls = Array.from(document.querySelectorAll('.dd-slot-cell'));
+      // ④ドロップ判定は行全体（.dd-prep-row）を対象にする。ハイライトは行内の.dd-slot-cellに出すため
+      // 対応する点線ボックスの参照もあわせて持っておく
+      st.rowEls = Array.from(document.querySelectorAll('.dd-prep-row'));
       st.chip.style.touchAction = 'none';
       st.chip.style.transition = 'none';
       st.chip.style.position = 'fixed';
@@ -13313,12 +13481,19 @@
       st.chip.style.transform = 'scale(1.06)';
       st.chip.style.pointerEvents = 'none';
     }
+    // ④ヒットテストは行（.dd-prep-row）の矩形で行う。.dd-slot-cellがコンパクト幅化された後も
+    // 「災害カード・▶・番号バッジを含む行のどこに指を置いても対応する行へドロップできる」ようにするため。
+    // rowも一緒に返し、Notionのブロック移動に近い体験にするため行全体をハイライトする（下記_ddDragClearHint参照）。
     function _ddDragFindTarget(x, y, st) {
-      for (const el of st.slotEls) {
+      for (const el of st.rowEls) {
         const r = el.getBoundingClientRect();
-        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return { type: 'slot', slot: +el.dataset.slot, el };
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return { type: 'slot', slot: +el.dataset.slot, row: el, el: el.querySelector('.dd-slot-cell') };
       }
       return null;
+    }
+    function _ddDragClearHint() {
+      document.querySelectorAll('.dd-prep-row.dd-prep-row-hint').forEach(el => el.classList.remove('dd-prep-row-hint'));
+      document.querySelectorAll('.dd-slot-cell.dd-slot-hint').forEach(el => el.classList.remove('dd-slot-hint'));
     }
     function ddDragPointerMove(e) {
       const st = _ddDrag; if (!st || e.pointerId !== st.pointerId) return;
@@ -13331,8 +13506,8 @@
       st.chip.style.left = (st.origLeft + dx) + 'px';
       st.chip.style.top = (st.origTop + dy) + 'px';
       const target = _ddDragFindTarget(e.clientX, e.clientY, st);
-      st.slotEls.forEach(el => el.classList.remove('dd-slot-hint'));
-      if (target) target.el.classList.add('dd-slot-hint');
+      _ddDragClearHint();
+      if (target) { if (target.row) target.row.classList.add('dd-prep-row-hint'); if (target.el) target.el.classList.add('dd-slot-hint'); }
       st.dropTarget = target;
     }
     function ddDragPointerUp(e) {
@@ -13340,7 +13515,7 @@
       _ddDrag = null;
       clearTimeout(st.timer);
       if (!st.active || !DD) return; // 長押し未成立＝通常のタップ。render()を呼ばずカード側の各onclickに任せる
-      st.slotEls.forEach(el => el.classList.remove('dd-slot-hint'));
+      _ddDragClearHint();
       const target = st.dropTarget;
       if (target && target.slot !== st.fromSlot) {
         const occupants = _ddSlotCardUids(target.slot).filter(u => u !== st.uid);
@@ -13404,7 +13579,7 @@
         <button onclick="dailyQuit()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.5);font-size:.78rem;cursor:pointer">ロビーに戻る（中断）</button>
       </div>`;
     }
-    // 備えフェーズ：対応表レイアウト（左＝来襲順の災害・▶＝対応関係・右＝割当済み政策スロット/「＋」ピッカー）。
+    // 備えフェーズ：対応表レイアウト（左＝番号・災害・▶＝対応関係・右＝割当済み政策スロット/「＋」ピッカー）。
     // 2026-07-18再改修（2304eadへの実機フィードバック11点）：
     //  ①横はみ出し修正：.screenにwidth:100%を明示（原因はflexクロス軸ストレッチが入れ子のnowrap行の
     //    自動最小サイズに引きずられる挙動。Puppeteerで実測・検証済み）。
@@ -13416,6 +13591,12 @@
     //  ⑨カード名称はカードの下（.dd-mini-name）。
     //  ⑩予算はバトル画面と同じ緑コインpip（budgetPipsHtml）に統一。
     //  ⑪シミュレーション実行は確認ポップを挟む（dailyRequestRunSimulation）。
+    // 2026-07-18再々改修（実機フィードバック5点）：
+    //  A. 政策側（.dd-slot-cell）のflex:1を廃止しコンパクト幅化、浮いた横幅を災害・政策カードの実寸拡大に還元。
+    //  B. 来襲順バッジ（.dd-order-badge）を.dd-disaster-colの外・行の左端へ独立させ、画像に重ねない。
+    //  C. カード画像の保存防止（draggable=false・-webkit-touch-callout:none等、.card-img/.dd-mini-imgbox img共通）。
+    //  D. 長押しドラッグの受け入れ判定を.dd-slot-cellの視覚幅ではなく.dd-prep-row全体に拡大（_ddDragFindTarget）。
+    //  E. 「－」ボタンを::beforeで44px四方のヒットエリア化（design_system.md §5.2）。
     // design_system.md §10.3「説明テキストより構造で語る」に基づき、恒常的な操作指示文は置かず
     // スロット・「＋」タイルという構造そのもので「どれに何を割り当てるか」を伝える。
     function dailyRenderPrep() {
@@ -13434,8 +13615,11 @@
         // （複数枚割当は理論値の再現に必要な場合があるため、既存の唯一解チェック・理論値計算との整合を崩さない）。
         const hasRemainingHand = DD.hand.some((c, hi) => DD.cardAssign[hi] === -1);
         const addTile = hasRemainingHand ? `<button type="button" class="dd-add-tile" onclick="dailyOpenPicker(${i})" aria-label="対応する政策カードを追加">${_ddIcoAddCircle(assignedCards.length ? 16 : 20)}</button>` : '';
-        return `<div class="dd-prep-row">
-          ${_ddDisasterCol(d, i + 1)}
+        // 実機フィードバック④：ドロップ判定は.dd-slot-cellの視覚幅ではなく行全体（.dd-prep-row、data-slotを保持）を
+        // 対象にする（_ddDragFindTarget参照）。番号バッジは行の左端へ独立させた（実機フィードバック②）。
+        return `<div class="dd-prep-row" data-slot="${i}">
+          <div class="dd-order-badge">${i + 1}</div>
+          ${_ddDisasterCol(d)}
           ${_ddIcoArrowRight(16)}
           <div class="dd-slot-cell" data-slot="${i}">${chipsHtml}${addTile}</div>
         </div>`;
@@ -13594,7 +13778,7 @@
       const click = affordable ? ` onclick="dailyAssignCard('${_escHtml(card.uid)}',${slot})"` : '';
       const reason = affordable ? '' : `<span class="dd-picker-row-cost" style="color:var(--red)">予算不足</span>`;
       return `<div class="${cls}"${click}>
-        <img src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+        <img src="images/cards/${card.id}.webp" alt="" draggable="false" onerror="this.style.display='none'">
         <div style="flex:1;min-width:0">
           <div class="dd-picker-row-name">${_escHtml(card.name)}</div>
           <div class="dd-picker-row-desc">${_escHtml(card.desc)}</div>
