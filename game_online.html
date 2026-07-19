@@ -4255,7 +4255,7 @@
 
     // ── リモート受信のみをデバウンスする描画スケジューラ（5.1.1・5.1.3：画面フリーズ・チカチカ対策） ──
     // 自分の操作起点のrender()/renderCoop()呼び出しはこれを経由しない（即時のまま・操作感を維持）。
-    // listenToState()/coopListenState()/coopMPListenState() ＝ 他プレイヤーのFirebase state受信のみを
+    // listenToState()/coopMPListenState() ＝ 他プレイヤーのFirebase state受信のみを
     // ここに通し、短いウィンドウ内の連続受信を1回の描画にまとめて画面のチカチカ・フリーズを防ぐ。
     // WINDOW_MS：この間隔内に届いた連続受信をまとめる。MAX_WAIT_MS：受信が続いても最長この時間内には
     // 必ず描画する下限保証（無限に遅延しない）。演出（ダメージフロート・screen-shake等）はdocument.body直付けで
@@ -4394,7 +4394,7 @@
       _wakeLock = null;
     }
     // バトル中かどうかの判定：対戦(G)は lobby/gameover/waiting_connection/tutorial 以外の画面、
-    // 協力(CO)は lobby/waitOnline/over 以外のフェーズ。カード工房(CW)・問題工房(PZ)はバトルではない。
+    // 協力(CO)は lobby/over 以外のフェーズ。カード工房(CW)・問題工房(PZ)はバトルではない。
     // デイリー(DD)は「バトル」ではないが、1.2.6対応で手札長押しプレビュー（下記UI_LONGPRESS_PREVIEW）の
     // 対象に含める：DDのカードは.card-desc（効果テキスト）が通常表示されないカード画像形式（対戦/協力と共通の
     // .hand-cards-areaを再利用）のため、長押しプレビューが唯一の効果テキスト確認手段になる。ウェイクロック
@@ -4402,7 +4402,7 @@
     function _isBattleActive() {
       if (CW || PZ) return false;
       if (DD) return true;
-      if (CO && CO.phase && CO.phase !== 'lobby' && CO.phase !== 'waitOnline' && CO.phase !== 'over') return true;
+      if (CO && CO.phase && CO.phase !== 'lobby' && CO.phase !== 'over') return true;
       if (G && G.screen && G.screen !== 'lobby' && G.screen !== 'gameover' && G.screen !== 'waiting_connection' && G.screen !== 'tutorial') return true;
       return false;
     }
@@ -9929,7 +9929,7 @@
         natureDeck: coopBuildNatureDeck(), natureDiscard: [],
         hand: [], naturePool: Object.fromEntries(DISASTER_CARDS.map(c => [c.id, 3])), attacksLeft: 0,
         log: [], incoming: [], confirm: null, responseBlocked: false, blockReason: '', cpuReview: null,
-        result: null, intel: null, intelPopup: false, drawState: null, eventPopup: null,
+        result: null, drawState: null, eventPopup: null,
         gameLog: [], cpuPlayedLog: [],
         // ── オンライン協力（既定はオフライン＝ソロ。挙動は従来どおり） ──
         online: false, host: false, mySide: sideKey, roomId: null, outcome: null,
@@ -9967,81 +9967,9 @@
     // 現在のフェーズが自分（mySide）の操作フェーズか（オフラインは常にtrue）
     function coopMyPhase() {
       if (!CO.online) return true;
-      if (CO.mp) return coopMyPhaseMP();
-      switch (CO.phase) {
-        case 'city': case 'draw': return CO.mySide === 'city';
-        case 'natureHuman': return CO.mySide === 'nature';
-        case 'coopResponse': return CO.mySide === 'city';
-        case 'summary': return CO.mySide === 'city'; // 次ターンは都市から → 都市側が進行
-        case 'setup': return CO.host;
-        default: return false; // resolving 等は自動進行（操作なし）
-      }
+      return coopMyPhaseMP(); // CO.online は常に CO.mp を伴う（旧2人専用オンラインは廃止済み）
     }
-    // ゲストの操作を intent として送り、ローカルUIを閉じる
-    function coopClientCommit(type, payload) { coopSendIntent(type, payload || {}); CO.confirm = null; renderCoop(); }
 
-    // ── ルーム作成（ホスト）。host が自分のサイドを選び、相手は反対サイド ──
-    async function coopCreateRoom(diffKey, hostSide) {
-      const name = (lobbyState.nameInput || '').trim();
-      if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
-      if (!db) { lobbyState.error = 'オンライン機能が利用できません'; render(); return; }
-      const code = generateRoomCode();
-      startCoopGame(diffKey, hostSide);              // ホストが正本COを生成
-      CO.online = true; CO.host = true; CO.mySide = hostSide; CO.roomId = code; CO.name = name;
-      CO.oppName = ''; CO.oppPresent = false; CO.phase = 'waitOnline';
-      renderCoop();                                  // セットアップ画面を経由せず待機画面へ
-      try {
-        await db.ref(`coopRooms/${code}`).set({
-          hostName: name, hostSide, diff: diffKey,
-          guestName: '', guestJoined: false, state: null,
-          createdAt: Date.now(), lastActiveAt: Date.now(),
-        });
-        _coGuestRef = db.ref(`coopRooms/${code}/guestJoined`);
-        _coGuestRef.on('value', snap => {
-          if (snap.val() === true) {
-            _coGuestRef.off(); _coGuestRef = null;
-            db.ref(`coopRooms/${code}/guestName`).get().then(s => {
-              if (!CO || !CO.online) return;
-              CO.oppName = s.val() || 'プレイヤー2'; CO.oppPresent = true;
-              coopOnlineStartHost();
-            });
-          }
-        });
-        renderCoop();
-      } catch (e) { lobbyState.error = 'ルーム作成に失敗: ' + e.message; CO = null; render(); }
-    }
-    // ホスト：両者そろったらゲーム開始
-    function coopOnlineStartHost() {
-      coopListenIntents(); coopSetupPresence();
-      coopBeginPlay();   // turn=1・都市ターン開始（host がエンジン実行 → renderCoop で自動 push）
-      coopPushState(true);
-      // ハートビート：1.5秒ごとに現在の正本状態を再配信。単発の更新欠落があってもゲストが収束する
-      if (_coHeartbeat) clearInterval(_coHeartbeat);
-      _coHeartbeat = setInterval(() => { if (CO && CO.online && CO.host) coopPushState(true); }, 1500);
-    }
-    // ── ルーム参加（ゲスト）。サイドはホストの反対 ──
-    async function coopJoinRoom(codeArg) {
-      const name = (lobbyState.nameInput || '').trim();
-      const code = (codeArg || lobbyState.coopJoinInput || '').trim().toUpperCase();
-      if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
-      if (code.length !== 6) { lobbyState.error = 'ルームコードは6文字です'; render(); return; }
-      if (!db) { lobbyState.error = 'オンライン機能が利用できません'; render(); return; }
-      try {
-        const snap = await db.ref(`coopRooms/${code}`).get();
-        const room = snap.val();
-        if (!room) { lobbyState.error = 'ルームが見つかりません'; render(); return; }
-        if (room.guestJoined) { lobbyState.error = 'このルームは満員です'; render(); return; }
-        const mySide = room.hostSide === 'city' ? 'nature' : 'city';
-        startCoopGame(room.diff, mySide);            // ゲストは描画用のCO（エンジンは持たない）
-        CO.online = true; CO.host = false; CO.mySide = mySide; CO.roomId = code; CO.name = name;
-        CO.oppName = room.hostName || 'ホスト'; CO.oppPresent = true; CO.phase = 'waitOnline';
-        renderCoop();                                // セットアップ画面を経由せず待機画面へ
-        await db.ref(`coopRooms/${code}/guestName`).set(name);
-        await db.ref(`coopRooms/${code}/guestJoined`).set(true);
-        coopListenState(); coopSetupPresence();
-        renderCoop();
-      } catch (e) { lobbyState.error = '参加に失敗: ' + e.message; CO = null; render(); }
-    }
     // ── 状態配信（ホスト専用）。confirm 等のローカルUIは共有しない ──
     // force=true でハートビート再配信（内容が同じでも seq を更新して必ずゲストに届ける）
     function coopPushState(force) {
@@ -10060,66 +9988,18 @@
         db.ref(`coopRooms/${CO.roomId}/lastActiveAt`).set(Date.now());
       } catch (e) { console.error('coopPushState例外:', e && e.message); }
     }
-    // ── 状態受信（ゲスト専用）。視点・勝敗を自分のサイドへ変換 ──
-    function coopListenState() {
-      _coStateRef = db.ref(`coopRooms/${CO.roomId}/state`);
-      _coStateRef.on('value', snap => {
-        const v = snap.val(); if (!v || !CO) return;
-        const data = (typeof v === 'object') ? v.d : v; // {q,d} 形式（旧: 文字列）両対応
-        if (!data || data === _coLastRecv) return;       // ハートビートで内容不変なら再描画しない
-        _coLastRecv = data;
-        const remote = JSON.parse(data);
-        const ui = { confirm: CO.confirm, online: true, host: false, mySide: CO.mySide, roomId: CO.roomId, name: CO.name, oppName: CO.oppName, oppPresent: CO.oppPresent };
-        CO = { ...remote, ...ui };
-        CO.humanSide = CO.mySide;                  // 視点を自分側へ
-        CO.result = coopResultFor(CO.mySide);      // 勝敗を自分視点へ
-        if (!coopMyPhase()) CO.confirm = null;     // 自分の手番でなければローカル確認を消す
-        _scheduleRemoteRenderCoop(); // 5.1.1・5.1.3：受信のたびの即時renderCoopをデバウンス
-      });
-    }
     // ── インテント受信（ホスト専用） ──
     function coopListenIntents() {
       _coIntentsRef = db.ref(`coopRooms/${CO.roomId}/intents`);
       _coIntentsRef.on('child_added', snap => {
         const it = snap.val(); snap.ref.remove();
-        if (it && CO && CO.host) (CO.mp ? coopApplyIntentMP(it) : coopApplyIntent(it));
+        if (it && CO && CO.host) coopApplyIntentMP(it);
       });
     }
     // ── インテント送信（ゲスト専用） ──
     function coopSendIntent(type, payload) {
       if (!db || !CO || !CO.roomId) return;
       db.ref(`coopRooms/${CO.roomId}/intents`).push({ type, payload: payload || {}, by: CO.mp ? CO.myId : CO.mySide, ts: Date.now() });
-    }
-    // ホスト：ゲストの intent をサイド・フェーズ検証のうえ既存ロジックで適用
-    function coopApplyIntent(it) {
-      const side = it.by, p = it.payload || {};
-      switch (it.type) {
-        case 'confirmPlay':    if (side === 'city' && CO.phase === 'city') { CO.confirm = { uid: p.uid }; coopConfirmPlay(p.i); } break;
-        case 'endTurn':        if (side === 'city' && CO.phase === 'city') coopEndCityTurn(); break;
-        case 'pullDraw':       if (side === 'city' && CO.phase === 'draw') coopPullDrawCard(); break;
-        case 'acceptDraw':     if (side === 'city' && CO.phase === 'draw') coopAcceptDrawCard(); break;
-        case 'respApply':      if (side === 'city' && CO.phase === 'coopResponse') { CO.confirm = { uid: p.uid, resp: true }; coopConfirmRespApply(p.ai); } break;
-        case 'skipResp':       if (side === 'city' && CO.phase === 'coopResponse') coopSkipResponse(); break;
-        case 'attack':         if (side === 'nature' && CO.phase === 'natureHuman') { CO.confirm = { attackId: p.id, attack: true }; coopConfirmAttack(p.cityIdx); } break;
-        case 'dismissEvent':   if (CO.eventPopup && side === 'city') coopDismissEventPopup(); break;
-        case 'dismissSummary': if (CO.phase === 'summary') coopDismissSummary(); break;
-        case 'dismissIntel':   CO.intelPopup = false; renderCoop(); break;
-      }
-      coopPushState();
-    }
-    // ── presence / 切断検知 ──
-    function coopSetupPresence() {
-      if (!db || !CO || !CO.roomId) return;
-      const me = CO.host ? 'host' : 'guest', opp = CO.host ? 'guest' : 'host';
-      _coPresMeRef = db.ref(`coopRooms/${CO.roomId}/presence/${me}`);
-      _coConnRef = db.ref('.info/connected');
-      _coConnRef.on('value', s => { if (!s.val()) { _showConnBanner(); return; } _hideConnBanner(); _coPresMeRef.set(true); _coPresMeRef.onDisconnect().set(false); });
-      _coPresOppRef = db.ref(`coopRooms/${CO.roomId}/presence/${opp}`);
-      _coPresOppRef.on('value', s => { if (!CO) return; CO.oppPresent = (s.val() !== false); renderCoop(); });
-      _coOnlineHandler = () => { if (db && CO && CO.roomId && _coPresMeRef) { _coPresMeRef.set(true); _coPresMeRef.onDisconnect().set(false); } };
-      window.addEventListener('online', _coOnlineHandler);
-      _coVisHandler = () => { if (document.visibilityState === 'visible') _coOnlineHandler(); };
-      document.addEventListener('visibilitychange', _coVisHandler);
     }
     function coopCleanupOnline() {
       [_coStateRef, _coIntentsRef, _coGuestRef, _coPresMeRef, _coPresOppRef, _coConnRef, _coRoomPlayersRef, _coRoomPresRef, _coStartedRef].forEach(r => { try { r && r.off(); } catch (e) {} });
@@ -10209,7 +10089,7 @@
         incoming: [], responseBlocked: false, blockReason: '',
         // CO スクラッチ（実体は各スロット。描画・既存エンジンが参照）
         budget: 0, budgetUsed: 0, nextBudgetBonus: 0, hand: [], policyDeck: [], policyDiscard: [],
-        log: [], confirm: null, result: null, intel: null, intelPopup: false, drawState: null, eventPopup: null,
+        log: [], confirm: null, result: null, drawState: null, eventPopup: null,
         outcome: null, summary: null, gameLog: [], cpuPlayedLog: [], cpuReview: null,
         myId: opts.myId || (naturePlayer ? naturePlayer.id : (cityPlayers[0] && cityPlayers[0].id)) || null,
         mySide: null, humanSide: null, roomId: null, name: '', oppPresent: true,
@@ -10248,7 +10128,7 @@
     function coopStartCityTurnMP(initial) {
       if (_coAutoEndTimer) { clearTimeout(_coAutoEndTimer); _coAutoEndTimer = null; } // 前ターンの自動終了タイマーを破棄
       _coHandTab = 'me'; // 2026-07-17：新しいターンの開始ごとに手札タブを自分に安全に戻す
-      CO.phase = 'city'; CO.confirm = null; CO.intel = null; CO.intelPopup = false; CO.eventPopup = null;
+      CO.phase = 'city'; CO.confirm = null; CO.eventPopup = null;
       CO.cities.forEach(cs => { cs.effects.disastersReceivedThisTurn = 0; cs.ready = false; cs.ack = false; cs.resp = undefined; });
       coopApplyBudgetMP();
       // 壊滅都市も後方支援として手札を回すため毎ターン1枚は引く（生存都市は通常通り4/2枚）。
@@ -10461,7 +10341,6 @@
             break;
           }
           case 'dismissEvent': { CO.eventPopup = null; break; }
-          case 'dismissIntel': { CO.intelPopup = false; break; }
         }
       } finally { CO._applying = false; }
       coopLoadMyActor();
@@ -10761,7 +10640,7 @@
     // 都市ターン開始（humanSide によって人間操作／CPU防衛に分岐）
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
-      CO.phase = 'city'; CO.confirm = null; CO.intel = null; CO.intelPopup = false; CO.eventPopup = null;
+      CO.phase = 'city'; CO.confirm = null; CO.eventPopup = null;
       CO.cities.forEach(cs => cs.effects.disastersReceivedThisTurn = 0);
       coopApplyBudget();
       // 緊急支援ドロー：共有手札が枯渇気味（COOP_EMERGENCY_HAND_MAX枚以下）なら通常ドローに+1（初回ドローは対象外・design/coop_balance.md §10）
@@ -10777,10 +10656,9 @@
     // イベントポップ確認後（またはイベントなし）に実際のターン進行を始める
     function coopAfterTurnStart() {
       CO.eventPopup = null; renderCoop();
-      if (CO.online) return; // オンラインは両サイド人間。CPUは動かさない
       if (CO.humanSide === 'nature') _coTimer = setTimeout(coopCpuCityTurn, 1000);
     }
-    function coopDismissEventPopup() { if (CO.mp && !CO._applying) return coopMPCommit('dismissEvent', {}); if (CO.online && !CO.host) return coopClientCommit('dismissEvent', {}); coopAfterTurnStart(); }
+    function coopDismissEventPopup() { if (CO.mp && !CO._applying) return coopMPCommit('dismissEvent', {}); coopAfterTurnStart(); }
     // 都市ターン終了後：humanSide によって CPU攻撃／人間攻撃へ分岐
     function coopAfterCityTurn() {
       // 備蓄：使わなかった予算がCOOP_STOCKPILE_MIN_BUDGET以上残っていれば1枚ドロー（予算は消費しない・design/coop_balance.md §10）
@@ -10788,7 +10666,6 @@
         coopDraw(1);
         _coLog('📦 備蓄：使わなかった予算を物資に回して1枚ドロー');
       }
-      if (CO.online) { coopStartNatureHumanTurn(); return; } // オンラインは自然も人間
       if (CO.humanSide === 'city') coopNatureTurn();
       else coopStartNatureHumanTurn();
     }
@@ -10819,7 +10696,6 @@
     function coopConfirmPlay(i) {
       if (!CO.confirm) return;
       if (CO.mp && !CO._applying) return coopMPCommit('confirmPlay', { uid: CO.confirm.uid, i });
-      if (CO.online && !CO.host) return coopClientCommit('confirmPlay', { uid: CO.confirm.uid, i });
       const c = CO.hand.find(x => x.uid === CO.confirm.uid); if (!c) { CO.confirm = null; renderCoop(); return; }
       // 壊滅した都市は対象にできない（回復による意図しない復活を防ぐ）。i<0 はドロー・情報共有なので対象判定なし
       if (i >= 0 && (!CO.cities[i] || CO.cities[i].hp <= 0)) { CO.confirm = null; renderCoop(); return; }
@@ -10833,7 +10709,7 @@
       }
       CO.confirm = null; renderCoop();
     }
-    function coopEndCityTurn() { if (CO.mp && !CO._applying) return coopMPCommit('endTurn', {}); if (CO.online && !CO.host) return coopClientCommit('endTurn', {}); CO.confirm = null; coopAfterCityTurn(); }
+    function coopEndCityTurn() { if (CO.mp && !CO._applying) return coopMPCommit('endTurn', {}); CO.confirm = null; coopAfterCityTurn(); }
     // 予算不足などで使える政策カードが無くなった都市プレイヤーは、ボタンを押さずに自動でターン終了する（MP）。
     // 描画のたびに renderCoop から呼ぶ。少し待ってから判定して「カードが無い」状態を一瞬見せてから終了する。
     function coopScheduleAutoEndCity() {
@@ -10857,13 +10733,11 @@
     }
     // ── ハザードマップ整備：カードを引く画面（対戦モードの turnDraw に合わせ、引いたカードを1枚ずつ公開） ──
     function coopPullDrawCard() {
-      if (CO.online && !CO.host) return coopClientCommit('pullDraw', {});
       const ds = CO.drawState; if (!ds || ds.revealed) return;
       if (CO.policyDeck.length === 0) { if (CO.policyDiscard.length === 0) { coopFinishDraw(); return; } CO.policyDeck = shuffle([...CO.policyDiscard]); CO.policyDiscard = []; }
       ds.revealed = CO.policyDeck.shift(); renderCoop();
     }
     function coopAcceptDrawCard() {
-      if (CO.online && !CO.host) return coopClientCommit('acceptDraw', {});
       const ds = CO.drawState; if (!ds || !ds.revealed) return;
       if (CO.hand.length >= 5) { CO.policyDiscard.push(ds.revealed); _coLog(`📤 手札が上限のため「${ds.revealed.name}」は捨て札へ`); }
       else CO.hand.push(ds.revealed);
@@ -11125,7 +10999,6 @@
     }
     function coopDismissSummary() {
       if (CO.mp && !CO._applying) return coopMPCommit('dismissSummary', {});
-      if (CO.online && !CO.host) return coopClientCommit('dismissSummary', {});
       // 制限ターンまで都市が生き残れば、都市側プレイヤーの勝ち＝自然側プレイヤーの負け
       if (CO.turn >= CO.diff.maxTurns) { CO.outcome = 'survived'; CO.result = (CO.humanSide === 'nature') ? 'lose' : 'win'; CO.phase = 'over'; renderCoop(); return; }
       CO.turn++;
@@ -11141,8 +11014,8 @@
       _coRespPreviewUid = uid; renderCoop();
     }
     function coopSelectResponse(uid) { if (CO.phase !== 'coopResponse') return; CO.confirm = { uid, resp: true }; renderCoop(); }
-    function coopConfirmRespApply(ai) { if (!CO.confirm) return; if (CO.mp && !CO._applying) return coopMPCommit('respApply', { uid: CO.confirm.uid }); if (CO.online && !CO.host) return coopClientCommit('respApply', { uid: CO.confirm.uid, ai }); const uid = CO.confirm.uid; CO.confirm = null; coopResolveRound(uid, ai); }
-    function coopSkipResponse() { if (CO.mp && !CO._applying) return coopMPCommit('skipResp', {}); if (CO.online && !CO.host) return coopClientCommit('skipResp', {}); CO.confirm = null; coopResolveRound(null, -1); }
+    function coopConfirmRespApply(ai) { if (!CO.confirm) return; if (CO.mp && !CO._applying) return coopMPCommit('respApply', { uid: CO.confirm.uid }); const uid = CO.confirm.uid; CO.confirm = null; coopResolveRound(uid, ai); }
+    function coopSkipResponse() { if (CO.mp && !CO._applying) return coopMPCommit('skipResp', {}); CO.confirm = null; coopResolveRound(null, -1); }
 
     // ═══ 人間=自然側（攻撃）のターン。災害プール（各3枚）から選んで攻撃 ═══
     function coopStartNatureHumanTurn() {
@@ -11170,7 +11043,6 @@
     function coopConfirmAttack(cityIdx) {
       if (!CO.confirm || !CO.confirm.attack) return;
       if (CO.mp && !CO._applying) return coopMPCommit('attack', { id: CO.confirm.attackId, cityIdx });
-      if (CO.online && !CO.host) return coopClientCommit('attack', { id: CO.confirm.attackId, cityIdx });
       const c = DISASTER_CARDS.find(x => x.id === CO.confirm.attackId);
       if (!c || (CO.naturePool[c.id] || 0) <= 0) { CO.confirm = null; renderCoop(); return; }
       if (CO.mp) { // 即死防止：同種は1ターン1回／1都市への攻撃は最大 COOP_MAX_HITS 回
@@ -11202,12 +11074,6 @@
       if (compoundUnstopped && !CO.mp) { CO.responseBlocked = true; CO.blockReason = `${coopZapIco(14)} 複合災害により都市側は対応不可`; _coLog('複合災害：都市側の対応を封じた'); }
       // MP：被弾都市ごとに所有者が対応（per-victim）
       if (CO.mp) { coopEnterResponseMP(); return; }
-      // オンライン（旧2人）：対応は都市側の人間が行う（CPU応答は使わない）
-      if (CO.online) {
-        if (CO.incoming.length === 0 || CO.responseBlocked) { CO.phase = 'resolving'; renderCoop(); _coTimer = setTimeout(() => coopResolveRound(null, -1), 500); }
-        else { CO.phase = 'coopResponse'; renderCoop(); }
-        return;
-      }
       CO.phase = 'resolving'; renderCoop();
       if (CO.incoming.length === 0) { _coTimer = setTimeout(() => coopResolveRound(null, -1), 300); }
       else if (CO.responseBlocked) { _coTimer = setTimeout(() => coopResolveRound(null, -1), 1200); }
@@ -11299,7 +11165,6 @@
       let html; let _boardShown = false;
       if (CO.phase === 'setup') html = coopRenderSetup();
       else if (CO.phase === 'lobby') html = coopRenderMPLobby();
-      else if (CO.phase === 'waitOnline') html = coopRenderWaitOnline();
       else if (CO.phase === 'over') html = coopRenderOver();
       else if (CO.phase === 'summary') html = coopRenderSummary();
       else if (CO.phase === 'draw' && !waiting) html = coopRenderDraw();
@@ -11330,30 +11195,6 @@
       if (CO.phase === 'summary') setTimeout(() => { coopSummaryFx(); coopApplySummaryFx(); }, 20);
       if (CO.online && CO.host && !CO._applying) coopPushState(); // ホストは状態変化のたびに配信（dedupで重複writeは抑止／_applying中はインテント処理側で一括push）
       if (CO.mp && CO.phase === 'city' && !CO._applying) coopScheduleAutoEndCity(); // 予算切れの都市プレイヤーは自動でターン終了
-    }
-    // オンライン待機画面（ホスト＝コード表示でゲスト参加待ち／ゲスト＝接続中）
-    function coopRenderWaitOnline() {
-      const d = CO.diff, code = CO.roomId || '';
-      const sideLabel = s => s === 'city'
-        ? `<img src="images/icons/icon_city.webp" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;display:inline-block"> 都市側（守る）`
-        : `<img src="images/icons/icon_disaster.webp" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;display:inline-block"> 自然側（攻める）`;
-      const oppSide = CO.mySide === 'city' ? 'nature' : 'city';
-      // 2026-07-17ユーザーレビュー修正：ホスト待機画面（主要導線）のcolor:#fffをvar(--t0)へ（既定値は#fffのまま・ライトテーマのみ暗転）
-      const cancelBtn = `<button onclick="coopQuit()" style="width:100%;max-width:280px;padding:11px;margin-top:18px;border-radius:10px;background:transparent;border:1px solid var(--bd,#30363d);color:var(--t0);cursor:pointer">キャンセルしてロビーへ</button>`;
-      if (CO.host) {
-        return `<div class="screen active" style="padding:24px;max-width:480px;margin:0 auto;text-align:center">
-          <h2 style="color:${d.color};margin:6px 0">オンライン協力（${d.label}）</h2>
-          <p style="color:var(--t0);font-size:.85rem;margin:4px 0 8px">このルームコードを相手に伝えてください</p>
-          <div style="font-size:2.6rem;font-weight:900;letter-spacing:.28em;color:var(--t0);background:var(--bg2,#161b22);border:2px solid ${d.color};border-radius:12px;padding:16px 8px;margin:10px 0">${code}</div>
-          <div style="color:var(--t2);font-size:.8rem;line-height:1.7;margin-top:8px">あなた：${sideLabel(CO.mySide)}<br>相手：${sideLabel(oppSide)}</div>
-          <div style="margin-top:16px;color:var(--t2);font-size:.9rem;font-weight:700"><span class="co-spinner"></span> 相手の参加を待っています…</div>
-          ${cancelBtn}</div>`;
-      }
-      return `<div class="screen active" style="padding:24px;max-width:480px;margin:0 auto;text-align:center">
-        <h2 style="color:${d.color};margin:6px 0">オンライン協力（${d.label}）</h2>
-        <div style="color:var(--t2);font-size:.85rem;line-height:1.7;margin-top:10px">あなた：${sideLabel(CO.mySide)}<br>相手：${CO.oppName || 'ホスト'}（${sideLabel(oppSide)}）</div>
-        <div style="margin-top:18px;color:var(--t2);font-size:.9rem;font-weight:700"><span class="co-spinner"></span> 接続中…</div>
-        ${cancelBtn}</div>`;
     }
     // オンライン多人数：待機ロビー（1組のコード・QR・リンクを全員で共有＋参加ロスター）
     function coopRenderMPLobby() {
@@ -11658,12 +11499,6 @@
         return `<div class="coop-event-row">${cardIconSvg(info.icon, 15)}<span class="coop-event-name">${info.name}</span><span class="coop-event-effect">：${effect}</span></div>`;
       }).join('');
       return `<div class="coop-event-banner">${rows}</div>`;
-    }
-    // 防災協定（情報共有）の結果ポップ。対戦モードの renderPeek（peek-card-big）の見た目に合わせる
-    function coopCloseIntel() { if (CO.mp && !CO._applying) { if (!CO.host) coopSendIntent('dismissIntel', {}); CO.intelPopup = false; renderCoop(); return; } if (CO.online && !CO.host) { coopSendIntent('dismissIntel', {}); CO.intelPopup = false; renderCoop(); return; } CO.intelPopup = false; renderCoop(); }
-    function coopRenderIntelPopup() {
-      const tiles = (CO.intel || []).map((c, i) => `<div class="peek-card-big" style="flex-shrink:0;border-color:var(--red)"><div style="font-size:.66rem;color:var(--t2);font-weight:700;margin-bottom:2px">${i + 1}番目</div><img src="images/cards/${c.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'"><div class="pk-icon">${cardTypeIconHtml('disaster', null, 32)}</div><div class="pk-name">${c.name}</div><div class="pk-desc">${c.desc}</div></div>`).join('');
-      return `<div class="confirm-overlay" onclick="coopCloseIntel()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:480px"><div style="text-align:center;font-weight:800;color:var(--t0);font-size:1.05rem">${coopIcoClipboard(16)} 防災協定（情報共有）</div><div style="text-align:center;color:var(--t0);font-size:.8rem;margin:4px 0 12px">次に来る自然災害を確認して備えを選ぼう</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div class="confirm-btns" style="margin-top:14px"><button class="btn-ok" onclick="coopCloseIntel()">確認した</button></div></div></div>`;
     }
     function coopRenderDraw() {
       const ds = CO.drawState;
@@ -12284,8 +12119,7 @@
       } else {
         cityPanels = `<div style="display:flex;gap:8px;margin-top:8px">${CO.cities.map((cs, i) => coopCityPanel(cs, i)).join('')}</div>`;
       }
-      const showIntel = CO.intel && (!CO.online || CO.mySide === 'city');
-      const intel = showIntel ? `<div style="background:rgba(56,139,253,.1);border:1px solid #388bfd;border-radius:8px;padding:8px;margin-top:8px;font-size:.78rem;color:var(--t0)"><strong>${coopIcoClipboard(14, '#388bfd')} 情報共有：次に来る災害</strong><br>${CO.intel.map(x => `${cardIconSvg(x.icon,14)}${x.name}`).join(' → ')}</div>` : '';
+      const intel = ''; // 防災協定の情報共有ポップは廃止済み（旧CO.intelは常時null・実装保留中）
       const infoPanel = coopInfoPanel();
       const waiting = CO.online && !coopMyPhase();
       // D-1: 自分が操作すべき状態のとき、手札／攻撃プールのエリアラッパーに枠パルスを付与
@@ -12309,8 +12143,7 @@
         }
         dc = `<div style="background:rgba(248,81,73,.15);border:1px solid #f85149;border-radius:8px;padding:6px 10px;color:#f85149;font-size:.76rem;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px"><span>${coopIcoWarnTriangle(15)} ${_dcWho} が切断しました。再接続を待っています…</span><button onclick="coopOpenReconn()" style="flex-shrink:0;padding:3px 10px;border-radius:6px;background:transparent;border:1px solid rgba(248,81,73,.5);color:#f85149;font-size:.7rem;cursor:pointer">QRを表示</button></div>`;
       }
-      const intelOk = CO.intelPopup && (!CO.online || CO.mySide === 'city');
-      const overlay = CO.confirm ? coopRenderConfirm() : (CO.eventPopup ? coopRenderEventPopup() : (intelOk ? coopRenderIntelPopup() : ''));
+      const overlay = CO.confirm ? coopRenderConfirm() : (CO.eventPopup ? coopRenderEventPopup() : '');
       const reconnOverlay = coopRenderReconnOverlay();
       // ハテナ（？）ボタン：MPオンライン時のみ表示。タップで再接続QRオーバーレイを開閉する
       const reconnHintBtn = (CO.mp && CO.online && CO.roomId)
