@@ -264,6 +264,36 @@
         repeating-linear-gradient(90deg, rgba(var(--t0-rgb),.045) 0, rgba(var(--t0-rgb),.045) 1px, transparent 1px, transparent 28px);
     }
 
+    /* ── 2026-07-21 UX修正：ライトテーマ視認性改善（暗色前提の演出の洗い出し）。worldview.md §11.2「紙は光らない」。
+       ①ドロー演出：初期手札ドロー（renderDraft）・都市ガチャ（gacha city reveal）・ハザードマップ整備／ローリングストックの
+       ターンドロー（renderTurnDraw）が共用する`.draft-reveal-overlay`（暗幕rgba(0,0,0,.65)）と`.draft-neon-icon-pos`
+       （mix-blend-mode:screen前提の白ベースネオンアイコン。playNeonAnimでbrightness/drop-shadowアニメも掛かるが、
+       author !importantはCSS Animationsより優先されるためlight側は`.lobby-neon-icon`と同じ静止シルエット表示に
+       簡略化される＝紙は光らない原則と一致）をライト時は白系のぼかしレイヤー＋反転シルエットへ置換する。 ── */
+    html[data-theme="light"] .draft-reveal-overlay {
+      background: rgba(242,240,234,.82);
+    }
+    html[data-theme="light"] .draft-neon-icon-pos {
+      mix-blend-mode: normal;
+      filter: invert(0.88) !important;
+    }
+    html[data-theme="light"] .draft-card-label {
+      text-shadow: none;
+    }
+    /* card_paused状態の手動送りボタンは白半透明の縁取り・アイコン前提（暗幕上でのみ視認できる設計）だったため、
+       ライトの白いぼかしレイヤー上でも視認できるよう暗色ゴーストボタンへ切り替える */
+    html[data-theme="light"] .draft-advance-btn {
+      background: rgba(255,255,255,.75);
+      border-color: rgba(13,17,23,.4);
+      color: var(--t0);
+    }
+    /* ②「相手が対応中」表示・対応フェーズ切替バナー（showTurnSplashのmy_resp/opp_resp、`.turn-splash`）。
+       全画面の黒い暗幕rgba(0,0,0,.22)がライトの紙白背景の上では不自然な黒い帯として浮くため、紙白系の
+       ぼかしレイヤーに置換する。バナー内側（`.turn-splash-inner`）の配色・文字色（var(--t0)、テーマ反応済み）は無変更。 */
+    html[data-theme="light"] .turn-splash {
+      background: rgba(242,240,234,.75);
+    }
+
     /* ── 1.3.2：フォント切替（デジタル/SF調）。英数字のみOrbitronを適用し、日本語はフォントスタックの
        後続フォールバック（Hiragino Sans/Segoe UI等）に自動的に委ねる（Orbitronは非CJKグリフのみ持つため）。 ── */
     html.ron-font-digital body {
@@ -274,6 +304,18 @@
        取得失敗・オフライン時は後続の既存フォントスタックへ自然にフォールバックする。 ── */
     html.ron-font-8bit body {
       font-family: 'DotGothic16', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+    }
+    /* ── 2026-07-21 UX修正：8bitフォントの適用範囲統一。カード数値バッジ（.card-cost）・HPテキスト・予算表示・
+       各種英字タグ／リザルト統計値など、個別に`font-family:'Roboto Condensed',sans-serif`を直書きしている要素
+       （30箇所以上、styleブロック・script側インラインstyle双方に散在）がbodyからのDotGothic16継承を
+       上書きしてしまい、8bit選択時も一部だけ別書体のままになっていた。全数を個別置換する代わりに、
+       html.ron-font-8bit配下の全要素へ!importantで一括上書きする（子孫セレクタの詳細度が個々のRoboto Condensed
+       指定と同等のため、!importantなしではカスケード順序に依存し確実性を欠く）。カード画像内の文字はラスター画像
+       なのでCSSの影響を受けず対象外。SVGアイコンは<text>要素を持たないため実質的に影響を受けない（font-familyは
+       図形描画に無関係）。数値のtabular-numsについては、DotGothic16が等幅グリッドの点字体ピクセルフォントで
+       半角英数字も全角と同じセル幅を持つ設計のため、桁揃えは実質的に維持される（詳細はTASKS.md参照）。 ── */
+    html.ron-font-8bit body * {
+      font-family: 'DotGothic16', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif !important;
     }
 
     body {
@@ -3922,7 +3964,10 @@
        MOBILE BATTLE LAYOUT — comprehensive fix v2
     ═══════════════════════════════════════════════════ */
 
-    /* ── 防災協定（Peek）画面：縦方向センタリング ── */
+    /* ── peek-wrap：公害の破壊シールド選択・協力の人為災害イベントポップ等で使う縦方向センタリング枠 ── */
+    /* 2026-07-20：防災協定→ローリングストック改称に伴い、旧peek画面（相手手札全公開＋1枚捨て選択）専用の
+       分割レイアウト（.peek-split*・.peek-card-compact）は使用箇所が無くなったため削除した。
+       .peek-wrap／.peek-card-big／.pk-*は公害・協力イベントポップ側でまだ使用中のため存置。 */
     .peek-wrap {
       flex: 1;
       display: flex;
@@ -3930,37 +3975,6 @@
       justify-content: center;
       min-height: 0;
     }
-    /* UI修正バッチ②(a)：自分の捨て札選択中も相手の公開手札を同時に見せる上下分割レイアウト。
-       各ペインはコンパクトカード（画像・説明省略）で縦幅を抑えて内容量に合わせて積み、
-       カード列は横スクロールのみ許可して1画面に両ペイン＋「やめる」ボタンが収まるようにする。
-       ページ全体のスクロールは（peekはbattle-active対象外のため）通常どおり有効なままなので、
-       万一入りきらない端末でもスクロールで両方に到達できる安全側設計。 */
-    .peek-wrap.peek-split {
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-    .peek-split-pane {
-      flex-shrink: 0;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-    .peek-split-pane .peek-card-display {
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      align-items: center;
-    }
-    .peek-split-divider { flex-shrink: 0; }
-    .peek-split-footer { flex-shrink: 0; text-align: center; padding: 4px 0 2px; }
-    /* コンパクトカード（分割レイアウト用に縮小） */
-    .peek-card-big.peek-card-compact {
-      padding: 8px 12px;
-      gap: 3px;
-    }
-    .peek-card-compact .pk-name { font-size: .78rem; }
-    .peek-card-compact .pk-cost { font-size: .66rem; }
 
     @media (max-width: 600px) {
 
@@ -4631,9 +4645,7 @@
     // 1次災害カード → 続けて撃つと増幅する2次災害カードの逆引き（UIヒント用）
     const COOP_COMBO_FOLLOW = {};
     for (const _sec in COOP_COMBO) { const _t = COOP_COMBO[_sec].trigger; (COOP_COMBO_FOLLOW[_t] = COOP_COMBO_FOLLOW[_t] || []).push({ cardId: _sec, cond: COOP_COMBO[_sec].cond }); }
-    // 防災協定（協力モード・即時＝予算の緊急融通）：対象都市（自分/味方）の「このターンの予算」を即座に +COOP_PACT_BUDGET（今すぐ使える）。
-    // 即時カテゴリ（黄）の性質どおり使った瞬間に効果が完結する。コスト1で自分対象なら実質+1のランプ、味方の大型カードの後押しで強くなる状況依存カード。
-    const COOP_PACT_BUDGET = 2; // 即時に融通する予算（暫定値・要プレイテスト）
+    // 2026-07-20：防災協定（予算+2の緊急融通・COOP_PACT_BUDGET）は防災協定→ローリングストック改称に伴い廃止した。
     // 手札経済（二重通貨）の公助枠：予算と手札の2通貨のうち、実際に枯渇するのは手札側という設計不全への対処（design/coop_balance.md §10）。
     // 緊急支援ドロー：都市ターン開始時、手札がこの枚数以下の生存都市は通常ドローに+1する。
     const COOP_EMERGENCY_HAND_MAX = 1;
@@ -4758,12 +4770,12 @@
           '例：すでにシールド型が効いているなら、同じシールド型の重複は捨て候補です。',
         ]
       },
-      peek: {
-        title: '相手の手札を確認中',
+      recycle: {
+        title: 'ローリングストックで手札を入れ替え中',
         sections: [
-          '「防災協定」の効果で相手の手札が全公開されています。',
-          'どんな攻撃が来るか・どんな防御を持っているかを把握して次の手を組み立てましょう。',
-          '確認後、自分の手札から<strong>1枚だけ任意で捨てる</strong>ことができます。スキップして捨てなくてもかまいません。',
+          '「ローリングストック」の効果で、自分の手札を好きな枚数だけ選んで捨てられます。',
+          '捨てた枚数と同じ枚数を山札から引き直せます。古くなった備えを新しい備えに入れ替えましょう。',
+          '0枚のまま実行してもかまいません（何も交換せずに終了します）。',
         ]
       },
       gameover: {
@@ -4808,7 +4820,7 @@
       { id: 'dystopia-blue', label: 'ディストピア・ブルー', swatchBg: '#050912', swatchAccent: '#29d3ff' },
       { id: 'hacker-matrix', label: 'ハッカー・マトリクス', swatchBg: '#070b07', swatchAccent: '#39ff6a' },
       { id: '8bit',          label: '8bit',                 swatchBg: '#0a0a1a', swatchAccent: '#ff004d' },
-      { id: 'light',         label: 'ハザードマップ',       swatchBg: '#f2f0ea', swatchAccent: '#d6294a' },
+      { id: 'light',         label: 'デイライト',           swatchBg: '#f2f0ea', swatchAccent: '#d6294a' }, // 2026-07-21：表示名を「ハザードマップ」から変更（カード名「ハザードマップ整備」との混同回避・一般ユーザーへの直感的な伝達性優先）。世界観コンセプト名「紙のハザードマップ」はworldview.md §11に残置。data-theme id=lightは互換のため不変
     ];
     const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', glow: true };
     function ronGetSettings() {
@@ -5276,7 +5288,7 @@
       { id: 'agreement', name: '相互支援協定', icon: 'agreement', cost: 2, type: 'policy', color: 'yellow', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
       { id: 'evacuation', name: '広域避難指示', icon: 'evacuation', cost: 2, type: 'policy', color: 'green', effectType: 'negate_special', value: 10, desc: '特殊効果・テロ攻撃を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップ・人為災害のテロ攻撃も事前設置で無効化できる汎用性の高い政策。' },
       { id: 'bousai_cho', name: '防災庁設置', icon: 'bousai_cho', cost: 3, type: 'policy', color: 'green', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回・使用時から有効）', realConcept: '包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。2回分のダメージ軽減という持続型効果が、制度投資の長期的な価値を示す。対応フェーズで使用した場合も、その攻撃から効果が適用される。' },
-      { id: 'pact', name: '防災協定', icon: 'pact', cost: 1, type: 'policy', color: 'yellow', effectType: 'peek_all', value: 0, desc: '相手の手札を全公開＋任意で手札1枚を捨てられる', realConcept: '自治体・企業間の防災情報共有体制。相手の手札を知る（情報収集）ことが効果的な備えの前提になることを示す。さらに手札を1枚捨てられる効果は、得た情報をもとに自らの備えを見直し、取捨選択することの重要性を表す。' },
+      { id: 'rolling_stock', name: 'ローリングストック', icon: 'rolling_stock', cost: 1, type: 'policy', color: 'yellow', effectType: 'recycle_hand', value: 0, desc: '自分の手札を好きな枚数捨て、同じ枚数を山札から引く', realConcept: '備蓄品を古いものから消費し、使った分だけ新しく買い足す「ローリングストック」という備蓄法。備え（手札）は蓄えて終わりではなく、日常的に回して中身を更新し続けることで、いざという時に実際に機能する状態を保てることを示す。' },
     ];
 
     const DISASTER_CARDS = [
@@ -5327,7 +5339,7 @@
         { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
       ],
       deck: [], discard: [], log: [],
-      pendingAttack: null, peekCard: null, peekByPlayerIdx: null, pendingPollution: null, winner: null,
+      pendingAttack: null, recycleState: null, pendingPollution: null, winner: null,
       gachaPickedIds: [], gachaCurrent: null, draftState: null,
       discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
       _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
@@ -5425,7 +5437,8 @@
       '耐震補強': '耐震\u200B補強',
       '堤防建設': '堤防\u200B建設',
       '避難訓練': '避難\u200B訓練',
-      '防災協定': '防災\u200B協定',
+      // ローリングストック（9文字）：意味の切れ目「rolling」＋「stock」で2区間に分割（5+4文字）
+      'ローリングストック': 'ローリング\u200Bストック',
       // 自然災害カード（DISASTER_CARDS）。地震・洪水・台風・津波は2文字のため分割不要
       '土砂崩れ': '土砂\u200B崩れ',
       '複合災害': '複合\u200B災害',
@@ -5488,10 +5501,6 @@
       const p = G.players[pi];
       for (let i = 0; i < n; i++) {
         if (G.deck.length === 0) { if (G.discard.length === 0) break; G.deck = shuffle([...G.discard]); G.discard = []; addLog('山札をシャッフルしました', 'sys'); }
-        if (p.hand.some(c => c.id === 'pact')) {
-          const altIdx = G.deck.findIndex(c => c.id !== 'pact');
-          if (altIdx > 0) G.deck.unshift(...G.deck.splice(altIdx, 1));
-        }
         p.hand.push(G.deck.shift());
       }
     }
@@ -5711,7 +5720,11 @@
         case 'draw': G.turnDrawState = { pi, drawn: 0, target: card.value, revealed: null, isHazardMap: true }; G.screen = 'turnDraw'; addLog(`${uiIcoMap(13)} ${p.name}「${card.name}」→ ${card.value}枚ドロー中…`, 'policy'); break;
         case 'negate_special': p.effects.negateSpecial = true; addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 特殊効果・テロ攻撃を無効化＋ダメージ−10`, 'policy'); break;
         case 'damage_reduce_2t': p.effects.damageReduceHits = 2; if (!asResponse) addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 全ダメージ −15（2回・設置ターンから有効）`, 'policy'); break;
-        case 'peek_all': { const opp = G.players[pi === 0 ? 1 : 0]; if (opp.hand.length > 0) { G.peekCards = opp.hand.slice(); G.peekByPlayerIdx = pi; addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 相手の手札を全公開`, 'policy'); G.screen = 'peek'; } else addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 相手の手札なし`, 'policy'); break; }
+        case 'recycle_hand': {
+          if (p.hand.length > 0) { G.recycleState = { pi }; _recycleSelected = []; G.screen = 'recycle'; addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 手札を入れ替え中…`, 'policy'); }
+          else addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 手札がないため入れ替えなし`, 'policy');
+          break;
+        }
       }
     }
 
@@ -5875,9 +5888,7 @@
       if (Math.random() < JINZAI_DRAFT_RATE) { needD = 1; needJinzai = 1; } // フレックス＝人為
       else { needD = 2; needJinzai = 0; }                                   // フレックス＝自然
       for (let i = 0; i < 4; i++) {
-        const hasPactDealt = ds.dealtCards.some(c => c.id === 'pact');
         const allow = (c) => {
-          if (hasPactDealt && c.id === 'pact') return false;
           if (c.type === 'policy') return needP > 0;
           if (c.type === 'disaster') return needD > 0;
           if (c.type === 'jinzai') return needJinzai > 0;
@@ -5993,11 +6004,6 @@
     function pullTurnCard() {
       const ts = G.turnDrawState; if (ts.revealed) return;
       if (G.deck.length === 0) { if (G.discard.length === 0) return; G.deck = shuffle([...G.discard]); G.discard = []; addLog('山札をシャッフルしました', 'sys'); }
-      const pi = ts.pi ?? ts.playerIdx;
-      if (G.players[pi].hand.some(c => c.id === 'pact')) {
-        const altIdx = G.deck.findIndex(c => c.id !== 'pact');
-        if (altIdx > 0) G.deck.unshift(...G.deck.splice(altIdx, 1));
-      }
       ts.revealed = G.deck.shift(); pushState(); render();
     }
 
@@ -6009,6 +6015,7 @@
       if (ts.drawn >= ts.target) {
         G.turnDrawState = null;
         if (ts.isHazardMap) addLog(`${uiIcoMap(13)} ${G.players[pi].name}：ハザードマップ整備で${ts.target}枚ドロー完了`, 'policy');
+        else if (ts.isRecycle) addLog(`${uiIcoUpload(13)} ${G.players[pi].name}：ローリングストックで${ts.target}枚を交換完了`, 'policy');
         else addLog(`─── ${G.players[pi].name}のターン開始（予算${getBudget(pi)}・${ts.target}枚ドロー）`, 'sys');
         if (!handleDiscardIfNeeded(pi, 'main')) goMain();
       } else { pushState(); render(); }
@@ -6084,7 +6091,7 @@
     let _pendingMainHpAnims = [];
     let _pendingCityEnterAnim = false;
     let _cityEnterAnimPi = -1; // 城入場アニメ保留中のプレイヤーindex（-1=なし）
-    let _peekDiscardMode = false;
+    let _recycleSelected = []; // ローリングストック：捨てるカードのuid選択（VS対戦・Firebase同期には載せないローカルUI状態）
     let _lobbyEnter = true;
     let _lobbyTitleAnimDone = false;
     // 起動演出（showScanlineIntro）の初回/再訪分離用フラグ。sessionStorageに立てて
@@ -6469,7 +6476,7 @@
       _presenceOppRef = db.ref(`rooms/${roomId}/presence/${oppKey}`);
       _presenceOppRef.on('value', snap => {
         const connected = snap.val();
-        const inGame = ['gacha','cityOrder','draft','turnDraw','turnSummary','main','response','discard','peek'].includes(G.screen);
+        const inGame = ['gacha','cityOrder','draft','turnDraw','turnSummary','main','response','discard','recycle'].includes(G.screen);
         if (connected === false && inGame) {
           showDisconnectOverlay();
         } else if (connected === true) {
@@ -6709,7 +6716,7 @@
           return G.activePlayer === mi ? 'main' : 'waiting';
         case 'response': return G.pendingAttack?.defenderIdx === mi ? 'response' : 'waiting';
         case 'discard': { const pi = G.discardNeeded?.pi ?? G.discardNeeded?.playerIdx; return pi === mi ? 'discard' : 'waiting'; }
-        case 'peek': return (G.peekByPlayerIdx ?? G.activePlayer) === mi ? 'peek' : 'waiting';
+        case 'recycle': return (G.recycleState?.pi ?? G.activePlayer) === mi ? 'recycle' : 'waiting';
         case 'pollution': return (G.pendingPollution?.attackerIdx ?? G.activePlayer) === mi ? 'pollution' : 'waiting';
         case 'gameover': return 'gameover';
         default: return 'waiting';
@@ -6892,8 +6899,8 @@
     //   実際のcoopエンジン関数（coopSelectCard/coopConfirmPlayAnim/cwRecordCoopResult等）を一切呼ばないため、
     //   戦績・デイリー・カード工房の育つカード等のlocalStorage記録に書き込みが発生し得ない（isArchive/isPuzzle
     //   と同じ「呼び出し経路そのものを持たない」隔離方針）。Firebase通信も発生させない（完全ローカル）。
-    // ・都市・手札・予報は固定シード（常に同一の仙台＝あなた／大阪・東京＝CPU仲間、耐震補強・避難訓練・防災協定の
-    //   3枚、次の災害＝地震→台風）とし、各ステップの説明文と盤面が必ず一致するようにする。
+    // ・都市・手札・予報は固定シード（常に同一の仙台＝あなた／大阪・東京＝CPU仲間、耐震補強・避難訓練の
+    //   2枚、次の災害＝地震→台風）とし、各ステップの説明文と盤面が必ず一致するようにする。
     // ・スポットライト演出は_renderTutSpotlight（worldview.md §6.3提案A準拠のターゲット隣接コールアウト＋tail＋
     //   パルスリング＋SVGマスク）を対戦チュートリアルと共用し、見た目のスタイル言語を統一する。
     function _coopTutFixedCities() {
@@ -6903,11 +6910,14 @@
         tokyo:  CITIES.find(c => c.id === 'tokyo'),
       };
     }
+    // 2026-07-20：旧ステップ4（防災協定で仲間に予算+2を融通）は防災協定→ローリングストック改称に伴い廃止。
+    // ローリングストックの実効果（自分の手札を捨てて引き直す）は自己完結型で「仲間を助ける」体験にならないため、
+    // 代替として既存の避難訓練（heal・コスト1・SUPPORT_OKで元々仲間支援に対応済み）を仲間の大阪に使う体験に
+    // 差し替えた。予算donationより「仲間の被害を先に減らす」方が共助の学習目的に直結すると判断（TASKS.md記録）。
     function _coopTutHand() {
       return [
         { ...POLICY_CARDS.find(c => c.id === 'quake_wall'), uid: 'ctut_qw' },
         { ...POLICY_CARDS.find(c => c.id === 'drill'),      uid: 'ctut_dr' },
-        { ...POLICY_CARDS.find(c => c.id === 'pact'),       uid: 'ctut_pact' },
       ];
     }
     function startCoopTutorial() {
@@ -6915,7 +6925,7 @@
         step: 0,
         budgetTotal: 3, budgetUsed: 0,
         shieldActive: false,
-        confirmPact: false, pactGiven: false, pactTarget: null,
+        confirmSupport: false, supportGiven: false, supportTarget: null,
         osakaBudget: 3, tokyoBudget: 3,
         feedback: null,
       };
@@ -6939,23 +6949,22 @@
         ts.budgetUsed += 2; ts.shieldActive = true;
         ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} 耐震補強を設置！次の地震ダメージを大幅に軽減します。`;
         ts.step++;
-      } else if (action === 'open_pact') { ts.confirmPact = true; }
-      else if (action === 'give_pact') {
-        ts.confirmPact = false; ts.budgetUsed += 1; ts.pactGiven = true; ts.pactTarget = arg;
+      } else if (action === 'open_support') { ts.confirmSupport = true; }
+      else if (action === 'give_support') {
+        ts.confirmSupport = false; ts.budgetUsed += 1; ts.supportGiven = true; ts.supportTarget = arg;
         const cities = _coopTutFixedCities();
-        if (arg === 'osaka') ts.osakaBudget += 2; else ts.tokyoBudget += 2;
         const cname = arg === 'osaka' ? cities.osaka.name : cities.tokyo.name;
-        ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} ${cname}に予算+2を融通しました（今すぐ使えます）。`;
+        ts.feedback = `${coopIcoCheckCircle(15,'#3fb950')} ${cname}に避難訓練を使い、次の災害に備えて仲間を支援しました。`;
         ts.step++;
       } else if (action === 'end_turn') { ts.step++; }
       else if (action === 'finish') { exitCoopTutorial(); return; }
       render();
     }
-    function coopTutClosePact() { if (coopTutorialState) { coopTutorialState.confirmPact = false; render(); } }
+    function coopTutCloseSupport() { if (coopTutorialState) { coopTutorialState.confirmSupport = false; render(); } }
     function coopTutCardTap(uid) {
       const ts = coopTutorialState; if (!ts) return;
       if (uid === 'ctut_qw' && ts.step === 2) coopTutAction('play_shield');
-      else if (uid === 'ctut_pact' && ts.step === 3) coopTutAction('open_pact');
+      else if (uid === 'ctut_dr' && ts.step === 3) coopTutAction('open_support');
     }
     function coopTutMkCard(card, glow, disabled) {
       const click = disabled ? '' : `coopTutCardTap('${card.uid}')`;
@@ -6980,18 +6989,21 @@
     function coopTutAllyPanel(osakaReady) {
       const ts = coopTutorialState;
       const cities = _coopTutFixedCities();
-      const row = (city, budget, ready) => {
+      const row = (id, city, budget, ready) => {
         const badge = ready
           ? `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>`
           : `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(56,139,253,.15);color:#388bfd;border:1px solid rgba(56,139,253,.4)">行動中 …</span>`;
-        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:var(--t1);flex-shrink:0">CPU · ${city.name}</span>${badge}<div class="budget-display" style="margin:0"><span class="budget-label" style="color:var(--t0)">予算</span>${budgetPipsHtml(3, 0, 0)}<span style="font-size:.78rem;font-weight:700;color:var(--green)">${budget}<span style="color:var(--t2);font-weight:400">/3</span></span></div></div>`;
+        const supportBadge = (ts.supportGiven && ts.supportTarget === id)
+          ? `<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(210,153,34,.18);color:#e3b341;border:1px solid rgba(210,153,34,.45)">${cardIconSvg('drill',11)} 支援済み</span>`
+          : '';
+        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px"><span style="font-size:.72rem;font-weight:700;color:var(--t1);flex-shrink:0">CPU · ${city.name}</span>${badge}${supportBadge}<div class="budget-display" style="margin:0"><span class="budget-label" style="color:var(--t0)">予算</span>${budgetPipsHtml(3, 0, 0)}<span style="font-size:.78rem;font-weight:700;color:var(--green)">${budget}<span style="color:var(--t2);font-weight:400">/3</span></span></div></div>`;
       };
-      return `<div class="coop-tut-ally" style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px"><div style="font-size:.64rem;font-weight:700;color:rgba(var(--t0-rgb),.35);margin-bottom:6px">仲間の状況</div>${row(cities.osaka, ts.osakaBudget, !!osakaReady)}${row(cities.tokyo, ts.tokyoBudget, false)}</div>`;
+      return `<div class="coop-tut-ally" style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px"><div style="font-size:.64rem;font-weight:700;color:rgba(var(--t0-rgb),.35);margin-bottom:6px">仲間の状況</div>${row('osaka', cities.osaka, ts.osakaBudget, !!osakaReady)}${row('tokyo', cities.tokyo, ts.tokyoBudget, false)}</div>`;
     }
-    function coopTutRenderPactConfirm() {
+    function coopTutRenderSupportConfirm() {
       const cities = _coopTutFixedCities();
-      const btn = (id, city) => `<button style="background:var(--blue);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;padding:10px;margin:5px 0;width:100%" onclick="coopTutAction('give_pact','${id}')">${city.name}に融通する（予算+2）</button>`;
-      return `<div class="confirm-overlay" onclick="coopTutClosePact()"><div class="confirm-box" onclick="event.stopPropagation()"><div class="confirm-card-preview" style="color:var(--t0)">防災協定：どの都市に予算を融通しますか？</div>${btn('osaka', cities.osaka)}${btn('tokyo', cities.tokyo)}<button style="background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:var(--t0);font-size:.9rem;cursor:pointer;padding:10px;margin-top:5px;width:100%" onclick="coopTutClosePact()">キャンセル</button></div></div>`;
+      const btn = (id, city) => `<button style="background:var(--blue);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;padding:10px;margin:5px 0;width:100%" onclick="coopTutAction('give_support','${id}')">${city.name}を支援する</button>`;
+      return `<div class="confirm-overlay" onclick="coopTutCloseSupport()"><div class="confirm-box" onclick="event.stopPropagation()"><div class="confirm-card-preview" style="color:var(--t0)">避難訓練：どの仲間に使いますか？</div>${btn('osaka', cities.osaka)}${btn('tokyo', cities.tokyo)}<button style="background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:var(--t0);font-size:.9rem;cursor:pointer;padding:10px;margin-top:5px;width:100%" onclick="coopTutCloseSupport()">キャンセル</button></div></div>`;
     }
     function showCoopTutSpotlight(step) {
       if (_coopTutSpotlights.has(step)) return;
@@ -6999,7 +7011,7 @@
       const CFG = {
         1: { sel: '.coop-tut-terrain', title: '自都市の弱点を知ろう', body: '海岸都市は洪水・津波に、内陸都市は地震に、山間部は土砂崩れに弱いというように、地形によって受けやすい災害が異なります。', color: '#e3b341' },
         2: { sel: '.card.tut-glow',    title: '耐震補強をタップ',     body: '光っているカードをタップして設置しましょう',                             color: '#3fb950' },
-        3: { sel: '.card.tut-glow',    title: '防災協定をタップ',     body: '光っているカードをタップして仲間に予算を融通しましょう',                 color: '#d29922' },
+        3: { sel: '.card.tut-glow',    title: '避難訓練をタップ',     body: '光っているカードをタップして仲間を支援しましょう',                       color: '#d29922' },
         4: { sel: '.coop-tut-endturn', title: 'ターン終了をタップ',   body: '光っているボタンを押すとターンが進みます',                               color: '#a371f7' },
       };
       const cfg = CFG[step]; if (!cfg) return;
@@ -7052,9 +7064,9 @@
           stepBody = '地震はどの都市にも起こり得る代表的な災害です。<strong>耐震補強（コスト2）</strong>を設置して先に備えましょう。';
           handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c, c.uid==='ctut_qw', c.uid!=='ctut_qw')).join('')}</div>`;
         } else if (ts.step === 3) {
-          stepTitle = '仲間の状況パネルと防災協定';
-          stepBody = '仲間の予算・進行状況がひと目でわかります。<strong>防災協定（コスト1）</strong>で仲間に予算+2を融通してみましょう。';
-          handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c, c.uid==='ctut_pact', c.uid==='ctut_qw')).join('')}</div>`;
+          stepTitle = '仲間の状況パネルと支援';
+          stepBody = '仲間の予算・進行状況がひと目でわかります。<strong>避難訓練（コスト1）</strong>を仲間の大阪に使って支援してみましょう。';
+          handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c, c.uid==='ctut_dr', c.uid==='ctut_qw')).join('')}</div>`;
           extraHtml = coopTutAllyPanel(false);
         } else if (ts.step === 4) {
           stepTitle = 'ターン終了と同期';
@@ -7070,7 +7082,7 @@
           ${handHtml}
           ${extraHtml}
           ${exitBtn}
-        </div>${ts.confirmPact ? coopTutRenderPactConfirm() : ''}`;
+        </div>${ts.confirmSupport ? coopTutRenderSupportConfirm() : ''}`;
       }
       app.innerHTML = html;
       if ([1,2,3,4].includes(ts.step) && !_coopTutSpotlights.has(ts.step)) setTimeout(() => showCoopTutSpotlight(ts.step), 80);
@@ -7132,7 +7144,7 @@
           {msg:'プレイヤー2 が 堤防建設 を使用（対応）', cls:'sys'},
           {msg:'ターン3 開始', cls:'sys'},
         ],
-        pendingAttack: null, peekCard: null, peekByPlayerIdx: null, winner: null,
+        pendingAttack: null, recycleState: null, winner: null,
         gachaPickedIds: [], gachaCurrent: null, draftState: null,
         discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
         _nextTurnEvents: {0:[],1:[]}, _turnSummary: null, _gameHistory: [],
@@ -7215,13 +7227,13 @@
         case 'response': html = renderMain(true); break;
         case 'waiting_response': html = renderWaitingResponse(); break;
         case 'discard': html = renderDiscard(); break;
-        case 'peek': html = renderPeek(); break;
+        case 'recycle': html = renderRecycle(); break;
         case 'pollution': html = renderPollution(); break;
         case 'gameover': html = renderGameOver(); break;
         case 'waiting': html = renderWaiting(); break;
         case 'spectator': html = renderSpectator(); break;
       }
-      if (G.confirm && (view === 'main' || view === 'response' || view === 'discard' || view === 'peek')) html += renderConfirmModal();
+      if (G.confirm && (view === 'main' || view === 'response' || view === 'discard')) html += renderConfirmModal();
       const _cityModalViews = ['main', 'response', 'waiting', 'waiting_response'];
       if (_cityInfoModal !== null && _cityModalViews.includes(view)) html += renderCityInfoModal();
       else if (!_cityModalViews.includes(view)) _cityInfoModal = null;
@@ -7230,7 +7242,7 @@
       // 2026-07-17ユーザーレビュー修正：設定ボタンはタブバー最右の「設定」タブへ統合したため、旧フローティング
       // settings-btnは廃止した（design_system.md §10.4）。トグル自体（toggleSettings/_settingsOpen）は不変。
       if (_settingsOpen) html += renderSettingsOverlay();
-      const _invBattleViews = ['main','response','turnSummary','discard','peek','waiting_response','waiting'];
+      const _invBattleViews = ['main','response','turnSummary','discard','recycle','waiting_response','waiting'];
       if (!isCpuMode && roomId && _invBattleViews.includes(view)) {
         const _svgInvBtn = `<svg style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
         const _scntBadge = _spectatorCount > 0 ? `<span style="background:rgba(255,255,255,.22);border-radius:5px;padding:0 5px;font-size:.7rem;font-weight:800;line-height:1.7">${_spectatorCount}</span>` : '';
@@ -7839,11 +7851,11 @@
         case 'cityOrder': msg = _wc(`${G.players[G.cityOrderState?.playerIdx ?? 0].name} が`, '先攻を', '選んでいます'); break;
         case 'gacha': msg = _wc(`${G.players[G.gachaCurrent?.playerIdx ?? 0].name} が`, '都市を', '選んでいます'); break;
         case 'draft': msg = _wc(`${G.players[G.draftState?.playerIdx ?? 0].name} が`, '手札を', '引いています'); break;
-        case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? 0; msg = G.turnDrawState?.isHazardMap ? `${_wc(`${G.players[pi].name} が`, 'ハザードマップ', '整備で')}<br>${_wc('カードを', '引いています')}` : _wc(`${G.players[pi].name} が`, 'カードを', '引いています'); } break;
+        case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? 0; msg = G.turnDrawState?.isHazardMap ? `${_wc(`${G.players[pi].name} が`, 'ハザードマップ', '整備で')}<br>${_wc('カードを', '引いています')}` : G.turnDrawState?.isRecycle ? `${_wc(`${G.players[pi].name} が`, 'ローリングストックで')}<br>${_wc('カードを', '交換しています')}` : _wc(`${G.players[pi].name} が`, 'カードを', '引いています'); } break;
         case 'turnSummary': msg = _wc(`${G.players[G.activePlayer].name} が`, 'ターンサマリーを', '確認しています'); break;
         case 'response': msg = _wc(`${G.players[G.pendingAttack?.defenderIdx ?? 0].name} が`, '対応カードを', '選んでいます'); break;
         case 'discard': { const pi = G.discardNeeded?.pi ?? G.discardNeeded?.playerIdx ?? 0; msg = _wc(`${G.players[pi].name} が`, '捨て札を', '選んでいます'); } break;
-        case 'peek': msg = `${_wc('相手が', '防災協定を', '使用して')}<br>${_wc('あなたの手札を', '確認しています')}`; break;
+        case 'recycle': msg = `${_wc('相手が', 'ローリングストックで')}<br>${_wc('手札を', '入れ替えています')}`; break;
         case 'pollution': msg = `${_wc('相手が', '公害を', '使用して')}<br>${_wc('破壊する', 'シールドを', '選んでいます')}`; break;
         default: msg = _wc(`${G.players[G.activePlayer].name} の`, 'ターンです');
       }
@@ -8229,18 +8241,6 @@
           <div class="confirm-btns"><button class="btn-ok" onclick="confirmWithAnim()" aria-label="ターン終了を確定する">終了する</button><button class="btn-cancel" onclick="cancelConfirm()" aria-label="ターン終了をキャンセル">キャンセル</button></div>
         </div></div>`;
       }
-      // UI修正バッチ②(b)：防災協定の捨て札選択タップ時の確認ポップ。「（カード名）を捨てますか？」の一文に絞る
-      if (c.fn === 'peekDiscardCard') {
-        const pi = G.peekByPlayerIdx ?? G.activePlayer;
-        const card = G.players[pi].hand.find(cd => cd.uid === c.uid);
-        const icon = card ? cardTypeIconHtml(card.type, card.color, 28) : '';
-        return `<div class="confirm-overlay" onclick="cancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
-          ${card ? `<img class="confirm-card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">` : ''}
-          <div class="confirm-card-preview" style="display:flex;align-items:center;gap:6px;justify-content:center">${icon}<span>${c.name}</span></div>
-          <p><strong style="color:var(--red)">${c.name}</strong>を捨てますか？</p>
-          <div class="confirm-btns"><button class="btn-ok danger" onclick="confirmWithAnim()" aria-label="${c.name}を捨てる">捨てる</button><button class="btn-cancel" onclick="cancelConfirm()" aria-label="キャンセルして選択に戻る">キャンセル</button></div>
-        </div></div>`;
-      }
       const tl = c.cardType === 'policy' ? '政策カード' : c.cardType === 'disaster' ? '自然災害カード' : c.cardType === 'jinzai' ? '人為災害カード' : 'カード';
       let hint = '';
       if (c.cardType === 'jinzai' && c.fn === 'playCard') {
@@ -8287,7 +8287,7 @@
             else if (card.effectType === 'negate_special') { const withN = computeFullDefenderEst(atk, pi, true); h = `特殊効果を無効＋ダメージ−10 → 予測ダメージ <strong style="color:var(--green)">${withN}</strong>`; }
             else if (card.effectType === 'damage_reduce_2t') { h = `全ダメージ −15（2回・今回の攻撃から適用）→ 予測ダメージ <strong style="color:var(--green)">${Math.max(0, est - 15)}</strong>`; }
             else if (card.effectType === 'draw') { h = `山札から ${card.value} 枚ドロー`; }
-            else if (card.effectType === 'peek_all') { h = '相手の手札を全公開'; }
+            else if (card.effectType === 'recycle_hand') { h = '手札を好きな枚数捨てて同じ枚数を引き直す'; }
           } else {
             // 通常フェーズ：基礎ダメージ＋地形ボーナスのみ（攻撃側の視点）
             if (card.effectType === 'heal') { const aH = Math.min(curHp + card.value, mxHp); h = `HP +${card.value} 回復　<strong style="color:var(--green)">${curHp} → ${aH}</strong>`; }
@@ -8296,7 +8296,7 @@
             else if (card.effectType === 'negate_special') h = G.pendingAttack ? '特殊効果を無効化＋ダメージ−10' : '次の災害の特殊効果を無効化＋ダメージ−10';
             else if (card.effectType === 'damage_reduce_2t') { if (G.pendingAttack) { const e = computeEstDmg(G.pendingAttack.card, pi); h = `全ダメージ −15（2回）→ 予測 <strong style="color:var(--green)">${Math.max(0, e - 15)}</strong>`; } else h = '全ダメージ −15（2回。設置ターンから有効）'; }
             else if (card.effectType === 'draw') h = `山札から ${card.value} 枚ドロー`;
-            else if (card.effectType === 'peek_all') h = '相手の手札を全公開';
+            else if (card.effectType === 'recycle_hand') h = '手札を好きな枚数捨てて同じ枚数を引き直す';
           }
           if (h) hint = `<div style="margin:4px 0;padding:6px 10px;background:rgba(56,139,253,.12);border-radius:6px;font-size:.8rem;color:var(--t2);text-align:center">${h}</div>`;
         }
@@ -8331,7 +8331,7 @@
       let ca = '';
       if (!ts.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt="" style="width:16px;height:16px;object-fit:cover;border-radius:2px;vertical-align:-3px;margin-right:2px">カードを引く！</button>`; }
       else { const c = ts.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptTurnCard()">${coopIcoCheckCircle(15,'currentColor')} 手札に加える</button>`; }
-      const titleLabel = ts.isHazardMap ? 'ハザードマップ整備' : 'ターン開始ドロー';
+      const titleLabel = ts.isHazardMap ? 'ハザードマップ整備' : ts.isRecycle ? 'ローリングストック' : 'ターン開始ドロー';
       return `<div class="screen active"><div class="section-title" style="margin-bottom:0">${p.name}｜${titleLabel} <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${ts.drawn + 1}／${ts.target}枚</span></div>
     <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t1)">ドロー </span><strong style="color:var(--yellow)">${ts.drawn} / ${ts.target}</strong><span style="font-size:.8rem;color:var(--t1)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
     <div class="gacha-stage">${ca}</div></div>`;
@@ -8438,70 +8438,47 @@
       </div>`;
     }
 
-    // ─── 防災協定（全公開＋任意捨て） ───
-    function renderPeek() {
-      const pi = G.peekByPlayerIdx ?? G.activePlayer;
-      const oppCards = G.peekCards || (G.peekCard ? [G.peekCard] : []);
-      // UI修正バッチ②(a)：compact=true で分割レイアウト用の縮小カード（説明文は省略し縦幅を抑える）
-      const cardTile = (c, tappable, compact) => {
-        const ct = cardCtype(c);
-        const borderColor = ct === 'disaster' ? 'var(--red)' : ct === 'shield' ? 'var(--green)' : ct === 'jinzai' ? '#c084fc' : 'var(--yellow)';
-        const imgW = compact ? 52 : 72;
-        const iconSize = compact ? 20 : 32;
-        return `<div class="peek-card-big${compact ? ' peek-card-compact' : ''}" style="flex-shrink:0;border-color:${borderColor}${tappable ? ';cursor:pointer;opacity:.95' : ''}"${tappable ? ` onclick="requestPeekDiscardConfirm('${c.uid}')"` : ''}>
-          <img src="images/cards/${c.id}.webp" style="width:${imgW}px;border-radius:6px" alt="" onerror="this.style.display='none'">
-          <div class="pk-icon">${cardTypeIconHtml(c.type, c.color, iconSize)}</div><div class="pk-name">${c.name}</div>
-          <div class="pk-cost" style="color:${borderColor}">コスト: ${c.cost}</div>
-          ${compact ? '' : `<div class="pk-desc">${c.desc}</div>`}
-          ${tappable ? `<div style="margin-top:${compact ? 2 : 6}px;font-size:${compact ? '.62rem' : '.73rem'};color:var(--red);font-weight:700">タップで捨てる</div>` : ''}</div>`;
-      };
-      const rowStyle = 'display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px;padding:6px 12px 12px;justify-content:flex-start';
-      const sectionLabel = (text, color) => `<div style="text-align:center;padding:8px 12px 2px;color:${color};font-size:.85rem;font-weight:700">${text}</div>`;
-      const divider = `<div style="height:1px;background:rgba(255,255,255,.25);margin:4px 16px 8px"></div>`;
-
-      if (_peekDiscardMode) {
-        const myHand = G.players[pi].hand;
-        // (a) 自分の捨て札選択中も相手の公開手札が見えるよう、上下2ペインに分割して同時表示する
-        const oppPane = `<div class="peek-split-pane">${sectionLabel(`相手の手札一覧（${oppCards.length}枚）`, 'var(--t1)')}<div class="peek-card-display" style="${rowStyle}">${oppCards.map(c => cardTile(c, false, true)).join('')}</div></div>`;
-        let myPane;
-        if (myHand.length === 0) {
-          myPane = `<div class="peek-split-pane"><div style="text-align:center;color:var(--t2);font-size:.85rem;padding:8px">捨てられる手札がありません</div>
-            <div class="peek-split-footer"><button class="btn-ho" onclick="closePeek()" style="font-size:.9rem" aria-label="手札を捨てずに閉じる">閉じる</button></div></div>`;
-        } else {
-          // (c)「捨てない」は常時見える位置（各ペイン下部・footer固定）に明示ボタンとして配置する
-          myPane = `<div class="peek-split-pane">${sectionLabel('あなたの手札 — 捨てる1枚を選択', 'var(--yellow)')}
-            <div class="peek-card-display" style="${rowStyle}">${myHand.map(c => cardTile(c, true, true)).join('')}</div>
-            <div class="peek-split-footer"><button class="btn-ho" onclick="closePeek()" style="font-size:.85rem;padding:9px 26px" aria-label="手札を捨てずに選択に戻る">やめる（捨てない）</button></div></div>`;
-        }
-        return `<div class="screen active"><div class="peek-wrap peek-split">${oppPane}<div class="peek-split-divider">${divider}</div>${myPane}</div></div>`;
-      }
-
-      const oppSection = `${sectionLabel(`相手の手札一覧（${oppCards.length}枚）`, 'var(--t1)')}<div class="peek-card-display" style="${rowStyle}">${oppCards.map(c => cardTile(c, false, false)).join('')}</div>`;
-      const actionHtml = `<div style="display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap">
-          <button class="btn-ho" onclick="startPeekDiscard()" style="font-size:.9rem;border-color:var(--red);color:var(--red);background:rgba(248,81,73,.12)">${uiIcoUpload(14,'var(--red)')} 手札を1枚捨てる</button>
-          <button class="btn-ho" onclick="closePeek()" style="font-size:.9rem" aria-label="手札を捨てずにスキップする">スキップ（捨てない）</button>
+    // ─── ローリングストック：捨てるカードを好きな枚数だけ多重選択する画面 ───
+    function renderRecycle() {
+      const rs = G.recycleState; const pi = rs.pi; const p = G.players[pi];
+      const n = _recycleSelected.length;
+      const cards = p.hand.map(card => {
+        const sel = _recycleSelected.includes(card.uid);
+        return `<div class="card ${card.type}${sel ? ' card-usable' : ''}" onclick="toggleRecycleCard('${card.uid}')" style="cursor:pointer;${sel ? 'box-shadow:0 0 0 3px var(--red) inset,0 0 10px rgba(248,81,73,.4);opacity:.88' : ''}">
+          <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
+          <div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
+          <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}
+          ${sel ? `<div style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}
         </div>`;
-      return `<div class="screen active"><div class="peek-wrap">${oppSection}${actionHtml}</div></div>`;
+      }).join('');
+      return `<div class="screen active"><div class="section-title">${uiIcoUpload(15)} ${p.name} — ローリングストック：捨てるカードを選択</div>
+    <div style="font-size:.8rem;color:var(--t2);text-align:center">選択中：<strong style="color:var(--yellow)">${n}枚</strong>　→　同じ枚数だけ山札から引きます</div>
+    <div style="display:flex;align-items:center;gap:6px;margin:4px 0;padding:6px 10px;background:rgba(56,139,253,.1);border-radius:6px;font-size:.72rem;color:var(--t2);text-align:center;justify-content:center">${uiIcoBulb(13,'#388bfd')} 古い備えを新しい備えに入れ替えよう（0枚のままでも実行できます）</div>
+    <div class="discard-cards">${cards}</div>
+    <div style="text-align:center;margin:10px 0"><button class="btn-ho" onclick="confirmRecycle()" style="font-size:.9rem">${n > 0 ? `${n}枚を交換する` : '交換せずに終了'}</button></div></div>`;
     }
-    // UI修正バッチ②(b)：捨てるカードをタップした直後に確認ポップを挟み、誤タップでの即時捨てを防ぐ
-    function requestPeekDiscardConfirm(uid) {
-      const pi = G.peekByPlayerIdx ?? G.activePlayer;
-      const card = G.players[pi].hand.find(c => c.uid === uid);
-      if (!card) return;
-      requestConfirm('peekDiscardCard', uid, card.name, card.icon, card.type, '捨てる', true);
+    function toggleRecycleCard(uid) {
+      const idx = _recycleSelected.indexOf(uid);
+      if (idx === -1) _recycleSelected.push(uid); else _recycleSelected.splice(idx, 1);
+      render();
     }
-
-    function startPeekDiscard() { _peekDiscardMode = true; render(); }
-
-    function peekDiscard(uid) {
-      const pi = G.peekByPlayerIdx ?? G.activePlayer;
-      const p = G.players[pi];
-      const idx = p.hand.findIndex(c => c.uid === uid);
-      if (idx === -1) return;
-      const card = p.hand.splice(idx, 1)[0];
-      G.discard.push(card);
-      addLog(`${uiIcoUpload(13)} ${p.name}が防災協定で手札1枚を捨てた（${cardIconSvg(card.icon,13)} ${card.name}）`, 'sys');
-      closePeek();
+    function confirmRecycle() {
+      const rs = G.recycleState; if (!rs) return;
+      const pi = rs.pi; const p = G.players[pi];
+      const picks = _recycleSelected.filter(uid => p.hand.some(c => c.uid === uid));
+      const n = picks.length;
+      picks.forEach(uid => { const idx = p.hand.findIndex(c => c.uid === uid); if (idx >= 0) { const c = p.hand.splice(idx, 1)[0]; G.discard.push(c); } });
+      _recycleSelected = []; G.recycleState = null;
+      if (n > 0) {
+        addLog(`${uiIcoUpload(13)} ${p.name}：ローリングストックで${n}枚を捨て札に`, 'sys');
+        G.turnDrawState = { pi, drawn: 0, target: n, revealed: null, isRecycle: true };
+        G.screen = 'turnDraw';
+        pushState(); render();
+      } else {
+        addLog(`${p.name}：ローリングストックを使ったが入れ替えなし（0枚選択）`, 'sys');
+        G.screen = 'main';
+        if (!handleDiscardIfNeeded(pi, 'main')) goMain();
+      }
     }
 
     // ─── 公害（破壊する相手シールドの選択） ───
@@ -9102,7 +9079,6 @@
         _playingCardUid = c.uid; render();
         setTimeout(() => { _playingCardUid = null; if (c.fn === 'playCard') playCard(c.uid); else playResponseCard(c.uid); }, 230);
       } else if (c.fn === 'discardCard') { discardCard(c.uid); }
-      else if (c.fn === 'peekDiscardCard') { peekDiscard(c.uid); }
       else if (c.fn === 'endTurn') { endTurn(); }
     }
     function cancelConfirm() { G.confirm = null; render(); }
@@ -9121,7 +9097,7 @@
       showBudgetToast(card.cost, getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
       if (card.type === 'policy') {
         applyPolicyEffect(card, G.activePlayer, false);
-        if (G.screen === 'peek') { pushState(); render(); return; }
+        if (G.screen === 'recycle') { pushState(); render(); return; }
         if (G.screen === 'turnDraw') { pushState(); render(); return; }
         if (!handleDiscardIfNeeded(G.activePlayer, 'main')) goMain();
       } else if (card.type === 'jinzai') {
@@ -9174,7 +9150,7 @@
       const idx = def.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = def.hand[idx]; if (card.type !== 'policy') return;
       def.hand.splice(idx, 1); G.discard.push(card); pushUsedHistory(defIdx, card); addLog(`${uiIcoShield(13)} ${def.name}が「${cardIconSvg(card.icon,13)} ${card.name}」で対応！`, 'policy');
       resolveDamage(G.pendingAttack.card, defIdx, card); G.pendingAttack = null;
-      if (checkWin()) return; if (G.screen !== 'peek' && G.screen !== 'turnDraw') G.screen = 'main'; pushState(); render();
+      if (checkWin()) return; if (G.screen !== 'recycle' && G.screen !== 'turnDraw') G.screen = 'main'; pushState(); render();
     }
 
     function discardCard(uid) {
@@ -9184,8 +9160,6 @@
       if (p.hand.length <= 5) { G.discardNeeded = null; G.screen = dn.returnTo; }
       pushState(); render();
     }
-
-    function closePeek() { _peekDiscardMode = false; G.peekCard = null; G.peekCards = null; G.peekByPlayerIdx = null; G.screen = 'main'; pushState(); render(); }
 
     // ─── リマッチ ───
     function doRematch() {
@@ -9206,7 +9180,7 @@
           { name: p1name, cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
         ],
         deck: [], discard: [], log: [],
-        pendingAttack: null, peekCard: null, peekByPlayerIdx: null, pendingPollution: null, winner: null,
+        pendingAttack: null, recycleState: null, pendingPollution: null, winner: null,
         gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null }, draftState: null,
         discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
@@ -9333,7 +9307,7 @@
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, fromResult: false };
         _hintOpen = false; tutorialState = null;
         _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
-        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
+        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, recycleState: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
         requestAnimationFrame(() => { _rApp.style.transition = ''; });
@@ -9355,7 +9329,7 @@
         _hintOpen = false; tutorialState = null;
         _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
         isCpuMode = false;
-        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
+        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }], deck: [], discard: [], log: [], pendingAttack: null, recycleState: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
         requestAnimationFrame(() => { _rApp.style.transition = ''; });
@@ -9403,7 +9377,7 @@
           { name, cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() },
           { name: cpuNames[difficulty], cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects() }
         ],
-        deck: [], discard: [], log: [], pendingAttack: null, peekCard: null, peekByPlayerIdx: null,
+        deck: [], discard: [], log: [], pendingAttack: null, recycleState: null,
         winner: null, gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null, candidates: null },
         draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null,
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
@@ -9429,7 +9403,7 @@
         (s === 'main' && G.pendingAttack?.attackerIdx === 1 && !G._pendingAutoHandover) ||
         (s === 'response' && G.pendingAttack?.defenderIdx === 1) ||
         (s === 'discard' && (dn?.pi ?? dn?.playerIdx) === 1) ||
-        (s === 'peek' && G.peekByPlayerIdx === 1) ||
+        (s === 'recycle' && G.recycleState?.pi === 1) ||
         (s === 'pollution' && G.pendingPollution?.attackerIdx === 1);
       if (!needAct) return;
       _cpuTimer = setTimeout(_cpuAct, 700 + (Math.random() * 700 | 0));
@@ -9459,8 +9433,8 @@
         _cpuDoResponse();
       } else if (s === 'discard' && (dn?.pi ?? dn?.playerIdx) === 1) {
         _cpuDoDiscard();
-      } else if (s === 'peek' && G.peekByPlayerIdx === 1) {
-        closePeek();
+      } else if (s === 'recycle' && G.recycleState?.pi === 1) {
+        _cpuDoRecycle();
       } else if (s === 'pollution' && G.pendingPollution?.attackerIdx === 1) {
         _cpuDoPollution();
       }
@@ -9584,6 +9558,9 @@
       // 9) デマ拡散：攻撃手段がないターンのテンポ妨害（余り予算の活用）
       const rumor = affordable.find(c => c.id === 'rumor');
       if (rumor) { playCard(rumor.uid); return; }
+      // 10) ローリングストック：他に良い手がない＝手札の質が低い時の最終手段（簡易判断）
+      const rs = affordable.find(c => c.effectType === 'recycle_hand');
+      if (rs && cpu.hand.length >= 3) { playCard(rs.uid); return; }
       endTurn();
     }
 
@@ -9661,6 +9638,9 @@
       // ⑨ デマ拡散：余り予算でのテンポ妨害（最後の手段）
       const rumor = affordable.find(c => c.id === 'rumor');
       if (rumor) { playCard(rumor.uid); return; }
+      // ⑩ ローリングストック：他に良い手がない＝手札の質が低い時の最終手段（簡易判断）
+      const rs = affordable.find(c => c.effectType === 'recycle_hand');
+      if (rs && cpu.hand.length >= 3) { playCard(rs.uid); return; }
       endTurn();
     }
 
@@ -9680,6 +9660,9 @@
       if (use) playResponseCard(use.uid); else skipResponse();
     }
 
+    // CPUにとっての価値が低い順（先頭ほど手放しやすい）。手札上限の強制捨て札とローリングストックの
+    // 入れ替え選択の両方で共用する（旧pactは同じ位置でrolling_stockに改称）。
+    const CPU_DISCARD_PRIORITY = ['drill', 'hazard_map', 'rumor', 'rolling_stock', 'typhoon', 'pollution', 'terror', 'landslide', 'earthquake', 'flood', 'quake_wall', 'dam', 'evacuation', 'agreement', 'bousai_cho', 'compound', 'tsunami', 'wildfire'];
     function _cpuDoDiscard() {
       const cpu = G.players[1]; const hand = cpu.hand;
       const oppCity = G.players[0].cities[G.players[0].activeCityIdx];
@@ -9689,9 +9672,22 @@
       if (cpuDifficulty === 'hard' && oppCity && !oppCity.isMountain) {
         const ls = hand.find(c => c.id === 'landslide'); if (ls) { discardCard(ls.uid); return; }
       }
-      const order = ['drill', 'hazard_map', 'rumor', 'pact', 'typhoon', 'pollution', 'terror', 'landslide', 'earthquake', 'flood', 'quake_wall', 'dam', 'evacuation', 'agreement', 'bousai_cho', 'compound', 'tsunami', 'wildfire'];
-      for (const id of order) { const c = hand.find(c => c.id === id); if (c) { discardCard(c.uid); return; } }
+      for (const id of CPU_DISCARD_PRIORITY) { const c = hand.find(c => c.id === id); if (c) { discardCard(c.uid); return; } }
       discardCard(hand[0].uid);
+    }
+    // ローリングストック：捨てるカードの選択（簡易判断）。CPU_DISCARD_PRIORITYの価値が低い順に最大2枚まで入れ替える。
+    // 0枚選択でも有効な操作のため、対象が見つからなければ交換なしでconfirmRecycle()する。
+    function _cpuDoRecycle() {
+      const rs = G.recycleState; if (!rs) return;
+      const p = G.players[rs.pi];
+      const picks = [];
+      for (const id of CPU_DISCARD_PRIORITY) {
+        if (picks.length >= 2) break;
+        const c = p.hand.find(x => x.id === id && !picks.includes(x.uid));
+        if (c) picks.push(c.uid);
+      }
+      _recycleSelected = picks;
+      confirmRecycle();
     }
 
     // ═══════════════════════════════════════
@@ -10279,15 +10275,15 @@
           case 'confirmPlay': {
             if (CO.phase !== 'city') break;
             const slot = slotOf(pid); if (!slot || slot.ready) break;
-            // 壊滅都市（後方支援）：自己完結カード（ドロー）と自己対象は不可。生存する別都市への回復・シールド・共助支援（防災協定）のみ
+            // 壊滅都市（後方支援）：自己完結カード（ドロー・ローリングストック）と自己対象は不可。生存する別都市への回復・シールドのみ
             if (slot.hp <= 0) {
               const card = slot.hand.find(x => x.uid === p.uid);
               const selfIdx = CO.cities.indexOf(slot);
               const tgt = CO.cities[p.i];
-              const SUPPORT_OK = ['heal', 'shield_quake_fire', 'shield_flood', 'negate_special', 'damage_reduce_2t', 'peek_all'];
+              const SUPPORT_OK = ['heal', 'shield_quake_fire', 'shield_flood', 'negate_special', 'damage_reduce_2t'];
               if (!card || p.i < 0 || p.i === selfIdx || !tgt || tgt.hp <= 0 || !SUPPORT_OK.includes(card.effectType)) break;
             }
-            coopLoadActor(slot); CO.confirm = { uid: p.uid }; coopConfirmPlay(p.i);
+            coopLoadActor(slot); CO.confirm = { uid: p.uid, recyclePick: p.recyclePick }; coopConfirmPlay(p.i);
             // ハザードマップ整備（draw）はMPでは即時ドロー（グローバルなdrawフェーズを作らない）
             if (CO.phase === 'draw' && CO.drawState) {
               let g = 0; while (CO.drawState && g++ < 12) { coopPullDrawCard(); if (CO.drawState && CO.drawState.revealed) coopAcceptDrawCard(); }
@@ -10677,6 +10673,14 @@
       CO.confirm = { uid }; renderCoop();
     }
     function coopCancelConfirm() { CO.confirm = null; renderCoop(); }
+    // ローリングストック：確認ポップ内でのカード多重選択トグル（コミット前のローカル状態。MPはconfirmPlay確定時にまとめて送信）
+    function coopToggleRecyclePick(uid) {
+      if (!CO.confirm) return;
+      const arr = CO.confirm.recyclePick || (CO.confirm.recyclePick = []);
+      const idx = arr.indexOf(uid);
+      if (idx === -1) arr.push(uid); else arr.splice(idx, 1);
+      renderCoop();
+    }
     function coopApplyPolicyToCity(card, cs) {
       const e = cs.effects;
       switch (card.effectType) {
@@ -10685,27 +10689,31 @@
         case 'negate_special': e.negateSpecial = true; break;
         case 'damage_reduce_2t': e.damageReduceHits = 2; break;
         case 'heal': cs.hp = Math.min(cs.maxHp, cs.hp + card.value); break;
-        case 'peek_all': // 防災協定（協力モード・即時＝予算の緊急融通）：対象都市のこのターンの予算を即座に +COOP_PACT_BUDGET（今すぐ使える）
-          if (!CO.mp) CO.budget = (CO.budget || 0) + COOP_PACT_BUDGET;                  // ソロ＝共有予算
-          else if (cs.hand === CO.hand) CO.budget = (CO.budget || 0) + COOP_PACT_BUDGET; // MP・自分＝スクラッチ（coopSaveActorでスロットへ反映）
-          else { cs.budget = (cs.budget || 0) + COOP_PACT_BUDGET; if (cs.ready) cs.ready = false; } // MP・味方＝対象スロットへ直接付与。ターン終了済みでも予算追加で再行動を許可
-          break;
       }
     }
-    // i < 0 は対象都市なし（ドロー・情報共有）
+    // i < 0 は対象都市なし（ドロー・ローリングストック等の自己完結カード）
     function coopConfirmPlay(i) {
       if (!CO.confirm) return;
-      if (CO.mp && !CO._applying) return coopMPCommit('confirmPlay', { uid: CO.confirm.uid, i });
+      if (CO.mp && !CO._applying) return coopMPCommit('confirmPlay', { uid: CO.confirm.uid, i, recyclePick: CO.confirm.recyclePick });
       const c = CO.hand.find(x => x.uid === CO.confirm.uid); if (!c) { CO.confirm = null; renderCoop(); return; }
       // 壊滅した都市は対象にできない（回復による意図しない復活を防ぐ）。i<0 はドロー・情報共有なので対象判定なし
       if (i >= 0 && (!CO.cities[i] || CO.cities[i].hp <= 0)) { CO.confirm = null; renderCoop(); return; }
       CO.budgetUsed += c.cost; CO.hand.splice(CO.hand.indexOf(c), 1); CO.policyDiscard.push(c);
       if (i < 0) {
         if (c.effectType === 'draw') { CO.drawState = { remaining: c.value, drawn: 0, total: c.value, revealed: null }; CO.phase = 'draw'; _coLog(`🗺️ ${c.name}：カードを引きます`); }
+        else if (c.effectType === 'recycle_hand') {
+          // ローリングストック：CO.confirm.recyclePick（コンファームポップで多重選択済みのuid一覧）だけ手札から捨て、
+          // 同枚数を既存のdraw phase（CO.drawState/coopRenderDraw）に乗せて引き直す。MPはconfirmPlayのintent payload経由で
+          // recyclePickをホストへ運び、draw phaseもホスト側で自動即時解決される既存の仕組み（coopApplyIntentMP）にそのまま乗る。
+          const picks = (CO.confirm.recyclePick || []).filter(u => CO.hand.some(x => x.uid === u));
+          picks.forEach(u => { const idx = CO.hand.findIndex(x => x.uid === u); if (idx >= 0) { const dc = CO.hand.splice(idx, 1)[0]; CO.policyDiscard.push(dc); } });
+          const n = picks.length;
+          if (n > 0) { CO.drawState = { remaining: n, drawn: 0, total: n, revealed: null, source: 'rolling_stock' }; CO.phase = 'draw'; _coLog(`♻️ ${c.name}：${n}枚を交換します`); }
+          else _coLog(`♻️ ${c.name}：交換なし（0枚選択）`);
+        }
       } else {
         const cs = CO.cities[i]; coopApplyPolicyToCity(c, cs);
-        if (c.effectType === 'peek_all') _coLog(`🤝 ${c.name} → ${cs.city.name}（予算+${COOP_PACT_BUDGET}を即時融通）`);
-        else _coLog(`🔵 ${c.name} → ${cs.city.name}（共助）`);
+        _coLog(`🔵 ${c.name} → ${cs.city.name}（共助）`);
       }
       CO.confirm = null; renderCoop();
     }
@@ -11093,8 +11101,12 @@
       if (lowest.cs.effects.damageReduceHits === 0) { const bc = playable.find(c => c.effectType === 'damage_reduce_2t'); if (bc) return { card: bc, cityIdx: lowest.i }; }
       if (lowest.cs.hp < lowest.cs.maxHp) { const heal = playable.filter(c => c.effectType === 'heal').sort((a, b) => b.value - a.value)[0]; if (heal) return { card: heal, cityIdx: lowest.i }; }
       const dr = playable.find(c => c.effectType === 'draw'); if (dr) return { card: dr, cityIdx: null };
+      // ローリングストック：他に良い手がない＝手札の質が低い時の最終手段（簡易判断。VS対戦の_cpuDoMainNormal/Hardと同じ位置づけ）
+      const rs = playable.find(c => c.effectType === 'recycle_hand'); if (rs && CO.hand.length >= 3) return { card: rs, cityIdx: null };
       return null;
     }
+    // ローリングストックでCPUが手放すカードの優先順位（低優先＝手放しやすい順）。コop手札はPOLICY_CARDSのみ（自然災害・人為は含まない）。
+    const COOP_CPU_RECYCLE_PRIORITY = ['drill', 'hazard_map', 'agreement', 'dam', 'quake_wall', 'evacuation', 'bousai_cho'];
     function coopCpuCityTurn() {
       _coTimer = null; if (!CO) return;
       const skipChance = CO.diff.cpuSkip != null ? CO.diff.cpuSkip : 0;
@@ -11108,6 +11120,14 @@
         const c = act.card; CO.budgetUsed += c.cost; CO.hand.splice(CO.hand.indexOf(c), 1); CO.policyDiscard.push(c);
         if (act.cityIdx != null) { coopApplyPolicyToCity(c, CO.cities[act.cityIdx]); played.push({ card: c, target: CO.cities[act.cityIdx].city.name }); CO.cpuPlayedLog.push({ id: c.id, name: c.name }); _coLog(`🛡️ CPU都市：${c.name} → ${CO.cities[act.cityIdx].city.name}`); }
         else if (c.effectType === 'draw') { coopDraw(c.value); played.push({ card: c, target: null }); CO.cpuPlayedLog.push({ id: c.id, name: c.name }); _coLog(`🛡️ CPU都市：${c.name}（ドロー）`); }
+        else if (c.effectType === 'recycle_hand') {
+          const picks = [];
+          for (const id of COOP_CPU_RECYCLE_PRIORITY) { if (picks.length >= 2) break; const pc = CO.hand.find(x => x.id === id); if (pc) picks.push(pc); }
+          picks.forEach(pc => { const idx = CO.hand.indexOf(pc); if (idx >= 0) { CO.hand.splice(idx, 1); CO.policyDiscard.push(pc); } });
+          coopDraw(picks.length);
+          played.push({ card: c, target: null }); CO.cpuPlayedLog.push({ id: c.id, name: c.name });
+          _coLog(`🛡️ CPU都市：${c.name}（${picks.length}枚を交換）`);
+        }
       }
       if (played.length) { CO.cpuReview = played; CO.phase = 'cpuReview'; renderCoop(); }
       else { _coLog('🛡️ CPU都市：今回は備えを置かなかった'); coopAfterCityTurn(); }
@@ -11364,7 +11384,7 @@
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
     function coopMkCard(card, mode, support, readOnly) {
       const left = CO.budget - CO.budgetUsed;
-      const noTarget = support && card.effectType === 'draw'; // 後方支援は自己完結カード（ドロー）だけ使えない。防災協定は味方支援なので可
+      const noTarget = support && (card.effectType === 'draw' || card.effectType === 'recycle_hand'); // 後方支援は自己完結カード（ドロー・ローリングストック）は使えない
       const dis = !readOnly && (mode === 'city') && (card.cost > left || noTarget);
       const click = (readOnly || dis) ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopRespCardTap('${card.uid}')`);
       const costLabel = mode === 'resp' ? '無料' : card.cost;
@@ -11381,7 +11401,7 @@
         case 'negate_special': return '特殊効果・テロ攻撃を無効＋ダメージ −10';
         case 'damage_reduce_2t': return '全ダメージ −15（2回・設置ターンから有効）';
         case 'draw': return `山札から ${card.value} 枚ドロー`;
-        case 'peek_all': return `緊急融通：選んだ都市のこのターンの予算を +${COOP_PACT_BUDGET}（今すぐ使える）`;
+        case 'recycle_hand': return '自分の手札を好きな枚数捨て、同じ枚数を山札から引く';
         default: return '';
       }
     }
@@ -11456,17 +11476,36 @@
         actions = `<p style="margin:6px 0;color:var(--t0)">${CO.mp ? '自分の都市への攻撃に対応します（対応は1回）' : 'どの攻撃に対応しますか？（対応は1回）'}</p>${btns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
       } else if (c.effectType === 'draw') {
         actions = `<p style="margin:6px 0;color:var(--t0)">この政策を使用しますか？</p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlayAnim(-1)">使用する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
+      } else if (c.effectType === 'recycle_hand') {
+        // ローリングストック：自分自身は選択対象から除く（このカード自身は使用と同時に捨て札へ行くため）。
+        // 選択はCO.confirm.recyclePick（ローカルの多重選択・commit前）で保持し、確定時にconfirmPlayのintent payloadへ乗せる。
+        const pickArr = CO.confirm.recyclePick || (CO.confirm.recyclePick = []);
+        const selectable = CO.hand.filter(x => x.uid !== c.uid);
+        const n = pickArr.length;
+        if (!selectable.length) {
+          actions = `<p style="margin:6px 0;color:var(--t0)">捨てられる手札がありません</p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlayAnim(-1)">使用する（交換なし）</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
+        } else {
+          const tiles = selectable.map(x => {
+            const sel = pickArr.includes(x.uid);
+            return `<div class="peek-card-big peek-card-compact" style="flex-shrink:0;cursor:pointer;border-color:${sel ? 'var(--red)' : 'var(--yellow)'}${sel ? ';opacity:.85;box-shadow:0 0 0 2px var(--red)' : ''}" onclick="coopToggleRecyclePick('${x.uid}')">
+              <img src="images/cards/${x.id}.webp" style="width:52px;border-radius:6px" alt="" onerror="this.style.display='none'">
+              <div class="pk-name">${x.name}</div><div class="pk-cost" style="color:var(--yellow)">コスト:${x.cost}</div>
+              ${sel ? `<div style="margin-top:2px;font-size:.6rem;color:var(--red);font-weight:800">選択中</div>` : ''}
+            </div>`;
+          }).join('');
+          actions = `<p style="margin:6px 0;color:var(--t0)">捨てるカードを選択（選択中：${n}枚）</p>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:190px;overflow-y:auto;padding:4px">${tiles}</div>
+            <div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlayAnim(-1)">${n > 0 ? `${n}枚を交換する` : '交換せずに使用する'}</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
+        }
       } else {
         const isHeal = c.effectType === 'heal';
-        const isBudget = c.effectType === 'peek_all'; // 防災協定（即時＝予算の緊急融通）
         const cityBtns = CO.cities.map((cs, i) => {
           if (cs.hp <= 0) return '';
           const ownerPfx = CO.mp && cs.ownerName ? `<span style="font-size:.64rem;font-weight:700;opacity:.75;background:rgba(255,255,255,.1);border-radius:8px;padding:1px 6px;border:1px solid rgba(255,255,255,.2)">${cs.ownerName}</span> ` : '';
           if (isHeal) { const after = Math.min(cs.maxHp, cs.hp + c.value); const full = cs.hp >= cs.maxHp; return `<button style="${actBtnTall}" onclick="coopConfirmPlayAnim(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${ownerPfx}${cs.city.name} に適用</span><span style="font-size:.78rem;font-weight:600">${full ? 'HP満タン（回復なし）' : `HP ${cs.hp} → <span style="color:#9ff0a8;font-weight:800">${after}</span>`}</span></button>`; }
-          if (isBudget) { const cur = CO.mp ? ((cs.budget || 0) - (cs.budgetUsed || 0)) : null; return `<button style="${actBtnTall}" onclick="coopConfirmPlayAnim(${i})"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${ownerPfx}${cs.city.name} に融通</span><span style="font-size:.78rem;font-weight:600">このターンの予算 <span style="color:#9ff0a8;font-weight:800">+${COOP_PACT_BUDGET}</span>（今すぐ使える）${CO.mp ? `<span style="opacity:.7"> ／ 残${cur}→${cur + COOP_PACT_BUDGET}</span>` : ''}</span></button>`; }
           return `<button style="${actBtn}" onclick="coopConfirmPlayAnim(${i})">${terrainImg(cs.city, 18)} ${ownerPfx}${cs.city.name} に適用</button>`;
         }).join('');
-        actions = `<p style="margin:6px 0;color:var(--t0)">${isBudget ? 'どの都市に予算を融通しますか？' : 'どちらの都市に適用しますか？'}</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
+        actions = `<p style="margin:6px 0;color:var(--t0)">どちらの都市に適用しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
       }
       return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><img class="confirm-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div>${hintHtml}${actions}</div></div>`;
     }
@@ -11510,7 +11549,10 @@
         const justDrawn = _coFxDrawnUid !== c.uid; _coFxDrawnUid = c.uid;
         ca = `<div class="gacha-card-reveal-area revealed gacha-reveal${justDrawn ? ' card-just-drawn' : ''}"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="coopAcceptDrawCard()">${coopIcoCheckCircle(16,'currentColor')} 手札に加える</button>`;
       }
-      return `<div class="screen active"><div class="section-title" style="margin-bottom:0">${uiIcoMap(15)} ハザードマップ整備 <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${Math.min(ds.drawn + 1, ds.total)}／${ds.total}枚</span></div><div class="gacha-stage">${ca}</div></div>`;
+      const isRs = ds.source === 'rolling_stock';
+      const titleIcon = isRs ? cardIconSvg('rolling_stock', 15) : uiIcoMap(15);
+      const titleLabel = isRs ? 'ローリングストック' : 'ハザードマップ整備';
+      return `<div class="screen active"><div class="section-title" style="margin-bottom:0">${titleIcon} ${titleLabel} <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${Math.min(ds.drawn + 1, ds.total)}／${ds.total}枚</span></div><div class="gacha-stage">${ca}</div></div>`;
     }
     function coopAllyStatusPanel() {
       if (!CO.mp) return '';
@@ -11816,7 +11858,7 @@
         case 'agreement': return uiIcoLink(s, c);
         case 'evacuation': return uiIcoMegaphone(s, c);
         case 'bousai_cho': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><polygon points="12 3 3 9 21 9 12 3"/><line x1="4" y1="9" x2="4" y2="19"/><line x1="9" y1="9" x2="9" y2="19"/><line x1="15" y1="9" x2="15" y2="19"/><line x1="20" y1="9" x2="20" y2="19"/><line x1="2" y1="21" x2="22" y2="21"/></svg>`;
-        case 'pact': return coopIcoClipboard(s, c);
+        case 'rolling_stock': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
         // 都市（地形ベースの汎用アイコン。CITIES.iconは現状どの表示経路からも参照されないが、統一のため用意）
         case 'city_coastal': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M4 21V9l4-3 4 3v-3l4 3v12"/><path d="M2 21c1.2-1.2 2.4-1.2 3.6 0s2.4 1.2 3.6 0 2.4-1.2 3.6 0 2.4 1.2 3.6 0 2.4-1.2 3.6 0"/></svg>`;
         case 'city_mountain': return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0;vertical-align:-3px"><path d="M4 21V11l3-2 3 2v-2l3 2v-2l3 2v10"/><path d="M2 12l4-6 3 4 3-5 3 4 3-3 4 6" opacity=".55"/></svg>`;
@@ -12532,10 +12574,10 @@
     }
 
     // ── シナリオ生成（都市1・来襲災害3枚［重複なし・順序込み］・政策手札5枚［シールド1枚以上＋即時1枚以上・同種最大2枚］） ──
-    // 手札プールは POLICY_CARDS から「山札からの追加ドロー（hazard_map）」「相手手札の閲覧・破棄（pact＝peek_all）」を除く。
-    // デイリーは単独都市・固定手札のみで完結するソロパズルで「山札」「相手」という概念自体が存在しないため、
-    // この2種は今回は据え置き（フェーズ2でカード工房等と合わせて再検討する候補としてコメントに残す）。
-    const DAILY_HAND_POOL = POLICY_CARDS.filter(c => c.effectType !== 'draw' && c.effectType !== 'peek_all');
+    // 手札プールは POLICY_CARDS から「山札からの追加ドロー（hazard_map）」「手札の入れ替え（rolling_stock＝recycle_hand）」を除く。
+    // デイリーは単独都市・固定手札のみで完結するソロパズルで「山札」という概念自体が存在しないため、
+    // 山札を参照するこの2種は今回は据え置き（フェーズ2でカード工房等と合わせて再検討する候補としてコメントに残す）。
+    const DAILY_HAND_POOL = POLICY_CARDS.filter(c => c.effectType !== 'draw' && c.effectType !== 'recycle_hand');
     function _ddBuildHand(rng) {
       const shieldPool = DAILY_HAND_POOL.filter(c => c.effectType === 'shield_quake_fire' || c.effectType === 'shield_flood');
       const immediatePool = DAILY_HAND_POOL.filter(c => c.effectType === 'heal');
@@ -12750,7 +12792,7 @@
         case 'damage_reduce_2t':
           return card.value;
         default:
-          return 0; // draw・peek_all等はDAILY_HAND_POOLで除外済みだが念のためのフォールバック
+          return 0; // draw・recycle_hand等はDAILY_HAND_POOLで除外済みだが念のためのフォールバック
       }
     }
     // 柱2・柱3共用：貪欲bot本体。各攻撃の直前に「その攻撃への軽減効果が最大のカード」を予算内で1枚ずつ積み、
@@ -13485,6 +13527,12 @@
       st.chip.style.boxShadow = '0 10px 24px rgba(0,0,0,.5)';
       st.chip.style.transform = 'scale(1.06)';
       st.chip.style.pointerEvents = 'none';
+      // UX修正（2026-07-21）：問題工房pzDrag*と同じくtouch-action:noneとe.preventDefault()（ddDragPointerMove側）で
+      // 「対象」の縦スクロールは止まるが、実機ではページ全体（背景）がバウンス/オーバースクロールする余地が残っていた。
+      // 既存の長押しプレビュー（_lpShowPreview）が使っているbody.ui-lp-noscroll（overflow:hidden!important;
+      // touch-action:none）をここでも流用し、長押し確定＝ドラッグ移動モード中だけ背景側のスクロールも封じる。
+      // _lpEligibleCardはバトル中の手札限定でデイリー画面には無関係のため、クラスの奪い合いは起きない。
+      document.body.classList.add('ui-lp-noscroll');
     }
     // ④ヒットテストは行（.dd-prep-row）の矩形で行う。.dd-slot-cellがコンパクト幅化された後も
     // 「災害カード・▶・番号バッジを含む行のどこに指を置いても対応する行へドロップできる」ようにするため。
@@ -13519,6 +13567,7 @@
       const st = _ddDrag; if (!st || e.pointerId !== st.pointerId) return;
       _ddDrag = null;
       clearTimeout(st.timer);
+      if (st.active) document.body.classList.remove('ui-lp-noscroll'); // activate時に付与した背景スクロール封じを解除
       if (!st.active || !DD) return; // 長押し未成立＝通常のタップ。render()を呼ばずカード側の各onclickに任せる
       _ddDragClearHint();
       const target = st.dropTarget;
