@@ -317,6 +317,11 @@
     html.ron-font-8bit body * {
       font-family: 'DotGothic16', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif !important;
     }
+    /* 2026-07-21 UX修正：8bit時のロゴはみ出し対策。DotGothic16はRoboto Condensed（凝縮フォント）より字幅が広く、
+       「Ready or Not」をnowrapのまま同じfont-sizeで出すと横幅が画面外へ溢れ位置ずれ・文字欠けを起こす。
+       8bit選択時のみロゴのfont-sizeを縮めて画面内に収める（ロビー.lobby-title 4rem・起動スプラッシュ.sl-title 2.6rem）。 */
+    html.ron-font-8bit .lobby-title { font-size: 1.7rem !important; word-spacing: 0 !important; }
+    html.ron-font-8bit .sl-title { font-size: 1.4rem !important; letter-spacing: .04em !important; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
@@ -13533,7 +13538,15 @@
       // touch-action:none）をここでも流用し、長押し確定＝ドラッグ移動モード中だけ背景側のスクロールも封じる。
       // _lpEligibleCardはバトル中の手札限定でデイリー画面には無関係のため、クラスの奪い合いは起きない。
       document.body.classList.add('ui-lp-noscroll');
+      // 2026-07-21 追加修正：デイリー画面は#appにoverflow:hiddenが付かず（body.battle-active時のみ）ドキュメント本体が
+      // スクロールする。body{overflow:hidden}（ui-lp-noscroll）だけではiOS Safariが事実上これを無視するため背景の
+      // スクロール／オーバースクロールを止められない。ドラッグ確定中だけdocumentへtouchmoveの非passiveリスナーを張り
+      // preventDefault()でネイティブスクロールを確実に封じる（ポインタイベントのpreventDefaultはスクロールを止めない）。
+      document.addEventListener('touchmove', _ddPreventTouchMove, { passive: false });
     }
+    // ドラッグ移動モード中のみ背景タッチスクロールを止める。長押し未成立（通常スクロール）中はリスナー自体が無いため
+    // ページの通常スクロールは一切妨げない。
+    function _ddPreventTouchMove(e) { if (_ddDrag && _ddDrag.active) e.preventDefault(); }
     // ④ヒットテストは行（.dd-prep-row）の矩形で行う。.dd-slot-cellがコンパクト幅化された後も
     // 「災害カード・▶・番号バッジを含む行のどこに指を置いても対応する行へドロップできる」ようにするため。
     // rowも一緒に返し、Notionのブロック移動に近い体験にするため行全体をハイライトする（下記_ddDragClearHint参照）。
@@ -13567,7 +13580,7 @@
       const st = _ddDrag; if (!st || e.pointerId !== st.pointerId) return;
       _ddDrag = null;
       clearTimeout(st.timer);
-      if (st.active) document.body.classList.remove('ui-lp-noscroll'); // activate時に付与した背景スクロール封じを解除
+      if (st.active) { document.body.classList.remove('ui-lp-noscroll'); document.removeEventListener('touchmove', _ddPreventTouchMove, { passive: false }); } // activate時に付与した背景スクロール封じを解除
       if (!st.active || !DD) return; // 長押し未成立＝通常のタップ。render()を呼ばずカード側の各onclickに任せる
       _ddDragClearHint();
       const target = st.dropTarget;
