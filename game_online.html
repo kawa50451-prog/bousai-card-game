@@ -4553,6 +4553,17 @@
       if (!card.querySelector('.card-img')) return null;
       return card;
     }
+    // Android P0修正（2026-07-23）：スクロールロック残留の自己修復。全ページでスクロール不能になる不具合対策。
+    // (1) body.ui-lp-noscroll（overflow:hidden!important）はデイリーのドラッグ由来だと_lpClosePreviewが
+    //     「オーバーレイ無し」を理由にreturnして解除しないため、ここで無条件に外す。
+    // (2) _ddPreventTouchMove（documentのtouchmove preventDefault）とアクティブな_ddDragは、Androidで
+    //     pointerupが取りこぼされると残留し、以降すべてのtouchmoveがpreventDefaultされ全ページのスクロールを殺す。
+    //     ここで確実にリスナー解除＆状態リセットする。iOSはtouch-actionを無視するため元々顕在化しなかった。
+    function _forceUnlockScroll() {
+      try { if (typeof document !== 'undefined' && document.body) document.body.classList.remove('ui-lp-noscroll'); } catch (e) {}
+      try { if (typeof _ddPreventTouchMove === 'function') document.removeEventListener('touchmove', _ddPreventTouchMove, { passive: false }); } catch (e) {}
+      try { if (typeof _ddDrag !== 'undefined') _ddDrag = null; } catch (e) {}
+    }
     function _lpCancelTimer() { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; } }
     function _lpClosePreview() {
       if (!_lpOverlayEl) return;
@@ -4633,6 +4644,14 @@
       document.addEventListener('touchend', _lpOnTouchEnd, { passive: false });
       document.addEventListener('touchcancel', _lpOnTouchCancel, { passive: true });
       document.addEventListener('contextmenu', _lpOnContextMenu);
+      // Android P0修正（2026-07-23）：同一画面に留まったまま（render()が走らない）ロックが残留した場合の自己修復。
+      // 新しいタッチが始まる＝直前のジェスチャは終了済み。ドラッグが実際にアクティブでなければ残留ロックを解除する。
+      // ドラッグ開始時のtouchstartではまだ_ddDrag.active=false（活性化は450ms後）なので、正規のドラッグ開始を妨げない。
+      document.addEventListener('touchstart', function () {
+        if (typeof _ddDrag !== 'undefined' && _ddDrag && _ddDrag.active) return; // 正規のドラッグ進行中は触らない
+        try { if (document.body && document.body.classList.contains('ui-lp-noscroll')) document.body.classList.remove('ui-lp-noscroll'); } catch (e) {}
+        try { if (typeof _ddPreventTouchMove === 'function') document.removeEventListener('touchmove', _ddPreventTouchMove, { passive: false }); } catch (e) {}
+      }, { passive: true });
     }
 
     // 協力モード専用：災害連鎖テーブル（共有データ DISASTER_CARDS は変更しない）
@@ -7200,6 +7219,7 @@
       // どの分岐（CO/DD/CW/PZ/通常ロビー・バトル）でも必ず通る最上流でクリアするため、
       // 長押し中に別要因でrender()が走っても古いタイマー参照・孤立したオーバーレイが残らない。
       _lpCancelTimer(); _lpClosePreview();
+      _forceUnlockScroll(); // Android P0：スクロールロック残留を全画面共通の最上流で必ず解除（自己修復）
       _updateWakeLock();
       if (coopTutorialState) { renderCoopTutorial(); return; } // 協力チュートリアルはG/CO/DD/CWいずれとも独立した専用ステートマシン
       if (CO) { renderCoop(); return; }
