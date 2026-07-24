@@ -72,7 +72,10 @@
     html {
       background: #080d14;
       background: var(--bg0-deep);
-      touch-action: pan-x pan-y;
+      /* 2026-07-23 P0修正：htmlのtouch-actionを撤去。`pan-x pan-y`はAndroid Chromeでは適用され縦スクロールを
+         阻害する一方、iOS Safariはhtml/bodyのtouch-actionを無視するため「iPhoneはスクロール可・Androidは不可」
+         という重大不具合になっていた（クローズドテスト中のAndroidユーザー報告）。ズーム防止はviewport metaの
+         user-scalable=no/maximum-scale=1.0で既に担保されており、この宣言は元々重複で不要だった。 */
       overflow-x: hidden;
       overscroll-behavior: none;
       /* 2026-07-18モーション強化：テーマ切替時、html/body/#appは（render()によるinnerHTML全置換の対象外＝
