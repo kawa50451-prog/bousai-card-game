@@ -72,16 +72,15 @@
     html {
       background: #080d14;
       background: var(--bg0-deep);
-      /* 2026-07-23 P0修正：htmlのtouch-actionを撤去。`pan-x pan-y`はAndroid Chromeでは適用され縦スクロールを
-         阻害する一方、iOS Safariはhtml/bodyのtouch-actionを無視するため「iPhoneはスクロール可・Androidは不可」
-         という重大不具合になっていた（クローズドテスト中のAndroidユーザー報告）。ズーム防止はviewport metaの
-         user-scalable=no/maximum-scale=1.0で既に担保されており、この宣言は元々重複で不要だった。 */
-      overflow-x: hidden;
-      overscroll-behavior: none;
-      /* 2026-07-18モーション強化：テーマ切替時、html/body/#appは（render()によるinnerHTML全置換の対象外＝
-         DOMノードが常に同一のまま）data-theme属性変更でCSS変数だけが再計算されるため、この3要素にだけ
-         transitionを付ければ「テーマ全体色のスムーズな遷移」が実現する（内部の各パネルはrender()毎に
-         DOMごと再生成されるため、transitionを付けても初回ペイントに使われるだけで意味を持たない）。 */
+      /* 2026-07-23 P0修正（根本原因）：htmlに付けていた overflow-x:hidden / overscroll-behavior / touch-action を
+         すべて撤去した。特に overflow-x:hidden は致命的で、CSS仕様上 overflow-x を hidden にすると overflow-y が
+         visible→auto に変わり <html> 自身がスクロールコンテナ化する。html は高さautoでスクロール余地が無い容器に
+         なるため、Android Chrome ではビューポートの縦スクロールが完全に死ぬ（iOS Safari は挙動が異なり無事だった＝
+         「iPhoneは可・Android全機種で不可」の正体）。白画面対策の本体は background:var(--bg0-deep) のテーマ反応で
+         あり維持している。横方向のクリップと pull-to-refresh 抑止は body 側の overflow-x:hidden / overscroll-behavior
+         で担保する（body 単体への指定は縦スクロールを壊さない）。
+         2026-07-18モーション強化：テーマ切替時の色遷移用 transition は残す（html は render() の innerHTML 全置換
+         対象外で DOM ノードが同一のまま data-theme 変更で CSS 変数のみ再計算されるため、ここに付けて意味を持つ）。 */
       transition: background-color .3s ease-out;
     }
 
