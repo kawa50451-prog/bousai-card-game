@@ -5,7 +5,7 @@
 // 登録側（game_online.html）はCapacitor/file://環境では登録をスキップするため、
 // このファイルはGitHub Pages等http(s)配信でのみ有効になる。
 
-const SW_VERSION = 'v2';
+const SW_VERSION = 'v3';
 const IMG_CACHE = `ron-images-${SW_VERSION}`;
 const HTML_CACHE = `ron-html-${SW_VERSION}`;
 const CURRENT_CACHES = [IMG_CACHE, HTML_CACHE];
@@ -50,7 +50,11 @@ async function cacheFirst(request, cacheName) {
 async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
-    const res = await fetch(request);
+    // 2026-07-25：{cache:'no-store'}でブラウザのHTTPディスクキャッシュを完全に迂回し、オンライン時は必ずサーバー最新の
+    // HTMLを取得する。従来の素のfetch(request)はGitHub PagesのCache-Control（HTMLはmax-age≈600秒）や電波不安定時に
+    // 古いHTMLを返すことがあり、修正をデプロイしてもテスターが旧版のまま（例：スクロール不具合の旧版）になる原因だった。
+    // network-firstなのでオフライン時は従来どおり下のcatchでキャッシュにフォールバックする。
+    const res = await fetch(request, { cache: 'no-store' });
     if (res && res.ok) cache.put(request, res.clone());
     return res;
   } catch (e) {
