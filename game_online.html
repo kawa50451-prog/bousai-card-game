@@ -1821,16 +1821,16 @@
       perspective: 600px
     }
 
-    .card:hover:not(.card-disabled) {
+    .card:hover:not(.card-disabled):not(.card-viewonly) {
       transform: translateY(-12px) rotateX(5deg) scale(1.04);
       box-shadow: 0 16px 32px rgba(0, 0, 0, .7)
     }
 
-    .card.policy:hover:not(.card-disabled) {
+    .card.policy:hover:not(.card-disabled):not(.card-viewonly) {
       box-shadow: 0 12px 28px rgba(56, 139, 253, .45), 0 0 0 1px rgba(56, 139, 253, .4)
     }
 
-    .card.disaster:hover:not(.card-disabled) {
+    .card.disaster:hover:not(.card-disabled):not(.card-viewonly) {
       box-shadow: 0 12px 28px rgba(248, 81, 73, .45), 0 0 0 1px rgba(248, 81, 73, .4)
     }
 
@@ -1839,6 +1839,23 @@
       cursor: not-allowed
     }
     .card.card-disabled::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, .52);
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 3;
+      animation: none
+    }
+    /* 2026-07-27：仲間の手札を閲覧中のカード（原因①の修正）。card-disabledと同じ減光+暗幕だが
+       意味が異なる（予算不足で使えない、ではなく他人の手札を見ているだけ）ためcursorはpointerのまま維持し、
+       タップで自分のタブへ戻せるようにする（coopMkCardのreadOnly分岐・coopViewOnlyCardTap参照） */
+    .card-viewonly {
+      opacity: .6;
+      cursor: pointer
+    }
+    .card.card-viewonly::after {
       content: '';
       position: absolute;
       inset: 0;
@@ -2724,7 +2741,19 @@
       pointer-events:none;
     }
     @media (prefers-reduced-motion: reduce) { .coop-hand-tab, .coop-hand-tab-indicator { transition:none; } }
-    .coop-hand-view-note { text-align:center; color:rgba(var(--t0-rgb),.55); font-size:.7rem; margin:4px 0 6px; padding-top:6px; }
+    /* 2026-07-27：閲覧中バナーの視認性強化（P0修正・仕様(c)）。従来の薄い1行注記は「使える見た目なのに無反応」の
+       状況下でほぼ気づかれなかったため、支援チップ等と同じneonバッジ配色（青枠+背景）の帯に変更し、
+       「あなた」タブへ戻るボタンを併置する（coopReturnToMyHandTab参照） */
+    .coop-hand-view-note {
+      display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
+      text-align:center; color:var(--t0); font-size:.74rem; font-weight:600;
+      margin:6px 0 8px; padding:7px 10px;
+      background:rgba(56,139,253,.14); border:1px solid rgba(56,139,253,.4); border-radius:10px;
+    }
+    .coop-hand-view-note button {
+      background:rgba(56,139,253,.9); border:none; border-radius:8px; color:#fff;
+      font-size:.72rem; font-weight:700; padding:4px 10px; cursor:pointer; flex-shrink:0;
+    }
     /* 2026-07-18モーション強化：タブ切替時、手札一覧（#co-hand-cards）の中身をクロスフェードする。
        _coApplyHandTabLocalUpdate()がinnerHTML差替え直後にclassの付け外し+void offsetWidth（reflow）で
        このanimationを毎回再トリガーする（同一DOMノードはchildren入替だけではanimationが再生しないため）。 */
@@ -3847,6 +3876,18 @@
       border-radius:40px; font-size:.88rem; font-weight:700;
       z-index:9999; pointer-events:none; white-space:nowrap;
       animation:share-toast-anim 2.2s ease forwards;
+    }
+    /* 2026-07-27：閲覧専用カードタップ時の案内トースト（原因①③の導線）。go-share-toastと違い2行程度に
+       折り返す想定のためwhite-space:normal・max-widthを指定。情報系のためaccent色（青）で区別する */
+    .coop-viewonly-toast {
+      position:fixed; bottom:28px; left:50%;
+      transform:translateX(-50%);
+      background:var(--bg2); border:1px solid var(--blue,#388bfd);
+      color:var(--t0); padding:10px 18px;
+      border-radius:14px; font-size:.8rem; font-weight:600; line-height:1.4;
+      max-width:min(86vw,360px); text-align:center; white-space:normal;
+      z-index:9999; pointer-events:none;
+      animation:share-toast-anim 2.4s ease forwards;
     }
 
     /* 切断オーバーレイ */
@@ -9895,6 +9936,23 @@
       if (_coAreaCache) { _coAreaCache.viewnote = p.viewNote; _coAreaCache.cards = p.cards; }
     }
     function coopSelectHandTab(v) { _coHandTab = v; _coApplyHandTabLocalUpdate(); }
+    // 2026-07-27（P0修正・原因①③の導線＝仕様(c)）：仲間の手札（閲覧専用card-viewonly）をタップした時の動線。
+    // 「使える見た目なのに無反応」を解消するため、タップ自体で自分のタブへ戻し、誰の手札を見ていたかをトーストで伝える。
+    function coopViewOnlyCardTap() {
+      const myslot = CO && CO.mp ? coopMySlot() : null;
+      const allies = (CO && CO.cities) ? CO.cities.filter(s => s !== myslot && s.ownerName) : [];
+      const selAlly = allies.find(s => CO.cities.indexOf(s) === _coHandTab);
+      const name = (selAlly && selAlly.ownerName) || '仲間';
+      _coShowViewOnlyToast(`${name}さんの手札を見ています。「あなた」タブに戻ると使えます`);
+      coopSelectHandTab('me');
+    }
+    // go-share-toastは1行nowrap前提のため、折返しが必要なこの案内文には専用クラスcoop-viewonly-toastを使う
+    function _coShowViewOnlyToast(msg) {
+      const old = document.getElementById('coop-viewonly-toast'); if (old) old.remove();
+      const t = document.createElement('div'); t.id = 'coop-viewonly-toast'; t.className = 'coop-viewonly-toast';
+      t.textContent = msg; document.body.appendChild(t);
+      setTimeout(() => { if (t.parentNode) t.remove(); }, 2400);
+    }
     // 2026-07-18ユーザーレビュー第4弾：手札タブのアクセントラインインジケータ（JUNOPARK型翻訳・worldview.md §5.1）。
     // タブDOMノード自体は_coApplyHandTabLocalUpdate／差分render経路のいずれでも再生成されない（後者は
     // p.tabs文字列が変化した場合のみ#co-hand-tabsごとouterHTMLで置き換わるが、その場合もこの関数を呼び直せば
@@ -9963,6 +10021,44 @@
     }
     function coopReroll() { const pool = shuffle([...CITIES]); CO.cities = [pool[0], pool[1]].map(c => ({ city: c, hp: CO.diff.hp, maxHp: CO.diff.hp, effects: mkEffects() })); renderCoop(); }
     function coopRequestQuit() { CO.confirm = { quit: true }; renderCoop(); }
+    // 2026-07-27（P0修正・仕様(e)＝dev/coop_online_architecture.md §9.4で未実装だった手動進行）：
+    // ホストのみが使える強制進行。1人の操作不能（原因①②③のいずれか、または単純な離席）で全員が
+    // 進行不能になる問題への脱出口。city/draw のreadyゲート・summary のackゲート・coopResponse の
+    // 応答ゲートの3つに対応する。誤操作で仲間の選択を勝手に確定させないよう確認ポップを必ず挟む。
+    function coopRequestForceAdvance() {
+      if (!CO || !CO.mp || !CO.host) return; // ゲストは呼べない（ボタン自体も出さない）
+      CO.confirm = { forceAdvance: true }; renderCoop();
+    }
+    function coopConfirmForceAdvance() {
+      if (!CO || !CO.mp || !CO.host) { if (CO) { CO.confirm = null; renderCoop(); } return; }
+      CO.confirm = null;
+      switch (CO.phase) {
+        case 'city': case 'draw':
+          CO.cities.forEach(cs => { if (!cs.ready) cs.ready = true; });
+          if (CO.cities.every(cs => cs.ready)) coopAfterCityTurnMP();
+          break;
+        case 'coopResponse':
+          CO.cities.forEach(cs => { if (cs.resp === null) cs.resp = { skip: true }; });
+          if (coopMPAllResponded()) coopResolveRoundMP();
+          break;
+        case 'summary':
+          CO.cities.forEach(cs => { if (cs.hp > 0 && !cs.ack) cs.ack = true; });
+          if (CO.cities.every(cs => cs.hp <= 0 || cs.ack)) coopDismissSummaryMP();
+          break;
+      }
+      // 2026-07-27（レビュー指摘の修正）：上のcoopAfterCityTurnMP/coopResolveRoundMP/coopDismissSummaryMPは
+      // いずれも内部でrenderCoop()は呼ぶがcoopPushState()は呼ばない（coopApplyIntentMPの末尾処理を経由する
+      // 経路でしか配信されない設計のため）。coopConfirmForceAdvanceはボタンonclickから直接呼ばれ
+      // coopApplyIntentMPを経由しないため、このままではホストの1.5秒ハートビート（_coHeartbeatの
+      // coopPushState(true)）が次に発火するまでゲスト側の画面が更新されない。coopApplyIntentMPの末尾
+      // （coopLoadMyActor→coopPushState→renderCoop）と同じ後処理をswitchを抜けた後に必ず一度だけ実行し、
+      // 即時配信を保証する。coopResolveRoundMP等がcoopLoadActor(cs)で他都市のスロットへスワップしたまま
+      // 戻ってくる場合があるため、coopLoadMyActor()で自分（ホスト）視点へ戻してから配信・再描画する。
+      // switch内の各caseからはrenderCoop()を呼ばないようにし、ここでの1回だけに一本化した。
+      coopLoadMyActor();
+      coopPushState();
+      renderCoop();
+    }
     function coopQuit() { _coCancelTimer(); coopCleanupOnline(); _coClearSession(); CO = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; lobbyState.mode = 'select'; lobbyState.error = ''; render(); }
     function coopRestart() { startCoopGame(CO.diff.key, CO.humanSide); }
     function coopPlayOtherSide(side) { startCoopGame(CO.diff.key, side); }
@@ -10557,8 +10653,11 @@
         if (!data || data === _coLastRecv) return;
         _coLastRecv = data;
         const remote = JSON.parse(data);
+        const prevTurn = CO.turn; // 2026-07-27（P0修正・原因②）：ターン変化検知用。_coHandTabはCOに含まれない
+        // ローカルUI状態のため、ゲスト側は自分でリセットするしかない（ホストはcoopStartCityTurnMP/coopBeginPlayで直接リセットする）
         const ui = { online: true, mp: true, host: false, myId: CO.myId, roomId: CO.roomId, name: CO.name, oppPresent: CO.oppPresent, lobby: CO.lobby, confirm: CO.confirm };
         CO = { ...remote, ...ui };
+        if (prevTurn !== undefined && remote.turn !== prevTurn) _coHandTab = 'me'; // ターンが進んだら仲間タブに入ったままにしない
         CO.mySide = (CO.myId === CO.natureId) ? 'nature' : 'city';
         CO.humanSide = CO.mySide;
         coopLoadMyActor();
@@ -11409,16 +11508,28 @@
       return `<div data-city-idx="${idx}" data-compact="${compact ? 1 : 0}" class="coop-city-frame" style="--zone-bracket:${bracketColor};flex:1;background:var(--bg2,#161b22);border-radius:6px;padding:${panelPad};${dead ? 'opacity:.65;' : ''}">${nameBlock}${owner}${standaloneAbility}<div style="display:flex;align-items:center;gap:6px"><span class="hp-label" style="flex-shrink:0">HP</span><div style="position:relative;flex:1;min-width:0">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:${hpBarH}px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:${hpBarH}px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div></div><div style="${badgeStyle}">${badges}</div></div>`;
     }
     // 政策カードを対戦モードと同じ .card 画像形式で描画。support=後方支援中（自己完結カードは使えない）
+    // readOnly：false/undefined＝通常。'ally'＝仲間の手札を閲覧中（原因①の修正対象・タップで自分のタブへ戻る）。
+    // 'ended'＝自分のターン終了済で自分の手札が操作不可（別の意味の読み取り専用。閲覧中トーストの対象ではない）。
+    // 後方互換：呼び出し側が旧来のtrueを渡した場合も'ally'相当（減光＋クリック無効）として扱いエラーにしない。
     function coopMkCard(card, mode, support, readOnly) {
+      const isAlly = readOnly === 'ally' || readOnly === true;
+      const isEnded = readOnly === 'ended';
+      const anyRO = isAlly || isEnded;
       const left = CO.budget - CO.budgetUsed;
       const noTarget = support && (card.effectType === 'draw' || card.effectType === 'recycle_hand'); // 後方支援は自己完結カード（ドロー・ローリングストック）は使えない
-      const dis = !readOnly && (mode === 'city') && (card.cost > left || noTarget);
-      const click = (readOnly || dis) ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopRespCardTap('${card.uid}')`);
+      const dis = !anyRO && (mode === 'city') && (card.cost > left || noTarget);
+      // 2026-07-27（P0修正・原因①）：readOnly（仲間の手札を閲覧中）は従来 dis が必ずfalseになり
+      // 「card-usableの見た目のままonclickだけ空」という無反応カードになっていた。閲覧中は専用の
+      // card-viewonlyクラスで減光し、タップで自分のタブへ戻す導線（coopViewOnlyCardTap）に繋ぐ。
+      // 'ended'（自分のターン終了済）はそのような導線が不要なため、従来通り完全に無反応のままにする。
+      const click = isAlly ? 'coopViewOnlyCardTap()' : ((isEnded || dis) ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopRespCardTap('${card.uid}')`));
       const costLabel = mode === 'resp' ? '無料' : card.cost;
-      const reason = readOnly ? '' : (noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : ''));
-      const _roExtra = readOnly ? ';pointer-events:none' : '';
+      const reason = isAlly ? '<div class="card-disabled-reason">閲覧中</div>' : (isEnded ? '' : (noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : '')));
+      const stateCls = isAlly ? 'card-viewonly' : ((isEnded || dis) ? 'card-disabled' : 'card-usable');
+      const cursor = isAlly ? 'pointer' : ((isEnded || dis) ? 'not-allowed' : 'pointer');
+      const _roExtra = isEnded ? ';pointer-events:none' : ''; // 'ended'のみ従来通りクリック自体を無効化（タップ導線が不要なため）
       const previewing = mode === 'resp' && _coRespPreviewUid === card.uid;
-      return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${readOnly ? 'default' : (dis ? 'not-allowed' : 'pointer')}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
+      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
@@ -11438,6 +11549,11 @@
       const cancelBtn = 'background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:var(--t0);font-size:.9rem;cursor:pointer;padding:10px;margin-top:5px;width:100%';
       if (CO.confirm.quit) {
         return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>ゲームを中断します</strong></div><p style="color:var(--t0)">ロビーに戻りますか？<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">現在の進行状況は保存されません</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopQuit()">中断して戻る</button><button class="btn-cancel" onclick="coopCancelConfirm()">続ける</button></div></div></div>`;
+      }
+      if (CO.confirm.forceAdvance) {
+        // 2026-07-27（P0修正・仕様(e)）：ホストの強制進行。未操作の都市を自動でready/ack/skip扱いにして進めるため、
+        // 誤爆で仲間の判断を勝手に確定させないよう既存のCO.confirm機構で必ず一度確認を挟む
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>操作が終わっていないプレイヤーがいます</strong></div><p style="color:var(--t0)">全員分を締めて進めますか？<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">未操作の人は「対応せず受ける」等の扱いになります</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmForceAdvance()">締めて進める</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div></div></div>`;
       }
       if (CO.confirm.endTurn) {
         const left = CO.budget - CO.budgetUsed;
@@ -11661,7 +11777,9 @@
         }).join('');
         return `${meBtn}${allyBtns}`;
       })() : '';
-      const viewNote = viewingAlly ? `<div class="coop-hand-view-note">${_escHtml(selAlly ? selAlly.ownerName : '')}の手札を閲覧中（使用不可）</div>` : '';
+      // 2026-07-27（P0修正・仕様(c)）：閲覧中バナーを強化。文面のみだと見落とされたため、
+      // 「あなた」タブへ即座に戻れるボタンをその場に併置する（coopSelectHandTabをそのまま再利用）
+      const viewNote = viewingAlly ? `<div class="coop-hand-view-note"><span>${_escHtml(selAlly ? selAlly.ownerName : '')}さんの手札を閲覧中（使用不可）</span><button type="button" onclick="coopSelectHandTab('me')">あなたのタブへ戻る</button></div>` : '';
 
       let head;
       if (readOnly) {
@@ -11671,7 +11789,13 @@
         const _roWait = _roNames.length
           ? `<span style="font-size:.72rem;color:rgba(var(--t0-rgb),.55);margin-right:2px">操作待ち（残り${_roNames.length}人）：</span>${_roChips}`
           : `<span style="font-size:.72rem;color:rgba(var(--t0-rgb),.55)">全員の操作が終わると自動で進みます</span>`;
-        head = `<div style="margin:8px 0;padding:6px 10px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">${_svgCheck}<span style="font-size:.78rem;font-weight:700;color:#9ff0a8">ターン終了済</span></div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">${_roWait}</div></div>`;
+        // 2026-07-27（P0修正・仕様(e)）：city/drawのreadyゲート版強制進行。ホストが自分のターンを終えた後
+        // ここに来る（coopWaitingArea経由ではなくこの読み取り専用手札ビューがホストにも表示されるため、
+        // ボタンはここに置く必要がある）。ゲストには一切表示しない
+        const _roForce = (CO.host && _roPending.length > 0)
+          ? `<button type="button" onclick="coopRequestForceAdvance()" style="margin-top:8px;padding:6px 14px;border-radius:8px;background:transparent;border:1px solid rgba(var(--t0-rgb),.3);color:rgba(var(--t0-rgb),.75);font-size:.72rem;font-weight:700;cursor:pointer">全員分を締めて進める</button>`
+          : '';
+        head = `<div style="margin:8px 0;padding:6px 10px;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">${_svgCheck}<span style="font-size:.78rem;font-weight:700;color:#9ff0a8">ターン終了済</span></div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">${_roWait}</div>${_roForce}</div>`;
       } else {
         // 2026-07-17：恒常UIの操作指示文（「政策カードをタップして都市を守ろう」）は削除（design_system.md §10.3）。
         // 後方支援ルールの案内（予算+1・仲間都市に使える旨）は操作指示文ではなく状態説明のため維持する
@@ -11683,10 +11807,12 @@
       // 表示するカード群：閲覧中タブに応じて自分の手札／仲間の手札（常に閲覧のみ）を切替
       let cardsHtml;
       if (viewingAlly) {
-        const ac = ((selAlly && selAlly.hand) || []).map(c => coopMkCard(c, 'city', false, true)).join('');
+        // 'ally'：仲間の手札を閲覧中（原因①の修正対象）。タップで自分のタブへ戻す導線を持つcard-viewonly扱い
+        const ac = ((selAlly && selAlly.hand) || []).map(c => coopMkCard(c, 'city', false, 'ally')).join('');
         cardsHtml = ac || '<span style="color:rgba(var(--t0-rgb),.45);font-size:.76rem">手札なし</span>';
       } else {
-        const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly)).join('');
+        // 'ended'：自分のターン終了済で自分の手札が操作不可（別の意味の読み取り専用。仲間閲覧のトースト対象ではない）
+        const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly ? 'ended' : false)).join('');
         cardsHtml = cards || '<span style="color:var(--t0)">手札なし</span>';
       }
 
@@ -11712,7 +11838,10 @@
     // 2026-07-17：手札カード一覧の横スワイプで所有者タブを順に切り替える（design_system.md §10.7 操作は複数経路）。
     // 既存の長押しプレビュー（_lpOnTouchStart等）と同じdocument委譲パターンを踏襲する。.coop-hand-cardsはflex-wrapで
     // 折返し表示のため横スクロールを持たず、既存の横スクロールUIとの競合は発生しない（実装を保守的な閾値に留めた設計判断）
-    const UI_COOP_HAND_SWIPE_MIN_PX = 46;
+    // 2026-07-27（P0修正・原因③）：46pxかつ縦優勢判定1.4倍は緩すぎて、スマホで手札付近を指がかすめただけの
+    // 縦スクロールでも誤爆していた（テストプレイ会で発覚）。80pxへ引き上げ、縦優勢判定も2.2倍へ厳格化する。
+    // タップ操作（coopSelectHandTab）はこの閾値と無関係のため従来通り機能する。
+    const UI_COOP_HAND_SWIPE_MIN_PX = 80;
     let _coSwipeStartX = null, _coSwipeStartY = null, _coSwipeEligible = false;
     function _coSwipeOnTouchStart(e) {
       const t = e.touches && e.touches[0]; if (!t) return;
@@ -11728,7 +11857,7 @@
       _coSwipeStartX = null; _coSwipeStartY = null;
       if (!t) return;
       const dx = t.clientX - sx, dy = t.clientY - sy;
-      if (Math.abs(dx) < UI_COOP_HAND_SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.4) return; // 横方向優勢のスワイプのみ判定
+      if (Math.abs(dx) < UI_COOP_HAND_SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 2.2) return; // 横方向優勢のスワイプのみ判定（2026-07-27厳格化）
       coopSwipeHandTab(dx < 0 ? 1 : -1);
     }
     function coopSwipeHandTab(dir) {
@@ -12065,7 +12194,13 @@
         const sub = names.length
           ? `<div style="font-size:.78rem;color:var(--t0);margin-top:8px;line-height:1.5"><span style="color:rgba(var(--t0-rgb),.6)">操作待ち（残り${names.length}人）</span><br>${names.map(nm => `<span class="co-chip-pulse" style="display:inline-block;background:rgba(56,139,253,.18);border:1px solid #388bfd;border-radius:10px;padding:2px 10px;margin:3px 3px 0;font-weight:700">${nm}</span>`).join('')}</div>`
           : `<div style="font-size:.74rem;color:rgba(var(--t0-rgb),.6);margin-top:6px">全員の操作が終わると自動で進みます</div>`;
-        return `<div style="text-align:center;padding:30px 18px;color:var(--t0)"><div style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(var(--t0-rgb),.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></div><div style="font-size:.92rem;font-weight:700">${t}</div>${sub}</div>`;
+        // 2026-07-27（P0修正・仕様(e)＝dev/coop_online_architecture.md §9.4で未実装だった手動進行）：
+        // 1人の操作不能（仲間タブに入ったまま無反応になる等）が全員の進行停止に波及する問題への脱出口。
+        // ホストにのみ露出し、city/draw・coopResponse・summaryの各ゲートを強制的に締めて進める。
+        const forceBtn = (CO.host && ['city', 'draw', 'coopResponse', 'summary'].includes(CO.phase))
+          ? `<button type="button" onclick="coopRequestForceAdvance()" style="margin-top:14px;padding:8px 16px;border-radius:10px;background:transparent;border:1px solid rgba(var(--t0-rgb),.3);color:rgba(var(--t0-rgb),.75);font-size:.76rem;font-weight:700;cursor:pointer">全員分を締めて進める</button>`
+          : '';
+        return `<div style="text-align:center;padding:30px 18px;color:var(--t0)"><div style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(var(--t0-rgb),.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></div><div style="font-size:.92rem;font-weight:700">${t}</div>${sub}${forceBtn}</div>`;
       }
       const turnSide = (CO.phase === 'natureHuman') ? '自然側' : (CO.phase === 'city' || CO.phase === 'draw' || CO.phase === 'coopResponse') ? '都市側' : '';
       const txt = (CO.phase === 'resolving') ? _wc('災害を', '解決中…')
@@ -12370,8 +12505,13 @@
         ? `<button class="btn-ho" onclick="coopDismissSummary()">${isFinal ? '結果を見る' : `<span style="display:inline-flex;align-items:center;gap:5px;justify-content:center">${coopIcoCheckCircle(16,'currentColor')}確認して次のターンへ</span>`}</button>`
         : `<div style="color:rgba(var(--t0-rgb),.7);font-size:.85rem"><span class="co-spinner"></span> ${_wc(`都市側（${CO.oppName || '相手'}）の`, '確認を', '待っています…')}</div>`;
       const quitBtn = `<button onclick="coopRequestQuit()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.45);font-size:.74rem;cursor:pointer">ロビーに戻る（中断）</button>`;
+      // 2026-07-27（P0修正・仕様(e)）：summaryのackゲート版強制進行。他のMP待機UIと同じくホストにのみ表示する
+      const _pendingAck = CO.mp ? (CO.cities || []).filter(cs => cs.hp > 0 && !cs.ack) : [];
+      const forceAckBtn = (CO.mp && CO.host && _pendingAck.length > 0)
+        ? `<button type="button" onclick="coopRequestForceAdvance()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(var(--t0-rgb),.3);color:rgba(var(--t0-rgb),.75);font-size:.76rem;font-weight:700;cursor:pointer">全員分を締めて進める</button>`
+        : '';
       const sumOverlay = CO.confirm ? coopRenderConfirm() : '';
-      return `<div class="screen active"><div class="turn-summary-box"><div class="ts-title"><img src="images/icons/icon_disaster.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block"> ${natureMode ? 'あなたの攻撃の結果' : '自然の攻撃まとめ'}（ターン ${CO.turn}）</div>${remainBanner}<div style="display:flex;gap:8px;margin-bottom:10px">${cityFinal}</div><div class="ts-events">${atkCards}${regenCards}${empty}</div><div style="text-align:center;margin-top:12px">${sumBtn}</div>${quitBtn}</div></div>${sumOverlay}`;
+      return `<div class="screen active"><div class="turn-summary-box"><div class="ts-title"><img src="images/icons/icon_disaster.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block"> ${natureMode ? 'あなたの攻撃の結果' : '自然の攻撃まとめ'}（ターン ${CO.turn}）</div>${remainBanner}<div style="display:flex;gap:8px;margin-bottom:10px">${cityFinal}</div><div class="ts-events">${atkCards}${regenCards}${empty}</div><div style="text-align:center;margin-top:12px">${sumBtn}${forceAckBtn}</div>${quitBtn}</div></div>${sumOverlay}`;
     }
     // 勝敗画面の戦績セクション（立場で見せ方を変える。coop_mode_summary §9 に基づく）
     function coopRenderStats(natureMode) {
