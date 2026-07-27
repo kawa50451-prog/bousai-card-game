@@ -552,9 +552,12 @@
       font-size: .9rem
     }
 
-    .lobby-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, .4)
+    /* 2026-07-27 P0監査：transformで見た目が変わるタップ可能要素のためガードを追加（iPadの二度タップ問題対策） */
+    @media (hover:hover) {
+      .lobby-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, .4)
+      }
     }
 
     .lobby-btn.host {
@@ -629,9 +632,12 @@
       transition: .2s
     }
 
-    .lobby-btn-single:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(56, 139, 253, .4)
+    /* 2026-07-27 P0監査：同上 */
+    @media (hover:hover) {
+      .lobby-btn-single:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(56, 139, 253, .4)
+      }
     }
 
     .lobby-btn-back {
@@ -822,9 +828,12 @@
       transition: .2s
     }
 
-    .gacha-mystery:hover {
-      border-color: var(--yellow);
-      transform: scale(1.03)
+    /* 2026-07-27 P0監査：同上 */
+    @media (hover:hover) {
+      .gacha-mystery:hover {
+        border-color: var(--yellow);
+        transform: scale(1.03)
+      }
     }
 
     .gacha-card-box {
@@ -863,10 +872,19 @@
       transition: transform .15s, border-color .15s, box-shadow .15s
     }
 
-    .gacha-candidate-card:hover, .gacha-candidate-card:active {
+    /* 2026-07-27 P0監査：:activeはタッチのpress feedbackとして必要なため無条件のまま残し、
+       transformで見た目が変わる:hoverのみ@media(hover:hover)へ分離した */
+    .gacha-candidate-card:active {
       border-color: var(--yellow);
       transform: translateY(-3px);
       box-shadow: 0 6px 16px rgba(210,153,34,.35)
+    }
+    @media (hover:hover) {
+      .gacha-candidate-card:hover {
+        border-color: var(--yellow);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(210,153,34,.35)
+      }
     }
 
     .gacha-candidate-card img {
@@ -914,9 +932,12 @@
       letter-spacing: .04em
     }
 
-    .btn-gacha:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 28px rgba(210, 153, 34, .5)
+    /* 2026-07-27 P0監査：同上 */
+    @media (hover:hover) {
+      .btn-gacha:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 28px rgba(210, 153, 34, .5)
+      }
     }
 
     .btn-accept {
@@ -1025,9 +1046,12 @@
       transition: transform .15s ease, box-shadow .15s ease;
     }
 
-    .draft-stack-card.top-card:hover {
-      transform: translate(0,0) translateY(-8px) !important;
-      box-shadow: 0 16px 36px rgba(227,179,65,.5);
+    /* 2026-07-27 P0監査：同上 */
+    @media (hover:hover) {
+      .draft-stack-card.top-card:hover {
+        transform: translate(0,0) translateY(-8px) !important;
+        box-shadow: 0 16px 36px rgba(227,179,65,.5);
+      }
     }
 
     .draft-stack-card.top-card:active {
@@ -1670,7 +1694,12 @@
     .dd-add-tile { flex-shrink:0; width:56px; align-self:flex-start; margin-top:18px; aspect-ratio:288/450; border-radius:8px; border:1.5px dashed var(--bg3,#30363d); background:transparent; color:var(--t2); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color .15s,color .15s,transform .15s cubic-bezier(.23,1,.32,1); }
     /* 2026-07-18モーション強化：hoverでわずかに拡大（誘目）・activeで押し込み（scale.93）という
        2段階のフィードバックにする（design_system.md §4.1標準カーブ）。 */
-    .dd-add-tile:hover { border-color:var(--blue); color:var(--blue); transform:scale(1.06); }
+    /* 2026-07-27 P0監査：transformで見た目が変わるためガード追加。3511行目の
+       @media(prefers-reduced-motion:reduce)内`.dd-add-tile:hover{transform:none}`は
+       reduce環境専用の別ブロックのため無関係・無変更 */
+    @media (hover:hover) {
+      .dd-add-tile:hover { border-color:var(--blue); color:var(--blue); transform:scale(1.06); }
+    }
     .dd-add-tile:active { border-color:var(--blue); color:var(--blue); transform:scale(.93); }
     .dd-run-bar { position:fixed; left:0; right:0; bottom:0; z-index:2000; padding:10px 16px; background:var(--bg1); border-top:1px solid var(--bg3); box-shadow:0 -2px 12px rgba(0,0,0,.35); }
     /* 政策カードピッカー（＋タップで開くカード選択）。.confirm-overlay/.confirm-boxと同系統の中央モーダルだが、
@@ -1821,17 +1850,23 @@
       perspective: 600px
     }
 
-    .card:hover:not(.card-disabled):not(.card-viewonly) {
-      transform: translateY(-12px) rotateX(5deg) scale(1.04);
-      box-shadow: 0 16px 32px rgba(0, 0, 0, .7)
-    }
+    /* 2026-07-27 P0修正：このhoverルールが@media(hover:hover)の外にあったため、iPadOS Safari（hover:hover=true判定）で
+       タップ1回目にhoverだけが適用されclickが発火せず、2回目のタップが必要になっていた（3312行目の同種ブロックは
+       正しくガード済みでこの3セレクタだけ漏れていた）。PC（hover:hover=true）での見た目は変更なし、
+       タッチ専用環境（hover:hover=false）では元々このルールは適用されない。 */
+    @media (hover:hover) {
+      .card:hover:not(.card-disabled):not(.card-viewonly) {
+        transform: translateY(-12px) rotateX(5deg) scale(1.04);
+        box-shadow: 0 16px 32px rgba(0, 0, 0, .7)
+      }
 
-    .card.policy:hover:not(.card-disabled):not(.card-viewonly) {
-      box-shadow: 0 12px 28px rgba(56, 139, 253, .45), 0 0 0 1px rgba(56, 139, 253, .4)
-    }
+      .card.policy:hover:not(.card-disabled):not(.card-viewonly) {
+        box-shadow: 0 12px 28px rgba(56, 139, 253, .45), 0 0 0 1px rgba(56, 139, 253, .4)
+      }
 
-    .card.disaster:hover:not(.card-disabled):not(.card-viewonly) {
-      box-shadow: 0 12px 28px rgba(248, 81, 73, .45), 0 0 0 1px rgba(248, 81, 73, .4)
+      .card.disaster:hover:not(.card-disabled):not(.card-viewonly) {
+        box-shadow: 0 12px 28px rgba(248, 81, 73, .45), 0 0 0 1px rgba(248, 81, 73, .4)
+      }
     }
 
     .card-disabled {
@@ -2389,10 +2424,13 @@
       height: 155px
     }
 
-    .discard-cards .card:hover:not(.card-disabled) {
-      border-color: var(--red) !important;
-      box-shadow: 0 8px 20px rgba(248, 81, 73, .45);
-      transform: translateY(-8px)
+    /* 2026-07-27 P0修正：上と同様にガード漏れしていたhoverルール */
+    @media (hover:hover) {
+      .discard-cards .card:hover:not(.card-disabled) {
+        border-color: var(--red) !important;
+        box-shadow: 0 8px 20px rgba(248, 81, 73, .45);
+        transform: translateY(-8px)
+      }
     }
 
     .btn-ho {
@@ -2612,11 +2650,17 @@
     .gallery-section-divider { height:1px; background:rgba(255,255,255,.35); border:none; margin:14px 0 }
     .gallery-card { border-radius:8px; overflow:hidden; cursor:pointer; border:2px solid var(--bg3); transition:.15s; aspect-ratio:288/450; position:relative }
     .gallery-card img { width:100%; height:100%; object-fit:cover; display:block }
-    .gallery-card:hover { transform:translateY(-3px); border-color:var(--yellow); box-shadow:0 6px 16px rgba(0,0,0,.5) }
+    /* 2026-07-27 P0監査：同上 */
+    @media (hover:hover) {
+      .gallery-card:hover { transform:translateY(-3px); border-color:var(--yellow); box-shadow:0 6px 16px rgba(0,0,0,.5) }
+    }
     /* 2026-07-17ユーザーレビュー第2弾：ライトテーマで黒背景のまま浮いていたため、透明背景＋固定青枠のゴーストボタンへ統一
        （全テーマで成立するデザイン。アイコン自体の色はカード種別ごとの currentColor 指定＝style="color:${_navColor}" を維持） */
     .gallery-nav-arrow { width:36px; height:36px; border-radius:50%; background:transparent; border:1.5px solid var(--blue); color:var(--yellow); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0; transition:transform .15s,background .15s,filter .15s }
-    .gallery-nav-arrow:hover { background:rgba(56,139,253,.12); transform:scale(1.1); filter:brightness(1.15) }
+    /* 2026-07-27 P0監査：同上。:activeはタッチのpress feedbackのため無条件のまま残す */
+    @media (hover:hover) {
+      .gallery-nav-arrow:hover { background:rgba(56,139,253,.12); transform:scale(1.1); filter:brightness(1.15) }
+    }
     .gallery-nav-arrow:active { transform:scale(.9); background:rgba(56,139,253,.18) }
     .city-tap-btn { background:rgba(56,139,253,.13); border:1px solid rgba(56,139,253,.4); border-radius:14px; padding:3px 10px; color:var(--blue); cursor:pointer; font-size:.82rem; font-weight:600; white-space:nowrap; transition:.15s }
     .city-tap-btn:hover,.city-tap-btn:active { background:rgba(56,139,253,.25) }
@@ -2819,7 +2863,10 @@
     /* ガチャ・ドロー画面のカード型エリア */
     .gacha-card-reveal-area { width:200px; aspect-ratio:288/450; border-radius:14px; overflow:hidden; cursor:pointer; border:3px solid var(--bg3); transition:transform .2s, border-color .2s }
     .gacha-card-reveal-area img { width:100%; height:100%; object-fit:cover; display:block }
-    .gacha-card-reveal-area:hover:not(.revealed) { transform:scale(1.03); border-color:var(--yellow) }
+    /* 2026-07-27 P0監査：同上 */
+    @media (hover:hover) {
+      .gacha-card-reveal-area:hover:not(.revealed) { transform:scale(1.03); border-color:var(--yellow) }
+    }
     .gacha-card-reveal-area.revealed { border-color:var(--yellow); box-shadow:0 0 32px rgba(210,153,34,.35); cursor:default }
     .cityorder-city-img { width:120px; border-radius:8px; display:block; margin:0 auto 8px }
 
@@ -3979,7 +4026,10 @@
     .go-city-badge-vs { font-size:1.1rem; font-weight:900; color:var(--t0); flex-shrink:0; align-self:center; }
     @keyframes go-badge-next-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(56,139,253,0)} 50%{box-shadow:0 0 0 3px rgba(56,139,253,.18)} }
     .go-city-badges-next { width:28px; height:28px; border-radius:50%; background:rgba(10,18,40,.9); border:1.5px solid rgba(56,139,253,.5); color:#7ab4fc; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0; transition:transform .15s,background .15s,border-color .15s; animation:go-badge-next-pulse 2.8s ease-in-out infinite; }
-    .go-city-badges-next:hover { background:rgba(56,139,253,.25); border-color:var(--blue); transform:scale(1.1); animation:none; }
+    /* 2026-07-27 P0監査：同上 */
+    @media (hover:hover) {
+      .go-city-badges-next:hover { background:rgba(56,139,253,.25); border-color:var(--blue); transform:scale(1.1); animation:none; }
+    }
     .go-city-badges-next:active { transform:scale(.9); }
     .go-city-badges-next svg { transition:transform .35s ease; }
     .go-city-badges-next.page2 svg { transform:rotate(180deg); }
@@ -16513,8 +16563,16 @@
     }
 
     // ダブルタップズーム防止（iOS Safari は CSS touch-action を html/body で無視するため JS で対応）
+    // 2026-07-27 P0修正：iOSではtouchendのpreventDefault()が合成clickの生成そのものを抑止するため、
+    // ボタン・カード・タブ等の操作対象要素の上でこれを呼ぶと、hoverガード漏れ（本タスク(a)(b)で修正済み）により
+    // 必要になった2回目のタップまで巻き込んで殺してしまい、連打するほど_lastTouchEndが更新され続けて
+    // 抑止状態が自己持続する不具合があった。操作対象要素上ではこのハンドラを丸ごとスキップする
+    // （preventDefaultを呼ばない＝_lastTouchEndも更新しない）ことで、操作対象の連打が抑止に影響しないようにする。
+    // 本来の目的（本文・盤面の余白での意図しないダブルタップズーム抑止）は対象外の要素に対してのみ従来通り機能する。
+    const _tapzoomExcludeSel = 'button, a, input, select, textarea, [onclick], .card, .coop-hand-tab';
     let _lastTouchEnd = 0;
     document.addEventListener('touchend', function(e) {
+      if (e.target.closest && e.target.closest(_tapzoomExcludeSel)) return;
       const now = Date.now();
       if (now - _lastTouchEnd <= 300) e.preventDefault();
       _lastTouchEnd = now;
