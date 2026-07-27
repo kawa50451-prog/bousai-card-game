@@ -10106,11 +10106,11 @@
       const allies = (CO && CO.cities) ? CO.cities.filter(s => s !== myslot && s.ownerName) : [];
       const selAlly = allies.find(s => CO.cities.indexOf(s) === _coHandTab);
       const name = (selAlly && selAlly.ownerName) || '仲間';
-      _coShowViewOnlyToast(`${name}さんの手札を見ています。「あなた」タブに戻ると使えます`);
+      _coShowActionToast(`${name}さんの手札を見ています。「あなた」タブに戻ると使えます`);
       coopSelectHandTab('me');
     }
     // go-share-toastは1行nowrap前提のため、折返しが必要なこの案内文には専用クラスcoop-viewonly-toastを使う
-    function _coShowViewOnlyToast(msg) {
+    function _coShowActionToast(msg) {
       const old = document.getElementById('coop-viewonly-toast'); if (old) old.remove();
       const t = document.createElement('div'); t.id = 'coop-viewonly-toast'; t.className = 'coop-viewonly-toast';
       t.textContent = msg; document.body.appendChild(t);
@@ -10279,9 +10279,28 @@
       });
     }
     // ── インテント送信（ゲスト専用） ──
+    // 2026-07-27 P0修正（テストプレイ会で報告された「ポップは出るがボタンを押してもカードが使えない」の根本原因）：
+    // Firebase Realtime Database は値に undefined を含むオブジェクトを渡すと同期的に例外を投げる。
+    // confirmPlay の payload に載る CO.confirm.recyclePick は、ローリングストック（coopToggleRecyclePickで
+    // 配列が作られる）以外のカードでは undefined のままであり、都市を対象にする政策カードの intent は
+    // 毎回この例外で送信されずに失われていた。しかも例外は coopMPCommit が CO.confirm = null にした直後に
+    // 投げられるため renderCoop() まで到達せず、ポップアップがDOMに残ったまま以降のタップは
+    // coopConfirmPlay 冒頭の `if (!CO.confirm) return;` に弾かれ、完全な無反応になっていた。
+    // ホストは coopApplyIntentMP を直接呼びFirebaseを経由しないため影響を受けず、
+    // 「ホスト端末だけ正常・ゲストはローリングストックのみ使える」という症状になっていた。
+    // 対策：undefined のキーを除去してから送る。加えて送信失敗を握り潰さず、UIを復帰させて通知する。
     function coopSendIntent(type, payload) {
       if (!db || !CO || !CO.roomId) return;
-      db.ref(`coopRooms/${CO.roomId}/intents`).push({ type, payload: payload || {}, by: CO.mp ? CO.myId : CO.mySide, ts: Date.now() });
+      const clean = {};
+      Object.keys(payload || {}).forEach(k => { if (payload[k] !== undefined) clean[k] = payload[k]; });
+      try {
+        db.ref(`coopRooms/${CO.roomId}/intents`).push({ type, payload: clean, by: CO.mp ? CO.myId : CO.mySide, ts: Date.now() })
+          .catch(e => { console.error('coopSendIntent push失敗:', e && e.message); _coShowActionToast('通信エラーで操作を送信できませんでした。もう一度お試しください'); renderCoop(); });
+      } catch (e) {
+        console.error('coopSendIntent例外:', e && e.message);
+        _coShowActionToast('操作を送信できませんでした。もう一度お試しください');
+        renderCoop();
+      }
     }
     function coopCleanupOnline() {
       [_coStateRef, _coIntentsRef, _coGuestRef, _coPresMeRef, _coPresOppRef, _coConnRef, _coRoomPlayersRef, _coRoomPresRef, _coStartedRef].forEach(r => { try { r && r.off(); } catch (e) {} });
