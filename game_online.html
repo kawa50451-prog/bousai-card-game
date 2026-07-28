@@ -362,7 +362,6 @@
        ここ1箇所に集約する（design_system.md §10・今回タスク指示の必須事項）。
        reduce側ブロックにセレクタを追加・変更・削除したときは、必ずここも同じ内容で更新すること。 ── */
     html.ron-motion-off .coop-event-banner::before,
-    html.ron-motion-off .coop-event-banner::after,
     html.ron-motion-off .coop-reach-warn,
     html.ron-motion-off .conn-banner,
     html.ron-motion-off .boot-splash-title,
@@ -2895,15 +2894,12 @@
       margin: 6px 0;
       padding: 8px 10px 7px;
       background: var(--bg1, #0d1117);
-      border-left: 2px solid var(--purple, #a371f7);
-      border-right: 2px solid var(--purple, #a371f7);
       font-size: .72rem;
       line-height: 1.4;
       color: var(--t0);
       overflow: hidden;
-      box-shadow: inset 0 3px 0 -1px rgba(var(--purple-rgb, 163,113,247), .5);
     }
-    .coop-event-banner::before, .coop-event-banner::after {
+    .coop-event-banner::before {
       content: '';
       position: absolute;
       left: 0; right: 0;
@@ -2926,21 +2922,12 @@
       background-size: 19.8px 100%;
       animation: coop-event-diag 6s linear infinite;
     }
-    /* 下辺：やや濃いスキャンラインを背景より速く流し、モニタらしいリズムを重ねる。
-       90度パターンのため水平周期は繰り返し幅10pxとそのまま一致する */
-    .coop-event-banner::after {
-      bottom: 0;
-      height: 3px;
-      background-image: repeating-linear-gradient(90deg,
-        rgba(var(--purple-rgb, 163,113,247), .8) 0 3px,
-        transparent 3px 10px);
-      background-size: 10px 3px;
-      animation: coop-event-scan 2s linear infinite;
-    }
+    /* 2026-07-27（ユーザー指摘）：左右の紫の直線と下辺のスキャンラインは、細かい動きが増えるだけで
+       意味を足していないため撤去した。表現をストライプ1種類に絞り、それが流れることだけで
+       「継続している状態」を伝える。要素が減ることで常設バナーとしての静けさも増す。 */
     @keyframes coop-event-diag { from { background-position: 0 0; } to { background-position: 19.8px 0; } }
-    @keyframes coop-event-scan { from { background-position: 0 0; } to { background-position: 10px 0; } }
     @media (prefers-reduced-motion: reduce) {
-      html:not(.ron-motion-force) .coop-event-banner::before, html:not(.ron-motion-force) .coop-event-banner::after { animation: none; }
+      html:not(.ron-motion-force) .coop-event-banner::before { animation: none; }
     }
     .coop-event-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .coop-event-row + .coop-event-row { margin-top: 3px; }
@@ -7460,7 +7447,7 @@
     }
     function coopTutMkCard(card, glow, disabled) {
       const click = disabled ? '' : `coopTutCardTap('${card.uid}')`;
-      return `<div class="card ${card.type} ${disabled ? 'card-disabled' : 'card-usable'}${glow ? ' tut-glow' : ''}" onclick="${click}" style="cursor:${disabled ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}</div>`;
+      return `<div class="card ${card.type} ${disabled ? 'card-disabled' : 'card-usable'}${glow ? ' tut-glow' : ''}" onclick="${click}" style="cursor:${disabled ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div></div>`;
     }
     function coopTutStatusBar() {
       const ts = coopTutorialState;
@@ -12227,7 +12214,7 @@
       const cursor = isAlly ? 'pointer' : (isSpec ? 'default' : ((isEnded || dis) ? 'not-allowed' : 'pointer'));
       const _roExtra = (isEnded || isSpec) ? ';pointer-events:none' : ''; // 'ended'・'spec'はクリック自体を無効化（タップ導線が不要なため）
       const previewing = mode === 'resp' && _coRespPreviewUid === card.uid;
-      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}${cardZoomBtnHtml()}</div>`;
+      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${reason}${cardZoomBtnHtml()}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
@@ -12263,11 +12250,20 @@
         const isSupport = !!(mySlot && mySlot.hp <= 0);
         const canChoose = !isSupport && left >= COOP_STOCKPILE_MIN_BUDGET;
         const carried = Math.min(COOP_CARRY_BUDGET_CAP, left);
-        const bodyText = canChoose ? '使わなかった予算をどうしますか？' : '本当にターンを終了しますか？';
+        // 2026-07-27（ユーザー指摘）：「物資に回す」は何が起きるか伝わらないため文言を刷新した。
+        // 通常の結果は「カードを1枚引く」であり、繰り越しはそのターンに限って選べる代替である。
+        // したがって設問は「翌ターンへ繰り越すかどうか」の一点に絞り、繰り越さない場合に何が起きるかを
+        // 補足で明示する形にする（二者択一であることは変わらない）。
+        const bodyText = canChoose
+          ? `使わなかった予算 ${left}pt を翌ターンへ繰り越しますか？`
+          : '本当にターンを終了しますか？';
+        const subText = canChoose
+          ? '繰り越さない場合はカードを1枚引きます'
+          : '終了すると自然の攻撃ターンに移ります';
         const btns = canChoose
-          ? `<div class="confirm-btns" style="flex-direction:column"><button class="btn-ok" onclick="coopConfirmEndTurn('stockpile')" aria-label="使わなかった予算を物資に回して1枚ドローする">物資に回す（1枚ドロー）</button><button class="btn-ok" onclick="coopConfirmEndTurn('carry')" aria-label="使わなかった予算を翌ターンへ繰り越す">翌ターンへ繰り越す（+${carried}）</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`
+          ? `<div class="confirm-btns" style="flex-direction:column"><button class="btn-ok" onclick="coopConfirmEndTurn('carry')" aria-label="使わなかった予算を翌ターンへ繰り越す">翌ターンへ繰り越す（次ターン +${carried}pt）</button><button class="btn-ok" onclick="coopConfirmEndTurn('stockpile')" aria-label="繰り越さずにカードを1枚引く">繰り越さずカードを1枚引く</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`
           : `<div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmEndTurn('carry')">終了する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
-        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>予算 ${left}pt が残っています</strong></div><p style="color:var(--t0)">${bodyText}<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">終了すると自然の攻撃ターンに移ります</span></p>${btns}</div></div>`;
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>予算 ${left}pt が残っています</strong></div><p style="color:var(--t0)">${bodyText}<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">${subText}</span></p>${btns}</div></div>`;
       }
       if (CO.confirm.attack) {
         const c = DISASTER_CARDS.find(x => x.id === CO.confirm.attackId); if (!c) return '';
@@ -14373,7 +14369,7 @@
       let click = '', cursor = 'default';
       if (!clickable && opts.previewOnTap) { click = ` onclick="_lpTapPreview(this)"`; cursor = 'pointer'; }
       const reason = dis ? '<div class="card-disabled-reason">予算不足</div>' : '';
-      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}${cardZoomBtnHtml()}</div>`;
+      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${reason}${cardZoomBtnHtml()}</div>`;
     }
     // 対応表の災害列（左側）：画像（object-fit:containで全体表示・欠けなし）→名前（下）。
     // 画像タップで効果ポップ（_lpTapPreview、実機フィードバック③）。来襲順バッジは2026-07-18再改修で
