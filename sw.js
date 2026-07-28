@@ -5,7 +5,7 @@
 // 登録側（game_online.html）はCapacitor/file://環境では登録をスキップするため、
 // このファイルはGitHub Pages等http(s)配信でのみ有効になる。
 
-const SW_VERSION = 'v3';
+const SW_VERSION = 'v4';
 const IMG_CACHE = `ron-images-${SW_VERSION}`;
 const HTML_CACHE = `ron-html-${SW_VERSION}`;
 const CURRENT_CACHES = [IMG_CACHE, HTML_CACHE];

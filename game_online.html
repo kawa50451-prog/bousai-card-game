@@ -2827,6 +2827,10 @@
     .coop-city-name-tap .coop-city-name { flex:1; min-width:0; font-size:.74rem; }
     .coop-city-name-tap svg:last-child { flex-shrink:0; opacity:.6; transition:transform .15s ease; }
     .coop-city-name-tap[aria-expanded="true"] svg:last-child { transform:rotate(180deg); }
+    /* 2026-07-27：閲覧方法統一（coopCityPanel）。非compact（自分の都市・ソロの全都市）は縮小前提の
+       上記デフォルトサイズではなく、従来の常時表示時と同じ大きさ（アイコン22px・都市名1rem）を保つ */
+    .coop-city-name-tap.ccnt-lg .city-icon-sm { width:22px; height:22px; }
+    .coop-city-name-tap.ccnt-lg .coop-city-name { font-size:1rem; }
     /* 手札エリアの所有者タブ（自分＋仲間）。「政策カードをタップして都市を守ろう」等の恒常的な操作指示文の代替（design_system.md §10.3） */
     /* 2026-07-18ユーザーレビュー第4弾（JUNOPARK型翻訳・worldview.md §5.1）：等幅タブ・上辺のみ角丸（5px）・
        アクティブタブはカード一覧エリアと同じ面色（--bg2）で下辺の境界線が消えて完全に一体化、非アクティブタブは
@@ -2945,6 +2949,22 @@
     .card-type-badge.card-text-fallback { display:none; position:absolute; bottom:4px; right:4px }
     .card.img-fail .card-type-badge.card-text-fallback { display:inline-block }
     .card-disabled-reason { position:absolute; left:0; right:0; bottom:4px; font-size:.6rem; color:#fff; background:rgba(0,0,0,.72); text-align:center; padding:2px 4px; z-index:4 }
+    /* 2026-07-27：カード拡大ボタン（長押しプレビューの代替経路。design_system.md §10.7「操作は複数経路」）。
+       右上はコストバッジ（カード画像に焼き込み済み）が占有しているため右下に配置。z-index:6は
+       card-disabled/card-viewonlyの暗幕（::after, z-index:3）とcard-disabled-reason（z-index:4）より
+       上に置き、無効カード・閲覧専用カードでも拡大だけは常に使えるようにする（pointer-eventsも明示的にauto化し、
+       'ended'状態の.card本体に付くinline pointer-events:noneを子要素側で上書きする）。 */
+    .card-zoom-btn {
+      position: absolute; right: 3px; bottom: 3px; z-index: 6;
+      width: 20px; height: 20px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.4); border-radius: 50%;
+      color: #fff; cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent;
+    }
+    @media (hover:hover) {
+      .card-zoom-btn:hover { background: rgba(0,0,0,.78); border-color: rgba(255,255,255,.65) }
+    }
+    .card-zoom-btn:active { transform: scale(.9) }
     .card-back img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block }
     .confirm-card-img { width:108px; border-radius:8px; display:block; margin:0 auto }
     /* ガチャ・ドロー画面のカード型エリア */
@@ -4748,10 +4768,12 @@
     let _lpStartX = 0, _lpStartY = 0;
     let _lpFired = false;
     let _lpOverlayEl = null;
+    // 2026-07-27：協力モードの手札（.coop-hand-cards）は対戦・デイリー（.hand-cards-area）と別コンテナのため
+    // 従来ここに含まれておらず、長押しプレビューが協力モードでは一切使えなかった（拡大ボタン追加と併せて解消）。
     function _lpEligibleCard(target) {
       if (!UI_LONGPRESS_PREVIEW) return null;
       if (typeof _isBattleActive !== 'function' || !_isBattleActive()) return null;
-      const card = target && target.closest ? target.closest('.hand-cards-area .card') : null;
+      const card = target && target.closest ? target.closest('.hand-cards-area .card, .coop-hand-cards .card') : null;
       if (!card || card.classList.contains('card-back')) return null;
       if (!card.querySelector('.card-img')) return null;
       return card;
@@ -5518,7 +5540,7 @@
       { id: 'agreement', name: '相互支援協定', icon: 'agreement', cost: 2, type: 'policy', color: 'yellow', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
       { id: 'evacuation', name: '広域避難指示', icon: 'evacuation', cost: 2, type: 'policy', color: 'green', effectType: 'negate_special', value: 10, desc: '特殊効果・テロ攻撃を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップ・人為災害のテロ攻撃も事前設置で無効化できる汎用性の高い政策。' },
       { id: 'bousai_cho', name: '防災庁設置', icon: 'bousai_cho', cost: 3, type: 'policy', color: 'green', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回・使用時から有効）', realConcept: '包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。2回分のダメージ軽減という持続型効果が、制度投資の長期的な価値を示す。対応フェーズで使用した場合も、その攻撃から効果が適用される。' },
-      { id: 'rolling_stock', name: 'ローリングストック', icon: 'rolling_stock', cost: 1, type: 'policy', color: 'yellow', effectType: 'recycle_hand', value: 0, desc: '自分の手札を好きな枚数捨て、同じ枚数を山札から引く', realConcept: '備蓄品を古いものから消費し、使った分だけ新しく買い足す「ローリングストック」という備蓄法。備え（手札）は蓄えて終わりではなく、日常的に回して中身を更新し続けることで、いざという時に実際に機能する状態を保てることを示す。' },
+      { id: 'rolling_stock', name: 'ローリングストック', icon: 'rolling_stock', cost: 0, type: 'policy', color: 'yellow', effectType: 'recycle_hand', value: 0, desc: '自分の手札を好きな枚数捨て、同じ枚数を山札から引く', realConcept: '備蓄品を古いものから消費し、使った分だけ新しく買い足す「ローリングストック」という備蓄法。備え（手札）は蓄えて終わりではなく、日常的に回して中身を更新し続けることで、いざという時に実際に機能する状態を保てることを示す。' },
     ];
 
     const DISASTER_CARDS = [
@@ -5710,6 +5732,13 @@
     // 画像ロード失敗時のテキストフォールバック用バッジ（img-fail時のみ従来の右下絶対配置で表示される）
     function cardTypeBadgeFallback(badgeLabel) {
       return badgeLabel ? `<span class="card-type-badge card-text-fallback">${badgeLabel}</span>` : '';
+    }
+    // 2026-07-27：カード拡大ボタン（右下・design_system.md §10.7）。長押しプレビュー本体（_lpShowPreview/_lpTapPreview）を
+    // そのまま流用し、絵文字を使わずSVGライン（虫眼鏡）で描く。event.stopPropagation()でカード本体のonclick（選択・タップ導線）
+    // へは伝播させない。card-disabled/card-viewonly/'ended'（pointer-events:noneがカード本体に付く）いずれの状態でも
+    // 拡大だけは常に使えるよう、CSS側（.card-zoom-btn）でpointer-events:autoと高いz-indexを明示している。
+    function cardZoomBtnHtml() {
+      return `<button type="button" class="card-zoom-btn" aria-label="カードを拡大表示" onclick="event.stopPropagation();_lpTapPreview(this.closest('.card'))"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>`;
     }
     // 手札系4系統（操作可・閲覧・観戦・捨て札）共通の種類ラベル
     function cardTypeLabel(card) { return card.type === 'policy' ? '政策' : card.type === 'jinzai' ? '人為' : '自然'; }
@@ -10065,7 +10094,17 @@
     // 2026-07-17：仲間パネルのコンパクト化に伴い、能力詳細は都市名タップで開閉する（対戦モードの都市名タップ詳細と同じ体験）。
     // 都市スロット別に開閉状態を保持（_coShieldDetailOpenと同じくFirebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
     let _coCityDetailOpen = {};
-    function coopToggleCityDetail(idx) { _coCityDetailOpen[idx] = !_coCityDetailOpen[idx]; _coPatchCityPanel(idx); }
+    // 2026-07-27：閲覧方法統一（coopCityPanel）に伴い、未設定時の既定値は「自分の都市（mine）なら開・それ以外は閉」。
+    // 単純に!_coCityDetailOpen[idx]で反転すると、未設定（＝画面上は既定で開いて見えるmineの都市）の初回タップで
+    // !undefined=trueが書き込まれ「閉じたつもりが開いたまま」になる。coopCityPanelの表示側と同じ既定値ロジックで
+    // 現在の実効状態を求めてから反転する。
+    function coopToggleCityDetail(idx) {
+      const cs = CO && CO.cities && CO.cities[idx];
+      const mine = !!(cs && CO.mp && cs.ownerId && cs.ownerId === CO.myId);
+      const cur = Object.prototype.hasOwnProperty.call(_coCityDetailOpen, idx) ? !!_coCityDetailOpen[idx] : mine;
+      _coCityDetailOpen[idx] = !cur;
+      _coPatchCityPanel(idx);
+    }
     // 2026-07-17：手札エリアの所有者タブ（自分＋仲間）。'me'=自分固定、それ以外はCO.cities内の都市インデックス。
     // 昨日実装した_coAllyHandOpen/coopToggleAllyHandOpen/coopAllyHandCompactHtml（仲間の状況パネル内「手札を見る」）を置き換えて廃止した
     // （Firebase同期には載せないローカル表示state。協力ゲーム開始時・各ターン開始時に'me'へリセット）
@@ -11040,8 +11079,21 @@
       const slot = coopMySlot(); if (!slot) return;
       const left = (slot.budget || 0) - (slot.budgetUsed || 0);
       const support = slot.hp <= 0; // 後方支援役は自己完結カード（ドロー）を支援に使えない
-      const hasPlayable = (slot.hand || []).some(c => c.cost <= left && !(support && c.effectType === 'draw'));
-      if (hasPlayable) return; // まだ使えるカードがある＝自動終了しない（手控えは本人の判断）
+      // 2026-07-27（coop_balance.md §11.4）：0コスト化したローリングストック（recycle_hand）は残予算に関わらず
+      // 常にcost<=leftを満たすため、これだけを条件にすると「持っている限り自動終了が発火しない」。
+      // 判定を「予算を消費して盤面に影響を与えられる行動が残っているか」に変え、手札入れ替え専用カード
+      // （recycle_hand）は盤面に影響しないため常に「意味のある行動」から除外し、自動終了の対象に含める。
+      const others = (slot.hand || []).filter(c => c.effectType !== 'recycle_hand');
+      const hasPlayable = others.some(c => c.cost <= left && !(support && c.effectType === 'draw'));
+      // 2026-07-27追記：recycle_handを一律「意味なし」とすると取りこぼしが出る。残予算2ptで手札が
+      // 「ローリングストック＋防災庁(3pt)」のとき、防災庁は買えないがローリングストックは0コストで
+      // 引き直せるため、2ptで置けるカードに化ける可能性が残っている。これはローリングストックが最も
+      // 活きる場面であり、自動終了で奪ってはならない。逆に残予算0では引き直しても何も置けず、
+      // 捨てる相手（自分以外の手札）が無い場合も入れ替えが成立しないため、その2条件では意味なしとする。
+      // 後方支援役はrecycle_handの使用自体が禁止（coopMkCardのnoTarget）のため常に対象外。
+      const canRecycleUsefully = !support && left > 0 && others.length > 0
+        && (slot.hand || []).some(c => c.effectType === 'recycle_hand');
+      if (hasPlayable || canRecycleUsefully) return; // まだ意味のある行動が残る＝自動終了しない（手控えは本人の判断）
       if (_coAutoEndedTurn === CO.turn) return; // このターンは既に自動終了を送信済み（エコー待ち）
       _coAutoEndedTurn = CO.turn;
       _coLog('🪙 使えるカードがないため自動でターンを終了しました');
@@ -11642,26 +11694,23 @@
       const showTurn = CO.mp && (CO.phase === 'city' || CO.phase === 'draw');
       const readyChip = showTurn ? (cs.ready ? `<span style="display:inline-flex;align-items:center;gap:2px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>` : `<span style="display:inline-block;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(255,255,255,.05);color:rgba(var(--t0-rgb),.4);border:1px solid rgba(255,255,255,.15)">…</span>`) : '';
       const supportChip = (CO.mp && dead) ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>後方支援</span>` : '';
-      // 2026-07-17：都市パネルレイアウト刷新（design_system.md §10.1/10.2）。
-      // ・compact=true（仲間パネル／自然側視点の全都市表示）：能力詳細は既定で非表示にし、都市名タップで開閉する
-      //   （対戦モードの都市名タップ詳細と同じ体験。既存のcoopToggleShieldDetail/_coShieldDetailOpenと同じローカルUI状態パターンを別キー_coCityDetailOpenで踏襲）
-      // ・compact=false かつ mine=true（自分の都市）：能力詳細は常時表示のまま、「あなた」タグの右隣にインライン化して改行分の余白をなくす
-      // ・compact=false かつ mine=false（ソロの全都市／MP2〜3人時に自分の都市が存在しない視点）：従来どおり都市名の下に常時表示（無回帰）
-      const cityDetailOpen = !!_coCityDetailOpen[idx];
+      // 2026-07-27：3通りに分岐していた閲覧方法（compact=都市名タップ開閉／mine=常時インライン表示／
+      // それ以外=都市名の下に常時表示）を「都市名タップで開閉」に統一する（design_system.md §10.4 定位置の一貫性。
+      // 「操作方法は1つ、初期状態だけ文脈で変わる」）。既定の開閉状態のみ差を残す：自分の都市（mine）は
+      // 既定で開＝これまで常時表示だった情報量を落とさない、それ以外（仲間パネル・自然側視点・ソロの全都市）は
+      // 既定で閉。_coCityDetailOpenに明示的なトグル操作の履歴が無い間はmineをそのまま既定値として使う
+      // （hasOwnPropertyで「未設定」と「falseに設定済み」を区別する。一度でもタップすれば以後は明示値が優先される）。
+      const cityDetailOpen = Object.prototype.hasOwnProperty.call(_coCityDetailOpen, idx) ? !!_coCityDetailOpen[idx] : mine;
       const panelPad = compact ? '6px 7px' : '10px';
       const abilityStyle = compact
         ? 'font-size:.62rem;color:var(--t0);opacity:.9;margin:3px 0 0;line-height:1.3'
         : 'font-size:.64rem;color:var(--t0);opacity:.85;margin:2px 0 5px;line-height:1.3;min-height:26px';
-      let nameBlock, ownerAbilityInline, standaloneAbility;
-      if (compact) {
-        nameBlock = `<button type="button" class="coop-city-name-tap" aria-expanded="${cityDetailOpen}" aria-label="${_escHtml(c.name)}の能力詳細を${cityDetailOpen ? '閉じる' : '表示する'}" onclick="coopToggleCityDetail(${idx})"><span class="city-icon-sm">${terrainImg(c, 16)}</span><strong class="coop-city-name">${_escHtml(hintedName(c.name))}</strong>${uiIcoChevronDown(9)}</button>`;
-        ownerAbilityInline = '';
-        standaloneAbility = cityDetailOpen ? `<div style="${abilityStyle}">${c.abilityDesc}</div>` : '';
-      } else {
-        nameBlock = `<div style="display:flex;align-items:center;gap:6px;min-width:0"><span class="city-icon-sm">${terrainImg(c, 22)}</span><strong class="coop-city-name" style="color:var(--t0);min-width:0">${_escHtml(hintedName(c.name))}</strong></div>`;
-        ownerAbilityInline = mine ? `<span style="font-size:.64rem;color:var(--t0);opacity:.85;line-height:1.3">${c.abilityDesc}</span>` : '';
-        standaloneAbility = mine ? '' : `<div style="${abilityStyle}">${c.abilityDesc}</div>`;
-      }
+      // ccnt-lg：非compact（自分の都市・ソロの全都市）はアイコン・都市名フォントを従来の常時表示時と同じ大きさに
+      // 保つための修飾クラス（design_system.md §10.2「自分の情報は大きく」）。.coop-city-name-tapの既定サイズは
+      // 仲間パネル用の縮小値のため、非compactではccnt-lgで22px/1remへ上書きする。
+      const nameBlock = `<button type="button" class="coop-city-name-tap${compact ? '' : ' ccnt-lg'}" aria-expanded="${cityDetailOpen}" aria-label="${_escHtml(c.name)}の能力詳細を${cityDetailOpen ? '閉じる' : '表示する'}" onclick="coopToggleCityDetail(${idx})"><span class="city-icon-sm">${terrainImg(c, compact ? 16 : 22)}</span><strong class="coop-city-name">${_escHtml(hintedName(c.name))}</strong>${uiIcoChevronDown(compact ? 9 : 11)}</button>`;
+      const ownerAbilityInline = '';
+      const standaloneAbility = cityDetailOpen ? `<div style="${abilityStyle}">${c.abilityDesc}</div>` : '';
       const owner = (CO.mp && cs.ownerName) ? `<div style="margin:3px 0 5px;display:flex;align-items:center;flex-wrap:wrap;gap:5px"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.66rem;font-weight:700;background:${mine ? 'rgba(56,139,253,.3)' : 'rgba(255,255,255,.08)'};color:var(--t0);border:1px solid ${mine ? '#388bfd' : 'rgba(255,255,255,.18)'}">${mine ? 'あなた' : cs.ownerName}</span>${supportChip}${readyChip}${ownerAbilityInline}</div>` : '';
       // 2026-07-18脱AI感刷新：全周枠＋inset box-shadowの二重囲み（panelBorder）をコーナーブラケットへ置き換え。
       // 自分=accent／仲間=bg3の非対称はそのまま踏襲する（worldview.md §7-4）
@@ -11711,7 +11760,7 @@
       const cursor = isAlly ? 'pointer' : ((isEnded || dis) ? 'not-allowed' : 'pointer');
       const _roExtra = isEnded ? ';pointer-events:none' : ''; // 'ended'のみ従来通りクリック自体を無効化（タップ導線が不要なため）
       const previewing = mode === 'resp' && _coRespPreviewUid === card.uid;
-      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
+      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}${cardZoomBtnHtml()}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
