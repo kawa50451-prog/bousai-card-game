@@ -2811,30 +2811,35 @@
       left: 0; right: 0;
       height: 4px;
     }
-    /* 2026-07-27追記（ループの位相ずれ修正）：45度ストライプの「水平方向の」繰り返し周期は
-       帯幅14px ÷ cos45° = 19.8px であり、28pxを動かすと1周ごとに位相が飛んで縞が飛んで見える。
-       またbackground-sizeを既定（＝要素サイズ）のままにするとタイルの継ぎ目でも位相が途切れるため、
-       background-sizeを水平周期そのものに固定し、移動量も同じ19.8pxに合わせて完全なシームレスループにする */
-    /* 上バー：濃淡の振れ幅を大きく（.95⇔.35）して手前に浮く印象、右下がりに流す */
+    /* 2026-07-27（ユーザー選択＝案C「スキャンライン」）：斜めストライプのハザードテープから、
+       細線が横へ流れるスキャンラインへ変更した。理由は3点。①社会的脆弱性は「今この瞬間の攻撃」ではなく
+       継続している状態であり、監視され続けている質感が意味と一致する ②worldview.mdの「深夜の災害対策本部」
+       ＝屋内オペレーションルームのモニタ表現に直結する（斜めストライプは工事現場のハザードテープで文脈がずれる）
+       ③線が細く密度が低いため常設しても盤面の可読性を損なわない。透過度も全体に上げて主張を弱めた。
+       90度グラデーションのため水平周期は帯の繰り返し幅9pxとちょうど一致し、background-sizeと移動量を
+       9pxに揃えるだけで完全なシームレスループになる（45度版のような位相ずれ補正が不要） */
+    /* 上バー：やや濃く・速く流し、監視のリズムを作る */
     .coop-event-banner::before {
       top: 0;
-      background-image: repeating-linear-gradient(45deg,
-        rgba(var(--purple-rgb, 163,113,247), .95) 0 7px,
-        rgba(var(--purple-rgb, 163,113,247), .35) 7px 14px);
-      background-size: 19.8px 4px;
-      animation: coop-event-flow-fwd 3.2s linear infinite;
+      height: 3px;
+      background-image: repeating-linear-gradient(90deg,
+        rgba(var(--purple-rgb, 163,113,247), .7) 0 2px,
+        transparent 2px 9px);
+      background-size: 9px 3px;
+      animation: coop-event-scan-fwd 1.6s linear infinite;
     }
-    /* 下バー：濃淡を抑え(.55⇔.18)て奥に沈む印象、上バーと逆方向・異なる周期で流し奥行きを出す */
+    /* 下バー：薄く・遅く・逆方向に流し、奥に沈む層を作って奥行きを出す */
     .coop-event-banner::after {
       bottom: 0;
-      background-image: repeating-linear-gradient(45deg,
-        rgba(var(--purple-rgb, 163,113,247), .55) 0 7px,
-        rgba(var(--purple-rgb, 163,113,247), .18) 7px 14px);
-      background-size: 19.8px 4px;
-      animation: coop-event-flow-rev 4s linear infinite;
+      height: 3px;
+      background-image: repeating-linear-gradient(90deg,
+        rgba(var(--purple-rgb, 163,113,247), .35) 0 2px,
+        transparent 2px 9px);
+      background-size: 9px 3px;
+      animation: coop-event-scan-rev 2.4s linear infinite;
     }
-    @keyframes coop-event-flow-fwd { from { background-position: 0 0; } to { background-position: 19.8px 0; } }
-    @keyframes coop-event-flow-rev { from { background-position: 0 0; } to { background-position: -19.8px 0; } }
+    @keyframes coop-event-scan-fwd { from { background-position: 0 0; } to { background-position: 9px 0; } }
+    @keyframes coop-event-scan-rev { from { background-position: 0 0; } to { background-position: -9px 0; } }
     @media (prefers-reduced-motion: reduce) {
       .coop-event-banner::before, .coop-event-banner::after { animation: none; }
     }
