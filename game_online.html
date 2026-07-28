@@ -30,6 +30,10 @@
           if (meta) meta.setAttribute('content', THEME_ACCENTS[s.theme]);
         }
         if (s.glow === false) document.documentElement.classList.add('ron-no-glow');
+        // モーション設定（自動/オン/オフ・design_system.md §10連動の3択）。自動はクラス無し＝OSのprefers-reduced-motionに
+        // そのまま従う現行動作を維持。オンはOSがreduceでもアニメを強制表示、オフはOSの設定に関わらず常に停止する。
+        if (s.motion === 'on') document.documentElement.classList.add('ron-motion-force');
+        else if (s.motion === 'off') document.documentElement.classList.add('ron-motion-off');
         if (s.font === 'digital') {
           document.documentElement.classList.add('ron-font-digital');
           // 早期にフォントの取得を開始する（本体scriptの読込を待たない。オフライン時はlink失敗＝フォールバック続行）
@@ -45,7 +49,7 @@
           link8.href = 'https://fonts.googleapis.com/css2?family=DotGothic16&display=swap';
           document.head.appendChild(link8);
         }
-      } catch (e) { /* localStorage不可・JSON破損時は既定（サイバー・レッド／グローON／デフォルトフォント）のまま続行 */ }
+      } catch (e) { /* localStorage不可・JSON破損時は既定（サイバー・レッド／グローON／デフォルトフォント／モーション自動）のまま続行 */ }
     })();
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -350,6 +354,98 @@
        8bit選択時のみロゴのfont-sizeを縮めて画面内に収める（ロビー.lobby-title 4rem・起動スプラッシュ.sl-title 2.6rem）。 */
     html.ron-font-8bit .lobby-title { font-size: 1.7rem !important; word-spacing: 0 !important; }
     html.ron-font-8bit .sl-title { font-size: 1.4rem !important; letter-spacing: .04em !important; }
+
+    /* ── 2026-07-28：モーション設定「オフ」。設定パネルの3択（自動/オン/オフ）のうち「オフ」を選ぶと、
+       OSのprefers-reduced-motionに関わらず常時アニメーションを止める。対象は本ファイル内の全
+       @media(prefers-reduced-motion:reduce)ブロック（.pip-coin-pending〜.boot-splash-title、行番号は
+       随時前後する）と完全に同一内容。ルールの二重管理を避けるため、宣言内容が同一のセレクタをまとめて
+       ここ1箇所に集約する（design_system.md §10・今回タスク指示の必須事項）。
+       reduce側ブロックにセレクタを追加・変更・削除したときは、必ずここも同じ内容で更新すること。 ── */
+    html.ron-motion-off .coop-event-banner::before,
+    html.ron-motion-off .coop-event-banner::after,
+    html.ron-motion-off .coop-reach-warn,
+    html.ron-motion-off .conn-banner,
+    html.ron-motion-off .boot-splash-title,
+    html.ron-motion-off .screen-shake {
+      animation: none !important;
+    }
+    html.ron-motion-off .ui-card-preview-card {
+      transition: none;
+      animation: none !important;
+    }
+    html.ron-motion-off .coop-hand-tab,
+    html.ron-motion-off .coop-hand-tab-indicator {
+      transition: none;
+    }
+    html.ron-motion-off .pip-coin-pending {
+      animation: none;
+      opacity: .55;
+    }
+    html.ron-motion-off .float-dmg {
+      animation: none;
+      opacity: .95;
+    }
+    html.ron-motion-off .tut-pulse-ring {
+      animation: none;
+      box-shadow: 0 0 0 2px var(--tpr-color,var(--blue));
+      opacity: 1;
+    }
+    html.ron-motion-off::view-transition-old(lobby-stage),
+    html.ron-motion-off::view-transition-new(lobby-stage),
+    html.ron-motion-off.lobby-back-transition::view-transition-old(lobby-stage),
+    html.ron-motion-off.lobby-back-transition::view-transition-new(lobby-stage) {
+      animation-duration: 0s !important;
+    }
+    html.ron-motion-off .hp-text-warn,
+    html.ron-motion-off .hp-critical-badge {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+    html.ron-motion-off,
+    html.ron-motion-off body {
+      transition: none !important;
+    }
+    html.ron-motion-off .confirm-box,
+    html.ron-motion-off .dd-picker-box,
+    html.ron-motion-off .hint-box,
+    html.ron-motion-off .lobby-dash-card,
+    html.ron-motion-off .dd-mini-slot-col,
+    html.ron-motion-off .dd-picker-row,
+    html.ron-motion-off .settings-theme-check,
+    html.ron-motion-off .co-hand-tabfade {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    html.ron-motion-off .lobby-btn:active,
+    html.ron-motion-off .lobby-btn-tut:active,
+    html.ron-motion-off .lobby-btn-single:active,
+    html.ron-motion-off .lobby-btn-back:active,
+    html.ron-motion-off .lobby-btn-solo:active,
+    html.ron-motion-off .lobby-btn-gallery:active,
+    html.ron-motion-off .lobby-dash-card:active,
+    html.ron-motion-off .btn-ho:active,
+    html.ron-motion-off .sq-btn:active,
+    html.ron-motion-off .sq-btn-r:active,
+    html.ron-motion-off .hint-btn:active,
+    html.ron-motion-off .confirm-btns .btn-ok:active,
+    html.ron-motion-off .confirm-btns .btn-cancel:active,
+    html.ron-motion-off .settings-theme-chip:active,
+    html.ron-motion-off .settings-seg-btn:active,
+    html.ron-motion-off .dd-add-tile:active,
+    html.ron-motion-off .dd-mini-remove:active,
+    html.ron-motion-off .btn-accept:active,
+    html.ron-motion-off .ui-tab-btn:active,
+    html.ron-motion-off .dd-picker-row:active,
+    html.ron-motion-off .card.card-usable:active {
+      transform: none !important;
+    }
+    /* :hoverを含むため@media(hover:hover)内に隔離する（iPadでのタップ二度打ち誘発を防ぐ。今回タスクの制約） */
+    @media (hover:hover) {
+      html.ron-motion-off .dd-add-tile:hover {
+        transform: none !important;
+      }
+    }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
@@ -2112,7 +2208,7 @@
     @keyframes pip-pending-blink { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
     .pip-coin-pending { animation: pip-pending-blink 1s ease-in-out infinite }
     @media (prefers-reduced-motion: reduce) {
-      .pip-coin-pending { animation: none; opacity: .55 }
+      html:not(.ron-motion-force) .pip-coin-pending { animation: none; opacity: .55 }
     }
     .budget-pips-compact {
       display: inline-flex;
@@ -2804,46 +2900,49 @@
       font-size: .72rem;
       line-height: 1.4;
       color: var(--t0);
+      overflow: hidden;
+      box-shadow: inset 0 3px 0 -1px rgba(var(--purple-rgb, 163,113,247), .5);
     }
     .coop-event-banner::before, .coop-event-banner::after {
       content: '';
       position: absolute;
       left: 0; right: 0;
-      height: 4px;
     }
-    /* 2026-07-27（ユーザー選択＝案C「スキャンライン」）：斜めストライプのハザードテープから、
-       細線が横へ流れるスキャンラインへ変更した。理由は3点。①社会的脆弱性は「今この瞬間の攻撃」ではなく
-       継続している状態であり、監視され続けている質感が意味と一致する ②worldview.mdの「深夜の災害対策本部」
-       ＝屋内オペレーションルームのモニタ表現に直結する（斜めストライプは工事現場のハザードテープで文脈がずれる）
-       ③線が細く密度が低いため常設しても盤面の可読性を損なわない。透過度も全体に上げて主張を弱めた。
-       90度グラデーションのため水平周期は帯の繰り返し幅9pxとちょうど一致し、background-sizeと移動量を
-       9pxに揃えるだけで完全なシームレスループになる（45度版のような位相ずれ補正が不要） */
-    /* 上バー：やや濃く・速く流し、監視のリズムを作る */
+    /* 2026-07-27（ユーザー選択＝案E）：上下3pxの細線だけでは狭いスマホ画面でほぼ視認できないという
+       実機フィードバックを受け、ストライプ柄を「帯全体の背景」として敷いて水平方向に流す構成へ変更した。
+       ①社会的脆弱性は「今この瞬間の攻撃」ではなく継続している状態であり、流れ続ける背景が意味と一致する
+       ②worldview.mdの「深夜の災害対策本部」＝屋内オペレーションルームのモニタ表現に沿う
+       ③薄く敷くことで常設しても本文の可読性を損なわない。
+       絶対配置の疑似要素はレイアウト内の非配置の子より前面に描かれるため、本文が隠れないよう
+       .coop-event-rowにposition:relative+z-indexを与えて明示的に前面へ出している。 */
+    /* 背景：斜めストライプを帯全面に薄く敷き、水平方向へゆっくり流す。
+       45度パターンの水平周期は 帯幅14px ÷ cos45° = 19.8px。background-sizeと移動量をこれに揃えると
+       タイルの継ぎ目でも位相が途切れず完全なシームレスループになる */
     .coop-event-banner::before {
-      top: 0;
-      height: 3px;
-      background-image: repeating-linear-gradient(90deg,
-        rgba(var(--purple-rgb, 163,113,247), .7) 0 2px,
-        transparent 2px 9px);
-      background-size: 9px 3px;
-      animation: coop-event-scan-fwd 1.6s linear infinite;
+      inset: 0;
+      background-image: repeating-linear-gradient(45deg,
+        rgba(var(--purple-rgb, 163,113,247), .13) 0 6px,
+        transparent 6px 14px);
+      background-size: 19.8px 100%;
+      animation: coop-event-diag 6s linear infinite;
     }
-    /* 下バー：薄く・遅く・逆方向に流し、奥に沈む層を作って奥行きを出す */
+    /* 下辺：やや濃いスキャンラインを背景より速く流し、モニタらしいリズムを重ねる。
+       90度パターンのため水平周期は繰り返し幅10pxとそのまま一致する */
     .coop-event-banner::after {
       bottom: 0;
       height: 3px;
       background-image: repeating-linear-gradient(90deg,
-        rgba(var(--purple-rgb, 163,113,247), .35) 0 2px,
-        transparent 2px 9px);
-      background-size: 9px 3px;
-      animation: coop-event-scan-rev 2.4s linear infinite;
+        rgba(var(--purple-rgb, 163,113,247), .8) 0 3px,
+        transparent 3px 10px);
+      background-size: 10px 3px;
+      animation: coop-event-scan 2s linear infinite;
     }
-    @keyframes coop-event-scan-fwd { from { background-position: 0 0; } to { background-position: 9px 0; } }
-    @keyframes coop-event-scan-rev { from { background-position: 0 0; } to { background-position: -9px 0; } }
+    @keyframes coop-event-diag { from { background-position: 0 0; } to { background-position: 19.8px 0; } }
+    @keyframes coop-event-scan { from { background-position: 0 0; } to { background-position: 10px 0; } }
     @media (prefers-reduced-motion: reduce) {
-      .coop-event-banner::before, .coop-event-banner::after { animation: none; }
+      html:not(.ron-motion-force) .coop-event-banner::before, html:not(.ron-motion-force) .coop-event-banner::after { animation: none; }
     }
-    .coop-event-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .coop-event-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .coop-event-row + .coop-event-row { margin-top: 3px; }
     .coop-event-name { font-weight: 800; color: var(--purple, #a371f7); flex-shrink: 0; }
     .coop-event-effect { color: var(--t0); }
@@ -2901,7 +3000,7 @@
       transition:left .2s cubic-bezier(.23,1,.32,1), width .2s cubic-bezier(.23,1,.32,1);
       pointer-events:none;
     }
-    @media (prefers-reduced-motion: reduce) { .coop-hand-tab, .coop-hand-tab-indicator { transition:none; } }
+    @media (prefers-reduced-motion: reduce) { html:not(.ron-motion-force) .coop-hand-tab, html:not(.ron-motion-force) .coop-hand-tab-indicator { transition:none; } }
     /* 2026-07-27：閲覧中バナーの視認性強化（P0修正・仕様(c)）。従来の薄い1行注記は「使える見た目なのに無反応」の
        状況下でほぼ気づかれなかったため、支援チップ等と同じneonバッジ配色（青枠+背景）の帯に変更し、
        「あなた」タブへ戻るボタンを併置する（coopReturnToMyHandTab参照） */
@@ -2975,7 +3074,7 @@
     /* 協力：リーチ警告バッジ（HPバー右上に重ねる。シールドトグル行＝バー下部とは別レイヤーのためレイアウト競合なし） */
     .coop-reach-warn { position:absolute; top:-6px; right:-6px; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#0d1117; border:1.5px solid #f85149; box-shadow:0 0 6px rgba(248,81,73,.55); animation: coop-reach-pulse 1.6s ease-in-out infinite; z-index:2 }
     @keyframes coop-reach-pulse { 0%,100% { box-shadow:0 0 4px rgba(248,81,73,.4) } 50% { box-shadow:0 0 9px rgba(248,81,73,.85) } }
-    @media (prefers-reduced-motion: reduce) { .coop-reach-warn { animation: none } }
+    @media (prefers-reduced-motion: reduce) { html:not(.ron-motion-force) .coop-reach-warn { animation: none } }
     .card-text-fallback { display:none }
     .card.img-fail .card-text-fallback { display:block }
     .card.img-fail .card-img-wrap { display:none }
@@ -3126,7 +3225,7 @@
     .ui-lp-zoom-btn:active:not(:disabled) { transform:scale(.9); }
     .ui-lp-zoom-btn:disabled { opacity:.35; cursor:not-allowed; }
     @media (prefers-reduced-motion: reduce) {
-      .ui-card-preview-card { transition:none; }
+      html:not(.ron-motion-force) .ui-card-preview-card { transition:none; }
     }
     body.ui-lp-noscroll { overflow:hidden !important; touch-action:none; }
     .spec-invite-btn { position:fixed; bottom:16px; right:64px; z-index:9100; padding:7px 12px; border-radius:20px; background:rgba(56,139,253,.15); border:1.5px solid #388bfd; color:#388bfd; font-size:.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(0,0,0,.4); transition:.2s; white-space:nowrap; }
@@ -3217,7 +3316,7 @@
     .tut-pulse-ring { position:absolute; box-sizing:border-box; border:2px solid var(--tpr-color,var(--blue)); border-radius:8px; pointer-events:none; z-index:0; animation:tut-pulse-ring 1.5s cubic-bezier(.4,0,.2,1) infinite }
     @keyframes tut-pulse-ring { 0% { box-shadow:0 0 0 0 var(--tpr-color,var(--blue)); opacity:.85 } 100% { box-shadow:0 0 0 14px var(--tpr-color,var(--blue)); opacity:0 } }
     @media (prefers-reduced-motion: reduce) {
-      .tut-pulse-ring { animation:none; box-shadow:0 0 0 2px var(--tpr-color,var(--blue)); opacity:1 }
+      html:not(.ron-motion-force) .tut-pulse-ring { animation:none; box-shadow:0 0 0 2px var(--tpr-color,var(--blue)); opacity:1 }
     }
 
     /* ── ロビー登場アニメーション ── */
@@ -3241,10 +3340,10 @@
     @keyframes lobby-back-in  { from { transform: translateX(-24px); opacity: 0; } }
 
     @media (prefers-reduced-motion: reduce) {
-      ::view-transition-old(lobby-stage),
-      ::view-transition-new(lobby-stage),
-      html.lobby-back-transition::view-transition-old(lobby-stage),
-      html.lobby-back-transition::view-transition-new(lobby-stage) {
+      html:not(.ron-motion-force)::view-transition-old(lobby-stage),
+      html:not(.ron-motion-force)::view-transition-new(lobby-stage),
+      html:not(.ron-motion-force).lobby-back-transition::view-transition-old(lobby-stage),
+      html:not(.ron-motion-force).lobby-back-transition::view-transition-new(lobby-stage) {
         animation-duration: 0s !important;
       }
     }
@@ -3271,7 +3370,7 @@
       font-variant-numeric: tabular-nums
     }
     @media (prefers-reduced-motion: reduce) {
-      .float-dmg { animation: none; opacity: .95 }
+      html:not(.ron-motion-force) .float-dmg { animation: none; opacity: .95 }
     }
 
     /* ── ターン開始スプラッシュ ── */
@@ -3665,7 +3764,7 @@
       animation: conn-banner-in .25s ease both;
     }
     @keyframes conn-banner-in { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
-    @media (prefers-reduced-motion: reduce) { .conn-banner { animation:none } }
+    @media (prefers-reduced-motion: reduce) { html:not(.ron-motion-force) .conn-banner { animation:none } }
 
     /* ── B-2: Drop from top / clip from bottom ── */
     @keyframes yb-drop-from-top {
@@ -3689,52 +3788,54 @@
     /* ── §9.4積み残し：prefers-reduced-motion拡張。前庭系に敏感なユーザー向けに、
        画面シェイク・HP危険域の点滅・フリッカー系の強い視覚効果を無効化する（design_system.md §4.3） ── */
     @media (prefers-reduced-motion: reduce) {
-      .screen-shake { animation: none !important; }
-      .hp-text-warn { animation: none !important; opacity: 1 !important; }
-      .hp-critical-badge { animation: none !important; opacity: 1 !important; }
+      html:not(.ron-motion-force) .screen-shake { animation: none !important; }
+      html:not(.ron-motion-force) .hp-text-warn { animation: none !important; opacity: 1 !important; }
+      html:not(.ron-motion-force) .hp-critical-badge { animation: none !important; opacity: 1 !important; }
       /* UI第3弾（試験実装）B2：長押しプレビューの拡大アニメを無効化 */
-      .ui-card-preview-card { animation: none !important; }
+      html:not(.ron-motion-force) .ui-card-preview-card { animation: none !important; }
 
       /* ── 2026-07-18モーション強化スイープで追加した演出を無効化する（design_system.md §4.3・今回タスク指示の必須事項）。
          登場アニメ（animation）は即時表示へ、押下フィードバック（:active transform）とテーマ切替の色遷移
          （transition）は瞬時切替へフォールバックする。既存の.confirm-box/.dd-picker-box等が共用するyb-drop-inも
-         このタイミングで合わせて無効化対象に含めた（従来ここが未対応だった既存の抜けを合わせて解消）。 ── */
-      html, body { transition: none !important; }
-      .confirm-box, .dd-picker-box, .hint-box, .lobby-dash-card,
-      .dd-mini-slot-col, .dd-picker-row, .settings-theme-check,
-      .co-hand-tabfade {
+         このタイミングで合わせて無効化対象に含めた（従来ここが未対応だった既存の抜けを合わせて解消）。
+         2026-07-28モーション設定追加：全セレクタにhtml:not(.ron-motion-force)を付与し、「オン」選択時は
+         このブロック一式をOSのreduce設定に関わらず無効化できるようにした（design_system.md §10・今回タスク指示）。 ── */
+      html:not(.ron-motion-force), html:not(.ron-motion-force) body { transition: none !important; }
+      html:not(.ron-motion-force) .confirm-box, html:not(.ron-motion-force) .dd-picker-box, html:not(.ron-motion-force) .hint-box, html:not(.ron-motion-force) .lobby-dash-card,
+      html:not(.ron-motion-force) .dd-mini-slot-col, html:not(.ron-motion-force) .dd-picker-row, html:not(.ron-motion-force) .settings-theme-check,
+      html:not(.ron-motion-force) .co-hand-tabfade {
         animation: none !important;
         opacity: 1 !important;
         transform: none !important;
       }
-      .lobby-btn:active,
-      .lobby-btn-tut:active,
-      .lobby-btn-single:active,
-      .lobby-btn-back:active,
-      .lobby-btn-solo:active,
-      .lobby-btn-gallery:active,
-      .lobby-dash-card:active,
-      .btn-ho:active,
-      .sq-btn:active,
-      .sq-btn-r:active,
-      .hint-btn:active,
-      .confirm-btns .btn-ok:active,
-      .confirm-btns .btn-cancel:active,
-      .settings-theme-chip:active,
-      .settings-seg-btn:active,
-      .dd-add-tile:active,
-      .dd-mini-remove:active,
-      .btn-accept:active,
-      .ui-tab-btn:active,
-      .dd-picker-row:active,
-      .card.card-usable:active {
+      html:not(.ron-motion-force) .lobby-btn:active,
+      html:not(.ron-motion-force) .lobby-btn-tut:active,
+      html:not(.ron-motion-force) .lobby-btn-single:active,
+      html:not(.ron-motion-force) .lobby-btn-back:active,
+      html:not(.ron-motion-force) .lobby-btn-solo:active,
+      html:not(.ron-motion-force) .lobby-btn-gallery:active,
+      html:not(.ron-motion-force) .lobby-dash-card:active,
+      html:not(.ron-motion-force) .btn-ho:active,
+      html:not(.ron-motion-force) .sq-btn:active,
+      html:not(.ron-motion-force) .sq-btn-r:active,
+      html:not(.ron-motion-force) .hint-btn:active,
+      html:not(.ron-motion-force) .confirm-btns .btn-ok:active,
+      html:not(.ron-motion-force) .confirm-btns .btn-cancel:active,
+      html:not(.ron-motion-force) .settings-theme-chip:active,
+      html:not(.ron-motion-force) .settings-seg-btn:active,
+      html:not(.ron-motion-force) .dd-add-tile:active,
+      html:not(.ron-motion-force) .dd-mini-remove:active,
+      html:not(.ron-motion-force) .btn-accept:active,
+      html:not(.ron-motion-force) .ui-tab-btn:active,
+      html:not(.ron-motion-force) .dd-picker-row:active,
+      html:not(.ron-motion-force) .card.card-usable:active {
         transform: none !important;
       }
       /* 2026-07-27 P0追撃修正：このブロックはprefers-reduced-motion専用でhover:hoverの外側にあり、
          hover:hoverが偽の環境（タッチ）でも別軸のメディアクエリとして独立に成立するため、hoverだけ分離して
          ネストのhover:hoverでガードする（reduce設定を有効にしたiPad等での二度タップ誘発を防ぐ） */
       @media (hover:hover) {
-        .dd-add-tile:hover {
+        html:not(.ron-motion-force) .dd-add-tile:hover {
           transform: none !important;
         }
       }
@@ -4469,7 +4570,7 @@
       50% { opacity: 1; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .boot-splash-title { animation: none; }
+      html:not(.ron-motion-force) .boot-splash-title { animation: none; }
     }
 
     /* ══════════════════════════════════════════════════════════════════
@@ -5009,6 +5110,11 @@
     const COOP_EMERGENCY_HAND_MAX = 1;
     // 備蓄：都市ターン終了時、未使用予算がこの値以上残っている生存都市は1枚ドローする（予算は消費しない）。
     const COOP_STOCKPILE_MIN_BUDGET = 2;
+    // 予算の繰り越し制（協力モード限定・design/coop_balance.md §12）：都市ターン終了時に余った予算を、
+    // 備蓄（1枚ドロー）の代わりに翌ターンへ繰り越せる。上限は基本予算からの相対値ではなく、繰り越し量そのものの
+    // 固定キャップ（min(この値, leftover)）。備蓄と二者択一のため同時発生しない。壊滅都市（後方支援）は
+    // COOP_SUPPORT_CAPの独自持ち越しと二重適用になるため対象外。
+    const COOP_CARRY_BUDGET_CAP = 2;
     // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
     const COOP_EVENT_INFO = {
       rumor:     { id: 'rumor',     icon: 'rumor',     name: 'デマ拡散',   effectCity: 'このターンの予算 −1',                  effectNature: 'CPU都市の予算 −1（攻めの好機）',           desc: 'SNS上の偽情報が初動対応を混乱させる' },
@@ -5180,7 +5286,7 @@
       { id: '8bit',          label: '8bit',                 swatchBg: '#0a0a1a', swatchAccent: '#ff004d' },
       { id: 'light',         label: 'デイライト',           swatchBg: '#f2f0ea', swatchAccent: '#d6294a' }, // 2026-07-21：表示名を「ハザードマップ」から変更（カード名「ハザードマップ整備」との混同回避・一般ユーザーへの直感的な伝達性優先）。世界観コンセプト名「紙のハザードマップ」はworldview.md §11に残置。data-theme id=lightは互換のため不変
     ];
-    const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', glow: true };
+    const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', glow: true, motion: 'auto' };
     function ronGetSettings() {
       try {
         const raw = localStorage.getItem(RON_SETTINGS_KEY);
@@ -5233,6 +5339,10 @@
       if (s.theme && s.theme !== 'cyber-red') html.setAttribute('data-theme', s.theme);
       else html.removeAttribute('data-theme');
       html.classList.toggle('ron-no-glow', s.glow === false);
+      // モーション設定（自動/オン/オフ）。自動はどちらのクラスも付与せずOSのprefers-reduced-motionにそのまま従う
+      // （既定値・現行動作と完全一致）。オンはOSがreduceでもアニメを表示、オフはOSの設定に関わらず常に停止する。
+      html.classList.toggle('ron-motion-force', s.motion === 'on');
+      html.classList.toggle('ron-motion-off', s.motion === 'off');
       html.classList.toggle('ron-font-digital', s.font === 'digital');
       html.classList.toggle('ron-font-8bit', s.font === '8bit');
       if (s.font === 'digital') _ronEnsureDigitalFont();
@@ -5247,6 +5357,7 @@
     function ronSetTheme(themeId) { const s = ronGetSettings(); s.theme = themeId; ronSaveSettings(s); render(); }
     function ronSetFont(font)     { const s = ronGetSettings(); s.font = font;    ronSaveSettings(s); render(); }
     function ronSetGlow(on)       { const s = ronGetSettings(); s.glow = !!on;    ronSaveSettings(s); render(); }
+    function ronSetMotion(mode)   { const s = ronGetSettings(); s.motion = mode;  ronSaveSettings(s); render(); }
 
     let _settingsOpen = false;
     function toggleSettings() { _settingsOpen = !_settingsOpen; render(); }
@@ -5257,6 +5368,11 @@
       // 2026-07-17ユーザーレビュー修正：8bit（DotGothic16）を追加し3択に拡張
       const fontSeg = [['default', '標準'], ['digital', 'デジタル'], ['8bit', '8bit']].map(([f, label]) => `<button class="settings-seg-btn${s.font === f ? ' active' : ''}" onclick="ronSetFont('${f}')">${label}</button>`).join('');
       const glowClass = s.glow !== false ? 'ios-switch on' : 'ios-switch';
+      // 2026-07-28追加：モーション設定（自動/オン/オフの3択。design_system.md §10・今回タスク指示）。
+      // 自動＝OSのprefers-reduced-motionにそのまま従う既定値。オン＝OSがreduceでも演出を表示。オフ＝OSの設定に関わらず常に停止。
+      const motionVal = s.motion || 'auto';
+      const motionSeg = [['auto', '自動'], ['on', 'オン'], ['off', 'オフ']].map(([m, label]) => `<button class="settings-seg-btn${motionVal === m ? ' active' : ''}" onclick="ronSetMotion('${m}')">${label}</button>`).join('');
+      const motionDesc = motionVal === 'on' ? 'OSの設定に関わらず演出を表示します' : motionVal === 'off' ? 'OSの設定に関わらず演出を止めます' : 'OSの「アニメーションを減らす」設定にそのまま従います';
       return `<div class="hint-overlay" onclick="toggleSettings()"><div class="hint-box" onclick="event.stopPropagation()">
         <div class="hint-box-header"><span class="hint-title">${uiIcoGear(15)} 設定</span><button class="hint-close" onclick="toggleSettings()">✕</button></div>
         <div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:8px">テーマカラー</div><div class="settings-theme-row">${themeChips}</div></div>
@@ -5264,6 +5380,8 @@
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">フォント</span><span class="settings-row-desc">${s.font === '8bit' ? 'ピクセル書体（日本語も含めて変わります）' : '数字・英字の書体を切り替えます（日本語は変わりません）'}</span></div><div class="settings-seg">${fontSeg}</div></div>
         <hr class="hint-divider">
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">グロー効果</span><span class="settings-row-desc">発光演出を抑えて動作を軽くします</span></div><div class="${glowClass}" onclick="ronSetGlow(!this.classList.contains('on'))" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>
+        <hr class="hint-divider">
+        <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">モーション</span><span class="settings-row-desc">${motionDesc}</span></div><div class="settings-seg">${motionSeg}</div></div>
       </div></div>`;
     }
 
@@ -5718,17 +5836,24 @@
     // 個別pipで描画できる上限。協力は複数都市の予算合算のため5以上（時に2桁）になり得るため、
     // 超過時は個別pip描画をやめてコイン1つ+「×残数」の数字併記に切替え、320px幅でのレイアウト破綻を防ぐ
     const PIP_VISUAL_CAP = 6;
+    // 2026-07-28：予算の繰り越し制（design/coop_balance.md §12）用に'carried'状態を追加。繰り越されてきた分の
+    // pipsを今ターン配布分（green）と色で区別する（design_system.md §10のトーンに合わせ既存の意味色var(--yellow)を流用。
+    // blue/red/purpleは他要素の意味と競合するため避けた）。
     function pipCoinSvg(state, size) {
       size = size || 14;
       const isUsed = state === 'used';
+      const isCarried = state === 'carried';
       const pendingCls = state === 'pending' ? ' pip-coin-pending' : '';
-      const fill = isUsed ? 'var(--bg0)' : 'var(--green)';
+      const fill = isUsed ? 'var(--bg0)' : isCarried ? 'var(--yellow)' : 'var(--green)';
       const ringStroke = isUsed ? 'var(--bg3)' : 'rgba(0,0,0,.3)';
       return `<svg class="pip-coin${pendingCls}" viewBox="0 0 24 24" width="${size}" height="${size}" style="flex-shrink:0" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="${fill}" stroke="${ringStroke}" stroke-width="1.5"/>${!isUsed ? '<circle cx="12" cy="12" r="6.2" fill="none" stroke="rgba(0,0,0,.32)" stroke-width="1.2"/>' : ''}</svg>`;
     }
     // total=予算総量・used=使用済み数・pendingCost=カード選択中（未確定）で消費予定のコスト（点滅予告）
-    function budgetPipsHtml(total, used, pendingCost, size) {
+    // carried（第5引数・省略可）=totalのうち繰り越されてきた分の数（design/coop_balance.md §12）。
+    // 省略時（既存の全呼び出し）は0扱いとなり、出力は変更前と完全に同一（後方互換）。
+    function budgetPipsHtml(total, used, pendingCost, size, carried) {
       total = Math.max(0, total || 0); used = Math.max(0, Math.min(used || 0, total)); pendingCost = Math.max(0, pendingCost || 0);
+      carried = Math.max(0, Math.min(carried || 0, total));
       if (total > PIP_VISUAL_CAP) {
         const remain = Math.max(0, total - used);
         return `<span class="budget-pips budget-pips-compact">${pipCoinSvg('avail', size)}<span class="budget-pips-compact-n">×${remain}</span></span>`;
@@ -5736,7 +5861,7 @@
       let html = '';
       for (let i = 0; i < total; i++) {
         let state = 'avail';
-        if (i < used) state = 'used'; else if (i < used + pendingCost) state = 'pending';
+        if (i < used) state = 'used'; else if (i < used + pendingCost) state = 'pending'; else if (i < carried) state = 'carried';
         html += pipCoinSvg(state, size);
       }
       return `<div class="budget-pips">${html}</div>`;
@@ -10319,7 +10444,7 @@
       CO = {
         diff: d, name, turn: 1, phase: 'setup', humanSide: sideKey,
         cities: [pool[0], pool[1]].map(c => ({ city: c, hp: d.hp, maxHp: d.hp, effects: mkEffects() })),
-        budget: 6, budgetUsed: 0, nextBudgetBonus: 0,
+        budget: 6, budgetUsed: 0, nextBudgetBonus: 0, carryBudget: 0, budgetCarriedIn: 0,
         policyDeck: coopBuildPolicyDeck(), policyDiscard: [],
         natureDeck: coopBuildNatureDeck(), natureDiscard: [],
         hand: [], naturePool: Object.fromEntries(DISASTER_CARDS.map(c => [c.id, 3])), attacksLeft: 0,
@@ -10351,7 +10476,23 @@
       CO.confirm = null;
       switch (CO.phase) {
         case 'city': case 'draw':
-          CO.cities.forEach(cs => { if (!cs.ready) cs.ready = true; });
+          // 2026-07-27（レビュー指摘）：強制進行で締められたプレイヤーは endTurn インテントの処理を
+          // 通らないため、そのままでは余剰予算が備蓄にも繰り越しにも回らず黙って消える。強制進行は
+          // 「本人が固まっている・離席している」状況でホストが押すものであり本人の落ち度ではないため、
+          // 中立な選択肢である繰り越しだけを自動適用する。備蓄（1枚ドロー）は本人が明示的に選んだ場合の
+          // 特典として扱い、勝手に与えない。壊滅都市（後方支援）は COOP_SUPPORT_CAP の独自持ち越しを
+          // 持つため対象外（endTurn ハンドラの hp>0 ガードと同じ扱い）。
+          CO.cities.forEach(cs => {
+            if (cs.ready) return;
+            if (cs.hp > 0) {
+              const leftover = Math.max(0, (cs.budget || 0) - (cs.budgetUsed || 0));
+              if (leftover > 0) {
+                cs.carryBudget = Math.min(COOP_CARRY_BUDGET_CAP, leftover);
+                _coLog(`💰 ${cs.city.name}：未操作のまま締められたため予算 ${cs.carryBudget}pt を翌ターンへ繰り越し`);
+              }
+            }
+            cs.ready = true;
+          });
           if (CO.cities.every(cs => cs.ready)) coopAfterCityTurnMP();
           break;
         case 'coopResponse':
@@ -10524,11 +10665,16 @@
     function coopLoadActor(cs) {
       if (!cs) return;
       CO.budget = cs.budget; CO.budgetUsed = cs.budgetUsed; CO.nextBudgetBonus = cs.nextBudgetBonus;
+      // budgetCarriedIn：予算繰り越し制（design/coop_balance.md §12）の表示専用フィールド。budgetPipsHtmlの
+      // 色分けに使うだけでゲームロジックには影響しない。carryBudget自体はcoopApplyBudgetMPが直接cs上で
+      // 消費するためスクラッチへ往復させる必要はない。
+      CO.budgetCarriedIn = cs.budgetCarriedIn || 0;
       CO.hand = cs.hand; CO.policyDeck = cs.policyDeck; CO.policyDiscard = cs.policyDiscard;
     }
     function coopSaveActor(cs) {
       if (!cs) return;
       cs.budget = CO.budget; cs.budgetUsed = CO.budgetUsed; cs.nextBudgetBonus = CO.nextBudgetBonus;
+      cs.budgetCarriedIn = CO.budgetCarriedIn || 0;
       cs.hand = CO.hand; cs.policyDeck = CO.policyDeck; cs.policyDiscard = CO.policyDiscard;
     }
     // 描画用：自分視点（都市プレイヤーは自分の都市スロット）の資源を CO スクラッチへ
@@ -10548,7 +10694,7 @@
       const cities = cityPlayers.map((p, i) => ({
         city: pool[i % pool.length], hp: d.hp, maxHp: d.hp, effects: mkEffects(),
         ownerId: p.id, ownerName: p.name,
-        budget: 0, budgetUsed: 0, nextBudgetBonus: 0,
+        budget: 0, budgetUsed: 0, nextBudgetBonus: 0, carryBudget: 0, budgetCarriedIn: 0,
         hand: [], policyDeck: coopBuildPolicyDeck(), policyDiscard: [],
         ready: false, ack: false, resp: undefined,
       }));
@@ -10567,7 +10713,7 @@
         natureDeck: coopBuildNatureDeck(compoundCount), natureDiscard: [],
         incoming: [], responseBlocked: false, blockReason: '',
         // CO スクラッチ（実体は各スロット。描画・既存エンジンが参照）
-        budget: 0, budgetUsed: 0, nextBudgetBonus: 0, hand: [], policyDeck: [], policyDiscard: [],
+        budget: 0, budgetUsed: 0, nextBudgetBonus: 0, carryBudget: 0, budgetCarriedIn: 0, hand: [], policyDeck: [], policyDiscard: [],
         log: [], confirm: null, result: null, drawState: null, eventPopup: null,
         outcome: null, summary: null, gameLog: [], cpuPlayedLog: [], cpuReview: null,
         myId: opts.myId || (naturePlayer ? naturePlayer.id : (cityPlayers[0] && cityPlayers[0].id)) || null,
@@ -10590,13 +10736,21 @@
           const cap = COOP_SUPPORT_CAP + (cs.city.abilityType === 'extra_budget' ? cs.city.abilityValue : 0);
           const leftover = Math.max(0, (cs.budget || 0) - (cs.budgetUsed || 0));
           cs.budget = Math.min(cap, leftover + COOP_SUPPORT_GAIN);
-          cs.budgetUsed = 0; cs.nextBudgetBonus = 0; return;
+          // 壊滅都市は既にCOOP_SUPPORT_CAPの独自持ち越しを持つため、予算繰り越し制（§12）とは二重適用させない
+          cs.budgetUsed = 0; cs.nextBudgetBonus = 0; cs.carryBudget = 0; cs.budgetCarriedIn = 0; return;
         }
         let b = 3;
         if (cs.city.abilityType === 'extra_budget') b += cs.city.abilityValue;
         if (cs.nextBudgetBonus > 0) b += cs.nextBudgetBonus;
         cs.nextBudgetBonus = 0;
         if (rumor) b = Math.max(0, b - 1);
+        // 予算の繰り越し制（design/coop_balance.md §12）：endTurn時に「繰り越す」を選んだ分（cs.carryBudget）を
+        // 基本予算に加算する。上限は基本予算からの相対値（COOP_CARRY_BUDGET_CAP=+2）で固定5ptにしない
+        // （固定にすると基本予算4ptの神戸の繰り越し枠が実質+1に減り、能力が弱体化するため）。
+        const carriedIn = Math.min(COOP_CARRY_BUDGET_CAP, cs.carryBudget || 0);
+        if (carriedIn > 0) b += carriedIn;
+        cs.carryBudget = 0;
+        cs.budgetCarriedIn = carriedIn;
         cs.budget = b; cs.budgetUsed = 0;
       });
       if (rumor) _coLog('📱 デマ拡散イベント：各都市の予算 −1（社会的脆弱性）');
@@ -10778,10 +10932,19 @@
           case 'endTurn': {
             if (CO.phase !== 'city' && CO.phase !== 'draw') break;
             const slot = slotOf(pid); if (!slot || slot.ready) break;
-            // 備蓄：未使用予算がCOOP_STOCKPILE_MIN_BUDGET以上残っている生存都市は1枚ドロー（予算は消費しない・design/coop_balance.md §10）
-            if (slot.hp > 0 && (slot.budget - slot.budgetUsed) >= COOP_STOCKPILE_MIN_BUDGET) {
+            // 予算の繰り越し制（design/coop_balance.md §12）：備蓄（1枚ドロー）と繰り越しは二者択一。
+            // 壊滅都市（後方支援）はCOOP_SUPPORT_CAPの独自持ち越しを持つため両方とも対象外のまま（slot.hp>0でガード）。
+            // p.choiceは常に'stockpile'|'carry'のいずれか（coopEndCityTurnが正規化して送るためundefinedは来ない）。
+            const leftover = slot.hp > 0 ? Math.max(0, (slot.budget || 0) - (slot.budgetUsed || 0)) : 0;
+            if (slot.hp > 0 && p.choice === 'stockpile' && leftover >= COOP_STOCKPILE_MIN_BUDGET) {
               coopLoadActor(slot); coopDraw(1); coopSaveActor(slot);
               _coLog(`📦 備蓄：${slot.city.name}が使わなかった予算を物資に回して1枚ドロー`);
+            } else if (slot.hp > 0 && leftover > 0) {
+              // 未使用予算がCOOP_STOCKPILE_MIN_BUDGET未満のとき（choiceが'stockpile'でも成立しない）はここに落ちて
+              // 自動的に繰り越しのみになる（選択させない・仕様どおり）
+              const carried = Math.min(COOP_CARRY_BUDGET_CAP, leftover);
+              slot.carryBudget = carried;
+              if (carried > 0) _coLog(`💰 ${slot.city.name}：予算 ${carried}pt を翌ターンへ繰り越し`);
             }
             slot.ready = true;
             // 壊滅都市も後方支援役として手番を持つため、全都市（生存・壊滅とも）の完了を待つ
@@ -11193,6 +11356,12 @@
         if (coopCustomResistsEvent('rumor')) _coLog('📱 デマ拡散イベント：カスタム都市対策により無効化');
         else { b = Math.max(0, b - 1); _coLog('📱 デマ拡散イベント：今ターンの予算 −1（社会的脆弱性）'); }
       }
+      // 予算の繰り越し制（design/coop_balance.md §12）：前ターン終了時に「繰り越す」を選んだ分を上乗せする。
+      // budgetCarriedInは表示専用（budgetPipsHtmlの色分け）に別途保持し、carryBudget自体はここで消費して0に戻す。
+      const carriedIn = Math.min(COOP_CARRY_BUDGET_CAP, CO.carryBudget || 0);
+      if (carriedIn > 0) { b += carriedIn; _coLog(`💰 前ターンからの繰り越し：予算+${carriedIn}`); }
+      CO.carryBudget = 0;
+      CO.budgetCarriedIn = carriedIn;
       CO.budget = b; CO.budgetUsed = 0;
     }
     function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; coopStartCityTurn(true); }
@@ -11219,11 +11388,18 @@
     }
     function coopDismissEventPopup() { if (CO.mp && !CO._applying) return coopMPCommit('dismissEvent', {}); coopAfterTurnStart(); }
     // 都市ターン終了後：humanSide によって CPU攻撃／人間攻撃へ分岐
-    function coopAfterCityTurn() {
-      // 備蓄：使わなかった予算がCOOP_STOCKPILE_MIN_BUDGET以上残っていれば1枚ドロー（予算は消費しない・design/coop_balance.md §10）
-      if ((CO.budget - CO.budgetUsed) >= COOP_STOCKPILE_MIN_BUDGET) {
+    // choice：'stockpile'（物資に回して1枚ドロー）／'carry'（翌ターンへ繰り越す）。design/coop_balance.md §12：
+    // 備蓄と繰り越しは二者択一（同時発生しない）。未使用予算がCOOP_STOCKPILE_MIN_BUDGET未満のときは
+    // 選択させず自動で繰り越しのみ行う（choiceが'stockpile'でも実行しない）。
+    function coopAfterCityTurn(choice) {
+      const leftover = CO.budget - CO.budgetUsed;
+      if (choice === 'stockpile' && leftover >= COOP_STOCKPILE_MIN_BUDGET) {
         coopDraw(1);
         _coLog('📦 備蓄：使わなかった予算を物資に回して1枚ドロー');
+      } else if (leftover > 0) {
+        const carried = Math.min(COOP_CARRY_BUDGET_CAP, leftover);
+        CO.carryBudget = carried;
+        if (carried > 0) _coLog(`💰 予算 ${carried}pt を翌ターンへ繰り越し`);
       }
       if (CO.humanSide === 'city') coopNatureTurn();
       else coopStartNatureHumanTurn();
@@ -11280,7 +11456,14 @@
       }
       CO.confirm = null; renderCoop();
     }
-    function coopEndCityTurn() { if (CO.mp && !CO._applying) return coopMPCommit('endTurn', {}); CO.confirm = null; coopAfterCityTurn(); }
+    // choiceは常に確定した文字列に正規化してから使う（Firebase intent payloadにundefinedを含めない。
+    // 2026-07-27のconfirmPlay不具合＝a2fd4ebと同じ原因を予算繰り越しで再発させないための必須措置）。
+    // 未指定（自動ターン終了・予算0での即終了など）は既定で'carry'（繰り越し）を選んだものとして扱う。
+    function coopEndCityTurn(choice) {
+      const c = choice === 'stockpile' ? 'stockpile' : 'carry';
+      if (CO.mp && !CO._applying) return coopMPCommit('endTurn', { choice: c });
+      CO.confirm = null; coopAfterCityTurn(c);
+    }
     // 予算不足などで使える政策カードが無くなった都市プレイヤーは、ボタンを押さずに自動でターン終了する（MP）。
     // 描画のたびに renderCoop から呼ぶ。少し待ってから判定して「カードが無い」状態を一瞬見せてから終了する。
     function coopScheduleAutoEndCity() {
@@ -11313,7 +11496,13 @@
       if (_coAutoEndedTurn === CO.turn) return; // このターンは既に自動終了を送信済み（エコー待ち）
       _coAutoEndedTurn = CO.turn;
       _coLog('🪙 使えるカードがないため自動でターンを終了しました');
-      coopEndCityTurn();
+      // 2026-07-27（レビュー指摘）：自動終了は「使えるカードが無い＝手詰まりターン」でのみ発火する。
+      // 備蓄ルール（coop_balance.md §10.5案②）はまさにこの手詰まりを解消するために導入されたものなので、
+      // 既定は繰り越しではなく備蓄（1枚ドロー）とする。予算を翌ターンへ繰り越しても、手札が無いという
+      // 当の問題は解消せず、翌ターンも同じ手詰まりを繰り返すため。備蓄が成立しない（未使用予算が
+      // 閾値未満の）場合のみ繰り越しへフォールバックする。壊滅都市は備蓄の対象外だがホスト側の
+      // 検証で弾かれるため、ここで場合分けする必要はない。
+      coopEndCityTurn(left >= COOP_STOCKPILE_MIN_BUDGET ? 'stockpile' : 'carry');
     }
     // ── ハザードマップ整備：カードを引く画面（対戦モードの turnDraw に合わせ、引いたカードを1枚ずつ公開） ──
     function coopPullDrawCard() {
@@ -11335,7 +11524,7 @@
       if (CO.budget - CO.budgetUsed > 0) { CO.confirm = { endTurn: true }; renderCoop(); }
       else coopEndCityTurn();
     }
-    function coopConfirmEndTurn() { CO.confirm = null; coopEndCityTurn(); }
+    function coopConfirmEndTurn(choice) { CO.confirm = null; coopEndCityTurn(choice); }
 
     // ── 自然ターン（CPU） ──
     // カスタム軽減（人為災害3種）：公害・テロ攻撃・デマ拡散のイベントは特定の1都市を狙うものではなく、CO.cities全体に
@@ -11944,7 +12133,7 @@
         const pcard = (CO.hand || []).find(cd => cd.uid === CO.confirm.uid);
         if (pcard) pendingCost = pcard.cost;
       }
-      const pips = budgetPipsHtml(total, used, pendingCost);
+      const pips = budgetPipsHtml(total, used, pendingCost, undefined, CO.budgetCarriedIn || 0);
       // 観戦者：自分の予算という概念が無いため、自然側視点と同じく残り災害枚数の表示に寄せる（budgetBlockは出さない）
       const _asNature = CO.humanSide === 'nature' || CO.mySide === 'spectator';
       const remaining = _asNature ? Object.values(CO.naturePool || {}).reduce((a, b) => a + b, 0) : CO.natureDeck.length;
@@ -12066,7 +12255,19 @@
       }
       if (CO.confirm.endTurn) {
         const left = CO.budget - CO.budgetUsed;
-        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>予算 ${left}pt が残っています</strong></div><p style="color:var(--t0)">本当にターンを終了しますか？<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">終了すると自然の攻撃ターンに移ります</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmEndTurn()">終了する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div></div></div>`;
+        // 予算の繰り越し制（design/coop_balance.md §12）：既存のターン終了確認ポップに組み込む。壊滅都市（後方支援）は
+        // COOP_SUPPORT_CAPの独自持ち越しと二重適用になるため対象外とし、従来どおりの単一ボタンのままにする。
+        // 未使用予算がCOOP_STOCKPILE_MIN_BUDGET未満のときも備蓄が成立しないため選択させず、単一ボタン
+        // （内部的には自動で繰り越しを選択）のままにする。
+        const mySlot = CO.mp ? coopMySlot() : null;
+        const isSupport = !!(mySlot && mySlot.hp <= 0);
+        const canChoose = !isSupport && left >= COOP_STOCKPILE_MIN_BUDGET;
+        const carried = Math.min(COOP_CARRY_BUDGET_CAP, left);
+        const bodyText = canChoose ? '使わなかった予算をどうしますか？' : '本当にターンを終了しますか？';
+        const btns = canChoose
+          ? `<div class="confirm-btns" style="flex-direction:column"><button class="btn-ok" onclick="coopConfirmEndTurn('stockpile')" aria-label="使わなかった予算を物資に回して1枚ドローする">物資に回す（1枚ドロー）</button><button class="btn-ok" onclick="coopConfirmEndTurn('carry')" aria-label="使わなかった予算を翌ターンへ繰り越す">翌ターンへ繰り越す（+${carried}）</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`
+          : `<div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmEndTurn('carry')">終了する</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M9 7l3 4 3-4M9 11h6M9 14h6M12 11v6"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>予算 ${left}pt が残っています</strong></div><p style="color:var(--t0)">${bodyText}<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">終了すると自然の攻撃ターンに移ります</span></p>${btns}</div></div>`;
       }
       if (CO.confirm.attack) {
         const c = DISASTER_CARDS.find(x => x.id === CO.confirm.attackId); if (!c) return '';
@@ -12225,7 +12426,7 @@
           const total = s.budget || 0;
           const used = s.budgetUsed || 0;
           const left = total - used;
-          budgetBlock = `<div class="budget-display" style="margin:0"><span class="budget-label" style="color:var(--t0)">予算</span>${budgetPipsHtml(total, used, 0)}<span style="font-size:.78rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
+          budgetBlock = `<div class="budget-display" style="margin:0"><span class="budget-label" style="color:var(--t0)">予算</span>${budgetPipsHtml(total, used, 0, undefined, s.budgetCarriedIn || 0)}<span style="font-size:.78rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
         }
         const hc = (s.hand||[]).length;
         const stackN = Math.min(hc, 8);
