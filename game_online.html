@@ -3141,6 +3141,8 @@
     .spec-invite-close { position:relative; background:transparent; border:none; color:var(--t3); font-size:1.1rem; cursor:pointer; padding:2px 6px; line-height:1; }
     .spec-invite-close::before { content:''; position:absolute; top:50%; left:50%; width:44px; height:44px; transform:translate(-50%,-50%); }
     .spec-invite-copy-btn { width:100%; padding:10px; border-radius:10px; border:none; background:#388bfd; color:#fff; font-size:.85rem; font-weight:700; cursor:pointer; }
+    /* 協力オンライン観戦：常時表示バッジ（#app外固定・pointer-events:noneで下の操作を一切妨げない） */
+    .coop-spectator-badge { position:fixed; top:calc(env(safe-area-inset-top,0px) + 10px); left:50%; transform:translateX(-50%); z-index:9200; background:rgba(56,139,253,.16); border:1.5px solid var(--blue,#388bfd); color:var(--blue,#388bfd); font-size:.72rem; font-weight:800; letter-spacing:.05em; padding:5px 12px; border-radius:20px; display:flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(0,0,0,.35); pointer-events:none; white-space:nowrap; }
     .hint-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:9200; display:flex; align-items:flex-end; justify-content:center; padding:12px }
     /* 2026-07-18モーション強化：設定パネル（含む「？」ヒントパネル全般）の登場を下からのスライドインにする。
        align-items:flex-endの底部シートUIに合わせ、yb-drop-in（上からdrop-in）ではなく専用の下スライドkeyframesを使う。 */
@@ -4640,6 +4642,14 @@
     let _coFxSummaryTurn = -1;  // A-1: 被弾フィードバック（shake/赤フラッシュ）を発火済みのターン番号
     let _coFxDrawnUid = null;   // C-1: card-just-drawn を適用済みの公開カードuid（再描画時の多重発火防止）
     let _coFxMPBannerTurn = -1; // D-3: MP配置フェーズバナーを表示済みのターン番号
+    // ── 協力オンライン：観戦（読み取り専用の追加ロール。CO.mySide==='spectator'） ──
+    // 観戦者はCO.cities/playersに一切登録されず、coopRooms/{code}/spectators/{sid} にpresenceのみ持つ。
+    // 進行ロジック（intent検証・ready/ack/respゲート）には一切触れない、純粋な追加の読み取り経路。
+    let _coSpecTab = null;          // 観戦者：手札タブで表示中の都市プレイヤーindex（ローカルUI状態。Firebase同期対象外）
+    let _coSpecInviteOpen = false;  // プレイヤー側：観戦招待ポップオーバーの開閉（ローカルUI状態）
+    let _coSpectatorCount = 0;      // プレイヤー側表示用：現在の観戦者数
+    let _coSpectatorCountRef = null;
+    let _coSpecPlayersRef = null, _coSpecStartedRef = null, _coSpecStateRef = null, _coSpecPresRef = null, _coSpecLastRecv = null; // 観戦者専用のFirebase購読参照
     // 難易度は「人間にとっての難しさ」で統一。都市側／自然側で立場が逆なので side ごとに設定を分ける。
     const _COOP_EVENTS_ALL = [{ t: 2, id: 'rumor' }, { t: 5, id: 'pollution' }, { t: 7, id: 'terror' }];
     // オンライン多人数：1ターンの即死を防ぐ攻撃制限（同種は1ターン1回／1都市への攻撃は最大この回数）
@@ -8052,11 +8062,15 @@
           else if (natureSelectable) statusLine = '自然側に空きがあります。都市側・自然側のどちらでも参加できます。';
           else if (info.natureMode === 'cpu') statusLine = '自然はCPUが担当します。都市側で参加します。';
           else statusLine = '自然側は参加者で埋まっています。都市側で参加します。';
+          // 満員（参加として入れない）または開始済みなら、参加の代わりに観戦を提案する（対戦モードと同じ体験。§4/§10.3で確定）
+          const canSpectate = !!(info && info.exists && (info.started || (isRandom ? info.partFull : (info.cityFull && !natureSelectable))));
+          const spectateBtn = canSpectate ? `<button class="lobby-btn-single" style="background:transparent;border:1.5px solid #388bfd;color:#388bfd;margin-top:8px" onclick="coopMPEnterSpectator('${jc}')">${uiIcoEye(15)} 観戦する</button>` : '';
           wiz = `${backBtn(1, "lobbyState.coopNet=null;")}${crumb}${stepHead('部屋に参加')}${nameField}
     <div><label class="lobby-label">ルームコード（6文字）</label><input id="coop-code" class="lobby-input code-input" type="text" placeholder="AB3K7X" maxlength="6" value="${jc}" oninput="lobbyState.coopJoinInput=this.value.toUpperCase();this.value=this.value.toUpperCase();this.value.length===6?coopMPCheckRoom(this.value):(lobbyState.coopJoinRoomInfo=null,lobbyState._coopCheckCode=null)"></div>
     ${sideSection}
     <div style="font-size:.68rem;color:${statusColor};margin-bottom:10px;line-height:1.5">${statusLine}</div>
-    <button class="lobby-btn-single" onclick="coopMPJoinRoom('','${jSide}')">参加する</button>`;
+    <button class="lobby-btn-single" onclick="coopMPJoinRoom('','${jSide}')">参加する</button>
+    ${spectateBtn}`;
         } else {
           // STEP 3：難易度（ソロ＝開始／ホスト＝部屋を作る）
           const sideForDesc = net === 'solo' ? (lobbyState.coopSide || 'city') : (hn === 'self' ? 'nature' : 'city');
@@ -10320,7 +10334,10 @@
       renderCoop();
     }
     function coopReroll() { const pool = shuffle([...CITIES]); CO.cities = [pool[0], pool[1]].map(c => ({ city: c, hp: CO.diff.hp, maxHp: CO.diff.hp, effects: mkEffects() })); renderCoop(); }
-    function coopRequestQuit() { CO.confirm = { quit: true }; renderCoop(); }
+    function coopRequestQuit() {
+      if (CO && CO.mySide === 'spectator') { coopSpecExit(); return; } // 観戦者は進行中でないため確認ポップ無しで即退出
+      CO.confirm = { quit: true }; renderCoop();
+    }
     // 2026-07-27（P0修正・仕様(e)＝dev/coop_online_architecture.md §9.4で未実装だった手動進行）：
     // ホストのみが使える強制進行。1人の操作不能（原因①②③のいずれか、または単純な離席）で全員が
     // 進行不能になる問題への脱出口。city/draw のreadyゲート・summary のackゲート・coopResponse の
@@ -10359,7 +10376,7 @@
       coopPushState();
       renderCoop();
     }
-    function coopQuit() { _coCancelTimer(); coopCleanupOnline(); _coClearSession(); CO = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; lobbyState.mode = 'select'; lobbyState.error = ''; render(); }
+    function coopQuit() { _coCancelTimer(); coopCleanupOnline(); coopRemoveFloatingSpecUI(); _coClearSession(); CO = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; lobbyState.mode = 'select'; lobbyState.error = ''; render(); }
     function coopRestart() { startCoopGame(CO.diff.key, CO.humanSide); }
     function coopPlayOtherSide(side) { startCoopGame(CO.diff.key, side); }
 
@@ -10428,6 +10445,7 @@
     // 対策：undefined のキーを除去してから送る。加えて送信失敗を握り潰さず、UIを復帰させて通知する。
     function coopSendIntent(type, payload) {
       if (!db || !CO || !CO.roomId) return;
+      if (CO.mySide === 'spectator') return; // 観戦者はintentを一切送らない（入口ガード。二重防御としてcoopMPCommit側にも同じガードを置く）
       const clean = {};
       Object.keys(payload || {}).forEach(k => { if (payload[k] !== undefined) clean[k] = payload[k]; });
       try {
@@ -10440,13 +10458,36 @@
       }
     }
     function coopCleanupOnline() {
-      [_coStateRef, _coIntentsRef, _coGuestRef, _coPresMeRef, _coPresOppRef, _coConnRef, _coRoomPlayersRef, _coRoomPresRef, _coStartedRef].forEach(r => { try { r && r.off(); } catch (e) {} });
-      _coStateRef = _coIntentsRef = _coGuestRef = _coPresMeRef = _coPresOppRef = _coConnRef = _coRoomPlayersRef = _coRoomPresRef = _coStartedRef = null;
+      [_coStateRef, _coIntentsRef, _coGuestRef, _coPresMeRef, _coPresOppRef, _coConnRef, _coRoomPlayersRef, _coRoomPresRef, _coStartedRef, _coSpectatorCountRef].forEach(r => { try { r && r.off(); } catch (e) {} });
+      _coStateRef = _coIntentsRef = _coGuestRef = _coPresMeRef = _coPresOppRef = _coConnRef = _coRoomPlayersRef = _coRoomPresRef = _coStartedRef = _coSpectatorCountRef = null;
       if (_coOnlineHandler) { window.removeEventListener('online', _coOnlineHandler); _coOnlineHandler = null; }
       if (_coVisHandler) { document.removeEventListener('visibilitychange', _coVisHandler); _coVisHandler = null; }
       if (_coHeartbeat) { clearInterval(_coHeartbeat); _coHeartbeat = null; }
-      _coLastPush = null; _coSeq = 0; _coLastRecv = null; _coRoleShown = false;
+      _coLastPush = null; _coSeq = 0; _coLastRecv = null; _coRoleShown = false; _coSpectatorCount = 0;
       _hideConnBanner();
+    }
+    // ── 観戦者専用のクリーンアップ（プレイヤー側のcoopCleanupOnlineとは独立。presenceは自分のspectatorsノードのみ） ──
+    function coopSpecCleanup() {
+      [_coSpecPlayersRef, _coSpecStartedRef, _coSpecStateRef].forEach(r => { try { r && r.off(); } catch (e) {} });
+      _coSpecPlayersRef = _coSpecStartedRef = _coSpecStateRef = null;
+      if (_coSpecPresRef) { try { _coSpecPresRef.remove(); } catch (e) {} _coSpecPresRef = null; }
+      _coSpecLastRecv = null; _coSpecTab = null;
+    }
+    // 画面外（document.body直付け）の観戦招待ボタン/オーバーレイ・観戦中バッジを一掃する
+    function coopRemoveFloatingSpecUI() {
+      const b = document.getElementById('coop-spec-invite-btn'); if (b) b.remove();
+      const o = document.getElementById('coop-spec-invite-overlay'); if (o) o.remove();
+      const badge = document.getElementById('coop-spectator-badge'); if (badge) badge.remove();
+      _coSpecInviteOpen = false;
+    }
+    // 観戦者の退出：確認ポップ不要（進行中の自分の持ち分が無いため）。プレイヤー用のcoopQuit/_coClearSessionには触れない
+    // （観戦者は_coSaveSessionを一切呼ばないため、localStorageの再接続キーはプレイヤーのものが保たれる）
+    function coopSpecExit() {
+      _coCancelTimer(); coopSpecCleanup(); coopRemoveFloatingSpecUI();
+      CO = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null;
+      lobbyState.mode = 'select'; lobbyState.error = '';
+      history.replaceState(null, '', window.location.pathname);
+      render();
     }
     // ── 再接続用：自分のルーム・playerId を localStorage に保存／消去（対戦の ron_lastRoom と同方式） ──
     function _coSaveSession() {
@@ -10788,6 +10829,7 @@
 
     // ── クライアント操作の統一窓口（MP）：ホストは即適用、ゲストは intent 送信 ──
     function coopMPCommit(type, payload) {
+      if (CO.mySide === 'spectator') return; // 観戦者はintentを一切送らない（入口ガード）
       CO.confirm = null;
       if (CO.host) coopApplyIntentMP({ type, by: CO.myId, payload: payload || {} });
       else { coopSendIntent(type, payload || {}); renderCoop(); }
@@ -10905,6 +10947,71 @@
       } catch (e) { lobbyState.error = '参加に失敗: ' + (e && e.message); CO = null; render(); }
     }
 
+    // ═══ 観戦（読み取り専用の追加ロール） ═══
+    // 対戦モードの観戦（rooms/{code}/spectators）と同じ発想を coopRooms/ 側に用意する。
+    // 満員・開始済みで通常参加できないときの代替導線、および進行中プレイヤーの「招待」ボタンからの入口として使う。
+    // 名前は必須にしない（players には一切登録しないため、名前の重複判定・ロスター表示の対象にもならない）。
+    // coopMPJoinRoom の room.started ガードは意図的に踏襲しない（観戦は開始済みルームにも入れる仕様）。
+    async function coopMPEnterSpectator(codeArg) {
+      const code = (codeArg || lobbyState.coopJoinInput || '').trim().toUpperCase();
+      if (code.length !== 6) { lobbyState.error = 'ルームコードは6文字です'; render(); return; }
+      if (!db) { lobbyState.error = 'オンライン機能が利用できません'; render(); return; }
+      try {
+        const snap = await db.ref(`coopRooms/${code}`).get();
+        const room = snap.val();
+        if (!room) { lobbyState.error = 'ルームが見つかりません'; render(); return; }
+        coopSpecCleanup(); // 前の観戦セッションが残っていれば掃除してから貼り直す
+        const sid = 's_' + Math.random().toString(36).slice(2, 9); // 'p_'（プレイヤー）と混同しない前置き
+        CO = {
+          mp: true, online: true, host: false, phase: room.started ? 'resolving' : 'lobby',
+          roomId: code, myId: sid, mySide: 'spectator', humanSide: 'spectator', turn: 1,
+          name: '観戦者', diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
+          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120,
+          lobby: { players: room.players || {}, presence: {} }, oppPresent: true,
+          cities: [], hand: [], policyDeck: [], policyDiscard: [], natureDeck: [], naturePool: {}, incoming: [],
+          budget: 0, budgetUsed: 0, log: [], gameLog: [], cpuPlayedLog: [], confirm: null, eventPopup: null,
+          result: null, outcome: null, summary: null,
+        };
+        history.replaceState(null, '', '?coop=' + code);
+        renderCoop();
+        _coSpecPresRef = db.ref(`coopRooms/${code}/spectators/${sid}`);
+        _coSpecPresRef.set(true).catch(() => {});
+        _coSpecPresRef.onDisconnect().remove();
+        if (room.started) coopSpecListenState(); else coopSpecListenLobby();
+      } catch (e) { lobbyState.error = '観戦に失敗: ' + (e && e.message); CO = null; render(); }
+    }
+    // 観戦：ロビー購読（開始前）。players（ロスター表示用）と started（開始検知）のみを見る。
+    // presenceは購読しない＝観戦者が「誰が在席か」の判定（oppPresent）に一切関与しない設計をここでも徹底する。
+    function coopSpecListenLobby() {
+      const code = CO.roomId;
+      _coSpecPlayersRef = db.ref(`coopRooms/${code}/players`);
+      _coSpecPlayersRef.on('value', s => { if (!CO || CO.mySide !== 'spectator') return; CO.lobby = CO.lobby || {}; CO.lobby.players = s.val() || {}; if (CO.phase === 'lobby') renderCoop(); });
+      _coSpecStartedRef = db.ref(`coopRooms/${code}/started`);
+      _coSpecStartedRef.on('value', s => {
+        if (!CO || CO.mySide !== 'spectator') return;
+        if (s.val() === true && CO.phase === 'lobby') {
+          if (_coSpecStartedRef) { _coSpecStartedRef.off(); _coSpecStartedRef = null; }
+          coopSpecListenState();
+        }
+      });
+    }
+    // 観戦：本編state購読。ホスト側coopPushStateが配信するCO全量JSONをそのまま読み取るだけの経路。
+    // mySide/host/myId等の自分固有の値だけ上書きし直し、進行判定（coopMyPhaseMP等）には一切介入しない。
+    function coopSpecListenState() {
+      const code = CO.roomId;
+      _coSpecStateRef = db.ref(`coopRooms/${code}/state`);
+      _coSpecStateRef.on('value', snap => {
+        const v = snap.val(); if (!v || !CO || CO.mySide !== 'spectator') return;
+        const data = (typeof v === 'object') ? v.d : v;
+        if (!data || data === _coSpecLastRecv) return;
+        _coSpecLastRecv = data;
+        const remote = JSON.parse(data);
+        const ui = { online: true, mp: true, host: false, mySide: 'spectator', humanSide: 'spectator', myId: CO.myId, roomId: CO.roomId, name: CO.name, lobby: CO.lobby, oppPresent: true, confirm: null };
+        CO = { ...remote, ...ui };
+        _scheduleRemoteRenderCoop();
+      });
+    }
+
     // ロビー購読：ロスター（players）・在席（presence）・開始フラグ（ゲスト）
     function coopMPListenRoom() {
       const code = CO.roomId;
@@ -10925,6 +11032,17 @@
         _coStartedRef = db.ref(`coopRooms/${code}/started`);
         _coStartedRef.on('value', s => { if (!CO || !CO.mp || CO.host) return; if (s.val() === true && CO.phase === 'lobby') { if (_coStartedRef) { _coStartedRef.off(); _coStartedRef = null; } coopMPListenState(); } });
       }
+      coopListenSpectatorCount(); // プレイヤー側（ホスト・ゲスト共通）：観戦者数の表示用
+    }
+    // 観戦者数の購読（プレイヤー専用。観戦者自身はこれを呼ばない＝観戦者が観戦者数に影響することはない）
+    function coopListenSpectatorCount() {
+      if (!db || !CO || !CO.roomId) return;
+      if (_coSpectatorCountRef) { try { _coSpectatorCountRef.off(); } catch (e) {} }
+      _coSpectatorCountRef = db.ref(`coopRooms/${CO.roomId}/spectators`);
+      _coSpectatorCountRef.on('value', snap => {
+        const v = snap.val(); _coSpectatorCount = v ? Object.keys(v).length : 0;
+        if (CO && CO.mp) renderCoop();
+      });
     }
 
     // ホスト：参加者が揃ったらゲーム開始（ロスターから本体stateを構築）
@@ -11673,6 +11791,7 @@
       if (CO.phase === 'summary') setTimeout(() => { coopSummaryFx(); coopApplySummaryFx(); }, 20);
       if (CO.online && CO.host && !CO._applying) coopPushState(); // ホストは状態変化のたびに配信（dedupで重複writeは抑止／_applying中はインテント処理側で一括push）
       if (CO.mp && CO.phase === 'city' && !CO._applying) coopScheduleAutoEndCity(); // 予算切れの都市プレイヤーは自動でターン終了
+      coopSyncSpectatorChrome(); // 観戦招待ボタン・観戦中バッジ（#app外固定表示）を常に最新化
     }
     // オンライン多人数：待機ロビー（1組のコード・QR・リンクを全員で共有＋参加ロスター）
     function coopRenderMPLobby() {
@@ -11695,7 +11814,9 @@
       const roster = arr.map((p, _ri) => `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#21262d);border-radius:8px;margin-bottom:5px;animation:yb-drop-in .38s cubic-bezier(.23,1,.32,1) both;animation-delay:${_ri * 70}ms"><span>${sideIcon(p.side)}</span><span style="flex:1;color:var(--t0);font-weight:700;font-size:.86rem;text-align:left">${p.name}${p.id === CO.myId ? '（あなた）' : ''}</span><span style="font-size:.7rem;color:var(--t2)">${sideText(p.side)}</span>${dot(p.id)}</div>`).join('');
       const isHost = CO.host;
       let ctrl;
-      if (isHost) {
+      if (CO.mySide === 'spectator') {
+        ctrl = `<div style="display:flex;align-items:center;justify-content:center;gap:8px;color:var(--t0);font-size:.9rem;font-weight:700"><span class="pulse-dot" style="background:#3fb950;min-width:10px"></span> 観戦者として閲覧中：ホストの開始を待っています…</div>`;
+      } else if (isHost) {
         const msg = CO.lobbyMsg ? `<div style="color:var(--yellow);font-size:.78rem;margin:6px 0">${CO.lobbyMsg}</div>` : '';
         if (isRandom) {
           const startBtn = (arr.length >= 2)
@@ -11736,7 +11857,7 @@
         <div style="text-align:left;margin:14px 0"><div style="font-size:.78rem;color:var(--t2);margin-bottom:6px">${isRandom ? `参加者 ${arr.length}人（配役は開始時に抽選）・最大5人` : `参加者 ${arr.length}人（都市${cityCount}／自然${natLabel}）・最大 都市4＋自然1`}</div>${roster}</div>
         ${mpTips}
         ${ctrl}
-        <button onclick="coopQuit()" style="width:100%;max-width:340px;padding:10px;margin-top:14px;border-radius:10px;background:transparent;border:1px solid var(--bg3,#30363d);color:var(--t0);cursor:pointer">キャンセルしてロビーへ</button>
+        <button onclick="${CO.mySide === 'spectator' ? 'coopSpecExit()' : 'coopQuit()'}" style="width:100%;max-width:340px;padding:10px;margin-top:14px;border-radius:10px;background:transparent;border:1px solid var(--bg3,#30363d);color:var(--t0);cursor:pointer">${CO.mySide === 'spectator' ? '観戦をやめる' : 'キャンセルしてロビーへ'}</button>
       </div>`;
     }
     function coopGenLobbyQR() {
@@ -11748,6 +11869,61 @@
     }
     function coopCopyLobbyLink() { if (CO && CO.roomId) _copyText(window.location.href.split('?')[0] + '?coop=' + CO.roomId, '招待リンクをコピーしました'); }
     function coopCopyLobbyCode() { if (CO && CO.roomId) _copyText(CO.roomId, 'ルームコードをコピーしました'); }
+    // ─── 対戦モードの観戦招待（toggleSpecInvite等）と同じ発想の、協力プレイ中画面向け招待ポップオーバー ───
+    // 画面外（document.body直付け）で管理し、renderCoop()のフル/差分どちらの経路でも常に正しい状態を保つ（coopSyncSpectatorChrome参照）
+    function coopToggleSpecInvite() { _coSpecInviteOpen = !_coSpecInviteOpen; renderCoop(); }
+    function coopGenSpecInviteQR() {
+      const el = document.getElementById('coop-spec-invite-qr'); if (!el || el.dataset.generated || !CO || !CO.roomId) return;
+      el.dataset.generated = 'true';
+      const url = window.location.href.split('?')[0] + '?coop=' + CO.roomId;
+      try { new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
+      catch (e) { el.innerHTML = '<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>'; }
+    }
+    function coopCopySpecInviteLink() {
+      if (!CO || !CO.roomId) return;
+      _copyText(window.location.href.split('?')[0] + '?coop=' + CO.roomId, 'リンクをコピーしました');
+    }
+    function coopRenderSpecInviteOverlay() {
+      if (!CO || !CO.roomId) return '';
+      const url = window.location.href.split('?')[0] + '?coop=' + CO.roomId;
+      return `<div id="coop-spec-invite-overlay" class="spec-invite-overlay" onclick="coopToggleSpecInvite()"><div class="spec-invite-panel" onclick="event.stopPropagation()">
+        <div class="spec-invite-hd"><span class="spec-invite-title">${uiIcoEye(15)} 観戦に招待する</span><button class="spec-invite-close" onclick="coopToggleSpecInvite()">✕</button></div>
+        <div style="text-align:center;margin-bottom:10px"><div id="coop-spec-invite-qr" style="display:inline-block"></div></div>
+        <div style="font-size:.75rem;color:var(--t3);text-align:center;margin-bottom:12px">QRコードを読み取ると観戦者として参加できます</div>
+        <div style="display:flex;align-items:center;background:var(--bg3);border-radius:8px;padding:7px 10px;margin-bottom:10px;gap:6px"><span style="font-size:.68rem;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${url}</span></div>
+        <button class="spec-invite-copy-btn" onclick="coopCopySpecInviteLink()">リンクをコピー</button>
+      </div></div>`;
+    }
+    // renderCoop()の末尾から毎回呼ぶ唯一の同期点。#app外（document.body直付け）のため、差分描画（app.innerHTMLを
+    // 書き換えない経路）でも招待ボタン・観戦中バッジが消えたり残留したりしない。
+    function coopSyncSpectatorChrome() {
+      const showInvite = !!(CO && CO.mp && CO.online && CO.roomId && CO.mySide !== 'spectator' && !['lobby', 'setup', 'over'].includes(CO.phase));
+      let btn = document.getElementById('coop-spec-invite-btn');
+      if (showInvite) {
+        if (!btn) {
+          btn = document.createElement('button');
+          btn.id = 'coop-spec-invite-btn'; btn.type = 'button'; btn.className = 'spec-invite-btn';
+          btn.onclick = coopToggleSpecInvite;
+          document.body.appendChild(btn);
+        }
+        const cnt = _coSpectatorCount > 0 ? `<span style="background:rgba(255,255,255,.22);border-radius:5px;padding:0 5px;font-size:.7rem;font-weight:800;line-height:1.7">${_coSpectatorCount}</span>` : '';
+        btn.innerHTML = `${uiIcoEye(14)}招待${cnt}`;
+      } else if (btn) btn.remove();
+      let ov = document.getElementById('coop-spec-invite-overlay');
+      if (showInvite && _coSpecInviteOpen) {
+        if (!ov) { document.body.insertAdjacentHTML('beforeend', coopRenderSpecInviteOverlay()); setTimeout(coopGenSpecInviteQR, 30); }
+      } else if (ov) ov.remove();
+      // 観戦中バッジ（設計書§2「観戦中であることを常時示す表示」）：観戦者視点のときだけ、どのフェーズ・
+      // どの画面（ロビー/盤面/サマリー/勝敗）でも常に見えるよう#app外に固定表示する
+      let badge = document.getElementById('coop-spectator-badge');
+      if (CO && CO.mySide === 'spectator') {
+        if (!badge) {
+          badge = document.createElement('div'); badge.id = 'coop-spectator-badge'; badge.className = 'coop-spectator-badge';
+          badge.innerHTML = `${uiIcoEye(13)}<span>観戦中</span>`;
+          document.body.appendChild(badge);
+        }
+      } else if (badge) badge.remove();
+    }
     function coopRenderSetup() {
       const d = CO.diff; const natureMode = CO.humanSide === 'nature';
       const cards = CO.cities.map((cs, idx) => { const c = cs.city; return `<div style="flex:1;background:var(--bg2,#161b22);border:1.5px solid ${d.color};border-radius:12px;padding:10px;text-align:center">${cwCityThumbHtml(c, idx)}<div style="font-weight:800;font-size:1rem;color:var(--t0)">${_escHtml(c.name)}</div><div style="font-size:.72rem;color:var(--t0);display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px">${terrainImg(c, 16)} HP${d.hp}</div></div>`; }).join('');
@@ -11769,9 +11945,11 @@
         if (pcard) pendingCost = pcard.cost;
       }
       const pips = budgetPipsHtml(total, used, pendingCost);
-      const remaining = CO.humanSide === 'nature' ? Object.values(CO.naturePool).reduce((a, b) => a + b, 0) : CO.natureDeck.length;
-      const remLabel = CO.humanSide === 'nature' ? `災害 残${remaining}枚` : `残り ${remaining}枚`;
-      const budgetBlock = CO.humanSide === 'nature' ? '' : `<div class="budget-display"><span class="budget-label" style="color:var(--t0)">予算</span>${pips}<span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
+      // 観戦者：自分の予算という概念が無いため、自然側視点と同じく残り災害枚数の表示に寄せる（budgetBlockは出さない）
+      const _asNature = CO.humanSide === 'nature' || CO.mySide === 'spectator';
+      const remaining = _asNature ? Object.values(CO.naturePool || {}).reduce((a, b) => a + b, 0) : CO.natureDeck.length;
+      const remLabel = _asNature ? `災害 残${remaining}枚` : `残り ${remaining}枚`;
+      const budgetBlock = _asNature ? '' : `<div class="budget-display"><span class="budget-label" style="color:var(--t0)">予算</span>${pips}<span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${total}</span></span></div>`;
       return `<div class="status-bar" style="gap:10px;flex-wrap:wrap"><span class="turn-badge" style="color:var(--t0)">ターン ${CO.turn}<span style="color:var(--t2)">/${d.maxTurns}</span></span>${budgetBlock}<div style="display:flex;align-items:center;gap:5px;margin-left:auto"><img src="images/cards/back.webp" alt="" style="width:18px;height:24px;border-radius:3px;object-fit:cover" onerror="this.style.display='none'"><span style="font-size:.78rem;color:var(--t0);font-weight:700">${remLabel}</span></div></div>`;
     }
     // 1.3.4：4〜5人協力時の画面レイアウト最適化。第3引数compactは省略時(undefined=falsy)は全ての三項演算子が
@@ -11843,7 +12021,8 @@
     function coopMkCard(card, mode, support, readOnly) {
       const isAlly = readOnly === 'ally' || readOnly === true;
       const isEnded = readOnly === 'ended';
-      const anyRO = isAlly || isEnded;
+      const isSpec = readOnly === 'spec'; // 観戦者：全プレイヤーの手札をタブで閲覧（card-viewonlyと同じトーン・操作導線なし）
+      const anyRO = isAlly || isEnded || isSpec;
       const left = CO.budget - CO.budgetUsed;
       const noTarget = support && (card.effectType === 'draw' || card.effectType === 'recycle_hand'); // 後方支援は自己完結カード（ドロー・ローリングストック）は使えない
       const dis = !anyRO && (mode === 'city') && (card.cost > left || noTarget);
@@ -11851,12 +12030,13 @@
       // 「card-usableの見た目のままonclickだけ空」という無反応カードになっていた。閲覧中は専用の
       // card-viewonlyクラスで減光し、タップで自分のタブへ戻す導線（coopViewOnlyCardTap）に繋ぐ。
       // 'ended'（自分のターン終了済）はそのような導線が不要なため、従来通り完全に無反応のままにする。
-      const click = isAlly ? 'coopViewOnlyCardTap()' : ((isEnded || dis) ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopRespCardTap('${card.uid}')`));
+      // 'spec'（観戦者）は「戻る」タブが存在しないため、タップ自体を無効化した読み取り専用として扱う。
+      const click = isAlly ? 'coopViewOnlyCardTap()' : ((isEnded || isSpec || dis) ? '' : (mode === 'city' ? `coopSelectCard('${card.uid}')` : `coopRespCardTap('${card.uid}')`));
       const costLabel = mode === 'resp' ? '無料' : card.cost;
-      const reason = isAlly ? '<div class="card-disabled-reason">閲覧中</div>' : (isEnded ? '' : (noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : '')));
-      const stateCls = isAlly ? 'card-viewonly' : ((isEnded || dis) ? 'card-disabled' : 'card-usable');
-      const cursor = isAlly ? 'pointer' : ((isEnded || dis) ? 'not-allowed' : 'pointer');
-      const _roExtra = isEnded ? ';pointer-events:none' : ''; // 'ended'のみ従来通りクリック自体を無効化（タップ導線が不要なため）
+      const reason = isAlly ? '<div class="card-disabled-reason">閲覧中</div>' : ((isEnded || isSpec) ? '' : (noTarget ? '<div class="card-disabled-reason">支援に使えない</div>' : (dis ? '<div class="card-disabled-reason">予算不足</div>' : '')));
+      const stateCls = isAlly ? 'card-viewonly' : (isSpec ? 'card-viewonly' : ((isEnded || dis) ? 'card-disabled' : 'card-usable'));
+      const cursor = isAlly ? 'pointer' : (isSpec ? 'default' : ((isEnded || dis) ? 'not-allowed' : 'pointer'));
+      const _roExtra = (isEnded || isSpec) ? ';pointer-events:none' : ''; // 'ended'・'spec'はクリック自体を無効化（タップ導線が不要なため）
       const previewing = mode === 'resp' && _coRespPreviewUid === card.uid;
       return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback('政策')}${reason}${cardZoomBtnHtml()}</div>`;
     }
@@ -12537,6 +12717,53 @@
         : _wc(`${turnSide}（${CO.oppName || '相手'}）が`, '行動中…');
       return `<div style="text-align:center;padding:30px 18px;color:var(--t0)"><div style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(var(--t0-rgb),.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></div><div style="font-size:.92rem;font-weight:700">${txt}</div><div style="font-size:.74rem;color:rgba(var(--t0-rgb),.6);margin-top:6px">相手の操作が終わると自動で進みます</div></div>`;
     }
+    // ═══ 観戦者専用の盤面エリア（読み取り専用。coopMySlot()が常にnullのためcoopHandParts等の「自分」経路には乗らない） ═══
+    // 観戦者が選択中の手札タブ（CO.cities内のindex）。ローカルUI状態のみ（Firebase同期対象外）
+    function coopSpecSelectTab(i) { _coSpecTab = i; renderCoop(); }
+    // 全プレイヤー（都市側のみ。自然側はhandを持たないため攻撃プール/対応フェーズの表示で代替）の手札タブ
+    function coopSpectatorHandTabsHtml() {
+      const players = (CO.cities || []).filter(cs => cs.ownerName);
+      if (!players.length) return '';
+      if (_coSpecTab === null || !players.some(cs => CO.cities.indexOf(cs) === _coSpecTab)) _coSpecTab = CO.cities.indexOf(players[0]);
+      const tabs = players.map(cs => {
+        const i = CO.cities.indexOf(cs);
+        return `<button type="button" class="coop-hand-tab${_coSpecTab === i ? ' active' : ''}" onclick="coopSpecSelectTab(${i})">${_escHtml(cs.ownerName)}</button>`;
+      }).join('');
+      const sel = CO.cities[_coSpecTab];
+      const cardsHtml = (sel && (sel.hand || []).length)
+        ? sel.hand.map(c => coopMkCard(c, 'city', false, 'spec')).join('')
+        : '<span style="color:rgba(var(--t0-rgb),.45);font-size:.76rem">手札なし</span>';
+      return `<div class="coop-hand-tabs">${tabs}</div><div class="hand-group-cards coop-hand-cards">${cardsHtml}</div>`;
+    }
+    // フェーズ別の読み取り専用サマリー（自然の攻撃プール・予約攻撃・対応フェーズの状況）＋全プレイヤーの手札タブ
+    function _coBuildSpectatorArea() {
+      const _icoDisStr = `<img src="images/icons/icon_disaster.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block">`;
+      let phaseInfo = '';
+      if (CO.phase === 'natureHuman') {
+        const total = Object.values(CO.naturePool || {}).reduce((a, b) => a + b, 0);
+        const queued = (CO.incoming || []).length
+          ? (CO.incoming || []).map(a => {
+              const tgt = CO.cities[a.idx]; if (!tgt) return '';
+              const own = tgt.ownerName ? `（${tgt.ownerName}）` : '';
+              return `<div style="background:rgba(248,81,73,.1);border:1px solid #f85149;border-radius:6px;padding:5px 8px;margin-bottom:4px;color:var(--t0);font-size:.78rem">${cardIconSvg(a.card.icon,14)} ${a.card.name} → ${tgt.city.name}${own}（約${a.est}）</div>`;
+            }).join('')
+          : `<div style="font-size:.74rem;color:rgba(var(--t0-rgb),.55);text-align:center;padding:4px 0">まだ攻撃は予約されていません</div>`;
+        phaseInfo = `<div style="text-align:center;color:var(--t0);font-size:.78rem;margin:2px 0 8px">${_icoDisStr} 自然側が攻撃を選んでいます（残り攻撃 <strong style="color:#f85149">${CO.attacksLeft || 0}</strong>回／手持ち災害 ${total}枚）</div>${queued}`;
+      } else if (CO.phase === 'coopResponse') {
+        const atks = (CO.incoming || []).map(a => {
+          const cs = CO.cities[a.idx]; if (!cs) return '';
+          const st = cs.resp === null ? '対応待ち' : (cs.resp && cs.resp.skip ? '対応せず受ける' : cs.resp ? '対応済み' : '対応不可（複合災害）');
+          const own = cs.ownerName ? `（${cs.ownerName}）` : '';
+          return `<div style="background:rgba(248,81,73,.08);border:1px solid #f85149;border-radius:8px;padding:7px 9px;margin-bottom:6px;color:var(--t0);font-size:.78rem;display:flex;justify-content:space-between;gap:8px"><span>${cardIconSvg(a.card.icon,15)} <strong>${a.card.name}</strong> → ${cs.city.name}${own}　約${a.est}</span><span style="color:rgba(var(--t0-rgb),.6);white-space:nowrap">${st}</span></div>`;
+        }).join('');
+        phaseInfo = `<div style="font-weight:700;color:#f85149;font-size:.85rem;margin-bottom:6px">${_icoDisStr} 対応フェーズ</div>${atks}`;
+      } else if (CO.phase === 'resolving') {
+        phaseInfo = `<div style="text-align:center;color:var(--t0);font-size:.85rem;padding:10px">解決中…</div>`;
+      }
+      const tabs = coopSpectatorHandTabsHtml();
+      const full = `<div id="co-spec-root">${phaseInfo}${tabs}</div>`;
+      return { mode: 'spec', readOnly: true, full, parts: null };
+    }
     // ─── 情報パネル：自然側＝連鎖ガイド／都市側＝なし（2026-07-17：協力コンテキストヒントは削除） ───
     function coopChainGuidePanel() {
       const _cl = { coastal: '海岸', mountain: '山間', inland: '内陸' };
@@ -12605,6 +12832,7 @@
     // ヘッダーだけが変化しても手札カードのDOMノードには触れない）。それ以外の画面（対応フェーズ・攻撃プール等）は
     // 従来どおり1つのHTML文字列として扱う（フル文字列比較のみ・十分な粒度と判断）
     function _coBuildAreaResult(waiting, myTurnActive) {
+      if (CO.mySide === 'spectator') return _coBuildSpectatorArea(); // 観戦者：他の分岐と独立した専用の読み取り専用エリア
       let mode = 'other', readOnly = false, full = '', parts = null;
       if (waiting) {
         const _mySlot = coopMySlot();
@@ -12698,7 +12926,7 @@
         + `<div id="co-sec-intel"${_coSecAttr(s.intel)}>${s.intel}</div>`
         + `<div id="co-sec-area"${areaAttrs} data-co-area-mode="${s.areaResult.mode}" data-co-area-readonly="${s.areaResult.readOnly ? 1 : 0}">${s.areaResult.full}</div>`
         + `<div id="co-sec-info"${_coSecAttr(s.info)}>${s.info}</div>`
-        + `<button onclick="coopRequestQuit()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:var(--t0);font-size:.76rem;cursor:pointer">ロビーに戻る（中断）</button>`
+        + `<button onclick="coopRequestQuit()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:var(--t0);font-size:.76rem;cursor:pointer">${CO.mySide === 'spectator' ? '観戦をやめる' : 'ロビーに戻る（中断）'}</button>`
         + `</div>`
         + `<div id="co-sec-overlay"${_coSecAttr(s.overlay)}>${s.overlay}</div>`
         + `<div id="co-sec-reconn"${_coSecAttr(s.reconn)}>${s.reconn}</div>`
@@ -12742,7 +12970,7 @@
         _coAreaCache = areaResult.mode === 'hand' ? { ...areaResult.parts } : { full: areaResult.full };
         return;
       }
-      if (areaResult.mode === 'other') {
+      if (areaResult.mode === 'other' || areaResult.mode === 'spec') {
         if (_coAreaCache.full !== areaResult.full) { wrap.innerHTML = areaResult.full; _coAreaCache.full = areaResult.full; }
         return;
       }
@@ -12833,7 +13061,7 @@
       const sumBtn = (!CO.online || coopMyPhase())
         ? `<button class="btn-ho" onclick="coopDismissSummary()">${isFinal ? '結果を見る' : `<span style="display:inline-flex;align-items:center;gap:5px;justify-content:center">${coopIcoCheckCircle(16,'currentColor')}確認して次のターンへ</span>`}</button>`
         : `<div style="color:rgba(var(--t0-rgb),.7);font-size:.85rem"><span class="co-spinner"></span> ${_wc(`都市側（${CO.oppName || '相手'}）の`, '確認を', '待っています…')}</div>`;
-      const quitBtn = `<button onclick="coopRequestQuit()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.45);font-size:.74rem;cursor:pointer">ロビーに戻る（中断）</button>`;
+      const quitBtn = `<button onclick="coopRequestQuit()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.45);font-size:.74rem;cursor:pointer">${CO.mySide === 'spectator' ? '観戦をやめる' : 'ロビーに戻る（中断）'}</button>`;
       // 2026-07-27（P0修正・仕様(e)）：summaryのackゲート版強制進行。他のMP待機UIと同じくホストにのみ表示する
       const _pendingAck = CO.mp ? (CO.cities || []).filter(cs => cs.hp > 0 && !cs.ack) : [];
       const forceAckBtn = (CO.mp && CO.host && _pendingAck.length > 0)
@@ -12908,12 +13136,16 @@
       render();
     }
     function coopRenderOver() {
-      const win = CO.result === 'win', d = CO.diff;
-      const natureMode = CO.humanSide === 'nature';
+      const isSpec = CO.mySide === 'spectator';
+      // 観戦者はCO.resultが自分視点の勝敗（coopResultForはmySideが'city'/'nature'の前提）を持たないため、
+      // 中立のCO.outcomeから直接「都市側が生存したか」を判定し、都市側視点のフレーバー文で表示する
+      const win = isSpec ? (CO.outcome === 'survived') : (CO.result === 'win'), d = CO.diff;
+      const natureMode = isSpec ? false : (CO.humanSide === 'nature');
       const alive = CO.cities.filter(cs => cs.hp > 0).length;
       const remHp = CO.cities.reduce((s, cs) => s + Math.max(0, cs.hp), 0);
       // B1：勝利ハプティクス（CO再生成ごとに自然リセットされる自己完結フラグで1回のみ発火。design_system.md §9.2）
-      if (win && !CO._hapticOverFired) { CO._hapticOverFired = true; haptic(HAPTIC.win); }
+      // 観戦者の端末を無関係に振動させないよう対象外にする
+      if (win && !isSpec && !CO._hapticOverFired) { CO._hapticOverFired = true; haptic(HAPTIC.win); }
 
       // 大タイトルとテーマ（対戦モードと統一：勝利=VICTORY/黄、敗北=GAME OVER/青）
       const themeCls = win ? 'go-victory' : 'go-defeat';
@@ -12943,7 +13175,7 @@
 
       const _icoD16 = `<img src="images/icons/icon_disaster.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block">`;
       const _icoC16 = `<img src="images/icons/icon_city.webp" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:inline-block">`;
-      const roleLabel = natureMode ? `${_icoD16} 自然側` : `${_icoC16} 都市側`;
+      const roleLabel = isSpec ? `${uiIcoEye(14)} 観戦` : (natureMode ? `${_icoD16} 自然側` : `${_icoC16} 都市側`);
       const turnsLabel = win === !natureMode ? `耐え抜いたターン` : (natureMode && win ? '決着ターン' : '生存ターン');
       const statsHtml = coopRenderStats(natureMode);
       // 「逆の立場でも」誘導（coop_mode_summary §9：両方やりたくなる構造）
@@ -13001,7 +13233,7 @@
     ${rematchBtn}
     ${switchBtn}
     ${tipPanelHtml}${tipBtnHtml}
-    <button class="go-inview go-replay-btn" onclick="coopQuit()">ロビーに戻る</button>
+    <button class="go-inview go-replay-btn" onclick="${isSpec ? 'coopSpecExit()' : 'coopQuit()'}">${isSpec ? '観戦をやめる' : 'ロビーに戻る'}</button>
   </div>
 
 </div>`;
