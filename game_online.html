@@ -365,7 +365,8 @@
     html.ron-motion-off .coop-reach-warn,
     html.ron-motion-off .conn-banner,
     html.ron-motion-off .boot-splash-title,
-    html.ron-motion-off .screen-shake {
+    html.ron-motion-off .screen-shake,
+    html.ron-motion-off .coop-hand-new-pulse {
       animation: none !important;
     }
     html.ron-motion-off .ui-card-preview-card {
@@ -2558,6 +2559,97 @@
       line-height: 1.4
     }
 
+    /* ROLLING STOCK（recycle_hand）捨てるカード選択グリッド：実装2（2026-07-29）。
+       旧実装は縦スクロール（max-height:190px;overflow-y:auto）＋選択状態は枠色と「選択中」テキストのみだった。
+       手札上限5枚からこのカード自身を除くため候補は最大4枚 → スクロールなしで必ず1行に収まる前提のグリッドへ刷新し、
+       チェックボックス（未選択＝空の角丸四角／選択＝赤塗り＋チェックマークSVG）を追加した。*/
+    .recycle-grid {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .recycle-tile {
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      min-width: 0;
+      padding: 5px 3px 6px;
+      border: 2px solid var(--yellow);
+      border-radius: 8px;
+      background: var(--bg1);
+      transition: border-color .15s, background-color .15s, transform .12s;
+    }
+
+    .recycle-tile.is-selected {
+      border-color: var(--red);
+      background: rgba(248, 81, 73, .14);
+    }
+
+    .recycle-tile:active {
+      transform: scale(.96);
+    }
+
+    .recycle-tile img {
+      width: 100%;
+      max-width: 56px;
+      border-radius: 5px;
+      display: block;
+    }
+
+    .recycle-tile .rt-name {
+      font-size: .62rem;
+      font-weight: 700;
+      color: var(--t1);
+      line-height: 1.25;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    .recycle-tile .rt-cost {
+      font-size: .56rem;
+      color: var(--yellow);
+      font-weight: 600;
+    }
+
+    .recycle-tile .rt-check {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 15px;
+      height: 15px;
+      border-radius: 4px;
+      border: 1.5px solid var(--t2);
+      background: rgba(13, 17, 23, .55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .recycle-tile .rt-check svg {
+      opacity: 0;
+      transition: opacity .12s;
+    }
+
+    .recycle-tile.is-selected .rt-check {
+      border-color: var(--red);
+      background: var(--red);
+    }
+
+    .recycle-tile.is-selected .rt-check svg {
+      opacity: 1;
+    }
+
+    @media (hover:hover) {
+      .recycle-tile:hover {
+        transform: scale(1.04);
+      }
+    }
+
     /* DISCARD */
     .discard-info {
       background: rgba(248, 81, 73, .08);
@@ -3062,6 +3154,18 @@
     .coop-reach-warn { position:absolute; top:-6px; right:-6px; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#0d1117; border:1.5px solid #f85149; box-shadow:0 0 6px rgba(248,81,73,.55); animation: coop-reach-pulse 1.6s ease-in-out infinite; z-index:2 }
     @keyframes coop-reach-pulse { 0%,100% { box-shadow:0 0 4px rgba(248,81,73,.4) } 50% { box-shadow:0 0 9px rgba(248,81,73,.85) } }
     @media (prefers-reduced-motion: reduce) { html:not(.ron-motion-force) .coop-reach-warn { animation: none } }
+
+    /* 実装3（2026-07-29）：協力モードで新しく手札に入ったカードのパルス。ハザードマップ整備・ローリングストック・
+       緊急支援ドロー・備蓄・ターン開始ドロー等、発生源を問わず手札の差分検出（coopHandParts参照）で一律に付与する。
+       対戦モードの.card-just-drawn（1枚公開の演出）とは別物・独立の仕組み（対戦側は変更しない）。
+       拡大縮小を3回繰り返して約1秒で通常状態へ戻る。1回きりのanimationなのでfill-modeは既定（none）で問題ない。 */
+    .coop-hand-new-pulse { animation: coop-hand-new-pulse .9s ease-in-out; }
+    @keyframes coop-hand-new-pulse {
+      0%, 100% { transform: scale(1); }
+      16%, 50%, 84% { transform: scale(1.09); }
+      33%, 67% { transform: scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) { html:not(.ron-motion-force) .coop-hand-new-pulse { animation: none } }
     .card-text-fallback { display:none }
     .card.img-fail .card-text-fallback { display:block }
     .card.img-fail .card-img-wrap { display:none }
@@ -4623,6 +4727,26 @@
       appId: "1:144265392889:web:869be684c5a16c81d62828"
     };
 
+    // ══ 招待・共有URLの基点（実装1：アプリ版QR不具合対策） ══
+    // 原因：readyornot-android/capacitor.config.jsonにserver.androidSchemeの指定が無く、
+    // Capacitorの既定によりアプリ版は http://localhost/ で動作する。従来は共有URLをすべて
+    // window.location.href.split('?')[0] から組み立てていたため、アプリ版が生成するQR・招待リンクは
+    // http://localhost/?coop=XXXXXX になり、読み取った別端末が自分自身のlocalhostを見に行って
+    // 「サーバーに接続できません」になっていた（詳細はdev/coop_online_architecture.md参照）。
+    // 対策：Web版（http/https かつ localhost系ではない）は従来どおり自分自身のURLを使い、
+    // アプリ版（capacitor://・file://・http://localhost/等）はこの公開URLへ強制的にフォールバックする。
+    const RON_PUBLIC_BASE = 'https://kawa50451-prog.github.io/bousai-card-game/game_online.html';
+    function ronShareBase() {
+      try {
+        const proto = location.protocol;
+        const host = location.hostname;
+        const isWebHttp = (proto === 'http:' || proto === 'https:');
+        const isLocalHost = !host || host === 'localhost' || host === '127.0.0.1' || host === '::1';
+        if (isWebHttp && !isLocalHost) return window.location.href.split('?')[0];
+        return RON_PUBLIC_BASE;
+      } catch (e) { return RON_PUBLIC_BASE; }
+    }
+
     // ══ ONLINE STATE (local, not synced) ══
     let myRole = null;   // 'p1' | 'p2'
     let _specPv = null; let _specPvSavedG = null; let _specPvSavedRole = null;
@@ -4730,6 +4854,11 @@
     let _coFxSummaryTurn = -1;  // A-1: 被弾フィードバック（shake/赤フラッシュ）を発火済みのターン番号
     let _coFxDrawnUid = null;   // C-1: card-just-drawn を適用済みの公開カードuid（再描画時の多重発火防止）
     let _coFxMPBannerTurn = -1; // D-3: MP配置フェーズバナーを表示済みのターン番号
+    // 実装3（2026-07-29）：協力モードで新しく手札に入ったカードをパルスさせる新着検出用スナップショット。
+    // ハザードマップ整備・ローリングストック・緊急支援ドロー・備蓄等、発生源を問わず「自分の手札の直前描画との
+    // uid差分」で一律に検出する（特定のドロー処理へのフックだと発生源ごとに漏れるため）。仲間タブ閲覧中は
+    // 更新しない（coopHandPartsの!viewingAlly分岐でのみ比較・更新）。nullは「未初期化＝次回描画はマークしない」を表す。
+    let _coHandSeenUids = null;
     // ── 協力オンライン：観戦（読み取り専用の追加ロール。CO.mySide==='spectator'） ──
     // 観戦者はCO.cities/playersに一切登録されず、coopRooms/{code}/spectators/{sid} にpresenceのみ持つ。
     // 進行ロジック（intent検証・ready/ack/respゲート）には一切触れない、純粋な追加の読み取り経路。
@@ -5401,7 +5530,7 @@
       render();
       if (_hintReconnQrOpen) setTimeout(() => {
         const el = document.getElementById('hint-reconn-qr'); if (!el || el.dataset.generated) return; el.dataset.generated = 'true';
-        const url = window.location.href.split('?')[0] + '?room=' + roomId;
+        const url = ronShareBase() + '?room=' + roomId;
         try { new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
         catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.72rem;padding:8px">QR生成失敗</div>`; }
       }, 30);
@@ -6858,7 +6987,7 @@
     function copyRoomCode() { if (roomId) _copyText(roomId, 'ルームコードをコピー'); }
     function copyRoomUrl() {
       if (!roomId) return;
-      const url = window.location.href.split('?')[0] + '?room=' + roomId;
+      const url = ronShareBase() + '?room=' + roomId;
       _copyText(url, 'URLをコピー');
     }
 
@@ -6908,7 +7037,7 @@
         const el = document.getElementById('disconnect-qr-container');
         if (!el || el.dataset.generated) return;
         el.dataset.generated = 'true';
-        const url = window.location.href.split('?')[0] + '?room=' + roomId;
+        const url = ronShareBase() + '?room=' + roomId;
         try { new QRCode(el, { text: url, width: 150, height: 150, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
         catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>`; }
       }
@@ -7145,7 +7274,7 @@
 
     function generateQR() {
       const el = document.getElementById('qr-container'); if (!el || el.dataset.generated) return; el.dataset.generated = 'true';
-      const base = window.location.href.split('?')[0];
+      const base = ronShareBase();
       const url = `${base}?room=${roomId}`;
       try { new QRCode(el, { text: url, width: 150, height: 150, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
       catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>`; }
@@ -7571,12 +7700,12 @@
     function toggleSpecInvite() { _specInviteOpen = !_specInviteOpen; render(); if (_specInviteOpen) setTimeout(generateSpecInviteQR, 80); }
     function generateSpecInviteQR() {
       const el = document.getElementById('spec-invite-qr'); if (!el || el.dataset.generated) return; el.dataset.generated = 'true';
-      const url = window.location.href.split('?')[0] + '?room=' + roomId;
+      const url = ronShareBase() + '?room=' + roomId;
       try { new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
       catch (e) { el.innerHTML = `<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>`; }
     }
     async function copySpecInviteLink() {
-      const url = window.location.href.split('?')[0] + '?room=' + roomId;
+      const url = ronShareBase() + '?room=' + roomId;
       try {
         await navigator.clipboard.writeText(url);
         const btn = document.getElementById('spec-invite-copy-btn');
@@ -7584,7 +7713,7 @@
       } catch (e) {}
     }
     function renderSpecInviteOverlay() {
-      const url = window.location.href.split('?')[0] + '?room=' + roomId;
+      const url = ronShareBase() + '?room=' + roomId;
       const _svgEyeInv = `<svg style="width:15px;height:15px;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
       return `<div class="spec-invite-overlay" onclick="toggleSpecInvite()"><div class="spec-invite-panel" onclick="event.stopPropagation()">
         <div class="spec-invite-hd"><span class="spec-invite-title">${_svgEyeInv} 観戦に招待する</span><button class="spec-invite-close" onclick="toggleSpecInvite()">✕</button></div>
@@ -11351,7 +11480,7 @@
       CO.budgetCarriedIn = carriedIn;
       CO.budget = b; CO.budgetUsed = 0;
     }
-    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; coopStartCityTurn(true); }
+    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; _coHandSeenUids = null; coopStartCityTurn(true); }
     // 都市ターン開始（humanSide によって人間操作／CPU防衛に分岐）
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
@@ -12039,11 +12168,11 @@
     function coopGenLobbyQR() {
       const el = document.getElementById('coop-lobby-qr'); if (!el || el.dataset.generated || !CO || !CO.roomId) return;
       el.dataset.generated = 'true';
-      const url = window.location.href.split('?')[0] + '?coop=' + CO.roomId;
+      const url = ronShareBase() + '?coop=' + CO.roomId;
       try { new QRCode(el, { text: url, width: 150, height: 150, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
       catch (e) { el.innerHTML = '<div style="color:var(--t3);font-size:.72rem;padding:8px">QR生成失敗</div>'; }
     }
-    function coopCopyLobbyLink() { if (CO && CO.roomId) _copyText(window.location.href.split('?')[0] + '?coop=' + CO.roomId, '招待リンクをコピーしました'); }
+    function coopCopyLobbyLink() { if (CO && CO.roomId) _copyText(ronShareBase() + '?coop=' + CO.roomId, '招待リンクをコピーしました'); }
     function coopCopyLobbyCode() { if (CO && CO.roomId) _copyText(CO.roomId, 'ルームコードをコピーしました'); }
     // ─── 対戦モードの観戦招待（toggleSpecInvite等）と同じ発想の、協力プレイ中画面向け招待ポップオーバー ───
     // 画面外（document.body直付け）で管理し、renderCoop()のフル/差分どちらの経路でも常に正しい状態を保つ（coopSyncSpectatorChrome参照）
@@ -12051,17 +12180,17 @@
     function coopGenSpecInviteQR() {
       const el = document.getElementById('coop-spec-invite-qr'); if (!el || el.dataset.generated || !CO || !CO.roomId) return;
       el.dataset.generated = 'true';
-      const url = window.location.href.split('?')[0] + '?coop=' + CO.roomId;
+      const url = ronShareBase() + '?coop=' + CO.roomId;
       try { new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
       catch (e) { el.innerHTML = '<div style="color:var(--t3);font-size:.75rem;padding:8px">QR生成失敗</div>'; }
     }
     function coopCopySpecInviteLink() {
       if (!CO || !CO.roomId) return;
-      _copyText(window.location.href.split('?')[0] + '?coop=' + CO.roomId, 'リンクをコピーしました');
+      _copyText(ronShareBase() + '?coop=' + CO.roomId, 'リンクをコピーしました');
     }
     function coopRenderSpecInviteOverlay() {
       if (!CO || !CO.roomId) return '';
-      const url = window.location.href.split('?')[0] + '?coop=' + CO.roomId;
+      const url = ronShareBase() + '?coop=' + CO.roomId;
       return `<div id="coop-spec-invite-overlay" class="spec-invite-overlay" onclick="coopToggleSpecInvite()"><div class="spec-invite-panel" onclick="event.stopPropagation()">
         <div class="spec-invite-hd"><span class="spec-invite-title">${uiIcoEye(15)} 観戦に招待する</span><button class="spec-invite-close" onclick="coopToggleSpecInvite()">✕</button></div>
         <div style="text-align:center;margin-bottom:10px"><div id="coop-spec-invite-qr" style="display:inline-block"></div></div>
@@ -12194,7 +12323,7 @@
     // readOnly：false/undefined＝通常。'ally'＝仲間の手札を閲覧中（原因①の修正対象・タップで自分のタブへ戻る）。
     // 'ended'＝自分のターン終了済で自分の手札が操作不可（別の意味の読み取り専用。閲覧中トーストの対象ではない）。
     // 後方互換：呼び出し側が旧来のtrueを渡した場合も'ally'相当（減光＋クリック無効）として扱いエラーにしない。
-    function coopMkCard(card, mode, support, readOnly) {
+    function coopMkCard(card, mode, support, readOnly, isNew) {
       const isAlly = readOnly === 'ally' || readOnly === true;
       const isEnded = readOnly === 'ended';
       const isSpec = readOnly === 'spec'; // 観戦者：全プレイヤーの手札をタブで閲覧（card-viewonlyと同じトーン・操作導線なし）
@@ -12214,7 +12343,8 @@
       const cursor = isAlly ? 'pointer' : (isSpec ? 'default' : ((isEnded || dis) ? 'not-allowed' : 'pointer'));
       const _roExtra = (isEnded || isSpec) ? ';pointer-events:none' : ''; // 'ended'・'spec'はクリック自体を無効化（タップ導線が不要なため）
       const previewing = mode === 'resp' && _coRespPreviewUid === card.uid;
-      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${reason}${cardZoomBtnHtml()}</div>`;
+      // 実装3：新しく手札に入ったカードを短時間パルスさせる（発生源を問わず手札差分検出で一律にマーク。coopHandParts参照）
+      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}${isNew ? ' coop-hand-new-pulse' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${reason}${cardZoomBtnHtml()}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
@@ -12334,16 +12464,18 @@
         if (!selectable.length) {
           actions = `<p style="margin:6px 0;color:var(--t0)">捨てられる手札がありません</p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlayAnim(-1)">使用する（交換なし）</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
         } else {
+          // 手札上限5枚からこのカード自身を除くため候補は最大4枚 → 常に1行に収まる列数（=候補数）でグリッド化する
+          const cols = selectable.length;
           const tiles = selectable.map(x => {
             const sel = pickArr.includes(x.uid);
-            return `<div class="peek-card-big peek-card-compact" style="flex-shrink:0;cursor:pointer;border-color:${sel ? 'var(--red)' : 'var(--yellow)'}${sel ? ';opacity:.85;box-shadow:0 0 0 2px var(--red)' : ''}" onclick="coopToggleRecyclePick('${x.uid}')">
-              <img src="images/cards/${x.id}.webp" style="width:52px;border-radius:6px" alt="" onerror="this.style.display='none'">
-              <div class="pk-name">${x.name}</div><div class="pk-cost" style="color:var(--yellow)">コスト:${x.cost}</div>
-              ${sel ? `<div style="margin-top:2px;font-size:.6rem;color:var(--red);font-weight:800">選択中</div>` : ''}
+            return `<div class="recycle-tile${sel ? ' is-selected' : ''}" onclick="coopToggleRecyclePick('${x.uid}')">
+              <div class="rt-check"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg></div>
+              <img src="images/cards/${x.id}.webp" alt="" onerror="this.style.display='none'">
+              <div class="rt-name">${x.name}</div><div class="rt-cost">コスト:${x.cost}</div>
             </div>`;
           }).join('');
           actions = `<p style="margin:6px 0;color:var(--t0)">捨てるカードを選択（選択中：${n}枚）</p>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:190px;overflow-y:auto;padding:4px">${tiles}</div>
+            <div class="recycle-grid" style="grid-template-columns:repeat(${cols},1fr)">${tiles}</div>
             <div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlayAnim(-1)">${n > 0 ? `${n}枚を交換する` : '交換せずに使用する'}</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
         }
       } else {
@@ -12518,7 +12650,13 @@
         cardsHtml = ac || '<span style="color:rgba(var(--t0-rgb),.45);font-size:.76rem">手札なし</span>';
       } else {
         // 'ended'：自分のターン終了済で自分の手札が操作不可（別の意味の読み取り専用。仲間閲覧のトースト対象ではない）
-        const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly ? 'ended' : false)).join('');
+        // 実装3：自分の手札を見ているときだけ、直前描画とのuid差分で「新しく入ったカード」を検出してパルスさせる。
+        // 仲間タブ閲覧中（上のviewingAlly分岐）はここを通らないため比較・スナップショット更新の対象外になる。
+        // _coHandSeenUidsがnull（初回描画）のときはマークせずスナップショットの初期化のみ行う（初期手札の一斉パルス防止）。
+        const _curHandUids = CO.hand.map(c => c.uid);
+        const _newUids = _coHandSeenUids ? new Set(_curHandUids.filter(u => !_coHandSeenUids.has(u))) : new Set();
+        _coHandSeenUids = new Set(_curHandUids);
+        const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly ? 'ended' : false, _newUids.has(c.uid))).join('');
         cardsHtml = cards || '<span style="color:var(--t0)">手札なし</span>';
       }
 
@@ -13016,7 +13154,7 @@
         const el = document.getElementById(qrId);
         if (!el || el.dataset.generated) return;
         el.dataset.generated = 'true';
-        const url = window.location.href.split('?')[0] + '?coop=' + CO.roomId;
+        const url = ronShareBase() + '?coop=' + CO.roomId;
         try { new QRCode(el, { text: url, width: 140, height: 140, colorDark: '#e6edf3', colorLight: '#0d1117' }); }
         catch (e) { el.innerHTML = '<div style="color:var(--t3);font-size:.72rem;padding:8px">QR生成失敗</div>'; }
       }, 0);
