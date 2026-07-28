@@ -112,6 +112,7 @@
       --green: #3fb950;
       --yellow: #e3b341;
       --purple: #a371f7;
+      --purple-rgb: 163, 113, 247;
       --accent: #fa2a4e;
       --accent-rgb: 250, 42, 78;
       --accent-dark-rgb: 160, 20, 45;
@@ -161,7 +162,7 @@
       --bg0: #f2f0ea; --bg0-soft: #fbf9f4; --bg0-deep: #e4ded0;
       --bg1: #fdfbf7; --bg1-rgb: 253, 251, 247; --bg2: #f6f3ec; --bg3: #d8d1bf;
       --t0: #0d1117; --t0-rgb: 13, 17, 23; --t1: #1c2430; --t2: #57626e; --t3: #98a2ae;
-      --blue: #1f6feb; --red: #cf222e; --green: #1a7f37; --yellow: #9a6700; --purple: #8250df;
+      --blue: #1f6feb; --red: #cf222e; --green: #1a7f37; --yellow: #9a6700; --purple: #8250df; --purple-rgb: 130, 80, 223;
       --accent: #d6294a; --accent-rgb: 214, 41, 74; --accent-dark-rgb: 150, 20, 45;
       --tut-btn-text: #1f6feb;
     }
@@ -2783,10 +2784,16 @@
     .coop-city-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
     /* 2026-07-18ユーザーレビュー第4弾：協力・社会的脆弱性イベントの常設バナー（worldview.md §3.6/§4）。
        ターン開始ポップ（coopRenderEventPopup）を閉じた後も画面上部に「今何が起きているか」を残す。
-       上下の縁のみ紫×黄の斜めストライプ（ハザードテープ風・人為災害=紫のセマンティクス）、帯本体は--bg1系背景。
-       常時発光・常時アニメーションは世界観のglow規律（§4）に反するため静止表示のみとし、prefers-reduced-motion
-       の分岐は不要（アニメーションさせていないため）。CO.diff.eventsから毎ターン導出する完全な派生表示のため
-       新規の同期フィールドはCO本体に追加しない（コンテナ単位の差分render機構にそのまま乗る） */
+       帯本体は--bg1系背景。CO.diff.eventsから毎ターン導出する完全な派生表示のため新規の同期フィールドは
+       CO本体に追加しない（コンテナ単位の差分render機構にそのまま乗る）。
+       2026-07-27追記（ユーザー要望・意図的な方針転換）：当初は「常時発光・常時アニメーションは世界観のglow規律
+       （§4）に反するため静止表示のみ」としていたが、ユーザーから上下バーを流れさせるスタイリッシュな演出への
+       刷新を明示的に指示されたため、この静止表示の判断を撤回する。配色も紫×黄のハザードテープ風から、
+       紫の濃淡2色（--purple-rgbを用いた同一色相のアルファ違い）へ変更し全体トーンに寄せた。glow規律§4が
+       対象とするのは「発光（box-shadow等のグロー）」であり、本変更は背景グラデーションの流れであるため
+       同規律への抵触ではないと判断したが、この節目の判断変更自体はここに明記しておく。
+       アニメーションを追加したため、下記の通り@media(prefers-reduced-motion:reduce)分岐を新設した
+       （以前のコメントの「アニメーションさせていないため不要」は本変更で前提が変わったため撤回）。 */
     .coop-event-banner {
       position: relative;
       margin: 6px 0;
@@ -2803,12 +2810,34 @@
       position: absolute;
       left: 0; right: 0;
       height: 4px;
-      background: repeating-linear-gradient(45deg,
-        var(--purple, #a371f7) 0, var(--purple, #a371f7) 7px,
-        var(--yellow, #e3b341) 7px, var(--yellow, #e3b341) 14px);
     }
-    .coop-event-banner::before { top: 0; }
-    .coop-event-banner::after { bottom: 0; }
+    /* 2026-07-27追記（ループの位相ずれ修正）：45度ストライプの「水平方向の」繰り返し周期は
+       帯幅14px ÷ cos45° = 19.8px であり、28pxを動かすと1周ごとに位相が飛んで縞が飛んで見える。
+       またbackground-sizeを既定（＝要素サイズ）のままにするとタイルの継ぎ目でも位相が途切れるため、
+       background-sizeを水平周期そのものに固定し、移動量も同じ19.8pxに合わせて完全なシームレスループにする */
+    /* 上バー：濃淡の振れ幅を大きく（.95⇔.35）して手前に浮く印象、右下がりに流す */
+    .coop-event-banner::before {
+      top: 0;
+      background-image: repeating-linear-gradient(45deg,
+        rgba(var(--purple-rgb, 163,113,247), .95) 0 7px,
+        rgba(var(--purple-rgb, 163,113,247), .35) 7px 14px);
+      background-size: 19.8px 4px;
+      animation: coop-event-flow-fwd 3.2s linear infinite;
+    }
+    /* 下バー：濃淡を抑え(.55⇔.18)て奥に沈む印象、上バーと逆方向・異なる周期で流し奥行きを出す */
+    .coop-event-banner::after {
+      bottom: 0;
+      background-image: repeating-linear-gradient(45deg,
+        rgba(var(--purple-rgb, 163,113,247), .55) 0 7px,
+        rgba(var(--purple-rgb, 163,113,247), .18) 7px 14px);
+      background-size: 19.8px 4px;
+      animation: coop-event-flow-rev 4s linear infinite;
+    }
+    @keyframes coop-event-flow-fwd { from { background-position: 0 0; } to { background-position: 19.8px 0; } }
+    @keyframes coop-event-flow-rev { from { background-position: 0 0; } to { background-position: -19.8px 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .coop-event-banner::before, .coop-event-banner::after { animation: none; }
+    }
     .coop-event-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .coop-event-row + .coop-event-row { margin-top: 3px; }
     .coop-event-name { font-weight: 800; color: var(--purple, #a371f7); flex-shrink: 0; }
@@ -3068,12 +3097,32 @@
 
     /* ══ UI第3弾（試験実装）：B2 手札カード長押しプレビュー（design_system.md §9 B2。UI_LONGPRESS_PREVIEWで無効化可） ══ */
     .ui-card-preview-overlay { position:fixed; inset:0; z-index:9600; background:rgba(0,0,0,.72); display:flex; align-items:center; justify-content:center; padding:24px; pointer-events:none; }
-    .ui-card-preview-card { width:min(280px, 78vw); background:var(--bg1); border:1.5px solid var(--bg3); border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.55); animation:ui-card-preview-in .2s cubic-bezier(.23,1,.32,1) both; }
+    /* 2026-07-27：PCマウス向け虫眼鏡ボタン起点の操作可能プレビュー（design_system.md §10.7）。
+       align-items:flex-startにするのは、center centeringのままoverflow:autoにすると、はみ出し量が
+       スクロール開始位置より前（上）側に来てしまいスクロールで届かなくなる古典的な不具合を避けるため。
+       body側はui-lp-noscroll（既存・overflow:hidden!important）で従来通り固定し、この要素だけが内部スクロールする。 */
+    .ui-card-preview-overlay.ui-lp-interactive { pointer-events:auto; align-items:flex-start; overflow-y:auto; padding-top:40px; padding-bottom:40px; }
+    .ui-card-preview-card { position:relative; width:min(280px, 78vw); background:var(--bg1); border:1.5px solid var(--bg3); border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.55); animation:ui-card-preview-in .2s cubic-bezier(.23,1,.32,1) both; transition:width .2s cubic-bezier(.23,1,.32,1); }
     .ui-card-preview-card img { width:100%; display:block; }
     .ui-card-preview-name { padding:10px 14px 2px; font-weight:800; font-size:1.02rem; color:var(--t1); }
     .ui-card-preview-badge { padding:0 14px; font-size:.68rem; color:var(--t2); }
     .ui-card-preview-desc { padding:6px 14px 14px; font-size:.82rem; line-height:1.6; color:var(--t1); }
     @keyframes ui-card-preview-in { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
+    /* 閉じるボタン（カード右上・絵文字は使わずSVGライン）。44px相当のヒットエリアを::beforeで確保（1.4.2の作法） */
+    .ui-lp-close-btn { position:absolute; top:6px; right:6px; z-index:2; width:26px; height:26px; padding:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.4); border-radius:50%; color:#fff; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    .ui-lp-close-btn::before { content:''; position:absolute; top:50%; left:50%; width:44px; height:44px; transform:translate(-50%,-50%); }
+    @media (hover:hover) { .ui-lp-close-btn:hover { background:rgba(0,0,0,.78); border-color:rgba(255,255,255,.65); } }
+    .ui-lp-close-btn:active { transform:scale(.92); }
+    /* ＋－の段階ズームバー（カード下部・デザインは長押しプレビューのneon非依存トーンに合わせグレー系） */
+    .ui-lp-zoom-bar { display:flex; align-items:center; justify-content:center; gap:10px; padding:8px 14px 12px; border-top:1px solid var(--bg3); }
+    .ui-lp-zoom-label { font-size:.74rem; font-weight:700; color:var(--t2); min-width:2.6em; text-align:center; font-variant-numeric:tabular-nums; }
+    .ui-lp-zoom-btn { width:28px; height:28px; padding:0; display:flex; align-items:center; justify-content:center; background:var(--bg2); border:1px solid var(--bg3); border-radius:50%; color:var(--t1); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    @media (hover:hover) { .ui-lp-zoom-btn:hover:not(:disabled) { background:var(--bg3); } }
+    .ui-lp-zoom-btn:active:not(:disabled) { transform:scale(.9); }
+    .ui-lp-zoom-btn:disabled { opacity:.35; cursor:not-allowed; }
+    @media (prefers-reduced-motion: reduce) {
+      .ui-card-preview-card { transition:none; }
+    }
     body.ui-lp-noscroll { overflow:hidden !important; touch-action:none; }
     .spec-invite-btn { position:fixed; bottom:16px; right:64px; z-index:9100; padding:7px 12px; border-radius:20px; background:rgba(56,139,253,.15); border:1.5px solid #388bfd; color:#388bfd; font-size:.75rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(0,0,0,.4); transition:.2s; white-space:nowrap; }
     @media (hover:hover) {
@@ -4794,9 +4843,33 @@
       if (!_lpOverlayEl) return;
       try { _lpOverlayEl.remove(); } catch (e) { /* noop */ }
       _lpOverlayEl = null;
+      _lpZoomIdx = 0;
       if (typeof document !== 'undefined' && document.body && document.body.classList) document.body.classList.remove('ui-lp-noscroll');
     }
-    function _lpShowPreview(cardEl) {
+    const UI_LP_ZOOM_WIDTHS = ['min(280px, 78vw)', 'min(364px, 94vw)', 'min(462px, 96vw)', 'min(560px, 98vw)'];
+    const UI_LP_ZOOM_LABELS = ['100%', '130%', '165%', '200%'];
+    let _lpZoomIdx = 0;
+    function _lpIcoPlus(size) { const s = size || 13; return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`; }
+    function _lpIcoMinus(size) { const s = size || 13; return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px"><line x1="5" y1="12" x2="19" y2="12"/></svg>`; }
+    function _lpIcoClose(size) { const s = size || 15; return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>`; }
+    function _lpApplyZoom() {
+      if (!_lpOverlayEl) return;
+      const cardBox = _lpOverlayEl.querySelector('.ui-card-preview-card');
+      if (cardBox) cardBox.style.width = UI_LP_ZOOM_WIDTHS[_lpZoomIdx];
+      const label = _lpOverlayEl.querySelector('.ui-lp-zoom-label');
+      if (label) label.textContent = UI_LP_ZOOM_LABELS[_lpZoomIdx];
+      const outBtn = _lpOverlayEl.querySelector('[data-lp-zoom="out"]');
+      const inBtn = _lpOverlayEl.querySelector('[data-lp-zoom="in"]');
+      if (outBtn) outBtn.disabled = (_lpZoomIdx <= 0);
+      if (inBtn) inBtn.disabled = (_lpZoomIdx >= UI_LP_ZOOM_WIDTHS.length - 1);
+    }
+    function _lpZoomStep(delta) {
+      const next = _lpZoomIdx + delta;
+      if (next < 0 || next > UI_LP_ZOOM_WIDTHS.length - 1) return;
+      _lpZoomIdx = next;
+      _lpApplyZoom();
+    }
+    function _lpShowPreview(cardEl, interactive) {
       if (_lpOverlayEl || !cardEl) return;
       const imgEl = cardEl.querySelector('.card-img');
       // A案対応：名称は .card-name-text（バッジを含まない）を優先して読む。ゼロ幅スペースの分割ヒントは除去する
@@ -4808,11 +4881,24 @@
       const desc = descEl ? descEl.textContent : '';
       const badge = badgeEl ? badgeEl.textContent : '';
       const ov = document.createElement('div');
-      ov.className = 'ui-card-preview-overlay';
-      ov.innerHTML = `<div class="ui-card-preview-card"><img src="${src}" alt="" draggable="false"><div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div></div>`;
-      document.body.appendChild(ov);
-      _lpOverlayEl = ov;
-      document.body.classList.add('ui-lp-noscroll');
+      _lpZoomIdx = 0;
+      if (interactive) {
+        // 虫眼鏡ボタン経由：pointer-events:autoの操作可能モーダル。＋－で段階ズーム、閉じるボタン／背景クリックで閉じる
+        ov.className = 'ui-card-preview-overlay ui-lp-interactive';
+        ov.innerHTML = `<div class="ui-card-preview-card" style="width:${UI_LP_ZOOM_WIDTHS[0]}"><button type="button" class="ui-lp-close-btn" aria-label="閉じる" onclick="event.stopPropagation();_lpClosePreview()">${_lpIcoClose()}</button><img src="${src}" alt="" draggable="false"><div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div><div class="ui-lp-zoom-bar"><button type="button" class="ui-lp-zoom-btn" data-lp-zoom="out" aria-label="縮小表示" onclick="event.stopPropagation();_lpZoomStep(-1)">${_lpIcoMinus()}</button><span class="ui-lp-zoom-label">${UI_LP_ZOOM_LABELS[0]}</span><button type="button" class="ui-lp-zoom-btn" data-lp-zoom="in" aria-label="拡大表示" onclick="event.stopPropagation();_lpZoomStep(1)">${_lpIcoPlus()}</button></div></div>`;
+        document.body.appendChild(ov);
+        _lpOverlayEl = ov;
+        ov.addEventListener('click', function (e) { if (e.target === ov) _lpClosePreview(); }); // 背景クリックで閉じる（＋－／閉じるボタンはstopPropagation済みでここに来ない）
+        document.body.classList.add('ui-lp-noscroll');
+        _lpApplyZoom();
+      } else {
+        // 長押し経由：従来通りpointer-events:noneの受動表示
+        ov.className = 'ui-card-preview-overlay';
+        ov.innerHTML = `<div class="ui-card-preview-card"><img src="${src}" alt="" draggable="false"><div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div></div>`;
+        document.body.appendChild(ov);
+        _lpOverlayEl = ov;
+        document.body.classList.add('ui-lp-noscroll');
+      }
     }
     function _lpOnTouchStart(e) {
       if (_lpOverlayEl) return; // プレビュー表示中は多重起動しない
@@ -4856,12 +4942,17 @@
     // 即座にプレビューを開くタップ版。既存の長押しプレビュー本体（_lpShowPreview/_lpClosePreview）をそのまま流用し、
     // 新規のオーバーレイ・カードデータ参照は持たない。オーバーレイはpointer-events:noneのため、次のクリックで
     // 閉じる1回限りのdocumentリスナーを仕込む（「外側タップで閉じる」の標準的な実装）。マウス・タッチ両対応。
-    function _lpTapPreview(cardEl) {
+    // 2026-07-27：第2引数interactiveを追加。虫眼鏡ボタン（cardZoomBtnHtml）はtrueを渡し、＋－付きの
+    // 操作可能モーダルとして開く（この場合はdocument側の「次クリックで閉じる」リスナーを仕込まない。
+    // 閉じるボタン／背景クリックは_lpShowPreview内で個別に処理する）。省略時は従来通りfalse（受動表示）。
+    function _lpTapPreview(cardEl, interactive) {
       if (_lpOverlayEl) { _lpClosePreview(); return; }
       if (!cardEl) return;
-      _lpShowPreview(cardEl);
-      const closeOnNext = () => { document.removeEventListener('click', closeOnNext, true); _lpClosePreview(); };
-      setTimeout(() => document.addEventListener('click', closeOnNext, true), 0);
+      _lpShowPreview(cardEl, interactive);
+      if (!interactive) {
+        const closeOnNext = () => { document.removeEventListener('click', closeOnNext, true); _lpClosePreview(); };
+        setTimeout(() => document.addEventListener('click', closeOnNext, true), 0);
+      }
     }
     if (typeof document !== 'undefined' && document.addEventListener) {
       document.addEventListener('touchstart', _lpOnTouchStart, { passive: true });
@@ -5738,7 +5829,9 @@
     // へは伝播させない。card-disabled/card-viewonly/'ended'（pointer-events:noneがカード本体に付く）いずれの状態でも
     // 拡大だけは常に使えるよう、CSS側（.card-zoom-btn）でpointer-events:autoと高いz-indexを明示している。
     function cardZoomBtnHtml() {
-      return `<button type="button" class="card-zoom-btn" aria-label="カードを拡大表示" onclick="event.stopPropagation();_lpTapPreview(this.closest('.card'))"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>`;
+      // 2026-07-27：PCマウス対応の一環で、虫眼鏡ボタン起点は常にinteractive=true（＋－・閉じるボタン付きモーダル）で開く。
+      // 長押し起点（_lpOnTouchStart→_lpShowPreview(card)引数省略）は従来通り受動表示のまま変更しない。
+      return `<button type="button" class="card-zoom-btn" aria-label="カードを拡大表示" onclick="event.stopPropagation();_lpTapPreview(this.closest('.card'), true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>`;
     }
     // 手札系4系統（操作可・閲覧・観戦・捨て札）共通の種類ラベル
     function cardTypeLabel(card) { return card.type === 'policy' ? '政策' : card.type === 'jinzai' ? '人為' : '自然'; }
@@ -8292,7 +8385,7 @@
         const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
         const _isNew = card.uid === _lastDrawnCardUid;
         const _isPlaying = card.uid === _playingCardUid;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}${cardZoomBtnHtml()}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -8306,7 +8399,7 @@
 
     // ─── 手札描画（読み取り専用：自分のターン外） ───
     function renderPlayerHandReadOnly(p) {
-      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`; }
+      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`; }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
       const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => a.cost - b.cost);
@@ -8321,7 +8414,7 @@
     function renderPlayerHandSpectator(p) {
       function mkCard(card) {
         const isNew = card.uid === _lastDrawnCardUid;
-        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`;
+        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis  = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -8350,7 +8443,7 @@
         // ④ カードごとのHP予測をバッジに表示
         const hpBand = (!dis && atkCard) ? `<div class="card-hp-band" style="white-space:nowrap">予測HP<strong>${Math.max(0, curHp - computeResponseEst(atkCard, mi, card))}</strong></div>` : '';
         const bLabel = dis ? `${card.type === 'jinzai' ? '人為' : '自然'}（使用不可）` : '対応';
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}${cardZoomBtnHtml()}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -13827,7 +13920,7 @@
     // バッジは.card（overflow:hidden）の外に置く必要があるため.dd-card-order-wrapで包み、画像の上ではなく
     // カードの外側（上）に配置する（design_system.md §10 実機フィードバック②）。タップで効果ポップも追加。
     function ddMkDisasterCard(card, order) {
-      const inner = `<div class="card disaster card-spectator" data-ctype="disaster" onclick="_lpTapPreview(this)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}</div>`;
+      const inner = `<div class="card disaster card-spectator" data-ctype="disaster" onclick="_lpTapPreview(this)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}${cardZoomBtnHtml()}</div>`;
       if (!order) return inner;
       return `<div class="dd-card-order-wrap"><div class="dd-order-chip">${order}</div>${inner}</div>`;
     }
@@ -13842,7 +13935,7 @@
       let click = '', cursor = 'default';
       if (!clickable && opts.previewOnTap) { click = ` onclick="_lpTapPreview(this)"`; cursor = 'pointer'; }
       const reason = dis ? '<div class="card-disabled-reason">予算不足</div>' : '';
-      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}</div>`;
+      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '政策')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('政策')}${reason}${cardZoomBtnHtml()}</div>`;
     }
     // 対応表の災害列（左側）：画像（object-fit:containで全体表示・欠けなし）→名前（下）。
     // 画像タップで効果ポップ（_lpTapPreview、実機フィードバック③）。来襲順バッジは2026-07-18再改修で
