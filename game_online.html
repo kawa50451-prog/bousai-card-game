@@ -366,6 +366,8 @@
     html.ron-motion-off .conn-banner,
     html.ron-motion-off .boot-splash-title,
     html.ron-motion-off .screen-shake,
+    html.ron-motion-off .co-draw-reveal,
+    html.ron-motion-off .co-draw-card,
     html.ron-motion-off .coop-hand-new-pulse {
       animation: none !important;
     }
@@ -3223,6 +3225,31 @@
        緊急支援ドロー・備蓄・ターン開始ドロー等、発生源を問わず手札の差分検出（coopHandParts参照）で一律に付与する。
        対戦モードの.card-just-drawn（1枚公開の演出）とは別物・独立の仕組み（対戦側は変更しない）。
        拡大縮小を3回繰り返して約1秒で通常状態へ戻る。1回きりのanimationなのでfill-modeは既定（none）で問題ない。 */
+    /* 2026-07-29：協力モードのドロー演出（ローカル専用オーバーレイ）。引いたカードを1枚ずつ
+       めくり上がるように大きく見せる。pointer-eventsは有効にしてタップで即閉じられるようにする */
+    .co-draw-reveal {
+      position:fixed; inset:0; z-index:9800;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+      background:rgba(1,4,9,.72); padding:20px;
+      animation: co-draw-fade .18s ease-out both;
+    }
+    .co-draw-label { font-size:.86rem; font-weight:800; color:var(--t0); letter-spacing:.06em; }
+    .co-draw-row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+    .co-draw-card {
+      width:min(112px, 26vw); aspect-ratio:288/450; border-radius:8px; overflow:hidden;
+      border:1px solid var(--bg3,#30363d); background:var(--bg1,#0d1117);
+      animation: co-draw-flip .42s cubic-bezier(.23,1,.32,1) both;
+    }
+    .co-draw-card img { width:100%; height:100%; object-fit:cover; display:block; }
+    @keyframes co-draw-fade { from { opacity:0 } to { opacity:1 } }
+    @keyframes co-draw-flip {
+      0%   { transform: rotateY(90deg) scale(.82); opacity:0 }
+      60%  { transform: rotateY(0deg)  scale(1.06); opacity:1 }
+      100% { transform: rotateY(0deg)  scale(1);    opacity:1 }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html:not(.ron-motion-force) .co-draw-reveal, html:not(.ron-motion-force) .co-draw-card { animation: none }
+    }
     .coop-hand-new-pulse { animation: coop-hand-new-pulse .9s ease-in-out; }
     @keyframes coop-hand-new-pulse {
       0%, 100% { transform: scale(1); }
@@ -10561,7 +10588,6 @@
           btn.classList.toggle('active', btn.getAttribute('data-tabkey') === String(_coHandTab));
         });
       }
-      _coUpdateHandTabIndicator(false); // タブ切替＝実際のスライドアニメーション（200ms）を見せる
       const viewEl = document.getElementById('co-hand-viewnote');
       if (viewEl) viewEl.innerHTML = p.viewNote;
       const cardsEl = document.getElementById('co-hand-cards');
@@ -10572,10 +10598,62 @@
         void cardsEl.offsetWidth;
         cardsEl.classList.add('co-hand-tabfade');
       }
+      // 2026-07-29（インジケータのズレ修正）：従来はここより前（active切替の直後）で位置を測っていたが、
+      // その時点では①.coop-hand-tabのmargin-topトランジションが進行中で、②手札カードの差し替えによる
+      // 縦スクロールバーの出入りがまだ反映されていない。②が起きるとタブ列の実効幅が変わるため、
+      // 測り終えた後にタブの左位置・幅がずれ、青いバーだけが古い位置に取り残される。
+      // DOM更新をすべて終えてから測るよう順序を入れ替え、さらにレイアウト確定を待って測る（下記の二重rAF）。
+      _coUpdateHandTabIndicator(false); // タブ切替＝実際のスライドアニメーション（200ms）を見せる
       // area差分キャッシュとも同期させ、次のrenderCoop()実行時に不要な再差分（cardsの二重更新）が起きないようにする
       if (_coAreaCache) { _coAreaCache.viewnote = p.viewNote; _coAreaCache.cards = p.cards; }
     }
     function coopSelectHandTab(v) { _coHandTab = v; _coApplyHandTabLocalUpdate(); }
+    // ── 2026-07-29：協力モードのドロー演出（ローカル専用） ──
+    // ハザードマップ整備・ローリングストック等で手札が増えたとき、引いたカードを一度大きく見せる。
+    // 描画中（coopHandParts内）から呼ばれるため、実際の表示はsetTimeoutで描画完了後へ逃がす。
+    // CO・Firebase・ホストの配信には一切触れない＝他プレイヤーを待たせない。
+    let _coDrawRevealEl = null, _coDrawRevealTimer = null;
+    function _coScheduleDrawReveal(cards) {
+      if (!cards || !cards.length) return;
+      if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+      // モーション無効時は演出を出さない（既存のパルスと同じ規律に揃える）
+      try {
+        const root = document.documentElement;
+        if (root.classList.contains('ron-motion-off')) return;
+        if (!root.classList.contains('ron-motion-force')
+          && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      } catch (e) {}
+      setTimeout(() => _coShowDrawReveal(cards), 30);
+    }
+    function _coShowDrawReveal(cards) {
+      _coCloseDrawReveal();
+      const ov = document.createElement('div');
+      ov.className = 'co-draw-reveal';
+      const tiles = cards.map((c, i) => `<div class="co-draw-card" style="animation-delay:${i * 130}ms">
+        <img src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'">
+      </div>`).join('');
+      ov.innerHTML = `<div class="co-draw-label">${cards.length}枚 引きました</div><div class="co-draw-row">${tiles}</div>`;
+      ov.addEventListener('click', _coCloseDrawReveal);
+      document.body.appendChild(ov);
+      _coDrawRevealEl = ov;
+      _coDrawRevealTimer = setTimeout(_coCloseDrawReveal, 900 + cards.length * 130);
+    }
+    function _coCloseDrawReveal() {
+      if (_coDrawRevealTimer) { clearTimeout(_coDrawRevealTimer); _coDrawRevealTimer = null; }
+      if (_coDrawRevealEl && _coDrawRevealEl.parentNode) _coDrawRevealEl.remove();
+      _coDrawRevealEl = null;
+    }
+    // 2026-07-29：フォント読み込み完了・画面回転・リサイズでタブ幅が変わるとインジケータだけ取り残されるため、
+    // それらのタイミングでも測り直す（存在しない画面では_coMeasureHandTabIndicatorが即returnするので無害）
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        window.addEventListener('resize', () => _coUpdateHandTabIndicator(true));
+        window.addEventListener('orientationchange', () => _coUpdateHandTabIndicator(true));
+        if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+          document.fonts.ready.then(() => _coUpdateHandTabIndicator(true));
+        }
+      } catch (e) {}
+    }
     // 2026-07-27（P0修正・原因①③の導線＝仕様(c)）：仲間の手札（閲覧専用card-viewonly）をタップした時の動線。
     // 「使える見た目なのに無反応」を解消するため、タップ自体で自分のタブへ戻し、誰の手札を見ていたかをトーストで伝える。
     function coopViewOnlyCardTap() {
@@ -10598,7 +10676,16 @@
     // p.tabs文字列が変化した場合のみ#co-hand-tabsごとouterHTMLで置き換わるが、その場合もこの関数を呼び直せば
     // 新しいインジケータノードを即座に再配置できる）。instant=true は初期描画・構造変更直後のスナップ用
     // （スライドさせない）、false（既定）はタブ切替時の実スライド用
+    // 2026-07-29：レイアウト確定前に測ると青いバーがずれるため、必ず次フレーム以降に測る。
+    // 二重rAFにしているのは、1回目のrAFはスタイル適用直後・レイアウト確定前に走りうるためで、
+    // 2回目で確実にレイアウト後の実測値を取る。固定ディレイ（setTimeout 20ms等）はフォント読み込みや
+    // スクロールバーの出入りのタイミングに依存して不安定なので使わない。
     function _coUpdateHandTabIndicator(instant) {
+      const run = () => _coMeasureHandTabIndicator(instant);
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(run));
+      else run();
+    }
+    function _coMeasureHandTabIndicator(instant) {
       const tabsHost = document.getElementById('co-hand-tabs');
       const ind = document.getElementById('co-hand-tab-indicator');
       if (!tabsHost || !ind) return;
@@ -12766,6 +12853,10 @@
         const _curHandUids = CO.hand.map(c => c.uid);
         const _newUids = _coHandSeenUids ? new Set(_curHandUids.filter(u => !_coHandSeenUids.has(u))) : new Set();
         _coHandSeenUids = new Set(_curHandUids);
+        // 2026-07-29：パルスだけでは「どのカードが増えたか」が分かりにくいという指摘を受け、引いたカードを
+        // 一度大きく見せるドロー演出を追加する。演出は「引いた本人のクライアントでローカルに再生する」だけで、
+        // CO の状態にもホストの配信にも一切触れないため、他プレイヤーの進行を1ミリ秒も止めない。
+        if (_newUids.size) _coScheduleDrawReveal(CO.hand.filter(c => _newUids.has(c.uid)));
         const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly ? 'ended' : false, _newUids.has(c.uid))).join('');
         cardsHtml = cards || '<span style="color:var(--t0)">手札なし</span>';
       }
