@@ -1866,6 +1866,28 @@
     /* ddMkDisasterCard（予報・解説棋譜）の来襲順バッジ：画像の外（上）に出すためのラッパー */
     .dd-card-order-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
 
+    /* ── 実装1（2026-07-29）：解説棋譜を備えフェーズと同じ左＝災害・右＝政策の対応表へ組み直した際の追加スタイル ── */
+    /* 読み取り専用ミニカード（_ddMiniCardReadonly）は.dd-mini-slot-colをそのまま流用する（「－」ボタンは
+       描画しないが、cost表示(.dd-mini-cost)が上部の予約余白を使うためpadding-topはそのまま維持する） */
+    /* 政策側スロットは複数枚割当時も1行ずつ縦積みにし、各カードの解説をその直下に開けるようにする
+       （.dd-slot-cellのflex-wrap横並びのままだと、開いた解説文がどのカードの分か分かりにくくなるため） */
+    .dd-slot-cell.dd-solution-slot-cell { flex-direction:column; flex-wrap:nowrap; align-items:stretch; }
+    .dd-solution-card-line { display:flex; flex-direction:column; gap:4px; width:100%; }
+    .dd-solution-card-line-main { display:flex; align-items:center; gap:6px; }
+    .dd-solution-none { font-size:.7rem; color:var(--t2); padding:4px 2px; }
+    /* (b) 政策カード右側の解説トグル矢印。絵文字ではなく既存の線画SVG（_ddIcoArrowRight・stroke=currentColor）を
+       90°回転させて開閉を示す。ボタン自体の意匠は.gallery-nav-arrow等と同系統のゴーストボタン */
+    .dd-solution-explain-btn { flex-shrink:0; width:26px; height:26px; border-radius:50%; background:transparent; border:1.5px solid var(--bg3,#30363d); color:var(--t1); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; transition:border-color .15s,color .15s; }
+    .dd-solution-explain-btn svg { transition:transform .15s; }
+    .dd-solution-explain-btn.open { border-color:var(--yellow); color:var(--yellow); }
+    .dd-solution-explain-btn.open svg { transform:rotate(90deg); }
+    @media (hover:hover) {
+      .dd-solution-explain-btn:hover { border-color:var(--yellow); color:var(--yellow); }
+    }
+    .dd-solution-explain-btn:active { transform:scale(.9); }
+    .dd-solution-explain-text { font-size:.72rem; color:var(--t0); line-height:1.6; background:rgba(255,255,255,.03); border-left:2px solid var(--yellow); border-radius:4px; padding:6px 8px; }
+    .dd-solution-resolve { margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.08); }
+
     /* ═══════════════════════════════════════════════════════════════════
        2026-07-18脱AI感刷新②（worldview.md §10）：デイリー防災＝「日課訓練室」・
        カード工房/問題工房＝「設計室」の形状言語。計算ロジック・記録ロジック・操作フローは無変更、
@@ -7572,7 +7594,7 @@
     function coopTutCardTap(uid) {
       const ts = coopTutorialState; if (!ts) return;
       if (uid === 'ctut_qw' && ts.step === 2) coopTutAction('play_shield');
-      else if (uid === 'ctut_dr' && ts.step === 3) coopTutAction('open_support');
+      else if (uid === 'ctut_dr' && ts.step === 4) coopTutAction('open_support');
     }
     function coopTutMkCard(card, glow, disabled) {
       const click = disabled ? '' : `coopTutCardTap('${card.uid}')`;
@@ -7619,8 +7641,10 @@
       const CFG = {
         1: { sel: '.coop-tut-terrain', title: '自都市の弱点を知ろう', body: '海岸都市は洪水・津波に、内陸都市は地震に、山間部は土砂崩れに弱いというように、地形によって受けやすい災害が異なります。', color: '#e3b341' },
         2: { sel: '.card.tut-glow',    title: '耐震補強をタップ',     body: '光っているカードをタップして設置しましょう',                             color: '#3fb950' },
-        3: { sel: '.card.tut-glow',    title: '避難訓練をタップ',     body: '光っているカードをタップして仲間を支援しましょう',                       color: '#d29922' },
-        4: { sel: '.coop-tut-endturn', title: 'ターン終了をタップ',   body: '光っているボタンを押すとターンが進みます',                               color: '#a371f7' },
+        // 2026-07-29：予算の繰り越し説明ステップ（新設）を耐震補強と仲間支援の間に挿入したため、
+        // 以降のスポットライト対象ステップ番号を1つずつ繰り下げた（避難訓練タップ＝旧3→4、ターン終了＝旧4→5）
+        4: { sel: '.card.tut-glow',    title: '避難訓練をタップ',     body: '光っているカードをタップして仲間を支援しましょう',                       color: '#d29922' },
+        5: { sel: '.coop-tut-endturn', title: 'ターン終了をタップ',   body: '光っているボタンを押すとターンが進みます',                               color: '#a371f7' },
       };
       const cfg = CFG[step]; if (!cfg) return;
       const el = document.querySelector(cfg.sel); if (!el) return;
@@ -7631,7 +7655,8 @@
       if (document.body) document.body.classList.remove('ui-tabbar-active');
       const ts = coopTutorialState;
       const cities = _coopTutFixedCities();
-      const STEP_COUNT = 6;
+      // 2026-07-29：予算の繰り越し制（design/coop_balance.md §12・協力モード限定）の説明ステップを追加したため6→7
+      const STEP_COUNT = 7;
       const dots = Array.from({length:STEP_COUNT}, (_,i)=>`<div class="tut-dot" style="background:${i===ts.step?'var(--blue)':i<ts.step?'var(--green)':'var(--bg3)'}"></div>`).join('');
       const stepCounter = `<span style="font-size:.72rem;color:var(--t1);font-weight:600">${ts.step+1} / ${STEP_COUNT}</span>`;
       const progressRow = `<div style="display:flex;align-items:center;gap:6px"><div class="tut-progress">${dots}</div>${stepCounter}</div>`;
@@ -7646,7 +7671,7 @@
           </div>
           ${exitBtn}
         </div></div>`;
-      } else if (ts.step === 5) {
+      } else if (ts.step === 6) {
         const cChain = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;white-space:nowrap';
         const chips = `<span style="${cChain};background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28)">基礎 30</span><span style="${cChain};background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28)">二次津波 +5</span><span style="${cChain};background:rgba(255,255,255,.08);color:var(--t0);border:1px solid rgba(255,255,255,.2)">合計 35</span>`;
         html = `<div class="screen active"><div class="turn-summary-box">
@@ -7672,11 +7697,26 @@
           stepBody = '地震はどの都市にも起こり得る代表的な災害です。<strong>耐震補強（コスト2）</strong>を設置して先に備えましょう。';
           handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c, c.uid==='ctut_qw', c.uid!=='ctut_qw')).join('')}</div>`;
         } else if (ts.step === 3) {
+          // 実装2（2026-07-29）：予算の繰り越し制（design/coop_balance.md §12・協力モード限定・正本）の説明ステップ。
+          // 対戦モードには存在しないルールのため、予算とカード使用（直前の耐震補強ステップ）の説明が済んだ
+          // このタイミングで挿入する。操作は求めず「次へ」のみの説明ステップ（旧ステップ1と同じ進行パターン）。
+          stepTitle = '余った予算は繰り越せる（協力モード限定）';
+          stepBody = '使わなかった予算は、最大2ptまで翌ターンへ繰り越せます。繰り越さない場合はカードを1枚引けます。<strong>どちらか一方だけ</strong>を選びます。';
+          // budgetPipsHtmlの第5引数（carried）で繰り越し分を黄色pipsとして図示する（design/coop_balance.md §12.4）。
+          // 例：基本予算3+繰り越し2＝翌ターン5ptになる様子を静的サンプルとして示す（実際の数値計算には触れない）。
+          extraHtml = `<div style="margin-top:10px;text-align:center">
+            <div class="budget-display" style="justify-content:center">
+              <span class="budget-label" style="color:var(--t0)">翌ターン（例）</span>${budgetPipsHtml(5, 0, 0, undefined, 2)}
+              <span style="font-size:.8rem;font-weight:700;color:var(--green)">5<span style="color:var(--t2);font-weight:400">/5</span></span>
+            </div>
+            <div style="font-size:.66rem;color:var(--t2);margin-top:4px">黄色＝繰り越し分（最大2pt）・緑＝基本予算</div>
+          </div><div style="text-align:right;margin-top:10px"><button class="sq-btn" onclick="coopTutAction('next')">次へ ＞</button></div>`;
+        } else if (ts.step === 4) {
           stepTitle = '仲間の状況パネルと支援';
           stepBody = '仲間の予算・進行状況がひと目でわかります。<strong>避難訓練（コスト1）</strong>を仲間の大阪に使って支援してみましょう。';
           handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c, c.uid==='ctut_dr', c.uid==='ctut_qw')).join('')}</div>`;
           extraHtml = coopTutAllyPanel(false);
-        } else if (ts.step === 4) {
+        } else if (ts.step === 5) {
           stepTitle = 'ターン終了と同期';
           stepBody = '全員が行動を終えるとターンが進みます。仲間の状況パネルで誰の行動待ちかが一目でわかります。';
           extraHtml = coopTutAllyPanel(true) + `<button class="coop-tut-endturn tut-glow" onclick="coopTutAction('end_turn')" style="width:100%;margin-top:10px;padding:10px;border-radius:8px;background:var(--blue);border:none;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">ターン終了</button>`;
@@ -7693,7 +7733,9 @@
         </div>${ts.confirmSupport ? coopTutRenderSupportConfirm() : ''}`;
       }
       app.innerHTML = html;
-      if ([1,2,3,4].includes(ts.step) && !_coopTutSpotlights.has(ts.step)) setTimeout(() => showCoopTutSpotlight(ts.step), 80);
+      // 新設ステップ3（予算の繰り越し説明）は操作対象となるDOM要素を持たない純粋な説明ステップのため、
+      // スポットライト対象から除外する（対象は1,2,4,5＝旧番号1,2,3,4のまま。CFGのキーも合わせて更新済み）。
+      if ([1,2,4,5].includes(ts.step) && !_coopTutSpotlights.has(ts.step)) setTimeout(() => showCoopTutSpotlight(ts.step), 80);
     }
 
     // ─── 観戦招待ポップオーバー ───
@@ -14369,6 +14411,7 @@
       // 柱3：解説棋譜のステップ列はここで一度だけ構築してDDにキャッシュする（毎render毎の再計算を避ける）
       DD.solutionSteps = _ddBuildSolutionSteps();
       DD.solutionStepIndex = 0;
+      DD.solutionExplainOpen = {}; // 実装1(b)：政策カードごとの解説トグル開閉状態（uidキー）。閲覧のたびに閉じた状態から始める
       // C4：マイ都市プレイ（isCustomCity）は公式記録と紐づかないシナリオのため、
       //    誤って当日の公式記録（ron_daily_v1）を書き換えないようここでも除外する。
       // 柱4：問題工房プレイ（isPuzzle）も同様。dateKeyが'puzzle_'始まりの非日付キーであっても、
@@ -14383,14 +14426,16 @@
       }
       render();
     }
-    // 柱3：解説棋譜のステップ送り。境界（先頭・末尾）ではそれぞれ「前へ」「次へ」を無効化する。
+    // 柱3：解説棋譜の送り。実装1(a)(c)で「攻撃1件ずつの生ステップ」ではなく「災害1件＝1組」単位のページ送りに
+    // 変更したため、境界判定は_ddBuildSolutionGroups()が返す組数を基準にする（判定ロジック・被害計算は無変更）。
     function dailySolutionPrevStep() {
       if (!DD || !DD.solutionSteps) return;
-      if (DD.solutionStepIndex > 0) { DD.solutionStepIndex--; render(); }
+      if ((DD.solutionStepIndex || 0) > 0) { DD.solutionStepIndex--; render(); }
     }
     function dailySolutionNextStep() {
       if (!DD || !DD.solutionSteps) return;
-      if (DD.solutionStepIndex < DD.solutionSteps.steps.length - 1) { DD.solutionStepIndex++; render(); }
+      const groups = _ddBuildSolutionGroups(DD.solutionSteps.steps);
+      if ((DD.solutionStepIndex || 0) < groups.length - 1) { DD.solutionStepIndex++; render(); }
     }
     // D2：過去7日アーカイブの起動口。カレンダー画面の日付タップから呼ばれる。範囲外（今日・未来日・8日前以前）は何もしない。
     function dailyOpenArchive(dateKey) {
@@ -14857,26 +14902,120 @@
     // ── 柱3「解説棋譜」の本体。D1の一括手順表示から、一手ずつ「前へ／次へ」で追えるステップ再生に発展させた。
     //    ステップ列自体はdailyConfirmSolutionで一度だけ構築してDD.solutionStepsにキャッシュ済み（_ddBuildSolutionSteps）。
     //    ここでは現在位置（DD.solutionStepIndex）のステップ1件だけを描画し、ナビゲーションボタンを添える。
+    // 2026-07-29実装1：解説棋譜を「攻撃順の逐次ステップ送り」から「入力画面（dailyRenderPrep）と同じ
+    // 左＝災害・右＝対応させた政策カードの対応表」へ組み直す。判定ロジック・被害計算（_ddBuildSolutionSteps
+    // が既に計算済みのsteps配列）には一切手を加えず、表示用のグルーピング・レイアウトだけを変更する。
+    // (a) 対応関係の可視化：disaster/policyの左右配置を備えフェーズと統一
+    // (b) 政策カードごとに矢印トグルで解説（機械的理由コメント）を開閉表示
+    // (c) 災害が複数あるときはカードギャラリー流用の.gallery-nav-arrowで1組ずつ送る（現在位置表示つき）
     function dailyRenderSolutionBox() {
       if (!DD.solutionSteps || !DD.solutionSteps.steps.length) return ''; // 安全ガード（通常は必ず用意されている）
       const { steps, total } = DD.solutionSteps;
-      const idx = Math.max(0, Math.min(DD.solutionStepIndex || 0, steps.length - 1));
-      const step = steps[idx];
-      const isFirst = idx === 0, isLast = idx === steps.length - 1;
-      const bodyHtml = _ddRenderSolutionStepBody(step, isLast, total);
-      const prevAttr = isFirst ? 'disabled style="flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.3);font-size:.76rem;font-weight:700;cursor:default"' : 'style="flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid #e3c34d;color:#e3c34d;font-size:.76rem;font-weight:700;cursor:pointer"';
-      const nextAttr = isLast ? 'disabled style="flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.3);font-size:.76rem;font-weight:700;cursor:default"' : 'style="flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid #e3c34d;color:#e3c34d;font-size:.76rem;font-weight:700;cursor:pointer"';
+      const groups = _ddBuildSolutionGroups(steps);
+      if (!groups.length) return '';
+      const idx = Math.max(0, Math.min(DD.solutionStepIndex || 0, groups.length - 1));
+      const group = groups[idx];
+      const pairHtml = _ddRenderSolutionPairGroup(group);
+      const unusedStep = steps.find(st => st.type === 'unused');
+      // 温存カードは特定の災害と対の関係にないため、ページ送りの対象にはせず常時末尾に表示する
+      const unusedHtml = unusedStep ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">${_ddRenderSolutionStepBody(unusedStep, false, total)}</div>` : '';
+      const navArrows = groups.length > 1;
+      const chevL = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg>`;
+      const chevR = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>`;
+      // (c) カード一覧のズーム表示（openGalleryZoom付近）と同じ.gallery-nav-arrow・同じchevron SVGを流用し、
+      // 見た目・操作感を新規実装せず既存資産に揃える
+      const navRow = navArrows ? `<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px">
+        <button type="button" class="gallery-nav-arrow" style="color:var(--yellow)" onclick="dailySolutionPrevStep()" aria-label="前の災害へ">${chevL}</button>
+        <span style="font-size:.76rem;color:var(--t1);font-weight:700;font-variant-numeric:tabular-nums">${idx + 1} / ${groups.length}</span>
+        <button type="button" class="gallery-nav-arrow" style="color:var(--yellow)" onclick="dailySolutionNextStep()" aria-label="次の災害へ">${chevR}</button>
+      </div>` : '';
       // 2026-07-18脱AI感刷新②：「本部の模範解答」の格として§3.1コーナーブラケット（.dd-formal-frame）に統一
       return `<div class="dd-formal-frame" style="text-align:left;margin-bottom:12px">
         <div style="font-size:.8rem;font-weight:800;color:#e3c34d;margin-bottom:6px;display:flex;align-items:center;gap:5px">${_ddIcoGoldCheck(14, '#e3c34d')}解説棋譜（理論値の一例・被害${DD.optimal}）</div>
-        <div style="font-size:.68rem;color:var(--t2);margin-bottom:8px">ステップ ${idx + 1} / ${steps.length}</div>
-        ${bodyHtml}
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button onclick="dailySolutionPrevStep()" ${prevAttr}>← 前へ</button>
-          <button onclick="dailySolutionNextStep()" ${nextAttr}>次へ →</button>
-        </div>
+        ${pairHtml}
+        ${navRow}
+        ${unusedHtml}
+        <div style="font-size:.78rem;font-weight:800;color:var(--t0);margin-top:10px;padding-top:8px;border-top:1px solid rgba(227,195,77,.3);text-align:center">合計被害＝理論値 ${total}</div>
         <div style="font-size:.66rem;color:var(--t2);margin-top:8px">※ この画面を見たため、本日の理論値達成・完全読み切り称号は対象外です</div>
       </div>`;
+    }
+    // steps（_ddBuildSolutionStepsが計算済みの生ステップ列。play/resolve/unused）を「攻撃スロット単位」の
+    // 組にまとめ直す純粋な変換関数。計算結果には一切触れず並び替え・グルーピングのみ行う。
+    function _ddBuildSolutionGroups(steps) {
+      const bySlot = {};
+      const groups = [];
+      steps.forEach(st => {
+        if (st.type !== 'play' && st.type !== 'resolve') return; // 'unused'はグループ化の対象外（対の災害を持たないため）
+        if (!bySlot[st.slot]) {
+          bySlot[st.slot] = { slot: st.slot, disaster: DD.disasters[st.slot], plays: [], resolve: null };
+          groups.push(bySlot[st.slot]);
+        }
+        if (st.type === 'play') bySlot[st.slot].plays.push(st);
+        else bySlot[st.slot].resolve = st;
+      });
+      groups.sort((a, b) => a.slot - b.slot);
+      return groups;
+    }
+    // 1組（左＝災害・右＝対応させた政策カード）の描画。dailyRenderPrepの対応表（.dd-prep-row/.dd-order-badge/
+    // _ddDisasterCol/.dd-slot-cell）をそのまま流用し、入力画面と解答画面で見た目を完全に一致させる。
+    function _ddRenderSolutionPairGroup(group) {
+      const cardsHtml = group.plays.length
+        ? group.plays.map(p => _ddSolutionCardLine(p)).join('')
+        : `<div class="dd-solution-none">対応する政策カードなし</div>`;
+      const row = `<div class="dd-prep-row">
+        <div class="dd-order-badge">${group.slot + 1}</div>
+        ${_ddDisasterCol(group.disaster)}
+        ${_ddIcoArrowRight(16)}
+        <div class="dd-slot-cell dd-solution-slot-cell">${cardsHtml}</div>
+      </div>`;
+      const resolveHtml = group.resolve ? _ddRenderSolutionResolveSummary(group.resolve.result, group.slot) : '';
+      return row + resolveHtml;
+    }
+    // 政策カード1枚分の行：読み取り専用ミニカード＋(b)解説トグル矢印。開いている間だけ機械的理由コメントと
+    // 「この手を抜いた場合の被害増分」を表示する（_ddBuildSolutionStepsが既に計算済みの値をそのまま使う）。
+    function _ddSolutionCardLine(step) {
+      const card = step.card;
+      const uid = card.uid;
+      const open = !!(DD.solutionExplainOpen && DD.solutionExplainOpen[uid]);
+      const miniCard = _ddMiniCardReadonly(card);
+      const btn = `<button type="button" class="dd-solution-explain-btn${open ? ' open' : ''}" aria-label="解説を${open ? '閉じる' : '見る'}" onclick="event.stopPropagation();dailyToggleSolutionExplain('${_escHtml(uid)}')">${_ddIcoArrowRight(13)}</button>`;
+      const reduxLine = `<div style="font-size:.68rem;color:var(--t2);margin-top:4px">この手を抜いた場合の被害：${step.reducedOptimal}（理論値との差 +${step.reduction}）</div>`;
+      const explainHtml = open ? `<div class="dd-solution-explain-text">${_escHtml(step.reason)}${reduxLine}</div>` : '';
+      return `<div class="dd-solution-card-line"><div class="dd-solution-card-line-main">${miniCard}${btn}</div>${explainHtml}</div>`;
+    }
+    // 割当済み政策ミニカードの読み取り専用版（_ddMiniSlotCardからドラッグ・「－」ボタンを除いたもの）。
+    // 見た目は備えフェーズと完全に揃え、タップで既存の長押しプレビュー（_lpTapPreview）を開ける点も維持する。
+    function _ddMiniCardReadonly(card) {
+      return `<div class="dd-mini-slot-col dd-mini-slot-col-ro" data-uid="${_escHtml(card.uid)}">
+        <span class="dd-mini-cost">${card.cost}</span>
+        <div class="dd-mini-imgbox" onclick="_lpTapPreview(this.parentElement)">
+          <img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+        </div>
+        <div class="dd-mini-name card-name">${_escHtml(card.name)}</div>
+        <div class="card-desc" style="display:none">${_escHtml(card.desc)}</div>
+      </div>`;
+    }
+    // 1組内の「着弾結果」要約（ダメージ・HP推移・チップ内訳）。dailyRenderResultの表示パターンを踏襲する。
+    function _ddRenderSolutionResolveSummary(r, slot) {
+      const cBad = 'display:inline-flex;align-items:center;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:9px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
+      const cOk  = 'display:inline-flex;align-items:center;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:9px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
+      const baseChip = `<span style="${cBad}">基礎 ${r.card.baseDamage}</span>`;
+      const lineChips = r.lines.filter(l => l.d != null).map(l => `<span style="${l.d > 0 ? cBad : cOk}">${_escHtml(l.t.split(/[：（(]/)[0])} ${l.d > 0 ? '+' : ''}${l.d}</span>`).join('');
+      return `<div class="dd-solution-resolve">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:.76rem;font-weight:700;color:var(--t0)">攻撃${slot + 1}：${_escHtml(r.card.name)}が着弾</span>
+          <span style="line-height:1"><span style="font-size:1.15rem;font-weight:900;color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span style="font-size:.62rem;color:var(--t2);margin-left:2px;font-weight:600">ダメージ</span></span>
+        </div>
+        <div style="font-size:.66rem;color:var(--t2);margin-bottom:4px">HP ${r.hpBefore} → ${r.hpAfter}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${baseChip}${lineChips}</div>
+      </div>`;
+    }
+    // (b) 政策カードの解説トグル。開閉状態のみを更新するローカルUI操作で、被害計算・記録には一切触れない
+    function dailyToggleSolutionExplain(uid) {
+      if (!DD) return;
+      if (!DD.solutionExplainOpen) DD.solutionExplainOpen = {};
+      DD.solutionExplainOpen[uid] = !DD.solutionExplainOpen[uid];
+      render();
     }
     // 解説棋譜1ステップ分の中身をレンダリングする。type別（play／resolve／unused）に表示内容を切り替え、
     // 最終ステップにだけ「合計被害＝理論値」の確定表示を添える。
