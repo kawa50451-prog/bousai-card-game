@@ -1868,52 +1868,56 @@
     /* ddMkDisasterCard（予報・解説用）の来襲順バッジ：画像の外（上）に出すためのラッパー */
     .dd-card-order-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
 
-    /* ── 結果一覧（2026-07-29再改修・実装1）：1攻撃＝1行のリスト。解説閲覧前は「あなたの対応」のみ、
-       閲覧後（.dd-formal-frame配下）は同じ行の中に理論値を対比表示する。旧実装（ページ送り→全行
-       アコーディオン改修）は使用カードを閉じた1行に収める26px横並びサムネイルだったが、温存カードの
-       大きな一覧を撤去したのに合わせ、使用カードを「行の主役」として備えフェーズの.dd-mini-imgbox系
-       （56px幅）と同程度のサイズへ拡大し、画像→名前の縦積み表示に作り直した。 */
+    /* ── 結果一覧（2026-07-29再改修・実装2）：1攻撃＝1行を①災害名（左）②ダメージ計算の詳細トグル（中央）
+       ③使用政策カード画像（右）の3カラムへ組み替えた。旧実装は行ヘッダー→あなたの対応（縦積み）→
+       内訳chips→理論値ブロックの4段構成で縦に伸び続けていたが、常時表示は「最終被害数」だけに絞り、
+       基礎ダメージ・HP推移・理論値の考え方はトグル開閉（閉時は非表示）へ退避して行の高さを抑えた
+       （design_system.md §10.1デッドスペースは罪・§10.3説明テキストより構造で語る＝列位置そのものが
+       「災害／詳細／使用カード」のラベルを兼ねるため、キャプション文言は置かない）。
+       解説閲覧前は自分の実プレイ結果を表示し、閲覧後（.dd-formal-frame配下）は理論値と完全一致した行だけ
+       一致バッジ1行に圧縮、不一致の行は自分の内訳を出さず理論値のみを表示する（ユーザー指摘：自分の結果と
+       理論値を両方並べる二重表示の解消。isMatch分岐は_ddRenderResultRow内、判定・被害計算ロジックは無変更）。
+       320px幅では中央列（トグル本体＝被害数値・ラベル・矢印）だけをflex-wrapで折り返し、左（災害名）・
+       右（カード画像56px維持）の列幅は縮めず3カラムの並びそのものは崩さない（優先順位：災害名＞詳細＞
+       画像、視線は左→右を維持）。 */
     .dd-sol-list { display:flex; flex-direction:column; }
-    .dd-sol-row { border-bottom:1px solid var(--bg3,#30363d); padding-bottom:8px; margin-bottom:8px; }
-    .dd-sol-row:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
-    .dd-sol-row-head { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:8px 2px 4px; }
-    .dd-sol-disaster { display:flex; align-items:center; gap:4px; font-size:.76rem; font-weight:700; color:var(--t0); flex:1; min-width:0; white-space:nowrap; }
-    /* あなたの対応：見出しラベル（§3.4計器の文法・小型英字大文字）＋使用カードの縦積みサムネイル行 */
-    .dd-sol-used-block { padding:0 2px 6px; }
-    .dd-sol-used-label { font-size:.6rem; font-weight:700; letter-spacing:.06em; color:var(--t2); margin-bottom:5px; text-transform:uppercase; }
-    .dd-sol-used { display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; }
-    /* 使用カードのサムネイル：備えフェーズの.dd-mini-imgbox系（56px幅）と同程度に拡大（旧26px）。
-       画像→名前の縦積みにし、タップで既存の長押しプレビュー（_lpTapPreview）を開く。 */
+    .dd-sol-row { border-bottom:1px solid var(--bg3,#30363d); padding:8px 2px; }
+    .dd-sol-row:last-child { border-bottom:none; padding-bottom:0; }
+    .dd-sol-grid { display:flex; align-items:flex-start; gap:8px; }
+    /* 左＝来襲順バッジ＋災害名。内容量が小さいため幅は内容に合わせ、万一の長名だけmax-width+省略記号で受ける */
+    .dd-sol-col-l { flex:0 0 auto; display:flex; align-items:center; gap:5px; padding-top:2px; max-width:104px; }
+    .dd-sol-disaster { display:flex; align-items:center; gap:4px; font-size:.74rem; font-weight:700; color:var(--t0); line-height:1.3; min-width:0; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* 中央＝ダメージ計算の詳細トグル。flex:1で残り幅を取り、狭い画面ではトグル内部だけがflex-wrapで折り返す */
+    .dd-sol-col-m { flex:1 1 0; min-width:0; padding-top:2px; }
+    /* 右＝使用政策カード画像。備えフェーズの.dd-mini-imgbox系（56px幅）と同程度のサイズを維持し、
+       複数枚使用時は横幅を増やさず縦に積む（.dd-sol-col-r自体の幅は56pxで固定） */
+    .dd-sol-col-r { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:6px; }
     .dd-sol-card { display:flex; flex-direction:column; align-items:center; gap:3px; width:56px; flex-shrink:0; cursor:pointer; }
     .dd-sol-card-thumb { display:block; width:100%; aspect-ratio:288/450; border-radius:6px; overflow:hidden; border:1px solid var(--bg3,#30363d); background:var(--bg1,#0d1117); }
     .dd-sol-card-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
     .dd-sol-card-name { width:100%; font-size:.62rem; font-weight:700; color:var(--t1); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .dd-sol-used-chip { display:inline-flex; align-items:center; gap:3px; font-size:.7rem; color:var(--t1); white-space:nowrap; }
     .dd-sol-used-chip.dd-sol-used-none { color:var(--t2); }
+    /* 一致バッジ：解説閲覧後、理論値と完全一致した行だけに出す1行見出し（自分の内訳・理論値の内訳を
+       両方出さず二重表示を避けるための圧縮表示。新しい囲いは作らずテキスト色のみで区別する） */
+    .dd-sol-match-badge { display:flex; align-items:center; gap:4px; font-size:.68rem; font-weight:700; color:#e3c34d; margin-bottom:4px; }
+    /* トグル本体：閉じた状態は被害数値のみ（§3.4計器の文法・ラベル小＋数値大）。絵文字ではなく既存の
+       線画SVG（_ddIcoArrowRight）を90°回転させて開閉を示す。開閉はdailyToggleSolutionRowのDOM操作のみで
+       行うためrender()は経由しない（既存方式を維持）。 */
+    .dd-sol-toggle { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px; background:transparent; border:none; padding:2px 0; margin:0; cursor:pointer; color:inherit; font:inherit; text-align:left; width:100%; }
+    .dd-sol-toggle svg { flex-shrink:0; align-self:center; transition:transform .15s; }
+    .dd-sol-toggle.open svg { transform:rotate(90deg); }
+    .dd-sol-toggle:active { transform:scale(.97); }
     .dd-sol-dmg { display:flex; align-items:baseline; gap:2px; flex-shrink:0; }
     .dd-sol-dmg-num { font-size:1rem; font-weight:900; font-variant-numeric:tabular-nums; }
     .dd-sol-dmg-label { font-size:.6rem; color:var(--t2); font-weight:600; }
-    /* 理論値の対比ブロック（解説閲覧時のみ）。ラベルを金トーンにして「あなたの対応」と明確に区別し、
-       §3.5罫線の規律（上1本の罫線）で区切る。実プレイと理論値が完全一致した行はカード列を繰り返さず
-       一致バッジ1行に圧縮し、同じ内容を2度並べる二重感を避ける。 */
-    .dd-sol-theory-block { margin:4px 2px 6px; padding-top:8px; border-top:1px solid rgba(227,195,77,.25); }
-    .dd-sol-theory-label { font-size:.6rem; font-weight:700; letter-spacing:.06em; color:#e3c34d; margin-bottom:5px; text-transform:uppercase; }
-    .dd-sol-theory-match { display:flex; align-items:center; gap:4px; margin:4px 2px 6px; padding-top:8px; border-top:1px solid rgba(227,195,77,.25); font-size:.7rem; font-weight:700; color:#e3c34d; }
-    /* (b) 行右端の解説トグル矢印。絵文字ではなく既存の線画SVG（_ddIcoArrowRight・stroke=currentColor）を
-       90°回転させて開閉を示す。ボタン自体の意匠は.gallery-nav-arrow等と同系統のゴーストボタン。
-       開閉はdailyToggleSolutionRowがDOM操作のみで行うため、ここではCSS側の見た目（.open）だけを用意すればよい */
-    .dd-solution-explain-btn { flex-shrink:0; width:26px; height:26px; border-radius:50%; background:transparent; border:1.5px solid var(--bg3,#30363d); color:var(--t1); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; transition:border-color .15s,color .15s; }
-    .dd-solution-explain-btn svg { transition:transform .15s; }
-    .dd-solution-explain-btn.open { border-color:var(--yellow); color:var(--yellow); }
-    .dd-solution-explain-btn.open svg { transform:rotate(90deg); }
-    @media (hover:hover) {
-      .dd-solution-explain-btn:hover { border-color:var(--yellow); color:var(--yellow); }
-    }
-    .dd-solution-explain-btn:active { transform:scale(.9); }
-    /* トグルの中身（機械的理由コメント）。行ヘッダーの左端（.dd-order-badge幅18px+gap6px）に
-       ゆるく揃えたインデントで「この行に属する詳細」であることを示す */
-    .dd-sol-detail { padding:2px 2px 4px 26px; }
+    /* トグルの中身（基礎ダメージ・HP推移・理論値の考え方）。閉時はdisplay:noneで高さを取らない */
+    /* 2026-07-29（コーディネーター指摘）：展開部分は3カラムの中央（実測約90px）に押し込むと説明文が
+       1行2〜3語で折り返して極端に読みにくくなる。行の高さを抑える目的は「閉じている状態」で達成されるため、
+       開いたときは3カラムの外＝行の直下に全幅で出す。 */
+    .dd-sol-detail { padding:6px 2px 0; width:100%; }
     .dd-sol-detail[hidden] { display:none; }
+    .dd-sol-breakdown { margin-bottom:4px; }
     /* worldview.md §2.1が指す「均一角丸＋1px枠線の箱の羅列」「囲いすぎ」の汎用AI感パターンを解消する。
        §3.3片辺アクセント（左2pxの罫線のみ・背景/角丸を持たない）に置き換え、複数枚の理由コメントが並ぶ
        場合はさらに箱を重ねず§3.5罫線の規律（上1px罫線のみ）で区切る。外側は既にdd-formal-frame（§3.1
@@ -1926,7 +1930,6 @@
     .dd-sol-redux-label { font-size:.6rem; font-weight:700; letter-spacing:.02em; color:var(--t2); }
     .dd-sol-redux-num { font-size:.82rem; font-weight:800; color:var(--yellow); }
     .dd-sol-redux-diff { font-size:.66rem; color:var(--t2); }
-    .dd-sol-breakdown { margin:0 2px 4px; }
 
     /* ═══════════════════════════════════════════════════════════════════
        2026-07-18脱AI感刷新②（worldview.md §10）：デイリー防災＝「日課訓練室」・
@@ -15074,68 +15077,65 @@
       const bu = b.map(c => c.uid).slice().sort();
       return au.every((u, idx) => u === bu[idx]);
     }
-    // 1行＝1攻撃の描画。実プレイの結果（r・DD.results[i]）を主役として必ず表示し、
-    // 解説閲覧後（group引数がnon-null）は同じ行の中で理論値（模範解答）を対比表示する。
-    // (a) 対応関係の可視化：見出しに災害名、直下に「あなたの対応」として実際に使った政策カードを表示する
-    //    （DD.hand/DD.cardAssignから実プレイの割当を復元。備えフェーズのassignedCards抽出と同じ読み方）。
-    // (b) 使用カードはカード画像のサムネイル（_ddSolCardThumb）を備えフェーズの.dd-mini-imgbox系と
-    //     同程度のサイズ（56px幅）へ拡大した（旧26pxから拡大。行の主役はここであるというユーザー指摘対応）。
+    // 1行＝1攻撃の描画（2026-07-29再改修・実装2）。①災害名（左）②ダメージ計算の詳細トグル（中央）
+    // ③使用政策カード画像（右）の3カラムに組み替えた。
+    // (a) 自分の実プレイ結果（r・DD.results[i]）は解説閲覧前のみ主役として表示する。解説閲覧後
+    //    （group引数がnon-null）は、理論値と完全一致した行だけ「理論値と同じ結果でした」の1行バッジに
+    //    圧縮し、不一致の行は自分の内訳（使用カード・被害数・HP推移チップ）を一切出さず理論値のみを表示する
+    //    （ユーザー指摘：自分の結果と理論値を両方並べる二重表示の解消）。合計被害・スコア・称号など
+    //    行単位ではない情報はdailyRenderResult/_ddRenderResultList側でこれまで通り表示する。
+    // (b) 中央のダメージ計算詳細（基礎ダメージ・HP推移・理論値の考え方）はトグルの中に格納し、閉じた
+    //    状態では最終被害数だけを見せる（design_system.md §10.1デッドスペースは罪）。右のカード画像は
+    //    備えフェーズの.dd-mini-imgbox系と同程度のサイズ（56px幅）を維持する（_ddSolCardThumb）。
     function _ddRenderResultRow(r, i, group) {
-      const usedCards = DD.hand.filter((c, hi) => DD.cardAssign[hi] === i);
-      const usedHtml = usedCards.length
-        ? usedCards.map(c => _ddSolCardThumb(c)).join('')
-        : `<span class="dd-sol-used-chip dd-sol-used-none">対応なし</span>`;
-      const breakdownHtml = _ddRenderSolutionRowBreakdown(r);
-      let theoryHtml = '';
-      let detailHtml = '';
-      let hasToggle = false;
+      const ownCards = DD.hand.filter((c, hi) => DD.cardAssign[hi] === i);
+      let cardsForCol = ownCards;      // 右列に出すカード（既定は自分の実プレイ）
+      let dmgSource = r;               // 中央の被害数・内訳の元データ（既定は自分の実プレイ結果）
+      let matchBadgeHtml = '';
+      let reasonHtml = '';
       if (group) {
         const theoryDmg = group.resolve ? group.resolve.result.dmg : null;
         const theoryCards = group.plays.map(p => p.card);
-        const isMatch = (theoryDmg === r.dmg) && _ddSameCardSet(usedCards, theoryCards);
+        const isMatch = (theoryDmg === r.dmg) && _ddSameCardSet(ownCards, theoryCards);
         if (isMatch) {
-          // 実プレイが理論値と一致：カード列を繰り返さず一致バッジ1行に圧縮する（同じ内容の二重表示を避ける）
-          theoryHtml = `<div class="dd-sol-theory-match">${_ddIcoGoldCheck(12, '#e3c34d')}理論値と同じ対応でした</div>`;
+          // 一致：自分の実プレイ＝理論値のため両方は出さず、1行バッジのみ追加する（内容自体はownCards/rのまま）
+          matchBadgeHtml = `<div class="dd-sol-match-badge">${_ddIcoGoldCheck(12, '#e3c34d')}理論値と同じ結果でした</div>`;
         } else {
-          const theoryUsedHtml = group.plays.length
-            ? group.plays.map(p => _ddSolCardThumb(p.card)).join('')
-            : `<span class="dd-sol-used-chip dd-sol-used-none">対応なし</span>`;
-          const theoryDmgHtml = (theoryDmg != null)
-            ? `<span class="dd-sol-dmg-num" style="color:${theoryDmg > 0 ? 'var(--red)' : 'var(--green)'}">${theoryDmg}</span><span class="dd-sol-dmg-label">被害</span>`
-            : '';
-          theoryHtml = `<div class="dd-sol-theory-block">
-            <div class="dd-sol-theory-label">理論値の一例</div>
-            <div class="dd-sol-used">${theoryUsedHtml}</div>
-            <div class="dd-sol-dmg">${theoryDmgHtml}</div>
-          </div>`;
+          // 不一致：自分の内訳は出さず理論値だけに置き換える
+          cardsForCol = theoryCards;
+          dmgSource = group.resolve ? group.resolve.result : r;
         }
         if (group.plays.length) {
-          hasToggle = true;
           // §3.3片辺アクセント（左罫線のみ・背景/角丸なし）＋§3.5罫線の規律（間の上罫線1本）で区切る
           // （worldview.md §2.1「均一角丸＋1px枠線の箱の羅列」「囲いすぎ」対策。外側は既に.dd-formal-frame
           //  で囲われているため内側をこれ以上囲わない）。「この手を抜いた場合の被害」は§3.4計器の文法
           // （ラベル小・数値大・tabular-nums）で組む。
-          detailHtml = group.plays.map(p => `<div class="dd-sol-reason">
+          reasonHtml = group.plays.map(p => `<div class="dd-sol-reason">
             <div class="dd-sol-reason-text">${_escHtml(p.reason)}</div>
             <div class="dd-sol-redux"><span class="dd-sol-redux-label">この手を抜いた場合の被害</span><span class="dd-sol-redux-num">${p.reducedOptimal}</span><span class="dd-sol-redux-diff">（理論値との差 +${p.reduction}）</span></div>
           </div>`).join('');
         }
       }
-      const toggleBtn = hasToggle ? `<button type="button" class="dd-solution-explain-btn" aria-label="解説を見る" onclick="dailyToggleSolutionRow(this)">${_ddIcoArrowRight(13)}</button>` : '';
+      const cardsHtml = cardsForCol.length
+        ? cardsForCol.map(c => _ddSolCardThumb(c)).join('')
+        : `<span class="dd-sol-used-chip dd-sol-used-none">対応なし</span>`;
+      const detailHtml = `${_ddRenderSolutionRowBreakdown(dmgSource)}${reasonHtml}`;
       return `<div class="dd-sol-row">
-        <div class="dd-sol-row-head">
-          <span class="dd-order-badge">${i + 1}</span>
-          <span class="dd-sol-disaster">${cardIconSvg(r.card.icon, 14)}${_escHtml(r.card.name)}</span>
-          <span class="dd-sol-dmg"><span class="dd-sol-dmg-num" style="color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span class="dd-sol-dmg-label">被害</span></span>
-          ${toggleBtn}
+        <div class="dd-sol-grid">
+          <div class="dd-sol-col-l">
+            <span class="dd-order-badge">${i + 1}</span>
+            <span class="dd-sol-disaster">${cardIconSvg(r.card.icon, 14)}${_escHtml(r.card.name)}</span>
+          </div>
+          <div class="dd-sol-col-m">
+            ${matchBadgeHtml}
+            <button type="button" class="dd-sol-toggle" aria-label="解説を見る" onclick="dailyToggleSolutionRow(this)">
+              <span class="dd-sol-dmg"><span class="dd-sol-dmg-num" style="color:${dmgSource.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${dmgSource.dmg}</span><span class="dd-sol-dmg-label">被害</span></span>
+              ${_ddIcoArrowRight(12)}
+            </button>
+          </div>
+          <div class="dd-sol-col-r">${cardsHtml}</div>
         </div>
-        <div class="dd-sol-used-block">
-          <div class="dd-sol-used-label">あなたの対応</div>
-          <div class="dd-sol-used">${usedHtml}</div>
-        </div>
-        ${breakdownHtml}
-        ${theoryHtml}
-        ${hasToggle ? `<div class="dd-sol-detail" hidden>${detailHtml}</div>` : ''}
+        <div class="dd-sol-detail" hidden>${detailHtml}</div>
       </div>`;
     }
     // 使用した政策カードのサムネイル（実プレイ・理論値の両方で共用）。既存のカード描画資産
