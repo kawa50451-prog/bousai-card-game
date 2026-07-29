@@ -1876,6 +1876,13 @@
     /* (a) 左＝災害・右＝使用した政策カードの対応関係を行内の並び順で保つ（矢印は備えフェーズと同じ_ddIcoArrowRight） */
     .dd-sol-disaster { display:flex; align-items:center; gap:4px; font-size:.76rem; font-weight:700; color:var(--t0); flex-shrink:0; white-space:nowrap; }
     .dd-sol-used { flex:1; min-width:60px; display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+    /* 2026-07-29再々改修（コーディネーター指摘対応・修正1）：使用した政策カードをテキストではなく実際の
+       カード画像のサムネイルで表示する。既存の.dd-mini-imgbox系（56px幅・87.5px高）は備えフェーズの縦積み
+       前提のサイズで、閉じた1行に収めるには大きすぎるため、専用の小型サムネイルを新設する（幅26px・
+       アスペクト比288:450を維持。名前はサムネイルへ焼き込まず、タップした際の既存プレビュー
+       （_lpTapPreview）側で確認できるようにする＝サムネイル自体に文字を乗せて潰れるのを避けた）。 */
+    .dd-sol-card-thumb { display:inline-block; width:26px; aspect-ratio:288/450; border-radius:4px; overflow:hidden; border:1px solid var(--bg3,#30363d); background:var(--bg1,#0d1117); cursor:pointer; flex-shrink:0; }
+    .dd-sol-card-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
     .dd-sol-used-chip { display:inline-flex; align-items:center; gap:3px; font-size:.7rem; color:var(--t1); white-space:nowrap; }
     .dd-sol-used-chip.dd-sol-used-none { color:var(--t2); }
     .dd-sol-dmg { display:flex; align-items:baseline; gap:2px; flex-shrink:0; }
@@ -1896,9 +1903,20 @@
        ゆるく揃えたインデントで「この行に属する詳細」であることを示す */
     .dd-sol-detail { padding:2px 2px 10px 26px; }
     .dd-sol-detail[hidden] { display:none; }
-    .dd-solution-explain-text { font-size:.72rem; color:var(--t0); line-height:1.6; background:rgba(255,255,255,.03); border-left:2px solid var(--yellow); border-radius:4px; padding:6px 8px; }
-    .dd-sol-detail > .dd-solution-explain-text { margin-bottom:6px; } /* 1スロットに複数枚の政策カードがある場合の理由コメント同士の間隔 */
-    .dd-sol-redux { font-size:.68rem; color:var(--t2); margin-top:4px; }
+    /* 2026-07-29再々改修（コーディネーター指摘対応・修正2）：worldview.md §2.1が指す「均一角丸＋1px枠線の
+       箱の羅列」「囲いすぎ」の汎用AI感パターンを解消する。旧実装（.dd-solution-explain-text）は
+       背景色＋border-radius＋左罫線の「角丸コールアウト」で、これが2パターンとも同時に該当していた。
+       §3.3片辺アクセント（左2pxの罫線のみ・背景/角丸を持たない）に置き換え、複数枚の理由コメントが並ぶ
+       場合はさらに箱を重ねず§3.5罫線の規律（上1px罫線のみ）で区切る。外側は既にdd-formal-frame（§3.1
+       コーナーブラケット）で囲われているため、内側をこれ以上囲わない（入れ子の二重囲い回避）。 */
+    .dd-sol-reason { padding:4px 0 4px 10px; border-left:2px solid var(--yellow); }
+    .dd-sol-reason + .dd-sol-reason { border-top:1px solid var(--bg3,#30363d); margin-top:4px; padding-top:8px; }
+    .dd-sol-reason-text { font-size:.72rem; color:var(--t0); line-height:1.6; }
+    /* 「この手を抜いた場合の被害：20（+5）」を§3.4計器の文法（ラベル小・数値大・tabular-nums）で組む */
+    .dd-sol-redux { display:flex; align-items:baseline; gap:5px; margin-top:4px; font-variant-numeric:tabular-nums; }
+    .dd-sol-redux-label { font-size:.6rem; font-weight:700; letter-spacing:.02em; color:var(--t2); }
+    .dd-sol-redux-num { font-size:.82rem; font-weight:800; color:var(--yellow); }
+    .dd-sol-redux-diff { font-size:.66rem; color:var(--t2); }
     .dd-sol-breakdown { margin-top:2px; }
 
     /* ═══════════════════════════════════════════════════════════════════
@@ -5282,7 +5300,7 @@
     let _mainTutorialShown = false;
     let _tutStepSpotlights = new Set();
     let _tutBattleGateShown = false;
-    // 協力モード用チュートリアル「はじめての協力：1ラウンド体験」の状態（G/CO/Firebaseから完全に独立した
+    // 協力モード用チュートリアル「はじめての協力：チュートリアル」の状態（G/CO/Firebaseから完全に独立した
     // 隔離ステートマシン。公式記録への書き込みが起こり得ないことを構造的に保証する。詳細は関数定義側を参照）。
     let coopTutorialState = null;
     let _coopTutSpotlights = new Set();
@@ -7535,7 +7553,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // 協力モード用チュートリアル「はじめての協力：1ラウンド体験」
+    // 協力モード用チュートリアル「はじめての協力：チュートリアル」
     // ═══════════════════════════════════════════════════════════════════
     // 設計方針（TASKS.md該当タスク①）：
     // ・G（対戦エンジン）・CO（協力エンジン）のいずれにも一切触れない完全に独立したステートマシンとして実装する。
@@ -7678,7 +7696,7 @@
       if (ts.step === 0) {
         html = `<div class="screen active"><div style="display:flex;flex-direction:column;flex:1;padding:10px;overflow-y:auto;gap:10px">
           <div class="tut-guide" style="width:100%;gap:14px">
-            <div class="tut-guide-title tut-anim-title" style="font-size:1rem">はじめての協力：1ラウンド体験</div>
+            <div class="tut-guide-title tut-anim-title" style="font-size:1rem">はじめての協力：チュートリアル</div>
             <div class="tut-guide-body tut-anim-body">協力モードは、自然災害という1人の相手に、あなたと仲間2都市のチームで挑む多対1のゲームです。<br>対戦の1対1とは違い、仲間と手札・予算を融通し合いながら街を守ります。</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">${progressRow}<button class="sq-btn" onclick="coopTutAction('next')">次へ ＞</button></div>
           </div>
@@ -8010,7 +8028,7 @@
         mutateFn(); render();
       }
     }
-    // Layer1「協力する」の入口。初めて協力モードを選んだときだけ「先に1ラウンド体験する？」を1回提案する
+    // Layer1「協力する」の入口。初めて協力モードを選んだときだけ「先にチュートリアルを体験する？」を1回提案する
     // （localStorage ron_coopTutOffered。拒否・体験済みいずれでも以降は二度と出さず、直接コープウィザードへ進む）。
     function lobbyEnterCoopMode() {
       let offered = false;
@@ -8034,7 +8052,7 @@
       const _svgUsers2 = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>`;
       return `<div class="confirm-overlay" onclick="lobbyCoopTutOfferNo()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:340px">
         <div style="text-align:center;margin-bottom:8px">${_svgUsers2}</div>
-        <div class="confirm-card-preview" style="color:var(--t0)">先に1ラウンド体験する？</div>
+        <div class="confirm-card-preview" style="color:var(--t0)">先にチュートリアルを体験する？</div>
         <p style="color:var(--t0)">協力モードは対戦とルールが違います。90秒ほどで仕組みを体験できます。<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">いつでもスキップでき、後からもう一度体験できます</span></p>
         <div class="confirm-btns"><button class="btn-ok" onclick="lobbyCoopTutOfferYes()">体験する</button><button class="btn-cancel" onclick="lobbyCoopTutOfferNo()">スキップ</button></div>
       </div></div>`;
@@ -8266,7 +8284,7 @@
     </div>
     <div style="display:flex;gap:8px;margin-top:2px">
       <button class="lobby-btn-tut" onclick="startTutorial()" aria-label="対戦チュートリアルを体験する">${_svgGame}対戦チュートリアルを体験</button>
-      <button class="lobby-btn-tut" onclick="startCoopTutorial()" aria-label="協力チュートリアル：1ラウンド体験"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>協力を1ラウンド体験</button>
+      <button class="lobby-btn-tut" onclick="startCoopTutorial()" aria-label="協力チュートリアル"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>協力チュートリアル</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin:4px 0 0">
       <div style="flex:1;height:1px;background:var(--bg3)"></div>
@@ -8321,7 +8339,7 @@
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='solo';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoUser('#3fb950'), 'ひとりで練習', 'CPUと対戦して練習する', '#3fb950')}
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='host';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoUsers('#388bfd'), '部屋を作る', 'みんなを招待してオンラインで', '#388bfd')}
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopNet='join';lobbyState.coopStep=2;lobbyState.error=''},'forward')", icoLink('#a371f7'), '部屋に参加', 'コード・QR・リンクで参加する', '#a371f7')}
-    <div style="text-align:center;margin-top:2px"><button onclick="startCoopTutorial()" style="background:none;border:none;color:var(--t3);font-size:.72rem;text-decoration:underline;cursor:pointer;padding:4px">はじめての方へ：1ラウンド体験（90秒〜2分）</button></div>
+    <div style="text-align:center;margin-top:2px"><button onclick="startCoopTutorial()" style="background:none;border:none;color:var(--t3);font-size:.72rem;text-decoration:underline;cursor:pointer;padding:4px">はじめての方へ：チュートリアル（90秒〜2分）</button></div>
     <button class="sq-btn-r" style="margin-top:6px" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.playMode=null;lobbyState.error=''},'back')" aria-label="ロビーに戻る">＜ ロビーに戻る</button>`;
         } else if (step === 2 && net === 'solo') {
           // STEP 2（ソロ）：役割
@@ -14948,21 +14966,31 @@
       groups.sort((a, b) => a.slot - b.slot);
       return groups;
     }
-    // 1行＝1攻撃の描画：閉じた状態は「[番号] 災害名 → 使用した政策カード … 被害N [▼]」の1行に収める。
-    // (a) 左＝災害・右＝政策の対応関係は行内の並び順で保つ。カード画像は表示せずアイコン＋名前の軽量チップにして
-    // 行の高さを詰める（画像入りミニカードだと行が伸び「一覧性」が崩れるため、今回はあえて備えフェーズの
-    // ミニカード表示ではなくターンサマリー(.ts-ev)寄りの軽量表示に寄せた）。
+    // 1行＝1攻撃の描画：閉じた状態は「[番号] 災害名 → 使用した政策カードのサムネイル … 被害N [▼]」の1行に収める。
+    // (a) 左＝災害・右＝政策の対応関係は行内の並び順で保つ。
+    // 2026-07-29再々改修（コーディネーター指摘対応・修正1）：使用した政策カードはテキストではなく実際の
+    // カード画像のサムネイル（_ddSolCardThumb）で表示する。閉じた1行に収まる小型サイズにするため、
+    // 備えフェーズのミニカード（56px幅）より小さい専用サイズを新設した。
     function _ddRenderSolutionRow(group) {
       const usedHtml = group.plays.length
-        ? group.plays.map(p => `<span class="dd-sol-used-chip">${cardIconSvg(p.card.icon, 12)}${_escHtml(p.card.name)}</span>`).join('')
+        ? group.plays.map(p => _ddSolCardThumb(p.card)).join('')
         : `<span class="dd-sol-used-chip dd-sol-used-none">対応なし</span>`;
       const r = group.resolve ? group.resolve.result : null;
       const dmgHtml = r
         ? `<span class="dd-sol-dmg-num" style="color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span class="dd-sol-dmg-label">被害</span>`
         : '';
-      // (b) トグルで開く中身：機械的理由コメント（旧「解説棋譜」の本文）＋着弾の内訳。行ヘッダーに既に
-      // 災害名・被害数を出しているため、ここでは繰り返さずHP推移とダメージ内訳チップのみ添える。
-      const reasonsHtml = group.plays.map(p => `<div class="dd-solution-explain-text">${_escHtml(p.reason)}<div class="dd-sol-redux">この手を抜いた場合の被害：${p.reducedOptimal}（理論値との差 +${p.reduction}）</div></div>`).join('');
+      // (b) トグルで開く中身：機械的理由コメント＋着弾の内訳。行ヘッダーに既に災害名・被害数を出しているため、
+      // ここでは繰り返さずHP推移とダメージ内訳チップのみ添える。
+      // 2026-07-29再々改修（コーディネーター指摘対応・修正2）：worldview.md §2.1の「均一角丸＋1px枠線の箱の
+      // 羅列」「囲いすぎ」を解消するため、旧「角丸コールアウト」（背景色+border-radius+左罫線）をやめ、
+      // §3.3片辺アクセント（左罫線のみ・背景/角丸なし）に置き換えた。複数枚の理由コメントは箱を重ねず
+      // §3.5罫線の規律（間の上罫線1本）で区切り、「この手を抜いた場合の被害」は§3.4計器の文法
+      // （ラベル小・数値大・tabular-nums）で組む。外側は既に.dd-formal-frame（§3.1コーナーブラケット）で
+      // 囲われているため、内側をこれ以上囲わない（入れ子の二重囲いを避ける）。
+      const reasonsHtml = group.plays.map(p => `<div class="dd-sol-reason">
+        <div class="dd-sol-reason-text">${_escHtml(p.reason)}</div>
+        <div class="dd-sol-redux"><span class="dd-sol-redux-label">この手を抜いた場合の被害</span><span class="dd-sol-redux-num">${p.reducedOptimal}</span><span class="dd-sol-redux-diff">（理論値との差 +${p.reduction}）</span></div>
+      </div>`).join('');
       const breakdownHtml = r ? _ddRenderSolutionRowBreakdown(r) : '';
       const detailHtml = reasonsHtml + breakdownHtml;
       return `<div class="dd-sol-row">
@@ -14976,6 +15004,19 @@
         </div>
         <div class="dd-sol-detail" hidden>${detailHtml}</div>
       </div>`;
+    }
+    // 2026-07-29再々改修（コーディネーター指摘対応・修正1）：使用した政策カードの小型サムネイル。
+    // 既存のカード描画資産（_ddMiniSlotCard・coopMkCard等）はいずれもコスト表示・「－」ボタン・スタック演出
+    // などこの用途に不要な要素を前提にしたサイズ（56px幅以上）で、閉じた1行に収めるには大きすぎるため、
+    // 画像のみの最小構成を新設した。名前はサムネイルに焼き込まず、タップで既存の長押しプレビュー
+    // （_lpTapPreview。.card-img/.card-name/.card-descの子要素構成は他のプレビュー対応カードと同じ）を開けば
+    // フルサイズの名前・説明を確認できる。
+    function _ddSolCardThumb(card) {
+      return `<span class="dd-sol-card-thumb" onclick="_lpTapPreview(this)">
+        <img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+        <span class="card-name" style="display:none">${_escHtml(card.name)}</span>
+        <span class="card-desc" style="display:none">${_escHtml(card.desc)}</span>
+      </span>`;
     }
     // 行の詳細内訳（着弾のダメージ内訳チップ＋HP推移）。dailyRenderResultの表示パターンを踏襲するが、
     // 行ヘッダー側で既に災害名・被害数を出しているため、ここでは重複させずHP推移とチップのみに絞る。
