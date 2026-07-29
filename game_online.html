@@ -11529,12 +11529,35 @@
     }
     function coopCancelConfirm() { CO.confirm = null; renderCoop(); }
     // ローリングストック：確認ポップ内でのカード多重選択トグル（コミット前のローカル状態。MPはconfirmPlay確定時にまとめて送信）
+    // 2026-07-27（ちらつき修正）：従来は選択のたびに renderCoop() を呼んでいたが、確認ポップは
+    // 差分render機構の overlay セクション（_coDiffApplySections）で扱われており、選択状態が変わると
+    // 生成文字列が変化するため **ポップ全体の innerHTML が置換され、候補カードの img が毎回
+    // 破棄・再生成されて再読込のちらつきが起きていた**（trouble_full_render_flicker と同じ構造）。
+    // 手札タブ切替（_coApplyHandTabLocalUpdate）と同じ作法で、変化した箇所だけをローカルDOM更新し、
+    // 差分キャッシュを現在の生成結果へ同期して次の renderCoop() で再書き込みが起きないようにする。
     function coopToggleRecyclePick(uid) {
       if (!CO.confirm) return;
       const arr = CO.confirm.recyclePick || (CO.confirm.recyclePick = []);
       const idx = arr.indexOf(uid);
-      if (idx === -1) arr.push(uid); else arr.splice(idx, 1);
-      renderCoop();
+      const nowSelected = idx === -1;
+      if (nowSelected) arr.push(uid); else arr.splice(idx, 1);
+      if (!_coApplyRecyclePickLocalUpdate(uid, nowSelected)) { renderCoop(); return; } // DOM未生成時のみ従来経路へフォールバック
+      // 差分キャッシュを現在の生成結果へ同期する。これをしないと次のrenderCoop()で
+      // 「キャッシュ（切替前）≠生成結果（切替後）」となりオーバーレイが一度だけ丸ごと書き換わってちらつく
+      if (_coContainerCache) _coContainerCache.overlay = coopRenderConfirm();
+    }
+    // 選択トグルのローカルDOM更新。成功したら true（＝renderCoop不要）
+    function _coApplyRecyclePickLocalUpdate(uid, selected) {
+      let tile = null;
+      try { tile = document.querySelector(`.recycle-tile[data-uid="${uid}"]`); } catch (e) { return false; }
+      if (!tile) return false;
+      tile.classList.toggle('is-selected', !!selected);
+      const n = ((CO.confirm && CO.confirm.recyclePick) || []).length;
+      const cnt = document.getElementById('rs-pick-count');
+      if (cnt) cnt.textContent = String(n);
+      const ok = document.getElementById('rs-pick-ok');
+      if (ok) ok.textContent = n > 0 ? `${n}枚を交換する` : '交換せずに使用する';
+      return true;
     }
     function coopApplyPolicyToCity(card, cs) {
       const e = cs.effects;
@@ -12468,15 +12491,17 @@
           const cols = selectable.length;
           const tiles = selectable.map(x => {
             const sel = pickArr.includes(x.uid);
-            return `<div class="recycle-tile${sel ? ' is-selected' : ''}" onclick="coopToggleRecyclePick('${x.uid}')">
+            // data-uid／id は、チェック切替をローカルDOM更新だけで完結させる（＝オーバーレイ全体の
+            // innerHTML置換によるカード画像の再読込＝ちらつきを避ける）ための目印。_coApplyRecyclePickLocalUpdate 参照
+            return `<div class="recycle-tile${sel ? ' is-selected' : ''}" data-uid="${x.uid}" onclick="coopToggleRecyclePick('${x.uid}')">
               <div class="rt-check"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg></div>
               <img src="images/cards/${x.id}.webp" alt="" onerror="this.style.display='none'">
               <div class="rt-name">${x.name}</div><div class="rt-cost">コスト:${x.cost}</div>
             </div>`;
           }).join('');
-          actions = `<p style="margin:6px 0;color:var(--t0)">捨てるカードを選択（選択中：${n}枚）</p>
+          actions = `<p style="margin:6px 0;color:var(--t0)">捨てるカードを選択（選択中：<span id="rs-pick-count">${n}</span>枚）</p>
             <div class="recycle-grid" style="grid-template-columns:repeat(${cols},1fr)">${tiles}</div>
-            <div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmPlayAnim(-1)">${n > 0 ? `${n}枚を交換する` : '交換せずに使用する'}</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
+            <div class="confirm-btns"><button class="btn-ok" id="rs-pick-ok" onclick="coopConfirmPlayAnim(-1)">${n > 0 ? `${n}枚を交換する` : '交換せずに使用する'}</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div>`;
         }
       } else {
         const isHeal = c.effectType === 'heal';
