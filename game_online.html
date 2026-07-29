@@ -1881,7 +1881,10 @@
        前提のサイズで、閉じた1行に収めるには大きすぎるため、専用の小型サムネイルを新設する（幅26px・
        アスペクト比288:450を維持。名前はサムネイルへ焼き込まず、タップした際の既存プレビュー
        （_lpTapPreview）側で確認できるようにする＝サムネイル自体に文字を乗せて潰れるのを避けた）。 */
-    .dd-sol-card-thumb { display:inline-block; width:26px; aspect-ratio:288/450; border-radius:4px; overflow:hidden; border:1px solid var(--bg3,#30363d); background:var(--bg1,#0d1117); cursor:pointer; flex-shrink:0; }
+    /* 2026-07-29修正：サムネイル単独では銘柄が判別できないため、カード名を併記した1つのタップ領域にする */
+    .dd-sol-card { display:inline-flex; align-items:center; gap:4px; cursor:pointer; min-width:0; }
+    .dd-sol-card-name { font-size:.7rem; font-weight:700; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .dd-sol-card-thumb { display:inline-block; width:26px; aspect-ratio:288/450; border-radius:4px; overflow:hidden; border:1px solid var(--bg3,#30363d); background:var(--bg1,#0d1117); flex-shrink:0; }
     .dd-sol-card-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
     .dd-sol-used-chip { display:inline-flex; align-items:center; gap:3px; font-size:.7rem; color:var(--t1); white-space:nowrap; }
     .dd-sol-used-chip.dd-sol-used-none { color:var(--t2); }
@@ -15011,9 +15014,16 @@
     // 画像のみの最小構成を新設した。名前はサムネイルに焼き込まず、タップで既存の長押しプレビュー
     // （_lpTapPreview。.card-img/.card-name/.card-descの子要素構成は他のプレビュー対応カードと同じ）を開けば
     // フルサイズの名前・説明を確認できる。
+    // 2026-07-29コーディネーター指摘の修正：サムネイルのみだと26px幅では絵柄で銘柄を判別できず、
+    // 従来あったカード名テキストを失うと「名前も読めず絵も判別できない」状態になる。ユーザー要望は
+    // 「テキストだけでなくカード画像も」であり、テキストの置き換えではなく併記が正しい。
+    // サムネイル＋カード名を1つのタップ領域にまとめ、タップで既存の拡大プレビューを開く。
     function _ddSolCardThumb(card) {
-      return `<span class="dd-sol-card-thumb" onclick="_lpTapPreview(this)">
-        <img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+      return `<span class="dd-sol-card" onclick="_lpTapPreview(this)">
+        <span class="dd-sol-card-thumb">
+          <img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+        </span>
+        <span class="dd-sol-card-name">${_escHtml(card.name)}</span>
         <span class="card-name" style="display:none">${_escHtml(card.name)}</span>
         <span class="card-desc" style="display:none">${_escHtml(card.desc)}</span>
       </span>`;
