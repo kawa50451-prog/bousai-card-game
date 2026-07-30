@@ -1875,7 +1875,8 @@
        と災害名の下が空いている・カード画像を大きくしたい）。
        旧実装はトグルの中に「基礎ダメージ内訳チップ」「HP推移」を隠し、閉時は被害数値のみを見せることで
        行の高さを抑えていたが、抑えた結果生まれたのがこの空白であるため方針を転換し、内訳チップ・HP推移を
-       常時表示側（.dd-sol-info）へ出し、トグル（.dd-sol-toggle）には理論値解説時の理由文
+       常時表示側（.dd-sol-info）へ出し、トグル（.dd-sol-explain-btn。2026-07-30再改修で.dd-sol-toggleから
+       独立ボタンへ改名・位置変更）には理論値解説時の理由文
        （.dd-sol-reason／攻撃ごとの温存理由・「この手を抜いた場合の被害」）だけを残した。理由文が存在しない
        行（解説閲覧前・理論値側で対応なしの攻撃）はトグル自体を出さない（toggleBlock参照）。
        判定・被害計算・理論値算出ロジックは無変更、表示の並べ替えのみ（design_system.md §10.1デッド
@@ -1890,13 +1891,22 @@
     .dd-sol-list { display:flex; flex-direction:column; }
     .dd-sol-row { border-bottom:1px solid var(--bg3,#30363d); padding:8px 2px; }
     .dd-sol-row:last-child { border-bottom:none; padding-bottom:0; }
-    .dd-sol-grid { display:flex; align-items:flex-start; gap:8px; }
+    /* 2026-07-30再改修（実装2）：実測（getBoundingClientRect）で左右カラム間の実際のflex gapは既に8pxしか
+       無く、崩れの主因は横gapではなく「複数枚使用時に右カラム（縦積みカード）が左の情報ブロックより大幅に
+       高くなり、情報ブロックの下に大きな空白が残る」縦方向の不均衡だった（実測：3枚構成の1事例で情報
+       ブロック114.8px・カード2枚積みの右カラム266.9px＝差152px）。align-items:centerに変更し、短い方の
+       カラムを縦中央に揃えることで空白を上下に分散させる（新しい箱・枠は増やさない）。gapも8→6pxへ微調整。 */
+    .dd-sol-grid { display:flex; align-items:center; gap:6px; }
     /* 左＝情報ブロック（見出し・被害内訳・HP推移＋トグル）。残り幅いっぱいを使い、右のカード画像との
        高さバランスを取る（旧col-l/col-mの統合）。 */
     .dd-sol-info { flex:1 1 0; min-width:0; padding-top:2px; display:flex; flex-direction:column; gap:4px; }
     /* 見出し行：来襲順バッジ＋災害名＋（解説閲覧後・一致時のみ）一致バッジを同じ行にflex-wrapで収める */
     .dd-sol-head { display:flex; align-items:center; gap:5px; flex-wrap:wrap; row-gap:3px; }
-    .dd-sol-disaster { display:flex; align-items:center; gap:4px; font-size:.74rem; font-weight:700; color:var(--t0); line-height:1.3; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* 実装2：来襲順バッジ・災害名を拡大（旧.64rem/.74remは小さすぎるというユーザー指摘）。
+       .dd-order-badgeは備えフェーズの対応表（.dd-prep-row）とも共有クラスのため、結果行のみに限定して
+       上書きする（`.dd-sol-head .dd-order-badge`）ことで備えフェーズ側のサイズには影響させない。 */
+    .dd-sol-head .dd-order-badge { width:22px; font-size:.76rem; padding:3px 0; }
+    .dd-sol-disaster { display:flex; align-items:center; gap:4px; font-size:.88rem; font-weight:700; color:var(--t0); line-height:1.3; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     /* 右＝使用政策カード画像。備えフェーズの.dd-mini-imgbox系より一回り大きい72px幅とし、左の情報ブロックが
        増えた実高さと釣り合わせる（旧56px。複数枚使用時は横幅を増やさず縦に積む＝.dd-sol-col-r自体は幅固定） */
     .dd-sol-col-r { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:6px; }
@@ -1912,19 +1922,38 @@
     /* 被害数値（§3.4計器の文法・ラベル小＋数値大）と、基礎ダメージ・軽減・地形リスク等の内訳チップは
        常時表示（_ddRenderSolutionRowBreakdownが両方まとめて返す）。 */
     .dd-sol-dmg { display:flex; align-items:baseline; gap:2px; flex-shrink:0; }
-    .dd-sol-dmg-num { font-size:1rem; font-weight:900; font-variant-numeric:tabular-nums; }
-    .dd-sol-dmg-label { font-size:.6rem; color:var(--t2); font-weight:600; }
+    .dd-sol-dmg-num { font-size:1.3rem; font-weight:900; font-variant-numeric:tabular-nums; } /* 実装2：1→1.3remに拡大 */
+    .dd-sol-dmg-label { font-size:.68rem; color:var(--t2); font-weight:600; }
     .dd-sol-chips { display:flex; flex-wrap:wrap; gap:4px; }
-    /* HP推移＋解説トグルの行。トグルは理由文が無い行では描画しないためHP推移のみが単独で残ることもある */
-    .dd-sol-footrow { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    /* HP推移の行。実装3(a)：解説ボタンは以前この行の右側にインラインで同居していたが「位置が悪い」という
+       指摘のため、HP推移の行の下（.dd-sol-explain-btn）へ独立させた。ここはHP推移のみを持つ。 */
+    .dd-sol-footrow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    /* 2026-07-29：理論値のHP推移に回復ステップを明示するための表示（緑＝回復のセマンティクス） */
+    .dd-sol-heal { display:block; font-size:.7rem; font-weight:700; color:var(--green,#3fb950); margin-bottom:2px; }
     .dd-sol-hp { font-size:.66rem; color:var(--t2); white-space:nowrap; }
-    /* トグル本体：理論値解説時の理由文だけを開閉する（§10.1により常時表示側は内訳チップ・HP推移を含むため
-       ここは理由文のみ）。絵文字ではなく既存の線画SVG（_ddIcoArrowRight）を90°回転させて開閉を示す。
-       開閉はdailyToggleSolutionRowのDOM操作のみで行うためrender()は経由しない（既存方式を維持）。 */
-    .dd-sol-toggle { display:inline-flex; align-items:center; gap:4px; background:transparent; border:none; padding:2px 0; margin:0; cursor:pointer; color:var(--blue); font:inherit; font-size:.68rem; font-weight:700; white-space:nowrap; flex-shrink:0; }
-    .dd-sol-toggle svg { flex-shrink:0; transition:transform .15s; }
-    .dd-sol-toggle.open svg { transform:rotate(90deg); }
-    .dd-sol-toggle:active { transform:scale(.97); }
+    /* 実装3(b)：理論値の閲覧時、自分の実プレイと理論値でHPの削られ方がどう違うかを対比表示する。
+       一致した行は従来通り.dd-sol-match-badge1つに圧縮するため出さず、不一致の行だけ「自分」「理論値」の
+       2行を並べる（§3.4計器の文法＝ラベル小・数値大。新しい囲い・背景・枠線は追加しない）。
+       理論値側は既存の理論値カラー(#e3c34d、.dd-formal-frame/.dd-sol-match-badge等と同色)で区別する。 */
+    .dd-sol-hpcmp { display:flex; flex-direction:column; gap:2px; }
+    .dd-sol-hpcmp-row { display:flex; align-items:baseline; gap:6px; }
+    .dd-sol-hpcmp-label { font-size:.6rem; font-weight:700; letter-spacing:.02em; color:var(--t2); width:34px; flex-shrink:0; }
+    .dd-sol-hpcmp-num { font-size:.74rem; font-weight:800; color:var(--t0); font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .dd-sol-hpcmp-row.theory .dd-sol-hpcmp-label,
+    .dd-sol-hpcmp-row.theory .dd-sol-hpcmp-num { color:#e3c34d; }
+    /* 実装3(a)：解説ボタンをHP推移の行の下に独立させ、既存資産の.gallery-nav-arrow／.card-zoom-btnと同系統
+       （丸いゴーストボタン＝円のみブラケット、文字は隣に添える）の意匠に揃えた。絵文字ではなく既存の線画SVG
+       （_ddIcoArrowRight）を90°回転させて開閉を示す。開閉はdailyToggleSolutionRowのDOM操作のみで行うため
+       render()は経由しない（既存方式を維持）。 */
+    .dd-sol-explain-btn { display:inline-flex; align-items:center; gap:6px; background:transparent; border:none; padding:4px 0 0; margin:0; cursor:pointer; font:inherit; color:var(--blue); align-self:flex-start; }
+    .dd-sol-explain-circle { width:24px; height:24px; border-radius:50%; border:1.5px solid var(--blue); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:transform .15s,background-color .15s; }
+    .dd-sol-explain-circle svg { flex-shrink:0; transition:transform .15s; }
+    .dd-sol-explain-btn.open .dd-sol-explain-circle svg { transform:rotate(90deg); }
+    .dd-sol-explain-label { font-size:.7rem; font-weight:700; white-space:nowrap; }
+    @media (hover:hover) {
+      .dd-sol-explain-btn:hover .dd-sol-explain-circle { background:rgba(56,139,253,.12); }
+    }
+    .dd-sol-explain-btn:active .dd-sol-explain-circle { transform:scale(.9); background:rgba(56,139,253,.18); }
     /* トグルの中身（理論値の考え方＝理由文＋この手を抜いた場合の被害）。閉時はdisplay:noneで高さを取らない */
     /* 2026-07-29（コーディネーター指摘）：展開部分は3カラムの中央（実測約90px）に押し込むと説明文が
        1行2〜3語で折り返して極端に読みにくくなる。行の高さを抑える目的は「閉じている状態」で達成されるため、
@@ -3292,6 +3321,13 @@
       background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.4); border-radius: 50%;
       color: #fff; cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent;
     }
+    /* 実装5（対戦・デイリー修正）：種別タグ（.card-type-badge、名前バー右端・align-self:flex-end）と
+       拡大ボタンが両方ともカード右下角のbottom:3px/right:3px付近を占有し重なっていた。協力モードは
+       cardNameBarHtmlの第2引数を常に空文字で呼んでおりバッジ自体が存在しないため影響を受けない。
+       :has()でバッジの有無を判定し、バッジがある名前バーの直後（一般兄弟結合子）だけボタンを
+       バッジの上（さらに上のbottom位置）へ引き上げる。バッジの実高さ（font-size .55rem×line-height
+       normal+padding1px×2≈13px）+ 名前バーのpadding-bottom(3px)に数px余白を足した20pxへ変更。 */
+    .card-img-wrap:has(.card-type-badge) ~ .card-zoom-btn { bottom: 20px; }
     @media (hover:hover) {
       .card-zoom-btn:hover { background: rgba(0,0,0,.78); border-color: rgba(255,255,255,.65) }
     }
@@ -3947,7 +3983,6 @@
       padding: calc(10px + env(safe-area-inset-top, 0px)) 22px 10px;
       font-family:'Roboto Condensed','Arial Narrow',sans-serif;
       font-weight:900; font-size:1.25rem; letter-spacing:.18em; text-transform:uppercase;
-      text-align:center;
       z-index:9999; pointer-events:none;
       animation:yb-turn-banner 1.8s cubic-bezier(.86,0,.07,1) forwards;
     }
@@ -4717,12 +4752,6 @@
         -webkit-overflow-scrolling: touch;
       }
 
-      /* ── 13. YOUR TURN バナー：ターンサマリータイトルと同じ高さに表示 ── */
-      .turn-banner {
-        top: calc(env(safe-area-inset-top, 0px) + 72px);
-        padding: 10px 22px;
-        border-radius: 0 0 8px 8px;
-      }
     }
 
     /* ── iOSスイッチ（協力MPホスト設定） ── */
@@ -9494,6 +9523,21 @@
       </div>`;
     }
 
+    // 実装6：「今試合の防災ポイント」（登場した都市のlearnテキスト）を対戦プレイヤー・協力プレイヤー・
+    // 観戦者の3経路で共用する。旧実装は観戦者限定（renderSpectatorGameOver内にインライン記述）だったが、
+    // 表示ロジック自体はどの経路でも同一（都市配列→learnがある都市だけ抽出→重複排除→同じHTML）のため
+    // 共通関数へ切り出した。cities引数には対戦ならG.players[0/1].cities、協力ならCO.cities[i].cityを
+    // フラットにした配列を渡す（データ構造が違うだけで、渡す時点でcity相当のオブジェクト配列に揃える）。
+    // 都市の重複は id（無ければ name）で判定して1件にまとめる。学びテキストが無い都市（カード工房の
+    // カスタム都市はlearn:''）は従来通り除外する。判定・被害計算には一切触れない表示専用関数。
+    function _buildLearnPointsHtml(cities) {
+      const seen = new Set();
+      const boxes = (cities || []).filter(c => c && c.learn && !seen.has(c.id || c.name) && seen.add(c.id || c.name))
+        .map(c => `<div class="spec-learn-box"><div class="spec-learn-city-header">${terrainImg(c,18)}<strong>${c.name}</strong><span class="terrain-badge">(${c.isCoastal?'海岸':c.isMountain?'山間部':'内陸'})</span></div><div class="spec-learn-text">${c.learn}</div></div>`)
+        .join('');
+      if (!boxes) return '';
+      return `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_city.webp" style="width:20px;height:20px;object-fit:contain"> 今試合の防災ポイント</div>${boxes}</div>`;
+    }
     function renderSpectatorGameOver() {
       const wi = G.winner; const li = wi === 0 ? 1 : 0;
       const w = G.players[wi]; const l = G.players[li];
@@ -9541,13 +9585,8 @@
         }
       }
 
-      // 観戦者限定: 防災ポイント（両プレイヤーの都市 learn テキスト）
-      const learnBoxes = [0,1].map(pi => {
-        const p = G.players[pi];
-        if (!p.cities || p.cities.length === 0) return '';
-        return p.cities.filter(c=>c.learn).map(c => `<div class="spec-learn-box"><div class="spec-learn-city-header">${terrainImg(c,18)}<strong>${c.name}</strong><span class="terrain-badge">(${c.isCoastal?'海岸':c.isMountain?'山間部':'内陸'})</span></div><div class="spec-learn-text">${c.learn}</div></div>`).join('');
-      }).join('');
-      const disasterLearn = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_city.webp" style="width:20px;height:20px;object-fit:contain"> 今試合の防災ポイント</div>${learnBoxes}</div>`;
+      // 観戦者: 防災ポイント（両プレイヤーの都市 learn テキスト。実装6で共通関数化）
+      const disasterLearn = _buildLearnPointsHtml([...(G.players[0].cities || []), ...(G.players[1].cities || [])]);
 
       // 観戦者限定: 試合ハイライト
       const allDmg = hist.filter(ev=>ev.type==='damage');
@@ -9742,6 +9781,9 @@
         }
       }
 
+      // 実装6：観戦者限定だった「今試合の防災ポイント」を対戦プレイヤーの結果画面にも表示する（共通関数化）
+      const disasterLearn = _buildLearnPointsHtml([...(G.players[0].cities || []), ...(G.players[1].cities || [])]);
+
       return `<div class="screen active go-screen ${themeCls}">
 
   <div class="go-hero">
@@ -9773,6 +9815,7 @@
     ${jinzaiKarte}
     ${terrainStat}
     ${counterHtml}
+    ${disasterLearn}
     ${isCpuMode ? `<button class="go-inview go-rematch-btn" onclick="replayCpuGame()">${uiIcoSwords(15)} もう一度戦う</button>` : roomId ? `<button class="go-inview go-rematch-btn" onclick="requestRematch()" ${_rematchRequested ? 'disabled' : ''}>${_rematchRequested ? uiSpinner(12) + ' 相手の返答待ち...' : uiIcoSwords(15) + ' もう1戦'}</button>` : ''}
     <button class="go-inview go-replay-btn" onclick="restartGame()">ロビーに戻る</button>
   </div>
@@ -14020,6 +14063,9 @@
       const roleLabel = isSpec ? `${uiIcoEye(14)} 観戦` : (natureMode ? `${_icoD16} 自然側` : `${_icoC16} 都市側`);
       const turnsLabel = win === !natureMode ? `耐え抜いたターン` : (natureMode && win ? '決着ターン' : '生存ターン');
       const statsHtml = coopRenderStats(natureMode);
+      // 実装6：観戦者限定だった「今試合の防災ポイント」を協力プレイヤー（都市側・自然側とも）の結果画面にも表示する。
+      // 協力モードは対戦のG.players[pi].citiesと違いCO.cities[i].cityに都市データが入っている（データ構造差異を吸収）
+      const disasterLearn = _buildLearnPointsHtml(CO.cities.map(cs => cs.city));
       // 「逆の立場でも」誘導（coop_mode_summary §9：両方やりたくなる構造）
       const otherSide = natureMode ? 'city' : 'nature';
       const otherLabel = natureMode ? `${_icoC16} 今度は都市を守ってみる` : `${_icoD16} 今度は自然を操ってみる`;
@@ -14072,6 +14118,7 @@
     </div>
     <div class="go-inview go-turns-badge">${turnsLabel} <strong>${CO.turn}</strong> / ${d.maxTurns}</div>
     ${statsHtml}
+    ${disasterLearn}
     ${rematchBtn}
     ${switchBtn}
     ${tipPanelHtml}${tipBtnHtml}
@@ -14550,7 +14597,6 @@
     // 良問オートフィルタの各種しきい値
     const DD_QC_CANDIDATE_COUNT = 50;   // サブシード探索の最大候補数（seed〜seed+49）
     const DD_QC_CLEVERNESS_MIN = 5;     // 合格ライン：貪欲botが理論値よりどれだけ悪いか
-    const DD_QC_MASTERPIECE_MIN = 20;   // 「今日の名作」バッジのライン
 
     // 候補1件の検品結果からDD用の最終シナリオを組み立てる。qcフィールドに検品メタ情報を残しておくことで、
     // dailyStartが理論値の再計算をせずに済むほか、柱3・柱4がどのサブシード／どの縮退経路で採用されたかを参照できる。
@@ -14560,7 +14606,6 @@
         qc: {
           subseedIndex, tier, cleverness,
           optimalBest: optimal.best, optimalAssign: optimal.assign,
-          isMasterpiece: cleverness >= DD_QC_MASTERPIECE_MIN,
         },
       };
     }
@@ -14690,7 +14735,6 @@
         used: [], results: [], totalDamage: 0, evalLabel: '', evalColor: '', isPractice: false, streak: 0,
         optimal: optimalResult.best, optimalAssign: optimalResult.assign, tip, isOptimal: false,
         isArchive, viewedSolution: false, solutionConfirmPending: false,
-        isMasterpiece: !!scenario.qc.isMasterpiece, // 柱2：妙手度が高い日は予報画面で「今日の名作」バッジを表示
       };
       render();
     }
@@ -15158,8 +15202,6 @@
       const customCityBadge = DD.isCustomCity ? `<div style="text-align:center;background:rgba(63,185,80,.12);border:1px solid #3fb950;border-radius:10px;padding:8px;margin-bottom:10px;font-size:.76rem;color:#3fb950;font-weight:700">マイ都市：${_escHtml(DD.customCityName)}で挑戦中（公式記録には反映されません）${DD.customAbilitySupported === false ? '<br>この能力はデイリーでは効果なし' : ''}</div>` : '';
       // 柱4：問題工房プレイであることの明示（出題タイトルは_escHtmlでエスケープ）
       const puzzleBadge = DD.isPuzzle ? `<div style="text-align:center;background:rgba(210,153,34,.12);border:1px solid #d29922;border-radius:10px;padding:8px;margin-bottom:10px;font-size:.78rem;color:#d29922;font-weight:700">問題工房（練習）：${_escHtml(DD.puzzleTitle)}</div>` : '';
-      // 柱2：良問オートフィルタで妙手度が高いと判定された日だけ表示するバッジ。妙手度の数値自体はプレイ前に見せない
-      const masterpieceBadge = DD.isMasterpiece ? `<div style="text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(227,195,77,.14);border:1px solid rgba(227,195,77,.5);border-radius:10px;padding:8px;margin-bottom:10px;font-size:.8rem;color:#e3c34d;font-weight:800">${_ddIcoStar(16, '#e3c34d')}今日の名作</div>` : '';
       const disasterCards = DD.disasters.map((d, i) => ddMkDisasterCard(d, i + 1)).join('');
       // UX刷新①：開始前ページは手札タップに他の意味がないため、タップ即時プレビュー（_lpTapPreview）を有効化する
       const handCards = DD.hand.map(c2 => ddMkPolicyCard(c2, { clickable: false, previewOnTap: true })).join('');
@@ -15192,7 +15234,6 @@
         ${practiceNote}
         ${customCityBadge}
         ${puzzleBadge}
-        ${masterpieceBadge}
         <div style="display:flex;align-items:center;gap:12px;background:var(--bg2,#161b22);border:1.5px solid #388bfd;border-radius:12px;padding:14px;margin-bottom:14px">
           ${cityThumb}
           <div><div style="font-weight:900;color:var(--t0);font-size:1.05rem">${_escHtml(c.name)} ${terrainImg(c, 18)}</div><div style="font-size:.72rem;color:var(--t2);margin-top:2px">${_escHtml(c.abilityDesc)}</div></div>
@@ -15336,12 +15377,28 @@
     //    〇〇に残す。」）は情報量に乏しく画面の主役を奪っているというユーザー指摘を受け表示から撤去した
     //    （_ddUnusedReasonTextの計算自体は_ddBuildSolutionStepsから引き続き呼ばれるため無変更のまま残し、
     //    その結果を描画する経路のみ削除した）。
+    // 2026-07-29：行の被害を足すと総ダメージになるが、理論値は「回復を差し引いた最終的なHP損失」で
+    // 定義されている。両者が食い違って見えて誤りと受け取られていたため、内訳を明示して橋渡しする。
+    function _ddSolutionTotalLine(total) {
+      const steps = (DD.solutionSteps && DD.solutionSteps.steps) || [];
+      const gross = steps.filter(st => st.type === "resolve" && st.result).reduce((a, st) => a + (st.result.dmg || 0), 0);
+      const healed = Math.max(0, gross - total);
+      if (healed <= 0) return `合計被害＝理論値 ${total}`;
+      return `総ダメージ ${gross} − 回復 ${healed} ＝ 最終被害（理論値） ${total}`;
+    }
     function _ddRenderResultList() {
       const groupBySlot = {};
       if (DD.viewedSolution && DD.solutionSteps && DD.solutionSteps.steps.length) {
         _ddBuildSolutionGroups(DD.solutionSteps.steps).forEach(g => { groupBySlot[g.slot] = g; });
       }
-      const rowsHtml = DD.results.map((r, i) => _ddRenderResultRow(r, i, groupBySlot[i] || null)).join('');
+      // 理論値のHPを行間で引き継ぎ、回復ステップを行レンダラ側で可視化できるようにする（表示専用）
+      let _theoryHp = DAILY_CFG.hp;
+      const rowsHtml = DD.results.map((r, i) => {
+        const g = groupBySlot[i] || null;
+        const html = _ddRenderResultRow(r, i, g, _theoryHp);
+        if (g && g.resolve && g.resolve.result && typeof g.resolve.result.hpAfter === 'number') _theoryHp = g.resolve.result.hpAfter;
+        return html;
+      }).join('');
       if (!DD.viewedSolution) {
         return `<div class="dd-sol-list" style="text-align:left;margin-bottom:14px">${rowsHtml}</div>`;
       }
@@ -15350,7 +15407,7 @@
       return `<div class="dd-formal-frame" style="text-align:left;margin-bottom:12px">
         <div style="font-size:.8rem;font-weight:800;color:#e3c34d;margin-bottom:6px;display:flex;align-items:center;gap:5px">${_ddIcoGoldCheck(14, '#e3c34d')}解説（理論値の一例・被害${DD.optimal}）</div>
         <div class="dd-sol-list">${rowsHtml}</div>
-        <div style="font-size:.78rem;font-weight:800;color:var(--t0);margin-top:10px;padding-top:8px;border-top:1px solid rgba(227,195,77,.3);text-align:center">合計被害＝理論値 ${total}</div>
+        <div style="font-size:.78rem;font-weight:800;color:var(--t0);margin-top:10px;padding-top:8px;border-top:1px solid rgba(227,195,77,.3);text-align:center">${_ddSolutionTotalLine(total)}</div>
         <div style="font-size:.66rem;color:var(--t2);margin-top:8px">※ この画面を見たため、本日の理論値達成・完全読み切り称号は対象外です</div>
       </div>`;
     }
@@ -15393,12 +15450,13 @@
     //    （.dd-sol-toggle）には理論値解説時の理由文（reason・reducedOptimal）だけを残し、理由文が無い行
     //    （解説閲覧前・理論値側で対応なしの攻撃）はトグル自体を描画しない。右のカード画像は備えフェーズの
     //    .dd-mini-imgbox系より一回り大きい72px幅にする（_ddSolCardThumb・旧56px）。
-    function _ddRenderResultRow(r, i, group) {
+    function _ddRenderResultRow(r, i, group, prevTheoryHp) {
       const ownCards = DD.hand.filter((c, hi) => DD.cardAssign[hi] === i);
       let cardsForCol = ownCards;      // 右列に出すカード（既定は自分の実プレイ）
       let dmgSource = r;               // 被害数・内訳の元データ（既定は自分の実プレイ結果）
       let matchBadgeHtml = '';
       let reasonHtml = '';
+      let hpCompareHtml = '';          // 実装3(b)：不一致行のみ「自分」「理論値」のHP推移を対比表示
       if (group) {
         const theoryDmg = group.resolve ? group.resolve.result.dmg : null;
         const theoryCards = group.plays.map(p => p.card);
@@ -15408,9 +15466,20 @@
           // （内容自体はownCards/rのまま）
           matchBadgeHtml = `<span class="dd-sol-match-badge">${_ddIcoGoldCheck(12, '#e3c34d')}理論値と同じ</span>`;
         } else {
-          // 不一致：自分の内訳は出さず理論値だけに置き換える
+          // 不一致：内訳・使用カードの表示は理論値に置き換える（従来通り。判定・被害計算は無変更）。
+          // HP推移だけは実プレイ（r）と理論値（dmgSource）の両方を対比表示する（実装3(b)）。
           cardsForCol = theoryCards;
           dmgSource = group.resolve ? group.resolve.result : r;
+        }
+        // 2026-07-29：HP推移は一致・不一致に関わらず「自分と理論値で値が違えば両方出す」に統一する。
+        // 一致行（その攻撃の被害・使用カードが同じ）でも、それ以前の分岐で累積HPは違いうる。片方だけ出すと
+        // 理論値のHPの鎖が行間で途切れ、次の行の回復ステップの開始HPがどこから来たのか読めなくなるため。
+        const _theoryRes = group.resolve && group.resolve.result;
+        if (_theoryRes && (_theoryRes.hpBefore !== r.hpBefore || _theoryRes.hpAfter !== r.hpAfter)) {
+          hpCompareHtml = `<div class="dd-sol-hpcmp">
+            <div class="dd-sol-hpcmp-row self"><span class="dd-sol-hpcmp-label">自分</span><span class="dd-sol-hpcmp-num">HP ${r.hpBefore} → ${r.hpAfter}</span></div>
+            <div class="dd-sol-hpcmp-row theory"><span class="dd-sol-hpcmp-label">理論値</span><span class="dd-sol-hpcmp-num">HP ${_theoryRes.hpBefore} → ${_theoryRes.hpAfter}</span></div>
+          </div>`;
         }
         if (group.plays.length) {
           // §3.3片辺アクセント（左罫線のみ・背景/角丸なし）＋§3.5罫線の規律（間の上罫線1本）で区切る
@@ -15426,11 +15495,23 @@
       const cardsHtml = cardsForCol.length
         ? cardsForCol.map(c => _ddSolCardThumb(c)).join('')
         : `<span class="dd-sol-used-chip dd-sol-used-none">対応なし</span>`;
-      // 理由文がある行だけトグルを描画する（無い行にトグルだけあって開いても何も出ない状態を避ける）
+      // 実装3(a)：解説ボタンをHP推移の行の下・丸いゴーストボタン（.gallery-nav-arrow/.card-zoom-btnと同系統）へ変更。
+      // 理由文がある行だけ描画する（無い行にボタンだけあって開いても何も出ない状態を避ける）
       const toggleHtml = reasonHtml
-        ? `<button type="button" class="dd-sol-toggle" aria-label="解説を見る" onclick="dailyToggleSolutionRow(this)"><span>解説</span>${_ddIcoArrowRight(11)}</button>`
+        ? `<button type="button" class="dd-sol-explain-btn" aria-label="解説を見る" onclick="dailyToggleSolutionRow(this)"><span class="dd-sol-explain-circle">${_ddIcoArrowRight(13)}</span><span class="dd-sol-explain-label">解説</span></button>`
         : '';
       const detailHtml = reasonHtml ? `<div class="dd-sol-detail" hidden>${reasonHtml}</div>` : '';
+      // 実装3(b)：不一致行はhpCompareHtml（自分/理論値の2行）、一致行・解説閲覧前は従来通り単独のHP行
+      // 2026-07-29（重要）：理論値のHP推移に回復カードの効果が現れず、行の被害合計とフッターの理論値が
+      // 食い違って見える問題への対処。理論値の被害は「最終的なHP損失」で定義されており、回復カードは
+      // それを打ち消す。しかし回復のステップを描いていなかったため、直前の行の終了HPと次の行の開始HPが
+      // 飛んで見え、数値が誤っているように読めていた。回復が入った行では「回復 +N」を明示して鎖をつなぐ。
+      let healHtml = '';
+      const _thRes = group && group.resolve && group.resolve.result;
+      if (_thRes && typeof prevTheoryHp === 'number' && _thRes.hpBefore > prevTheoryHp) {
+        healHtml = `<span class="dd-sol-heal">回復 +${_thRes.hpBefore - prevTheoryHp}（HP ${prevTheoryHp} → ${_thRes.hpBefore}）</span>`;
+      }
+      const footHtml = `${healHtml}${hpCompareHtml || `<span class="dd-sol-hp">HP ${dmgSource.hpBefore} → ${dmgSource.hpAfter}</span>`}`;
       return `<div class="dd-sol-row">
         <div class="dd-sol-grid">
           <div class="dd-sol-info">
@@ -15440,10 +15521,8 @@
               ${matchBadgeHtml}
             </div>
             ${_ddRenderSolutionRowBreakdown(dmgSource)}
-            <div class="dd-sol-footrow">
-              <span class="dd-sol-hp">HP ${dmgSource.hpBefore} → ${dmgSource.hpAfter}</span>
-              ${toggleHtml}
-            </div>
+            <div class="dd-sol-footrow">${footHtml}</div>
+            ${toggleHtml}
           </div>
           <div class="dd-sol-col-r">${cardsHtml}</div>
         </div>
@@ -15473,8 +15552,9 @@
     // 側（.dd-sol-info）から呼ばれる（旧・トグルの中に隠す実装だと右カラム拡大後も空白が残るため常時表示化。
     // HP推移は_ddRenderResultRow側のfootrowで別途出すためここでは持たない）。
     function _ddRenderSolutionRowBreakdown(r) {
-      const cBad = 'display:inline-flex;align-items:center;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:9px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
-      const cOk  = 'display:inline-flex;align-items:center;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:9px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
+      // 実装2：内訳チップを.68rem→.78remへ拡大（padding も2px 7px→3px 8pxへ）
+      const cBad = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:9px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
+      const cOk  = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:9px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
       const baseChip = `<span style="${cBad}">基礎 ${r.card.baseDamage}</span>`;
       const lineChips = r.lines.filter(l => l.d != null).map(l => `<span style="${l.d > 0 ? cBad : cOk}">${_escHtml(l.t.split(/[：（(]/)[0])} ${l.d > 0 ? '+' : ''}${l.d}</span>`).join('');
       return `<div class="dd-sol-dmg"><span class="dd-sol-dmg-num" style="color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span class="dd-sol-dmg-label">被害</span></div>
@@ -15501,11 +15581,6 @@
     function _ddIcoGoldCheck(size, col) {
       const s = size || 16; const c = col || '#e3c34d';
       return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><circle cx="12" cy="12" r="9"/><polyline points="7.5 12.5 10.5 15.5 16.5 8.5"/></svg>`;
-    }
-    // 柱2「今日の名作」バッジ用：金色トーンの星型SVGラインアイコン（新設）
-    function _ddIcoStar(size, col) {
-      const s = size || 16; const c = col || '#e3c34d';
-      return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><polygon points="12 2 15 9 22 9.5 16.5 14 18.5 21.5 12 17.5 5.5 21.5 7.5 14 2 9.5 9 9"/></svg>`;
     }
     // 備えフェーズの対応表：災害→政策の対応関係を示す矢印アイコン（絵文字ではなく線画SVG。design_system.md §6）
     function _ddIcoArrowRight(size, col) {
@@ -17755,7 +17830,6 @@
         used: [], results: [], totalDamage: 0, evalLabel: '', evalColor: '', isPractice: true, streak: 0,
         optimal: optimalResult.best, optimalAssign: optimalResult.assign, tip: null, isOptimal: false,
         isArchive: false, viewedSolution: false, solutionConfirmPending: false,
-        isMasterpiece: false,
         isPuzzle: true, puzzleId: puzzle.id, puzzleTitle: puzzle.title,
       };
       render();
