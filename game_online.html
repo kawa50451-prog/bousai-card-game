@@ -1868,56 +1868,69 @@
     /* ddMkDisasterCard（予報・解説用）の来襲順バッジ：画像の外（上）に出すためのラッパー */
     .dd-card-order-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
 
-    /* ── 結果一覧（2026-07-29再改修・実装2）：1攻撃＝1行を①災害名（左）②ダメージ計算の詳細トグル（中央）
-       ③使用政策カード画像（右）の3カラムへ組み替えた。旧実装は行ヘッダー→あなたの対応（縦積み）→
-       内訳chips→理論値ブロックの4段構成で縦に伸び続けていたが、常時表示は「最終被害数」だけに絞り、
-       基礎ダメージ・HP推移・理論値の考え方はトグル開閉（閉時は非表示）へ退避して行の高さを抑えた
-       （design_system.md §10.1デッドスペースは罪・§10.3説明テキストより構造で語る＝列位置そのものが
-       「災害／詳細／使用カード」のラベルを兼ねるため、キャプション文言は置かない）。
+    /* ── 結果一覧（2026-07-30再改修・実装1）：①災害名＋判定バッジ（見出し行）②被害数値＋内訳チップ
+       ③HP推移＋解説トグルの3段を1本の「情報ブロック」に縦積みし、右に拡大したカード画像を並べる
+       2カラム構成へ組み替えた（旧実装は左＝災害名のみ・中央＝トグルの3カラムで、右カラム＝カード画像
+       の実高さに対して左カラムが災害名1行しか持たず約67pxの空白が生じていた。ユーザー指摘：「丸何番」
+       と災害名の下が空いている・カード画像を大きくしたい）。
+       旧実装はトグルの中に「基礎ダメージ内訳チップ」「HP推移」を隠し、閉時は被害数値のみを見せることで
+       行の高さを抑えていたが、抑えた結果生まれたのがこの空白であるため方針を転換し、内訳チップ・HP推移を
+       常時表示側（.dd-sol-info）へ出し、トグル（.dd-sol-toggle）には理論値解説時の理由文
+       （.dd-sol-reason／攻撃ごとの温存理由・「この手を抜いた場合の被害」）だけを残した。理由文が存在しない
+       行（解説閲覧前・理論値側で対応なしの攻撃）はトグル自体を出さない（toggleBlock参照）。
+       判定・被害計算・理論値算出ロジックは無変更、表示の並べ替えのみ（design_system.md §10.1デッド
+       スペースは罪・§10.3説明テキストより構造で語る＝列位置そのものが「災害／内訳／使用カード」の
+       ラベルを兼ねるため、キャプション文言は置かない）。
        解説閲覧前は自分の実プレイ結果を表示し、閲覧後（.dd-formal-frame配下）は理論値と完全一致した行だけ
-       一致バッジ1行に圧縮、不一致の行は自分の内訳を出さず理論値のみを表示する（ユーザー指摘：自分の結果と
-       理論値を両方並べる二重表示の解消。isMatch分岐は_ddRenderResultRow内、判定・被害計算ロジックは無変更）。
-       320px幅では中央列（トグル本体＝被害数値・ラベル・矢印）だけをflex-wrapで折り返し、左（災害名）・
-       右（カード画像56px維持）の列幅は縮めず3カラムの並びそのものは崩さない（優先順位：災害名＞詳細＞
-       画像、視線は左→右を維持）。 */
+       一致バッジ（見出し行に同居）に圧縮、不一致の行は自分の内訳を出さず理論値のみを表示する（ユーザー指摘：
+       自分の結果と理論値を両方並べる二重表示の解消。isMatch分岐は_ddRenderResultRow内、判定・被害計算
+       ロジックは無変更）。
+       320px幅では情報ブロック内の各行（見出し・チップ・HP+トグル）がそれぞれ独立にflex-wrapで折り返し、
+       右カラム（カード画像72px＋名前）の幅は縮めない（優先順位：災害名＞被害内訳＞画像、視線は左→右を維持）。 */
     .dd-sol-list { display:flex; flex-direction:column; }
     .dd-sol-row { border-bottom:1px solid var(--bg3,#30363d); padding:8px 2px; }
     .dd-sol-row:last-child { border-bottom:none; padding-bottom:0; }
     .dd-sol-grid { display:flex; align-items:flex-start; gap:8px; }
-    /* 左＝来襲順バッジ＋災害名。内容量が小さいため幅は内容に合わせ、万一の長名だけmax-width+省略記号で受ける */
-    .dd-sol-col-l { flex:0 0 auto; display:flex; align-items:center; gap:5px; padding-top:2px; max-width:104px; }
-    .dd-sol-disaster { display:flex; align-items:center; gap:4px; font-size:.74rem; font-weight:700; color:var(--t0); line-height:1.3; min-width:0; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    /* 中央＝ダメージ計算の詳細トグル。flex:1で残り幅を取り、狭い画面ではトグル内部だけがflex-wrapで折り返す */
-    .dd-sol-col-m { flex:1 1 0; min-width:0; padding-top:2px; }
-    /* 右＝使用政策カード画像。備えフェーズの.dd-mini-imgbox系（56px幅）と同程度のサイズを維持し、
-       複数枚使用時は横幅を増やさず縦に積む（.dd-sol-col-r自体の幅は56pxで固定） */
+    /* 左＝情報ブロック（見出し・被害内訳・HP推移＋トグル）。残り幅いっぱいを使い、右のカード画像との
+       高さバランスを取る（旧col-l/col-mの統合）。 */
+    .dd-sol-info { flex:1 1 0; min-width:0; padding-top:2px; display:flex; flex-direction:column; gap:4px; }
+    /* 見出し行：来襲順バッジ＋災害名＋（解説閲覧後・一致時のみ）一致バッジを同じ行にflex-wrapで収める */
+    .dd-sol-head { display:flex; align-items:center; gap:5px; flex-wrap:wrap; row-gap:3px; }
+    .dd-sol-disaster { display:flex; align-items:center; gap:4px; font-size:.74rem; font-weight:700; color:var(--t0); line-height:1.3; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* 右＝使用政策カード画像。備えフェーズの.dd-mini-imgbox系より一回り大きい72px幅とし、左の情報ブロックが
+       増えた実高さと釣り合わせる（旧56px。複数枚使用時は横幅を増やさず縦に積む＝.dd-sol-col-r自体は幅固定） */
     .dd-sol-col-r { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:6px; }
-    .dd-sol-card { display:flex; flex-direction:column; align-items:center; gap:3px; width:56px; flex-shrink:0; cursor:pointer; }
+    .dd-sol-card { display:flex; flex-direction:column; align-items:center; gap:3px; width:72px; flex-shrink:0; cursor:pointer; }
     .dd-sol-card-thumb { display:block; width:100%; aspect-ratio:288/450; border-radius:6px; overflow:hidden; border:1px solid var(--bg3,#30363d); background:var(--bg1,#0d1117); }
     .dd-sol-card-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
     .dd-sol-card-name { width:100%; font-size:.62rem; font-weight:700; color:var(--t1); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .dd-sol-used-chip { display:inline-flex; align-items:center; gap:3px; font-size:.7rem; color:var(--t1); white-space:nowrap; }
     .dd-sol-used-chip.dd-sol-used-none { color:var(--t2); }
-    /* 一致バッジ：解説閲覧後、理論値と完全一致した行だけに出す1行見出し（自分の内訳・理論値の内訳を
-       両方出さず二重表示を避けるための圧縮表示。新しい囲いは作らずテキスト色のみで区別する） */
-    .dd-sol-match-badge { display:flex; align-items:center; gap:4px; font-size:.68rem; font-weight:700; color:#e3c34d; margin-bottom:4px; }
-    /* トグル本体：閉じた状態は被害数値のみ（§3.4計器の文法・ラベル小＋数値大）。絵文字ではなく既存の
-       線画SVG（_ddIcoArrowRight）を90°回転させて開閉を示す。開閉はdailyToggleSolutionRowのDOM操作のみで
-       行うためrender()は経由しない（既存方式を維持）。 */
-    .dd-sol-toggle { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px; background:transparent; border:none; padding:2px 0; margin:0; cursor:pointer; color:inherit; font:inherit; text-align:left; width:100%; }
-    .dd-sol-toggle svg { flex-shrink:0; align-self:center; transition:transform .15s; }
-    .dd-sol-toggle.open svg { transform:rotate(90deg); }
-    .dd-sol-toggle:active { transform:scale(.97); }
+    /* 一致バッジ：解説閲覧後、理論値と完全一致した行だけに見出し行内で添えるインラインチップ（自分の内訳・
+       理論値の内訳を両方出さず二重表示を避けるための圧縮表示。新しい囲いは作らずテキスト色のみで区別する） */
+    .dd-sol-match-badge { display:inline-flex; align-items:center; gap:4px; font-size:.66rem; font-weight:700; color:#e3c34d; white-space:nowrap; }
+    /* 被害数値（§3.4計器の文法・ラベル小＋数値大）と、基礎ダメージ・軽減・地形リスク等の内訳チップは
+       常時表示（_ddRenderSolutionRowBreakdownが両方まとめて返す）。 */
     .dd-sol-dmg { display:flex; align-items:baseline; gap:2px; flex-shrink:0; }
     .dd-sol-dmg-num { font-size:1rem; font-weight:900; font-variant-numeric:tabular-nums; }
     .dd-sol-dmg-label { font-size:.6rem; color:var(--t2); font-weight:600; }
-    /* トグルの中身（基礎ダメージ・HP推移・理論値の考え方）。閉時はdisplay:noneで高さを取らない */
+    .dd-sol-chips { display:flex; flex-wrap:wrap; gap:4px; }
+    /* HP推移＋解説トグルの行。トグルは理由文が無い行では描画しないためHP推移のみが単独で残ることもある */
+    .dd-sol-footrow { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    .dd-sol-hp { font-size:.66rem; color:var(--t2); white-space:nowrap; }
+    /* トグル本体：理論値解説時の理由文だけを開閉する（§10.1により常時表示側は内訳チップ・HP推移を含むため
+       ここは理由文のみ）。絵文字ではなく既存の線画SVG（_ddIcoArrowRight）を90°回転させて開閉を示す。
+       開閉はdailyToggleSolutionRowのDOM操作のみで行うためrender()は経由しない（既存方式を維持）。 */
+    .dd-sol-toggle { display:inline-flex; align-items:center; gap:4px; background:transparent; border:none; padding:2px 0; margin:0; cursor:pointer; color:var(--blue); font:inherit; font-size:.68rem; font-weight:700; white-space:nowrap; flex-shrink:0; }
+    .dd-sol-toggle svg { flex-shrink:0; transition:transform .15s; }
+    .dd-sol-toggle.open svg { transform:rotate(90deg); }
+    .dd-sol-toggle:active { transform:scale(.97); }
+    /* トグルの中身（理論値の考え方＝理由文＋この手を抜いた場合の被害）。閉時はdisplay:noneで高さを取らない */
     /* 2026-07-29（コーディネーター指摘）：展開部分は3カラムの中央（実測約90px）に押し込むと説明文が
        1行2〜3語で折り返して極端に読みにくくなる。行の高さを抑える目的は「閉じている状態」で達成されるため、
-       開いたときは3カラムの外＝行の直下に全幅で出す。 */
+       開いたときは3カラムの外＝行の直下に全幅で出す（2026-07-30も維持）。 */
     .dd-sol-detail { padding:6px 2px 0; width:100%; }
     .dd-sol-detail[hidden] { display:none; }
-    .dd-sol-breakdown { margin-bottom:4px; }
     /* worldview.md §2.1が指す「均一角丸＋1px枠線の箱の羅列」「囲いすぎ」の汎用AI感パターンを解消する。
        §3.3片辺アクセント（左2pxの罫線のみ・背景/角丸を持たない）に置き換え、複数枚の理由コメントが並ぶ
        場合はさらに箱を重ねず§3.5罫線の規律（上1px罫線のみ）で区切る。外側は既にdd-formal-frame（§3.1
@@ -7675,7 +7688,7 @@
     function coopTutCardTap(uid) {
       const ts = coopTutorialState; if (!ts) return;
       if (uid === 'ctut_qw' && ts.step === 2) coopTutAction('play_shield');
-      else if (uid === 'ctut_dr' && ts.step === 4) coopTutAction('open_support');
+      else if (uid === 'ctut_dr' && ts.step === 5) coopTutAction('open_support');
     }
     function coopTutMkCard(card, glow, disabled) {
       const click = disabled ? '' : `coopTutCardTap('${card.uid}')`;
@@ -7724,8 +7737,11 @@
         2: { sel: '.card.tut-glow',    title: '耐震補強をタップ',     body: '光っているカードをタップして設置しましょう',                             color: '#3fb950' },
         // 2026-07-29：予算の繰り越し説明ステップ（新設）を耐震補強と仲間支援の間に挿入したため、
         // 以降のスポットライト対象ステップ番号を1つずつ繰り下げた（避難訓練タップ＝旧3→4、ターン終了＝旧4→5）
-        4: { sel: '.card.tut-glow',    title: '避難訓練をタップ',     body: '光っているカードをタップして仲間を支援しましょう',                       color: '#d29922' },
-        5: { sel: '.coop-tut-endturn', title: 'ターン終了をタップ',   body: '光っているボタンを押すとターンが進みます',                               color: '#a371f7' },
+        // 2026-07-30：復興ルールの説明ステップ（新設）を予算繰り越しと仲間支援の間にさらに挿入したため、
+        // 避難訓練タップ＝4→5、ターン終了＝5→6に再度繰り下げた。復興ステップ自体は操作対象を持たない
+        // 純粋な説明ステップのためCFGに追加しない（予算繰り越しステップと同じ扱い）。
+        5: { sel: '.card.tut-glow',    title: '避難訓練をタップ',     body: '光っているカードをタップして仲間を支援しましょう',                       color: '#d29922' },
+        6: { sel: '.coop-tut-endturn', title: 'ターン終了をタップ',   body: '光っているボタンを押すとターンが進みます',                               color: '#a371f7' },
       };
       const cfg = CFG[step]; if (!cfg) return;
       const el = document.querySelector(cfg.sel); if (!el) return;
@@ -7737,7 +7753,8 @@
       const ts = coopTutorialState;
       const cities = _coopTutFixedCities();
       // 2026-07-29：予算の繰り越し制（design/coop_balance.md §12・協力モード限定）の説明ステップを追加したため6→7
-      const STEP_COUNT = 7;
+      // 2026-07-30：復興ルール（design/coop_balance.md §13・協力モード限定）の説明ステップを追加したため7→8
+      const STEP_COUNT = 8;
       const dots = Array.from({length:STEP_COUNT}, (_,i)=>`<div class="tut-dot" style="background:${i===ts.step?'var(--blue)':i<ts.step?'var(--green)':'var(--bg3)'}"></div>`).join('');
       const stepCounter = `<span style="font-size:.72rem;color:var(--t1);font-weight:600">${ts.step+1} / ${STEP_COUNT}</span>`;
       const progressRow = `<div style="display:flex;align-items:center;gap:6px"><div class="tut-progress">${dots}</div>${stepCounter}</div>`;
@@ -7752,7 +7769,7 @@
           </div>
           ${exitBtn}
         </div></div>`;
-      } else if (ts.step === 6) {
+      } else if (ts.step === 7) {
         const cChain = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:12px;white-space:nowrap';
         const chips = `<span style="${cChain};background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28)">基礎 30</span><span style="${cChain};background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28)">二次津波 +5</span><span style="${cChain};background:rgba(255,255,255,.08);color:var(--t0);border:1px solid rgba(255,255,255,.2)">合計 35</span>`;
         html = `<div class="screen active"><div class="turn-summary-box">
@@ -7793,11 +7810,36 @@
             <div style="font-size:.66rem;color:var(--t2);margin-top:4px">黄色＝繰り越し分（最大2pt）・緑＝基本予算</div>
           </div><div style="text-align:right;margin-top:10px"><button class="sq-btn" onclick="coopTutAction('next')">次へ ＞</button></div>`;
         } else if (ts.step === 4) {
+          // 実装2（2026-07-30）：復興ルール（design/coop_balance.md §13・協力モード限定・正本）の説明ステップ。
+          // 予算の繰り越し（協力固有ルール・直前のステップ）の説明が済んだこのタイミングで挿入する。
+          // 発動条件がより限定的な復興を後段に置く（ユーザー指示の並び順）。操作は求めず「次へ」のみの
+          // 説明ステップ（旧ステップ3＝予算繰り越しと同じ進行パターン）。以降のステップ番号を1つずつ
+          // 繰り下げた（仲間支援＝旧4→5、ターン終了＝旧5→6、結果画面＝旧6→7。CFG・スポットライト対象
+          // 配列・STEP_COUNTも合わせて更新済み）。
+          stepTitle = '壊滅した都市を復活させる「復興」（協力モード限定）';
+          stepBody = '都市が壊滅しても、<strong>1ゲームに1回だけ</strong>復興で復活させられます。生きている都市が自分のHPを分け与え、<strong>差し出した量がそのまま復活後のHPになります</strong>（HP総量は増えません）。差し出せるのは<strong>HP30以上、自分の現在HPの半分まで</strong>。提供元は立候補制で、<strong>他の生存プレイヤー全員の承認</strong>が必要です（1人でも反対すれば不成立）。';
+          // HPが「提供元から壊滅都市へそのまま移動する」様子を数値例（80→40提供・0→40復活）で示す。
+          // 新しい囲いは作らず、既存のラベル小＋数値大の文法（§3.4）とテキスト色のみで表現する。
+          extraHtml = `<div style="margin-top:10px;text-align:center">
+            <div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">
+              <div style="text-align:center">
+                <div style="font-size:.62rem;color:var(--t2);margin-bottom:2px">提供元（例：大阪）</div>
+                <div style="font-size:.95rem;font-weight:800;color:var(--t0)">HP 80 <span style="color:var(--t2)">→</span> <span style="color:var(--red)">40</span></div>
+              </div>
+              ${_ddIcoArrowRight(18, 'var(--t2)')}
+              <div style="text-align:center">
+                <div style="font-size:.62rem;color:var(--t2);margin-bottom:2px">壊滅都市（復活）</div>
+                <div style="font-size:.95rem;font-weight:800;color:var(--t0)">HP 0 <span style="color:var(--t2)">→</span> <span style="color:var(--green)">40</span></div>
+              </div>
+            </div>
+            <div style="font-size:.66rem;color:var(--t2);margin-top:6px">差し出した量＝復活後のHP（HP総量は増えない）</div>
+          </div><div style="text-align:right;margin-top:10px"><button class="sq-btn" onclick="coopTutAction('next')">次へ ＞</button></div>`;
+        } else if (ts.step === 5) {
           stepTitle = '仲間の状況パネルと支援';
           stepBody = '仲間の予算・進行状況がひと目でわかります。<strong>避難訓練（コスト1）</strong>を仲間の大阪に使って支援してみましょう。';
           handHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${_coopTutHand().map(c=>coopTutMkCard(c, c.uid==='ctut_dr', c.uid==='ctut_qw')).join('')}</div>`;
           extraHtml = coopTutAllyPanel(false);
-        } else if (ts.step === 5) {
+        } else if (ts.step === 6) {
           stepTitle = 'ターン終了と同期';
           stepBody = '全員が行動を終えるとターンが進みます。仲間の状況パネルで誰の行動待ちかが一目でわかります。';
           extraHtml = coopTutAllyPanel(true) + `<button class="coop-tut-endturn tut-glow" onclick="coopTutAction('end_turn')" style="width:100%;margin-top:10px;padding:10px;border-radius:8px;background:var(--blue);border:none;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">ターン終了</button>`;
@@ -7814,9 +7856,9 @@
         </div>${ts.confirmSupport ? coopTutRenderSupportConfirm() : ''}`;
       }
       app.innerHTML = html;
-      // 新設ステップ3（予算の繰り越し説明）は操作対象となるDOM要素を持たない純粋な説明ステップのため、
-      // スポットライト対象から除外する（対象は1,2,4,5＝旧番号1,2,3,4のまま。CFGのキーも合わせて更新済み）。
-      if ([1,2,4,5].includes(ts.step) && !_coopTutSpotlights.has(ts.step)) setTimeout(() => showCoopTutSpotlight(ts.step), 80);
+      // 新設ステップ3（予算の繰り越し説明）・ステップ4（復興説明）はいずれも操作対象となるDOM要素を持たない
+      // 純粋な説明ステップのため、スポットライト対象から除外する（対象は1,2,5,6。CFGのキーも合わせて更新済み）。
+      if ([1,2,5,6].includes(ts.step) && !_coopTutSpotlights.has(ts.step)) setTimeout(() => showCoopTutSpotlight(ts.step), 80);
     }
 
     // ─── 観戦招待ポップオーバー ───
@@ -15338,20 +15380,23 @@
       const bu = b.map(c => c.uid).slice().sort();
       return au.every((u, idx) => u === bu[idx]);
     }
-    // 1行＝1攻撃の描画（2026-07-29再改修・実装2）。①災害名（左）②ダメージ計算の詳細トグル（中央）
-    // ③使用政策カード画像（右）の3カラムに組み替えた。
+    // 1行＝1攻撃の描画（2026-07-30再改修・実装1）。左＝情報ブロック（見出し・被害内訳・HP推移＋解説
+    // トグル）／右＝使用政策カード画像（拡大）の2カラムに組み替えた（旧・災害名/トグル/カード画像の
+    // 3カラムでは、右カラム＝カード画像の実高さに対し左カラムが災害名1行しか持たず空白が生じていた）。
     // (a) 自分の実プレイ結果（r・DD.results[i]）は解説閲覧前のみ主役として表示する。解説閲覧後
-    //    （group引数がnon-null）は、理論値と完全一致した行だけ「理論値と同じ結果でした」の1行バッジに
-    //    圧縮し、不一致の行は自分の内訳（使用カード・被害数・HP推移チップ）を一切出さず理論値のみを表示する
-    //    （ユーザー指摘：自分の結果と理論値を両方並べる二重表示の解消）。合計被害・スコア・称号など
-    //    行単位ではない情報はdailyRenderResult/_ddRenderResultList側でこれまで通り表示する。
-    // (b) 中央のダメージ計算詳細（基礎ダメージ・HP推移・理論値の考え方）はトグルの中に格納し、閉じた
-    //    状態では最終被害数だけを見せる（design_system.md §10.1デッドスペースは罪）。右のカード画像は
-    //    備えフェーズの.dd-mini-imgbox系と同程度のサイズ（56px幅）を維持する（_ddSolCardThumb）。
+    //    （group引数がnon-null）は、理論値と完全一致した行だけ見出し行に「理論値と同じ」バッジを添える
+    //    形に圧縮し、不一致の行は自分の内訳（使用カード・被害数・内訳チップ）を一切出さず理論値のみを
+    //    表示する（ユーザー指摘：自分の結果と理論値を両方並べる二重表示の解消）。合計被害・スコア・称号
+    //    など行単位ではない情報はdailyRenderResult/_ddRenderResultList側でこれまで通り表示する。
+    // (b) 被害数値・基礎ダメージ内訳チップ・HP推移は常時表示（design_system.md §10.1デッドスペースは罪＝
+    //    右カラムの拡大に伴い増えた行の高さを、隠すのではなく埋めるための情報として使う）。トグル
+    //    （.dd-sol-toggle）には理論値解説時の理由文（reason・reducedOptimal）だけを残し、理由文が無い行
+    //    （解説閲覧前・理論値側で対応なしの攻撃）はトグル自体を描画しない。右のカード画像は備えフェーズの
+    //    .dd-mini-imgbox系より一回り大きい72px幅にする（_ddSolCardThumb・旧56px）。
     function _ddRenderResultRow(r, i, group) {
       const ownCards = DD.hand.filter((c, hi) => DD.cardAssign[hi] === i);
       let cardsForCol = ownCards;      // 右列に出すカード（既定は自分の実プレイ）
-      let dmgSource = r;               // 中央の被害数・内訳の元データ（既定は自分の実プレイ結果）
+      let dmgSource = r;               // 被害数・内訳の元データ（既定は自分の実プレイ結果）
       let matchBadgeHtml = '';
       let reasonHtml = '';
       if (group) {
@@ -15359,8 +15404,9 @@
         const theoryCards = group.plays.map(p => p.card);
         const isMatch = (theoryDmg === r.dmg) && _ddSameCardSet(ownCards, theoryCards);
         if (isMatch) {
-          // 一致：自分の実プレイ＝理論値のため両方は出さず、1行バッジのみ追加する（内容自体はownCards/rのまま）
-          matchBadgeHtml = `<div class="dd-sol-match-badge">${_ddIcoGoldCheck(12, '#e3c34d')}理論値と同じ結果でした</div>`;
+          // 一致：自分の実プレイ＝理論値のため両方は出さず、見出し行に添えるインラインバッジのみ追加する
+          // （内容自体はownCards/rのまま）
+          matchBadgeHtml = `<span class="dd-sol-match-badge">${_ddIcoGoldCheck(12, '#e3c34d')}理論値と同じ</span>`;
         } else {
           // 不一致：自分の内訳は出さず理論値だけに置き換える
           cardsForCol = theoryCards;
@@ -15380,23 +15426,28 @@
       const cardsHtml = cardsForCol.length
         ? cardsForCol.map(c => _ddSolCardThumb(c)).join('')
         : `<span class="dd-sol-used-chip dd-sol-used-none">対応なし</span>`;
-      const detailHtml = `${_ddRenderSolutionRowBreakdown(dmgSource)}${reasonHtml}`;
+      // 理由文がある行だけトグルを描画する（無い行にトグルだけあって開いても何も出ない状態を避ける）
+      const toggleHtml = reasonHtml
+        ? `<button type="button" class="dd-sol-toggle" aria-label="解説を見る" onclick="dailyToggleSolutionRow(this)"><span>解説</span>${_ddIcoArrowRight(11)}</button>`
+        : '';
+      const detailHtml = reasonHtml ? `<div class="dd-sol-detail" hidden>${reasonHtml}</div>` : '';
       return `<div class="dd-sol-row">
         <div class="dd-sol-grid">
-          <div class="dd-sol-col-l">
-            <span class="dd-order-badge">${i + 1}</span>
-            <span class="dd-sol-disaster">${cardIconSvg(r.card.icon, 14)}${_escHtml(r.card.name)}</span>
-          </div>
-          <div class="dd-sol-col-m">
-            ${matchBadgeHtml}
-            <button type="button" class="dd-sol-toggle" aria-label="解説を見る" onclick="dailyToggleSolutionRow(this)">
-              <span class="dd-sol-dmg"><span class="dd-sol-dmg-num" style="color:${dmgSource.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${dmgSource.dmg}</span><span class="dd-sol-dmg-label">被害</span></span>
-              ${_ddIcoArrowRight(12)}
-            </button>
+          <div class="dd-sol-info">
+            <div class="dd-sol-head">
+              <span class="dd-order-badge">${i + 1}</span>
+              <span class="dd-sol-disaster">${cardIconSvg(r.card.icon, 14)}${_escHtml(r.card.name)}</span>
+              ${matchBadgeHtml}
+            </div>
+            ${_ddRenderSolutionRowBreakdown(dmgSource)}
+            <div class="dd-sol-footrow">
+              <span class="dd-sol-hp">HP ${dmgSource.hpBefore} → ${dmgSource.hpAfter}</span>
+              ${toggleHtml}
+            </div>
           </div>
           <div class="dd-sol-col-r">${cardsHtml}</div>
         </div>
-        <div class="dd-sol-detail" hidden>${detailHtml}</div>
+        ${detailHtml}
       </div>`;
     }
     // 使用した政策カードのサムネイル（実プレイ・理論値の両方で共用）。既存のカード描画資産
@@ -15406,6 +15457,8 @@
     // 対応カードと同じ）を開けばフルサイズの名前・説明を確認できる。
     // 2026-07-29再改修（実装1・ユーザー指摘対応）：温存カードの大きな一覧を撤去した代わりに「行の主役」と
     // なるよう、サイズを備えフェーズの.dd-mini-imgbox系（56px幅）と同程度まで拡大した（旧26px）。
+    // 2026-07-30さらに72px幅へ拡大（.dd-sol-card参照）。左の情報ブロックが被害内訳・HP推移を常時表示する
+    // ようになり実高さが伸びたため、右カラムを釣り合う大きさまで拡大した。
     function _ddSolCardThumb(card) {
       return `<span class="dd-sol-card" onclick="_lpTapPreview(this)">
         <span class="dd-sol-card-thumb">
@@ -15416,17 +15469,16 @@
         <span class="card-desc" style="display:none">${_escHtml(card.desc)}</span>
       </span>`;
     }
-    // 行の詳細内訳（着弾のダメージ内訳チップ＋HP推移）。行ヘッダー側で既に災害名・被害数を出しているため、
-    // ここでは重複させずHP推移とチップのみに絞る。
+    // 被害数値（大きい数字＋ラベル）＋基礎ダメージ・軽減・地形リスク等の内訳チップ。2026-07-30より常時表示
+    // 側（.dd-sol-info）から呼ばれる（旧・トグルの中に隠す実装だと右カラム拡大後も空白が残るため常時表示化。
+    // HP推移は_ddRenderResultRow側のfootrowで別途出すためここでは持たない）。
     function _ddRenderSolutionRowBreakdown(r) {
       const cBad = 'display:inline-flex;align-items:center;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:9px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
       const cOk  = 'display:inline-flex;align-items:center;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:9px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
       const baseChip = `<span style="${cBad}">基礎 ${r.card.baseDamage}</span>`;
       const lineChips = r.lines.filter(l => l.d != null).map(l => `<span style="${l.d > 0 ? cBad : cOk}">${_escHtml(l.t.split(/[：（(]/)[0])} ${l.d > 0 ? '+' : ''}${l.d}</span>`).join('');
-      return `<div class="dd-sol-breakdown">
-        <div style="font-size:.66rem;color:var(--t2);margin-bottom:4px">HP ${r.hpBefore} → ${r.hpAfter}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px">${baseChip}${lineChips}</div>
-      </div>`;
+      return `<div class="dd-sol-dmg"><span class="dd-sol-dmg-num" style="color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span class="dd-sol-dmg-label">被害</span></div>
+      <div class="dd-sol-chips">${baseChip}${lineChips}</div>`;
     }
     // (b) 行トグルの開閉。コーディネーター指摘：本日bcb8c2fで「トグル操作がオーバーレイ全体を再描画してカード画像が
     // ちらつく」不具合を修正済みのため、同種の教訓に従いここでもDD状態・render()を一切経由しない。
