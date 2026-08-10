@@ -5373,14 +5373,40 @@
     // 固定キャップ（min(この値, leftover)）。備蓄と二者択一のため同時発生しない。壊滅都市（後方支援）は
     // COOP_SUPPORT_CAPの独自持ち越しと二重適用になるため対象外。
     const COOP_CARRY_BUDGET_CAP = 2;
-    // 復興ルール（協力モード限定・design/coop_balance.md §13・2026-07-29正本）：壊滅都市を1ゲーム1回だけ、
-    // 提供元が差し出したHP（同量）で復活させられる。下限30は「攻撃1回ぶんに耐えられる水準」であり、
-    // 下限が無いと1HP復活（実質無償の1人分の戦力復帰）が支配的になってしまうことへの対策（§13.1）。
+    // 復興ルール（協力モード限定・design/coop_balance.md §13・2026-07-29正本／§13.8・2026-08-10追加）：壊滅都市を
+    // 部屋で設定した回数（reviveMax・既定1・0〜3）だけ、提供元が差し出したHP（同量）で復活させられる。下限30は
+    // 「攻撃1回ぶんに耐えられる水準」であり、下限が無いと1HP復活（実質無償の1人分の戦力復帰）が支配的になって
+    // しまうことへの対策（§13.1）。
     const COOP_REVIVE_MIN = 30;
     // MP専用：提案・立候補の交渉が非同期のまま延々と居座らないためのタイムアウト（§13.4）。
     // 提案作成時・立候補確定時のいずれでもこの時間だけ延長される（協議の各段階に等しく時間を与えるため）。
     // ソロは承認フローが無い（即実行）ため未使用。
     const COOP_REVIVE_TIMEOUT_MS = 120000; // 2分
+    // 提供量の丸め単位（§13.8・2026-08-10追加）。スライダーのstepとクランプ後の丸めの両方に使う。
+    const COOP_REVIVE_STEP = 5;
+    // reviveMaxが未定義（旧仕様の部屋データ・後方互換）のときに扱う既定回数。部屋作成時の既定値でもある。
+    const COOP_REVIVE_MAX_DEFAULT = 1;
+    // 値を5の倍数へ切り下げる（提供元の上限floor(hp/2)が5の倍数でない場合の丸め・§13.8）。
+    function coopReviveStepDown(v) { return Math.floor(v / COOP_REVIVE_STEP) * COOP_REVIVE_STEP; }
+    // 提供元が差し出せる上限（floor(hp/2)を5の倍数に切り下げ済み）。例：HP105→半分52→上限50。
+    function coopReviveDonorMax(hp) { return coopReviveStepDown(Math.floor(hp / 2)); }
+    // 提供量をmin〜maxへクランプし、必ず5の倍数に丸める（§13.8）。maxは呼び出し側で既に5の倍数に切り下げ済み
+    // （coopReviveDonorMax等）である前提。提供元が失うHPと復活後HPが一致する不変条件（§13.1）を壊さないよう、
+    // 実際に適用する提供量は必ずこの関数を経由させる。
+    function coopReviveClampAmount(v, min, max) {
+      let n = Math.round((+v || min) / COOP_REVIVE_STEP) * COOP_REVIVE_STEP;
+      if (n < min) n = min;
+      if (n > max) n = max;
+      return n;
+    }
+    // 部屋のreviveMax（復興回数の上限）。未定義（後方互換）はCOOP_REVIVE_MAX_DEFAULTとして扱う。
+    function coopReviveMaxOf(co) { return (co && co.reviveMax != null) ? co.reviveMax : COOP_REVIVE_MAX_DEFAULT; }
+    // 古い部屋状態（reviveMax未定義・reviveUsedがboolean）を読み込んだ際の読み替え（後方互換・2026-08-10追加）。
+    function coopReviveNormalize(co) {
+      if (!co) return;
+      co.reviveUsed = (typeof co.reviveUsed === 'boolean') ? (co.reviveUsed ? 1 : 0) : (co.reviveUsed || 0);
+      if (co.reviveMax == null) co.reviveMax = COOP_REVIVE_MAX_DEFAULT;
+    }
     // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
     const COOP_EVENT_INFO = {
       rumor:     { id: 'rumor',     icon: 'rumor',     name: 'デマ拡散',   effectCity: 'このターンの予算 −1',                  effectNature: 'CPU都市の予算 −1（攻めの好機）',           desc: 'SNS上の偽情報が初動対応を混乱させる' },
@@ -7851,7 +7877,7 @@
           // 繰り下げた（仲間支援＝旧4→5、ターン終了＝旧5→6、結果画面＝旧6→7。CFG・スポットライト対象
           // 配列・STEP_COUNTも合わせて更新済み）。
           stepTitle = '壊滅した都市を復活させる「復興」（協力モード限定）';
-          stepBody = '都市が壊滅しても、<strong>1ゲームに1回だけ</strong>復興で復活させられます。生きている都市が自分のHPを分け与え、<strong>差し出した量がそのまま復活後のHPになります</strong>（HP総量は増えません）。差し出せるのは<strong>HP30以上、自分の現在HPの半分まで</strong>。提供元は立候補制で、<strong>他の生存プレイヤー全員の承認</strong>が必要です（1人でも反対すれば不成立）。';
+          stepBody = '都市が壊滅しても、<strong>部屋で設定した回数（既定1回・最大3回）</strong>まで復興で復活させられます。生きている都市が自分のHPを分け与え、<strong>差し出した量がそのまま復活後のHPになります</strong>（HP総量は増えません）。差し出せるのは<strong>HP30以上、自分の現在HPの半分まで（5pt単位）</strong>。提供元は立候補制で、<strong>他の生存プレイヤー全員の承認</strong>が必要です（1人でも反対すれば不成立）。';
           // HPが「提供元から壊滅都市へそのまま移動する」様子を数値例（80→40提供・0→40復活）で示す。
           // 新しい囲いは作らず、既存のラベル小＋数値大の文法（§3.4）とテキスト色のみで表現する。
           extraHtml = `<div style="margin-top:10px;text-align:center">
@@ -8519,6 +8545,7 @@
           const natMode = hn === 'cpu' ? 'cpu' : 'human';
           const _svOn = lobbyState.coopSocialVuln !== false;
           const _cityHp = lobbyState.coopCityHp || 120; // 4.2.1決定（2026-07-17）：推奨初期値を100→120相当（旧95）へ引き上げ。スライダーで80〜120の変更は従来どおり可能
+          const _reviveMax = (lobbyState.coopReviveMax != null) ? lobbyState.coopReviveMax : COOP_REVIVE_MAX_DEFAULT; // §13.8（2026-08-10）：復興回数（部屋全体・0〜3・既定1）
           if (net === 'host') {
             // ホスト専用：HPスライダー＋iOSスイッチ＋部屋を作るボタン
             const svClass = _svOn ? 'ios-switch on' : 'ios-switch';
@@ -8557,10 +8584,22 @@
       </div>
       <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');this.classList.toggle('on')" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=120;lobbyState.coopSocialVuln=true;render()">デフォルト設定に戻す</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;margin-bottom:12px">
+      <div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${coopIcoHeart(18, '#a371f7')}
+          <span style="font-size:.84rem;color:var(--t0);font-weight:700">復興回数</span>
+        </div>
+        <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">壊滅した都市を仲間のHPを分けて復活させられる回数（部屋全体・0で復興なし）</div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0;margin-left:12px">
+        ${[0, 1, 2, 3].map(n => `<button type="button" onclick="lobbyState.coopReviveMax=${n};render()" style="width:28px;height:28px;border-radius:8px;border:1.5px solid #a371f7;background:${_reviveMax === n ? '#a371f7' : 'transparent'};color:${_reviveMax === n ? '#0d1117' : 'var(--t0)'};font-weight:700;font-size:.78rem;cursor:pointer">${n}</button>`).join('')}
+      </div>
     </div>
-    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120)">部屋を作る</button>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=120;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=1;render()">デフォルト設定に戻す</button>
+    </div>
+    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1)">部屋を作る</button>
     <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">${note}</div>`;
           } else {
             // ソロ：難易度3ボタン（変更なし）
@@ -10848,7 +10887,7 @@
         // ── オンライン協力（既定はオフライン＝ソロ。挙動は従来どおり） ──
         online: false, host: false, mySide: sideKey, roomId: null, outcome: null,
         oppName: '', oppPresent: true,
-        reviveUsed: false, // 復興ルール（design/coop_balance.md §13）：1ゲーム1回。ソロは承認フローなしの即実行
+        reviveUsed: 0, reviveMax: COOP_REVIVE_MAX_DEFAULT, // 復興ルール（design/coop_balance.md §13/§13.8）：ソロは既定回数（1）固定。承認フローなしの即実行。ソロ専用のreviveMax設定UIは今回スコープ外
       };
       try { localStorage.setItem('ron_lastName', name); } catch (e) { }
       renderCoop();
@@ -10923,8 +10962,10 @@
     }
     // スライダーのドラフト値更新：頻繁に発火するため renderCoop() は呼ばずローカルDOM（ラベル）だけ更新する
     // （lobbyStateのHPスライダー等と同じ作法。design_system.mdのUI指針・タスク指示どおり）。
-    function coopReviveVolDraftSet(v) {
-      _coReviveVolDraft = Math.max(COOP_REVIVE_MIN, Math.round(+v || COOP_REVIVE_MIN));
+    function coopReviveVolDraftSet(v, max) {
+      // §13.8：ドラフト表示を5の倍数に丸める。実際に適用する提供量は成立時にサーバ（ホスト権威）側で再クランプする
+      // （coopReviveApplyMP）ため、ここでのmax未指定時はInfinity（丸めのみ・上限は課さない）で安全側に倒す。
+      _coReviveVolDraft = coopReviveClampAmount(v, COOP_REVIVE_MIN, (max != null && max !== '') ? +max : Infinity);
       const lbl = document.getElementById('co-revive-vol-label');
       if (lbl) lbl.textContent = String(_coReviveVolDraft);
     }
@@ -10955,26 +10996,26 @@
     // 承認ステップを省いて即実行する。CO.citiesは常に2都市固定のため、壊滅都市と提供元候補は最大1組しか
     // 成立し得ず、対象・提供元の選択UIは不要（提供量のみを選ぶ）。
     function coopReviveSoloEligible() {
-      if (!CO || CO.mp || CO.humanSide !== 'city' || CO.reviveUsed || CO.phase !== 'city') return null;
+      if (!CO || CO.mp || CO.humanSide !== 'city' || (CO.reviveUsed || 0) >= coopReviveMaxOf(CO) || CO.phase !== 'city') return null;
       const dead = CO.cities.find(cs => cs.hp <= 0);
       if (!dead) return null;
       const donor = CO.cities.find(cs => cs !== dead && cs.hp > 0);
       if (!donor) return null;
-      const max = Math.floor(donor.hp / 2);
+      const max = coopReviveDonorMax(donor.hp); // §13.8：5の倍数に切り下げ
       if (max < COOP_REVIVE_MIN) return null;
       return { dead, donor, min: COOP_REVIVE_MIN, max };
     }
     function coopReviveSoloDraftSet(v) {
-      _coReviveSoloDraft = Math.max(COOP_REVIVE_MIN, Math.round(+v || COOP_REVIVE_MIN));
+      _coReviveSoloDraft = coopReviveClampAmount(v, COOP_REVIVE_MIN, Infinity); // §13.8：5の倍数に丸める（実際の上限は確定時にcoopReviveSoloConfirmが再クランプ）
       const lbl = document.getElementById('co-revive-solo-label');
       if (lbl) lbl.textContent = String(_coReviveSoloDraft);
     }
     function coopReviveSoloConfirm() {
       const info = coopReviveSoloEligible(); if (!info) return;
-      const amount = Math.max(info.min, Math.min(info.max, _coReviveSoloDraft));
+      const amount = coopReviveClampAmount(_coReviveSoloDraft, info.min, info.max);
       info.donor.hp -= amount;
       info.dead.hp = amount; // 手札・effects等は一切触れない（後方支援中のものをそのまま維持＝§13.2）
-      CO.reviveUsed = true;
+      CO.reviveUsed = (CO.reviveUsed || 0) + 1;
       _coLog(`🚑 復興：${info.donor.city.name}が${amount}ptを分け、${info.dead.city.name}が復活した`);
       renderCoop();
     }
@@ -11173,7 +11214,7 @@
         naturePool: Object.fromEntries(DISASTER_CARDS.map(c => [c.id, c.id === 'compound' ? compoundCount : coopNaturePoolPer(cityPlayers.length, d.draw, d.maxTurns)])), attacksLeft: 0,
         natureDeck: coopBuildNatureDeck(compoundCount), natureDiscard: [],
         incoming: [], responseBlocked: false, blockReason: '',
-        revive: null, reviveUsed: false, // 復興ルール（design/coop_balance.md §13）：進行中の提案（非同期）と1ゲーム1回の消費フラグ
+        revive: null, reviveUsed: 0, reviveMax: (opts.reviveMax != null) ? opts.reviveMax : COOP_REVIVE_MAX_DEFAULT, // 復興ルール（design/coop_balance.md §13/§13.8）：進行中の提案（非同期）・消費回数カウンタ・部屋設定の上限（既定1）
         // CO スクラッチ（実体は各スロット。描画・既存エンジンが参照）
         budget: 0, budgetUsed: 0, nextBudgetBonus: 0, carryBudget: 0, budgetCarriedIn: 0, hand: [], policyDeck: [], policyDiscard: [],
         log: [], confirm: null, result: null, drawState: null, eventPopup: null,
@@ -11375,7 +11416,7 @@
 
     // 復興ルール（design/coop_balance.md §13）：提案・立候補・投票が非同期のまま長時間放置された場合に
     // 自動的に不成立へ倒すタイムアウト判定（ホスト専用）。expiresAtを過ぎていればCO.reviveをnullに戻すだけで、
-    // 「1ゲーム1回」は消費しない（不成立は何度でも再提案できる＝§13.3）。戻り値は状態が変化したか（true=変化）。
+    // 復興回数（reviveMax）は消費しない（不成立は何度でも再提案できる＝§13.3）。戻り値は状態が変化したか（true=変化）。
     function coopReviveCheckTimeoutMP() {
       if (!CO || !CO.mp || !CO.revive) return false;
       if (Date.now() < (CO.revive.expiresAt || 0)) return false;
@@ -11398,11 +11439,11 @@
     function coopReviveApplyMP(rv) {
       const target = CO.cities[rv.targetIdx], donor = CO.cities[rv.donorIdx];
       if (!target || !donor) { CO.revive = null; return; }
-      const amount = Math.max(COOP_REVIVE_MIN, Math.min(rv.amount, Math.floor(donor.hp / 2)));
+      const amount = coopReviveClampAmount(rv.amount, COOP_REVIVE_MIN, coopReviveDonorMax(donor.hp)); // §13.8：5の倍数に再クランプ
       donor.hp -= amount;
       target.hp = amount; // 手札・policyDeck・ownerId/ownerName・ready/ack/respには一切触れない（§13.2）
-      CO.reviveUsed = true;
-      _coLog(`🚑 復興成立：${donor.city.name}が${amount}ptを分け、${target.city.name}が復活した`);
+      CO.reviveUsed = (CO.reviveUsed || 0) + 1;
+      _coLog(`🚑 復興成立：${donor.city.name}が${amount}ptを分け、${target.city.name}が復活した（残り${Math.max(0, coopReviveMaxOf(CO) - CO.reviveUsed)}回）`);
       CO.revive = null;
     }
     // ホスト：ゲストの intent を playerId 単位に検証し、スワップインで既存エンジンへ適用
@@ -11487,12 +11528,12 @@
             break;
           }
           case 'dismissEvent': { CO.eventPopup = null; break; }
-          // ── 復興ルール（design/coop_balance.md §13）：誰でも提案→提供元は立候補制→提供元以外の
+          // ── 復興ルール（design/coop_balance.md §13/§13.8）：誰でも提案→提供元は立候補制→提供元以外の
           // 生存都市プレイヤー全員が承認/否決（1人でも否決なら不成立・承認者0人なら提供元の意思のみで成立）。
           // 自然側・観戦者はslotOf(pid)が存在しないため、いずれのcaseも構造的に弾かれる（自然側は関与しない＝§13.3）。
           case 'revivePropose': {
             if (CO.phase !== 'city' && CO.phase !== 'draw') break; // 都市フェーズ中のみ提案可（§13.5）
-            if (CO.reviveUsed || CO.revive) break; // 1ゲーム1回・同時に1件のみ
+            if ((CO.reviveUsed || 0) >= coopReviveMaxOf(CO) || CO.revive) break; // reviveMax回まで・同時に1件のみ
             const proposer = slotOf(pid); if (!proposer) break; // 都市側のみ（壊滅した本人でも可）
             const target = CO.cities[p.targetIdx]; if (!target || target.hp > 0) break; // 対象は壊滅都市のみ
             CO.revive = { targetIdx: p.targetIdx, proposedBy: pid, proposedAt: Date.now(), donorIdx: null, donorId: null, amount: null, votes: {}, expiresAt: Date.now() + COOP_REVIVE_TIMEOUT_MS };
@@ -11504,9 +11545,9 @@
             const donorSlot = slotOf(pid); if (!donorSlot || donorSlot.hp <= 0) break; // 生存都市のみ提供元になれる
             const donorIdx = CO.cities.indexOf(donorSlot);
             if (donorIdx === CO.revive.targetIdx) break; // 対象は壊滅済みのため実際には起こり得ないが念のため
-            const maxAmt = Math.floor(donorSlot.hp / 2);
+            const maxAmt = coopReviveDonorMax(donorSlot.hp); // §13.8：5の倍数に切り下げ
             if (maxAmt < COOP_REVIVE_MIN) break; // HP60未満（半分が30未満）は提供元になれない（§13.1）
-            const amount = Math.max(COOP_REVIVE_MIN, Math.min(maxAmt, Math.round(+p.amount || COOP_REVIVE_MIN)));
+            const amount = coopReviveClampAmount(p.amount, COOP_REVIVE_MIN, maxAmt);
             CO.revive.donorIdx = donorIdx; CO.revive.donorId = pid; CO.revive.amount = amount; CO.revive.votes = {};
             CO.revive.expiresAt = Date.now() + COOP_REVIVE_TIMEOUT_MS; // 投票フェーズにも同じ猶予を与える
             _coLog(`🙋 復興：${donorSlot.city.name}が${amount}ptの提供に立候補`);
@@ -11574,13 +11615,14 @@
     }
 
     // ホスト：ルーム作成 → 待機ロビーへ。natureMode: 'cpu'|'human'（自分が都市のときのみ意味を持つ）
-    function coopMPCreateRoom(diffKey, hostSide, natureMode, assign, socialVuln, cityHp) {
+    function coopMPCreateRoom(diffKey, hostSide, natureMode, assign, socialVuln, cityHp, reviveMax) {
       const name = (lobbyState.nameInput || '').trim();
       if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
       if (!db) { lobbyState.error = 'オンライン機能が利用できません'; render(); return; }
       assign = assign || 'fixed';
       const sv = socialVuln !== false;
       const hp = (cityHp != null) ? Math.max(80, Math.min(120, cityHp)) : 120; // 4.2.1決定（2026-07-17）：推奨初期値120（旧95）。スライダー可動域80〜120は不変
+      const rm = (reviveMax != null) ? Math.max(0, Math.min(3, Math.round(reviveMax))) : COOP_REVIVE_MAX_DEFAULT; // §13.8（2026-08-10）：復興回数（部屋全体・0〜3・既定1）
       const code = generateRoomCode();
       const hostId = _coNewPid();
       const natMode = (assign === 'random') ? 'human' : (hostSide === 'nature' ? 'human' : (natureMode || 'cpu'));
@@ -11589,12 +11631,12 @@
       CO = {
         mp: true, online: true, host: true, phase: 'lobby',
         roomId: code, myId: hostId, mySide: mySideStored, humanSide: mySideStored,
-        name, diff: COOP_DIFF[diffKey], diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp,
+        name, diff: COOP_DIFF[diffKey], diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm,
         lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
       };
       renderCoop();
       db.ref(`coopRooms/${code}`).set({
-        hostId, hostName: name, diff: diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, started: false,
+        hostId, hostName: name, diff: diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm, started: false,
         players, createdAt: Date.now(), lastActiveAt: Date.now(),
       }).then(() => { coopMPListenRoom(); coopMPSetupPresence(); _coSaveSession(); renderCoop(); })
         .catch(e => { lobbyState.error = 'ルーム作成に失敗: ' + (e && e.message); CO = null; render(); });
@@ -11650,7 +11692,7 @@
           mp: true, online: true, host: false, phase: 'lobby',
           roomId: code, myId, mySide: side, humanSide: side,
           name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign,
-          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120,
+          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
           lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
         };
         renderCoop();
@@ -11679,7 +11721,7 @@
           mp: true, online: true, host: false, phase: room.started ? 'resolving' : 'lobby',
           roomId: code, myId: sid, mySide: 'spectator', humanSide: 'spectator', turn: 1,
           name: '観戦者', diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
-          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120,
+          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
           lobby: { players: room.players || {}, presence: {} }, oppPresent: true,
           cities: [], hand: [], policyDeck: [], policyDiscard: [], natureDeck: [], naturePool: {}, incoming: [],
           budget: 0, budgetUsed: 0, log: [], gameLog: [], cpuPlayedLog: [], confirm: null, eventPopup: null,
@@ -11721,6 +11763,7 @@
         const remote = JSON.parse(data);
         const ui = { online: true, mp: true, host: false, mySide: 'spectator', humanSide: 'spectator', myId: CO.myId, roomId: CO.roomId, name: CO.name, lobby: CO.lobby, oppPresent: true, confirm: null };
         CO = { ...remote, ...ui };
+        coopReviveNormalize(CO); // 復興ルール後方互換（§13.8）：reviveMax未定義／reviveUsedがbooleanの旧state読み替え
         _scheduleRemoteRenderCoop();
       });
     }
@@ -11775,7 +11818,7 @@
       const natureIsCpu = !natureHuman; // 自然プレイヤーがいなければ CPU
       if (CO.natureMode === 'human' && CO.assign !== 'random' && !natureHuman) { CO.lobbyMsg = '自然側の参加を待っています（または CPU で開始してください）'; renderCoop(); return; }
       const code = CO.roomId, hostId = CO.myId, hostName = CO.name, diffKey = CO.diffKey;
-      coopBuildMPState({ diffKey, players: arr, natureIsCpu, myId: hostId, socialVuln: CO.socialVuln, cityHp: CO.cityHp });
+      coopBuildMPState({ diffKey, players: arr, natureIsCpu, myId: hostId, socialVuln: CO.socialVuln, cityHp: CO.cityHp, reviveMax: CO.reviveMax });
       CO.host = true; CO.roomId = code; CO.name = hostName; CO.myId = hostId;
       CO.mySide = (CO.myId === CO.natureId) ? 'nature' : 'city'; CO.humanSide = CO.mySide;
       CO.lobby = { players: playersObj, presence: (CO.lobby && CO.lobby.presence) || {} };
@@ -11807,6 +11850,7 @@
         // ローカルUI状態のため、ゲスト側は自分でリセットするしかない（ホストはcoopStartCityTurnMP/coopBeginPlayで直接リセットする）
         const ui = { online: true, mp: true, host: false, myId: CO.myId, roomId: CO.roomId, name: CO.name, oppPresent: CO.oppPresent, lobby: CO.lobby, confirm: CO.confirm };
         CO = { ...remote, ...ui };
+        coopReviveNormalize(CO); // 復興ルール後方互換（§13.8）：reviveMax未定義／reviveUsedがbooleanの旧state読み替え
         if (prevTurn !== undefined && remote.turn !== prevTurn) _coHandTab = 'me'; // ターンが進んだら仲間タブに入ったままにしない
         CO.mySide = (CO.myId === CO.natureId) ? 'nature' : 'city';
         CO.humanSide = CO.mySide;
@@ -11855,7 +11899,7 @@
             mp: true, online: true, host: isHost, phase: 'lobby',
             roomId: code, myId, mySide: side, humanSide: side,
             name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
-            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120,
+            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
             lobby: { players: room.players || {}, presence: room.presence || {} }, oppPresent: true, cities: [], log: [],
           };
           _coRoleShown = true; // ロビーでは配役未発表でよい
@@ -11872,6 +11916,7 @@
         const remote = JSON.parse(data);
         if (remote.phase === 'over') { _coClearSession(); return false; } // 終了済みは復帰しない
         CO = { ...remote, mp: true, online: true, host: isHost, myId, roomId: code, name, oppPresent: true, confirm: null };
+        coopReviveNormalize(CO); // 復興ルール後方互換（§13.8）：reviveMax未定義／reviveUsedがbooleanの旧state読み替え
         CO.mySide = (CO.myId === CO.natureId) ? 'nature' : 'city';
         CO.humanSide = CO.mySide;
         coopLoadMyActor();
@@ -12828,7 +12873,7 @@
         return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>操作が終わっていないプレイヤーがいます</strong></div><p style="color:var(--t0)">全員分を締めて進めますか？<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">未操作の人は「対応せず受ける」等の扱いになります</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmForceAdvance()">締めて進める</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div></div></div>`;
       }
       if (CO.confirm.reviveForceClose) {
-        // 復興ルール（design/coop_balance.md §13.4）：ホストの提案打ち切り。不成立扱いになり「1ゲーム1回」は消費しない
+        // 復興ルール（design/coop_balance.md §13.4）：ホストの提案打ち切り。不成立扱いになり復興回数は消費しない
         return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px">${coopIcoHeart(40, '#e2b6ff')}</div><div class="confirm-card-preview" style="color:var(--t0)"><strong>復興提案を締めます</strong></div><p style="color:var(--t0)">この提案を打ち切りますか？<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">不成立として扱われ、消費はされません</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopConfirmReviveForceClose()">締めて不成立にする</button><button class="btn-cancel" onclick="coopCancelConfirm()">キャンセル</button></div></div></div>`;
       }
       if (CO.confirm.endTurn) {
@@ -13046,7 +13091,9 @@
       return `<div class="coop-city-frame" style="--zone-bracket:var(--purple);background:rgba(163,113,247,.05);border-radius:6px;padding:8px 10px;margin-top:8px">${inner}</div>`;
     }
     function coopReviveHeader(label) {
-      return `<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:var(--t1)">${coopIcoHeart(13, '#e2b6ff')}復興（1ゲーム1回）<span style="margin-left:auto;font-size:.66rem;color:var(--t2)">${label || ''}</span></div>`;
+      // §13.8（2026-08-10）：固定「1ゲーム1回」表記をやめ、部屋設定の残り回数を動的に表示する。
+      const remain = Math.max(0, coopReviveMaxOf(CO) - (CO.reviveUsed || 0));
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:var(--t1)">${coopIcoHeart(13, '#e2b6ff')}復興（残り${remain}回）<span style="margin-left:auto;font-size:.66rem;color:var(--t2)">${label || ''}</span></div>`;
     }
     // ホストのみ「この提案を締める」を表示（coopRequestForceAdvanceと同じ思想。ゲストには一切見えない）
     function coopReviveHostCloseBtn() {
@@ -13059,7 +13106,7 @@
       const mySlot = coopMySlot();
       const myIdx = mySlot ? CO.cities.indexOf(mySlot) : -1;
       if (!CO.revive) {
-        if (CO.reviveUsed) return '';
+        if ((CO.reviveUsed || 0) >= coopReviveMaxOf(CO)) return ''; // reviveMax===0のときもここで常に真になり導線ごと非表示になる（§13.8）
         if (CO.phase !== 'city' && CO.phase !== 'draw') return ''; // 提案可能フェーズのみ表示（§13.5）
         const dead = CO.cities.map((cs, i) => ({ cs, i })).filter(x => x.cs.hp <= 0);
         if (!dead.length) return '';
@@ -13072,13 +13119,13 @@
       const target = CO.cities[rv.targetIdx];
       const targetName = target ? target.city.name : '';
       if (rv.donorIdx == null) {
-        const eligible = !!mySlot && mySlot.hp > 0 && myIdx !== rv.targetIdx && Math.floor(mySlot.hp / 2) >= COOP_REVIVE_MIN;
+        const eligible = !!mySlot && mySlot.hp > 0 && myIdx !== rv.targetIdx && coopReviveDonorMax(mySlot.hp) >= COOP_REVIVE_MIN;
         let body = `<div style="font-size:.74rem;color:var(--t0);margin-top:3px">${_escHtml(targetName)}の復興：提供元を募集中…</div>`;
         if (eligible) {
           if (_coReviveVolOpen) {
-            const max = Math.floor(mySlot.hp / 2);
+            const max = coopReviveDonorMax(mySlot.hp); // §13.8：5の倍数に切り下げ
             if (_coReviveVolDraft < COOP_REVIVE_MIN || _coReviveVolDraft > max) _coReviveVolDraft = COOP_REVIVE_MIN;
-            body += `<input type="range" min="${COOP_REVIVE_MIN}" max="${max}" step="1" value="${_coReviveVolDraft}" style="width:100%;accent-color:#a371f7;margin-top:6px" oninput="coopReviveVolDraftSet(this.value)">
+            body += `<input type="range" min="${COOP_REVIVE_MIN}" max="${max}" step="${COOP_REVIVE_STEP}" value="${_coReviveVolDraft}" style="width:100%;accent-color:#a371f7;margin-top:6px" oninput="coopReviveVolDraftSet(this.value,this.max)">
               <div style="display:flex;justify-content:space-between;font-size:.66rem;color:var(--t2);margin:2px 0 6px"><span>${COOP_REVIVE_MIN}pt</span><span>提供量 <b id="co-revive-vol-label" style="color:var(--t0)">${_coReviveVolDraft}</b>pt</span><span>${max}pt</span></div>
               <button type="button" onclick="coopReviveConfirmVolunteer()" style="width:100%;padding:8px;border-radius:8px;background:var(--purple,#a371f7);border:none;color:#fff;font-weight:700;font-size:.76rem;cursor:pointer">この量で立候補する</button>
               <button type="button" onclick="coopReviveToggleVolunteer()" style="width:100%;margin-top:4px;padding:6px;border-radius:8px;background:transparent;border:1px solid rgba(var(--t0-rgb),.25);color:var(--t0);font-size:.7rem;cursor:pointer">キャンセル</button>`;
@@ -13117,7 +13164,7 @@
       if (_coReviveSoloDraft < info.min || _coReviveSoloDraft > info.max) _coReviveSoloDraft = info.min;
       return coopReviveBracket(`${coopReviveHeader('未使用')}
         <div style="font-size:.74rem;color:var(--t0);margin:3px 0">${_escHtml(info.donor.city.name)}のHPを分けて${_escHtml(info.dead.city.name)}を復活させられます</div>
-        <input type="range" min="${info.min}" max="${info.max}" step="1" value="${_coReviveSoloDraft}" style="width:100%;accent-color:#a371f7" oninput="coopReviveSoloDraftSet(this.value)">
+        <input type="range" min="${info.min}" max="${info.max}" step="${COOP_REVIVE_STEP}" value="${_coReviveSoloDraft}" style="width:100%;accent-color:#a371f7" oninput="coopReviveSoloDraftSet(this.value)">
         <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--t2);margin:2px 0 6px"><span>${info.min}pt</span><span>提供量 <b id="co-revive-solo-label" style="color:var(--t0)">${_coReviveSoloDraft}</b>pt</span><span>${info.max}pt</span></div>
         <button type="button" onclick="coopReviveSoloConfirm()" style="width:100%;padding:9px;border-radius:8px;background:var(--purple,#a371f7);border:none;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer">この量で復興する</button>`);
     }
