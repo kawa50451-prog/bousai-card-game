@@ -481,7 +481,12 @@
       display: none;
       flex-direction: column;
       gap: 12px;
-      flex: 1
+      flex: 1;
+      /* 2026-07-30：画面右下の固定ボタン（.hint-btn「？」・.spec-invite-btn「招待」）は position:fixed のため
+         コンテンツ末尾に重なる。協力モードの「ターン終了」など画面下端に置かれる主要操作ボタンが
+         押しづらくなっていた（実機スクリーンショットで発見）。固定ボタンの高さ40px＋余白ぶんを
+         コンテンツ側で確保し、最後までスクロールしても操作ボタンが隠れないようにする。 */
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
     }
 
     .screen.active {
