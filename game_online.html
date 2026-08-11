@@ -5378,12 +5378,22 @@
     // 「攻撃1回ぶんに耐えられる水準」であり、下限が無いと1HP復活（実質無償の1人分の戦力復帰）が支配的になって
     // しまうことへの対策（§13.1）。
     const COOP_REVIVE_MIN = 30;
+    // 復興直後の猶予（§13.9・2026-08-11決定・案A採用）：復活後HPは提供元の現在HPの半分が上限のため、
+    // 自然側の1ターンの被害（2枚連打で平均66前後）を耐えられない前提のHPで戻ってくる。猶予はHPの数字を
+    // 動かさずに、復活後COOP_REVIVE_GUARD_TURNSターン分（暫定2）だけ受けるダメージを半減させることで
+    // 「復活直後に即壊滅」を防ぐ。値は実機プレイで調整する（1では次の自然ターンで落ちる公算が高く、
+    // 3以上だと壊滅した方が守られるという逆転が起きうる、との判断が未決事項として残っている）。
+    const COOP_REVIVE_GUARD_TURNS = 2;
     // MP専用：提案・立候補の交渉が非同期のまま延々と居座らないためのタイムアウト（§13.4）。
     // 提案作成時・立候補確定時のいずれでもこの時間だけ延長される（協議の各段階に等しく時間を与えるため）。
     // ソロは承認フローが無い（即実行）ため未使用。
     const COOP_REVIVE_TIMEOUT_MS = 120000; // 2分
     // 提供量の丸め単位（§13.8・2026-08-10追加）。スライダーのstepとクランプ後の丸めの両方に使う。
     const COOP_REVIVE_STEP = 5;
+    // MP協力の都市HP推奨初期値（スライダーの初期位置・「デフォルト設定に戻す」の戻り先）。
+    // 2026-08-11の実機プレイで、復興1回との組み合わせは100がちょうどよいと判断（coop_balance.md §4.2.1）。
+    // スライダーの可動域80〜120は変更していない。room.cityHpが欠けた旧データの読み替えにもこの値を使う。
+    const COOP_CITY_HP_DEFAULT = 100;
     // reviveMaxが未定義（旧仕様の部屋データ・後方互換）のときに扱う既定回数。部屋作成時の既定値でもある。
     const COOP_REVIVE_MAX_DEFAULT = 1;
     // 値を5の倍数へ切り下げる（提供元の上限floor(hp/2)が5の倍数でない場合の丸め・§13.8）。
@@ -5406,6 +5416,9 @@
       if (!co) return;
       co.reviveUsed = (typeof co.reviveUsed === 'boolean') ? (co.reviveUsed ? 1 : 0) : (co.reviveUsed || 0);
       if (co.reviveMax == null) co.reviveMax = COOP_REVIVE_MAX_DEFAULT;
+      // 復興直後の猶予（§13.9）後方互換：reviveGuard未定義の旧state（機能追加前のセーブ・部屋状態）は
+      // 「猶予なし」として0に読み替える。
+      if (Array.isArray(co.cities)) co.cities.forEach(cs => { if (cs && cs.reviveGuard == null) cs.reviveGuard = 0; });
     }
     // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
     const COOP_EVENT_INFO = {
@@ -8544,7 +8557,7 @@
           const hostSide = hn === 'self' ? 'nature' : 'city'; // ランダム時は暫定city（開始時に再割当）
           const natMode = hn === 'cpu' ? 'cpu' : 'human';
           const _svOn = lobbyState.coopSocialVuln !== false;
-          const _cityHp = lobbyState.coopCityHp || 120; // 4.2.1決定（2026-07-17）：推奨初期値を100→120相当（旧95）へ引き上げ。スライダーで80〜120の変更は従来どおり可能
+          const _cityHp = lobbyState.coopCityHp || COOP_CITY_HP_DEFAULT; // §4.2.1（2026-08-11実測で100へ）。スライダーで80〜120の変更は従来どおり可能
           const _reviveMax = (lobbyState.coopReviveMax != null) ? lobbyState.coopReviveMax : COOP_REVIVE_MAX_DEFAULT; // §13.8（2026-08-10）：復興回数（部屋全体・0〜3・既定1）
           if (net === 'host') {
             // ホスト専用：HPスライダー＋iOSスイッチ＋部屋を作るボタン
@@ -8597,7 +8610,7 @@
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=120;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=1;render()">デフォルト設定に戻す</button>
+      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=COOP_CITY_HP_DEFAULT;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=COOP_REVIVE_MAX_DEFAULT;render()">デフォルト設定に戻す</button>
     </div>
     <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1)">部屋を作る</button>
     <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">${note}</div>`;
@@ -11015,6 +11028,7 @@
       const amount = coopReviveClampAmount(_coReviveSoloDraft, info.min, info.max);
       info.donor.hp -= amount;
       info.dead.hp = amount; // 手札・effects等は一切触れない（後方支援中のものをそのまま維持＝§13.2）
+      info.dead.reviveGuard = COOP_REVIVE_GUARD_TURNS; // 復興直後の猶予（§13.9）：以降の自然の攻撃を指定ターン分半減
       CO.reviveUsed = (CO.reviveUsed || 0) + 1;
       _coLog(`🚑 復興：${info.donor.city.name}が${amount}ptを分け、${info.dead.city.name}が復活した`);
       renderCoop();
@@ -11265,6 +11279,10 @@
       if (_coAutoEndTimer) { clearTimeout(_coAutoEndTimer); _coAutoEndTimer = null; } // 前ターンの自動終了タイマーを破棄
       _coHandTab = 'me'; // 2026-07-17：新しいターンの開始ごとに手札タブを自分に安全に戻す
       CO.phase = 'city'; CO.confirm = null; CO.eventPopup = null;
+      // 復興直後の猶予（§13.9）：自然側の攻撃が1ターン終わるごとに1減らす（攻撃回数ではなくターン単位。
+      // 1ターンに複数枚撃たれるため回数で減らすと1ターンで使い切ってしまう）。initial=trueの最初の
+      // 都市ターンはまだ自然の攻撃が発生していないため対象外。
+      if (!initial) CO.cities.forEach(cs => { if (cs.reviveGuard > 0) cs.reviveGuard--; });
       CO.cities.forEach(cs => { cs.effects.disastersReceivedThisTurn = 0; cs.ready = false; cs.ack = false; cs.resp = undefined; });
       coopApplyBudgetMP();
       // 壊滅都市も後方支援として手札を回すため毎ターン1枚は引く（生存都市は通常通り4/2枚）。
@@ -11442,6 +11460,7 @@
       const amount = coopReviveClampAmount(rv.amount, COOP_REVIVE_MIN, coopReviveDonorMax(donor.hp)); // §13.8：5の倍数に再クランプ
       donor.hp -= amount;
       target.hp = amount; // 手札・policyDeck・ownerId/ownerName・ready/ack/respには一切触れない（§13.2）
+      target.reviveGuard = COOP_REVIVE_GUARD_TURNS; // 復興直後の猶予（§13.9）：以降の自然の攻撃を指定ターン分半減
       CO.reviveUsed = (CO.reviveUsed || 0) + 1;
       _coLog(`🚑 復興成立：${donor.city.name}が${amount}ptを分け、${target.city.name}が復活した（残り${Math.max(0, coopReviveMaxOf(CO) - CO.reviveUsed)}回）`);
       CO.revive = null;
@@ -11692,7 +11711,7 @@
           mp: true, online: true, host: false, phase: 'lobby',
           roomId: code, myId, mySide: side, humanSide: side,
           name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign,
-          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
+          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
           lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
         };
         renderCoop();
@@ -11721,7 +11740,7 @@
           mp: true, online: true, host: false, phase: room.started ? 'resolving' : 'lobby',
           roomId: code, myId: sid, mySide: 'spectator', humanSide: 'spectator', turn: 1,
           name: '観戦者', diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
-          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
+          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
           lobby: { players: room.players || {}, presence: {} }, oppPresent: true,
           cities: [], hand: [], policyDeck: [], policyDiscard: [], natureDeck: [], naturePool: {}, incoming: [],
           budget: 0, budgetUsed: 0, log: [], gameLog: [], cpuPlayedLog: [], confirm: null, eventPopup: null,
@@ -11899,7 +11918,7 @@
             mp: true, online: true, host: isHost, phase: 'lobby',
             roomId: code, myId, mySide: side, humanSide: side,
             name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
-            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || 120, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
+            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
             lobby: { players: room.players || {}, presence: room.presence || {} }, oppPresent: true, cities: [], log: [],
           };
           _coRoleShown = true; // ロビーでは配役未発表でよい
@@ -11964,6 +11983,8 @@
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
       CO.phase = 'city'; CO.confirm = null; CO.eventPopup = null;
+      // 復興直後の猶予（§13.9）：coopStartCityTurnMPと同じ理由でターン単位に1減らす（ソロ側）
+      if (!initial) CO.cities.forEach(cs => { if (cs.reviveGuard > 0) cs.reviveGuard--; });
       CO.cities.forEach(cs => cs.effects.disastersReceivedThisTurn = 0);
       coopApplyBudget();
       // 緊急支援ドロー：共有手札が枯渇気味（COOP_EMERGENCY_HAND_MAX枚以下）なら通常ドローに+1（初回ドローは対象外・design/coop_balance.md §10）
@@ -12096,20 +12117,24 @@
       const slot = coopMySlot(); if (!slot) return;
       const left = (slot.budget || 0) - (slot.budgetUsed || 0);
       const support = slot.hp <= 0; // 後方支援役は自己完結カード（ドロー）を支援に使えない
-      // 2026-07-27（coop_balance.md §11.4）：0コスト化したローリングストック（recycle_hand）は残予算に関わらず
-      // 常にcost<=leftを満たすため、これだけを条件にすると「持っている限り自動終了が発火しない」。
-      // 判定を「予算を消費して盤面に影響を与えられる行動が残っているか」に変え、手札入れ替え専用カード
-      // （recycle_hand）は盤面に影響しないため常に「意味のある行動」から除外し、自動終了の対象に含める。
+      // 2026-08-11（ユーザー報告修正・coop_balance.md §11.4の判定を再修正）：ローリングストック
+      // （recycle_hand・コスト0）を手札に持っている限り、残予算に関わらず自動終了しない。コスト0なので
+      // 残予算0でも常にプレイでき、入れ替えた手札は次のターンへ持ち越されるため「残予算0でも意味のある
+      // 行動」である。旧実装は canRecycleUsefully に left > 0 を課しており、残予算0でローリングストックを
+      // 持っているだけで自動終了が発火してしまうバグがあった（コスト0カードなので本来は使えるはずなのに
+      // 使わせないままターンを終えてしまう）。
+      // 「意味のある行動が残っているか」の判定は、実際の捨てるカード選択UI（coopRenderConfirm内の
+      // recycle_hand分岐・約12972行 `selectable = CO.hand.filter(x => x.uid !== c.uid)`）と同じ基準に
+      // 揃える：ローリングストックは自分自身を捨て札候補として選べない（使用と同時に捨て札へ行くカード
+      // なのでUI側で選択肢から除外されている）。したがって手札がローリングストック1枚だけ（他に選べる
+      // カードが一切無い）のときは「使用する（交換なし）」しかできず実質何も起きないため、その場合に
+      // 限り従来どおり自動終了の対象としてよい。手札にローリングストック以外の1枚でもあれば（あるいは
+      // 同じローリングストックがもう1枚あれば）、それを捨てて引き直す意味のある行動が成立するため
+      // 自動終了しない。後方支援役はrecycle_handの使用自体が禁止（coopMkCardのnoTarget）のため常に対象外。
       const others = (slot.hand || []).filter(c => c.effectType !== 'recycle_hand');
       const hasPlayable = others.some(c => c.cost <= left && !(support && c.effectType === 'draw'));
-      // 2026-07-27追記：recycle_handを一律「意味なし」とすると取りこぼしが出る。残予算2ptで手札が
-      // 「ローリングストック＋防災庁(3pt)」のとき、防災庁は買えないがローリングストックは0コストで
-      // 引き直せるため、2ptで置けるカードに化ける可能性が残っている。これはローリングストックが最も
-      // 活きる場面であり、自動終了で奪ってはならない。逆に残予算0では引き直しても何も置けず、
-      // 捨てる相手（自分以外の手札）が無い場合も入れ替えが成立しないため、その2条件では意味なしとする。
-      // 後方支援役はrecycle_handの使用自体が禁止（coopMkCardのnoTarget）のため常に対象外。
-      const canRecycleUsefully = !support && left > 0 && others.length > 0
-        && (slot.hand || []).some(c => c.effectType === 'recycle_hand');
+      const rsCard = (slot.hand || []).find(c => c.effectType === 'recycle_hand');
+      const canRecycleUsefully = !support && !!rsCard && (slot.hand || []).some(c => c.uid !== rsCard.uid);
       if (hasPlayable || canRecycleUsefully) return; // まだ意味のある行動が残る＝自動終了しない（手控えは本人の判断）
       if (_coAutoEndedTurn === CO.turn) return; // このターンは既に自動終了を送信済み（エコー待ち）
       _coAutoEndedTurn = CO.turn;
@@ -12169,6 +12194,11 @@
       if (!alive.length) return -1;
       // MP：1都市への攻撃が上限に達していたら、その都市は対象から外す（即死防止）
       if (CO.mp && CO.atkCityHits) { const cap = CO.maxHits || COOP_MAX_HITS; const under = alive.filter(x => (CO.atkCityHits[x.i] || 0) < cap); if (!under.length) return -1; alive = under; }
+      // 復興直後の猶予（§13.9）：猶予中の都市は必ず盤面最低HPになるため「HPが最も低い都市を狙う」ロジック
+      // だけでは復活直後に集中攻撃されてしまう。他に狙える生存都市があるなら猶予中の都市は対象から外す
+      // （全員が猶予中、または残りが猶予中の都市しかいない場合のみ通常どおり猶予中の都市も対象にする）。
+      const unguarded = alive.filter(x => !(x.cs.reviveGuard > 0));
+      if (unguarded.length) alive = unguarded;
       const min = Math.min(...alive.map(x => x.cs.hp));
       let cand = alive.filter(x => x.cs.hp === min);
       if (cand.length > 1) { const terr = cand.filter(x => coopTerrainMatch(card, x.cs.city)); if (terr.length) cand = terr; }
@@ -12334,6 +12364,13 @@
       if (resp && resp.effectType === 'shield_flood' && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= 25; ld('堤防建設（対応）発動', -25); }
       if (resp && resp.effectType === 'heal') { const h = Math.floor(resp.value / 2); dmg -= h; ld(`${resp.name}（対応・半減）でHP回復`, -h); }
       if (city.abilityType === 'vulnerability_draw' && CO.hand.length <= 2) { dmg += city.abilityValue; ld(`${city.name}（社会的脆弱性：手札${CO.hand.length}枚）`, +city.abilityValue); coopDraw(1); }
+      // 復興直後の猶予（§13.9）：他のすべての軽減を適用し終えた最後に半減を掛ける（プレイヤー視点で
+      // 「実際に飛んでくる被害が半分になる」と一致させるため）。端数は切り上げ（過剰に強くならないよう）。
+      if (cs.reviveGuard > 0 && dmg > 0) {
+        const halvedDmg = Math.ceil(dmg / 2);
+        ld('復興直後の緊急支援：被害半減', halvedDmg - dmg);
+        dmg = halvedDmg;
+      }
       dmg = Math.max(0, dmg); cs.hp = Math.max(0, cs.hp - dmg);
       return { dmg, lines, fromHp, toHp: cs.hp };
     }
@@ -12343,12 +12380,14 @@
       for (const ch of chains) {
         const m = ch.cond === 'coastal' ? cs.city.isCoastal : ch.cond === 'mountain' ? cs.city.isMountain : (!cs.city.isCoastal && !cs.city.isMountain);
         if (!m) continue;
-        let d = ch.dmg; const e = cs.effects;
+        let d = ch.dmg; const e = cs.effects; let label = ch.label;
         if (ch.shield === 'shieldFlood' && e.shieldFlood) { d = Math.max(0, d - 25); e.shieldFlood = false; }
         if (ch.shield === 'shieldQuakeFire' && e.shieldQuakeFire) { d = Math.max(0, d - 30); e.shieldQuakeFire = false; }
         if (e.damageReduceHits > 0) { d = Math.max(0, d - 15); e.damageReduceHits--; }
+        // 復興直後の猶予（§13.9）：連鎖被害も対象。他の軽減を適用し終えた最後に半減する（coopResolveAttackと同じ順序）
+        if (cs.reviveGuard > 0 && d > 0) { d = Math.ceil(d / 2); label += '（復興直後の緊急支援：被害半減）'; }
         d = Math.max(0, d); cs.hp = Math.max(0, cs.hp - d);
-        out.push({ label: ch.label, icon: ch.icon, dmg: d });
+        out.push({ label, icon: ch.icon, dmg: d });
       }
       return out;
     }
@@ -12659,7 +12698,7 @@
       return `<div class="screen active" style="padding:20px;max-width:460px;margin:0 auto;text-align:center">
         <h2 style="color:${d.color};margin:4px 0">協力ロビー（${d.label}）</h2>
         <div style="font-size:.75rem;color:var(--t2);margin:2px 0 4px">社会的脆弱性イベント：<span style="color:${_svOn3 ? '#388bfd' : 'var(--t1)'};font-weight:700">${_svOn3 ? 'あり（全イベント）' : 'なし'}</span></div>
-        <div style="font-size:.75rem;color:var(--t2);margin:0 0 8px">都市HP：<span style="color:#388bfd;font-weight:700">${CO.cityHp || 120}</span></div>
+        <div style="font-size:.75rem;color:var(--t2);margin:0 0 8px">都市HP：<span style="color:#388bfd;font-weight:700">${CO.cityHp || COOP_CITY_HP_DEFAULT}</span></div>
         ${codeBlock}
         <div style="text-align:left;margin:14px 0"><div style="font-size:.78rem;color:var(--t2);margin-bottom:6px">${isRandom ? `参加者 ${arr.length}人（配役は開始時に抽選）・最大5人` : `参加者 ${arr.length}人（都市${cityCount}／自然${natLabel}）・最大 都市4＋自然1`}</div>${roster}</div>
         ${mpTips}
@@ -12768,11 +12807,14 @@
       const col = ratio > 0.6 ? '#3fb950' : ratio > 0.3 ? '#d29922' : '#f85149';
       const shieldList = coopShieldEffects(cs.effects);
       const shieldDetailOpen = !!_coShieldDetailOpen[idx];
-      const badges = shieldList.length === 0 ? '' : (() => {
+      // 復興直後の猶予（§13.9）：既存の効果バッジ（.eff-badge）と同じ形式で常時表示する。観戦者・仲間の
+      // 画面でも見えるようCO.cities[idx]（Firebaseで配信される状態）のreviveGuardをそのまま参照する。
+      const guardBadge = (cs.reviveGuard > 0) ? `<span class="eff-badge eff-blue">${uiIcoClock(13)} 復興直後（残${cs.reviveGuard}ターン）</span>` : '';
+      const badges = guardBadge + (shieldList.length === 0 ? '' : (() => {
         const row = `<button type="button" class="coop-shield-toggle" aria-expanded="${shieldDetailOpen}" aria-label="設置中の効果の詳細を${shieldDetailOpen ? '閉じる' : '表示する'}" onclick="coopToggleShieldDetail(${idx})">${shieldList.map(s => s.icon).join(' ')}${uiIcoChevronDown(10)}</button>`;
         const detail = shieldDetailOpen ? `<div class="coop-shield-detail">${shieldList.map(s => `<div class="coop-shield-detail-row">${s.icon}<span><strong>${s.label}</strong>：${s.detail}</span></div>`).join('')}</div>` : '';
         return row + detail;
-      })();
+      })());
       const mine = CO.mp && cs.ownerId && cs.ownerId === CO.myId;
       const showTurn = CO.mp && (CO.phase === 'city' || CO.phase === 'draw');
       const readyChip = showTurn ? (cs.ready ? `<span style="display:inline-flex;align-items:center;gap:2px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>` : `<span style="display:inline-block;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(255,255,255,.05);color:rgba(var(--t0-rgb),.4);border:1px solid rgba(255,255,255,.15)">…</span>`) : '';
