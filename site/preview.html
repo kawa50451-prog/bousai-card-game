@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>プレビュー入口 ｜ Ready or Not</title>
+<style>
+/* 実機確認用の入口（一時ファイル）。確認が終わったら削除してよい。
+   すべてのリンクに ?motion=on を付けてある。これがないと、端末側で
+   「視差効果を減らす」が有効なときに演出が全部止まって見える。 */
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;padding:24px 18px 56px;background:#00244f;color:#eef3f9;
+  font-family:system-ui,-apple-system,'Hiragino Sans',sans-serif;line-height:1.7;
+  -webkit-text-size-adjust:100%}
+h1{font-size:1.25rem;margin:0 0 4px}
+p.note{margin:0 0 24px;font-size:.82rem;color:#b9c6d8}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+a{display:block;padding:18px 20px;border-radius:10px;text-decoration:none;
+  background:#124a7b;color:#eef3f9;border:1px solid #3c638b}
+a:active{filter:brightness(1.2)}
+a b{display:block;font-size:1.05rem}
+a small{display:block;font-size:.78rem;color:#b9c6d8;margin-top:3px}
+a.play{background:#fa2a4e;border-color:#fa2a4e;color:#fff}
+a.play small{color:rgba(255,255,255,.85)}
+.sec{margin-top:28px;font-size:.72rem;letter-spacing:.12em;color:#7d8ba0}
+</style>
+</head>
+<body>
+
+<h1>Ready or Not ／ サイト確認用</h1>
+<p class="note">全リンクに <code>?motion=on</code> 付き。端末の「視差効果を減らす」が入っていても演出が動く。</p>
+
+<ul>
+  <li><a href="v5-proto.html?motion=on"><b>HOME（LP）</b><small>00 ヒーロー 〜 04 締め</small></a></li>
+  <li><a href="modes/versus.html?motion=on"><b>VERSUS</b><small>対戦の詳細 ／ 1〜2人 ／ 3〜5分</small></a></li>
+  <li><a href="modes/co-op.html?motion=on"><b>CO-OP</b><small>協力の詳細 ／ 3〜5人 ／ 5〜7分</small></a></li>
+  <li><a href="features.html?motion=on"><b>FEATURES</b><small>サブ機能7つ</small></a></li>
+  <li><a href="cards.html?motion=on"><b>CARDS</b><small>全30枚と現実との対応</small></a></li>
+  <li><a href="contact.html?motion=on"><b>CONTACT</b><small>骨格のみ</small></a></li>
+</ul>
+
+<p class="sec">参考</p>
+<ul>
+  <li><a href="ink-tune.html"><b>インクの緩急を決める</b><small>スライダーで溜めと爆発を調整する作業台</small></a></li>
+  <li><a href="type-specimen.html"><b>書体見本</b><small>5案の比較（決着済み・記録用）</small></a></li>
+  <li><a class="play" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html"><b>ゲーム本体</b><small>GitHub Pages 版（最新）</small></a></li>
+</ul>
+
+</body>
+</html>

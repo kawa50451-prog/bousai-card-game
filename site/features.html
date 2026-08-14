@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>その他の機能（FEATURES）｜ Ready or Not</title>
+<meta name="theme-color" content="#00244f">
+<!-- 起動演出の事前クラス付与。modes/co-op.html と同じ同期スクリプトを複製している
+     （最初の描画より前に同期実行する必要があるため、外部化するとFOUCの原因になる）。 -->
+<script>/* ?motion=on は JS だけでなく CSS の縮退も解除する。
+   これがないと OS でアニメーションを切っている環境では、罫の描画・文字の
+   立ち上がり・ゲージなど CSS 駆動の演出が検証パラメータを付けても動かない。 */
+if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttribute('data-motion','on');</script>
+<script>
+(function(){
+  var h = document.documentElement;
+  try{
+    if (sessionStorage.getItem('ronIntroSeen') === '1') { h.classList.add('intro-skip'); }
+    else { h.classList.add('intro-lock'); sessionStorage.setItem('ronIntroSeen', '1'); }
+  } catch(e){ h.classList.add('intro-lock'); }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Shippori+Mincho+B1:wght@800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* 地の色はページ固定（§13。design/official_site_spec.md §10.3.2の01「なぜ作ったか」の
+   停止点と同じ値）。LPのようなスクロール連動の軌跡は持たない。 */
+:root{ --gL:.265; --gC:.090; --gH:255; }
+
+/* このページだけで使う小さな追加コンポーネント。site.css の値（フォントスケール9段・
+   スペーシング7段）だけを組み合わせて作っており、新しい数値は足していない。 */
+.featCtaRow{display:flex;flex-wrap:wrap;gap:var(--s3);margin-top:var(--s4)}
+</style>
+</head>
+<body>
+
+<!-- 起動演出オーバーレイ（LP・CO-OPと同一マークアップ・§20.1で4幕へ作り直し）。 -->
+<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
+  <div class="loadCredit">
+    <span class="loadCreditLine enBase">produced</span>
+    <span class="loadCreditLine enBase">by Ready or Lab</span>
+    <span class="loadCreditRule" aria-hidden="true"></span>
+  </div>
+  <span class="loadCount" aria-hidden="true"></span>
+  <div class="loadInk" aria-hidden="true">
+      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
+           重ね、白を透過させて黒だけを残す（§20.1改）。
+           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
+              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
+              確実に引っかかる。再生は等速1回きりにすること。 -->
+      <video class="loadInkVid" src="assets/ink/ink_load_timed.mp4"
+             muted playsinline preload="auto" aria-hidden="true"></video>
+    </div>
+  <div class="loadBlackout" aria-hidden="true"></div>
+</div>
+
+<!-- 背景の粒子と幾何学的な線（今回追加）。本文より後ろに敷く静的な奥行き演出。
+     18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
+     transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
+<div class="bgField" aria-hidden="true">
+  <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
+  <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
+  <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
+  <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
+  <span class="bgDot bgDot--a" style="--y:6%;animation-delay:-5s"></span>
+  <span class="bgDot bgDot--a" style="--y:22%;animation-delay:-16s"></span>
+  <span class="bgDot bgDot--a" style="--y:38%;animation-delay:-27s"></span>
+  <span class="bgDot bgDot--a" style="--y:54%;animation-delay:-38s"></span>
+  <span class="bgDot bgDot--a" style="--y:70%;animation-delay:-49s"></span>
+  <span class="bgDot bgDot--a" style="--y:86%;animation-delay:-60s"></span>
+  <span class="bgDot bgDot--b" style="--y:12%;animation-delay:-4s"></span>
+  <span class="bgDot bgDot--b" style="--y:28%;animation-delay:-11s"></span>
+  <span class="bgDot bgDot--b" style="--y:44%;animation-delay:-18s"></span>
+  <span class="bgDot bgDot--b" style="--y:60%;animation-delay:-25s"></span>
+  <span class="bgDot bgDot--b" style="--y:76%;animation-delay:-32s"></span>
+  <span class="bgDot bgDot--b" style="--y:92%;animation-delay:-39s"></span>
+  <span class="bgDot bgDot--c" style="--y:18%;animation-delay:-3s"></span>
+  <span class="bgDot bgDot--c" style="--y:34%;animation-delay:-8s"></span>
+  <span class="bgDot bgDot--c" style="--y:50%;animation-delay:-13s"></span>
+  <span class="bgDot bgDot--c" style="--y:66%;animation-delay:-18s"></span>
+  <span class="bgDot bgDot--c" style="--y:82%;animation-delay:-23s"></span>
+  <span class="bgDot bgDot--c" style="--y:98%;animation-delay:-28s"></span>
+</div>
+
+<!-- ロゴ：画面左上に固定（§20.4）。ナビではなくロゴの組み。リンク先はホーム。 -->
+<a class="siteLogo" href="v5-proto.html" aria-label="ホーム">
+  <span class="brandTile"><img src="assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
+  <span class="siteLogoText enBase">Ready or Not</span>
+</a>
+
+<!-- ハンバーガー：ロゴの対角（画面右上）に固定。押すとページ一覧（.navMenu）が
+     開閉する（今回新設。下部バーはPLAY専用に縮めたため、ページ移動はここへ
+     集約した）。開閉の実処理は assets/site.js の initNavMenu が担う。 -->
+<button type="button" class="hamburgerBtn" id="navToggle" aria-expanded="false" aria-controls="navMenu" aria-label="メニューを開く">
+  <span class="hamburgerBox" aria-hidden="true"><span></span><span></span><span></span></span>
+</button>
+
+<nav class="bottomBar en" aria-label="PLAYへ">
+  <a class="barPlay" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html"><span class="barPlayText">PLAY</span></a>
+</nav>
+
+<div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<nav class="navMenu" id="navMenu" aria-label="ページ一覧">
+  <div class="navMenuPanel">
+    <ul class="navMenuList en">
+      <li><a href="v5-proto.html">HOME</a></li>
+      <li><a href="modes/versus.html">VERSUS</a></li>
+      <li><a href="modes/co-op.html">CO-OP</a></li>
+      <li><a href="features.html" aria-current="page">FEATURES</a></li>
+      <li><a href="cards.html">CARDS</a></li>
+      <li><a href="contact.html">CONTACT</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="pageScale">
+<div class="wrap">
+  <!-- パンくず（§13.3） -->
+  <p class="crumb en"><a href="v5-proto.html">HOME</a><span>/</span><b>FEATURES</b></p>
+
+  <!-- 1. ページ名＋件数 -->
+  <header class="modeHead reveal" data-d="0">
+    <h1 class="modeName enBase">FEATURES</h1>
+    <p class="modeMeta en">サブ機能 ／ 7種</p>
+  </header>
+
+  <!-- 2. デイリー防災（実機画面つき） -->
+  <section class="modeSec sec">
+    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide">デイリー防災</span></h2>
+    <span class="headRule" data-d="0" aria-hidden="true"></span>
+    <div class="modeBody reveal" data-d="2">
+      <p>1日1回、固定シードの局面に挑戦する。届く災害予報を見て、手持ちの政策カードを各災害に割り当てる。結果はストリークとしてカレンダーに記録される。カード工房で保存したマイ都市に差し替えて挑戦することもできる（公式記録とは別枠で扱う）。</p>
+    </div>
+    <div class="reveal" data-d="3">
+      <div class="modeShotWrap maskReveal">
+        <img src="assets/shots/s05_daily_prep.webp" alt="デイリー防災の予報画面。届いた災害と手持ちの政策カードが表示されている" loading="lazy" width="800" height="1733">
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 図鑑（実機画面つき） -->
+  <section class="modeSec sec">
+    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide">図鑑</span></h2>
+    <span class="headRule" data-d="0" aria-hidden="true"></span>
+    <div class="modeBody reveal" data-d="2">
+      <p>都市・自然災害・人為災害・政策カードの全種を一覧で見られる。カードをタップすると拡大表示され、防災上の意味を解説するコラムが開く。</p>
+    </div>
+    <div class="reveal" data-d="3">
+      <div class="modeShotWrap maskReveal">
+        <img src="assets/shots/s06_gallery.webp" alt="図鑑の一覧画面。カード種別ごとに並んでいる" loading="lazy" width="800" height="1733">
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. そのほかの機能（実機画面なし） -->
+  <section class="modeSec sec">
+    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide">そのほかの機能</span></h2>
+    <span class="headRule" data-d="0" aria-hidden="true"></span>
+    <dl class="settingsList reveal" data-d="2">
+      <div class="settingsItem">
+        <dt>カード工房</dt>
+        <dd>自作のご当地都市カードを作れる。街診断のウィザードから作成するか、共有コードで友人のカードを読み込める。保存したカードは「マイ都市」として使える。</dd>
+      </div>
+      <div class="settingsItem">
+        <dt>問題工房</dt>
+        <dd>都市・来襲する災害・手札・予算を指定し、自作の詰め防災パズルを出題できる。共有コードで配布でき、プレイは常に練習扱いになる。</dd>
+      </div>
+      <div class="settingsItem">
+        <dt>マイ都市</dt>
+        <dd>カード工房で保存した自作都市カード。デイリー防災の予報画面から差し替えて挑戦できるほか、ソロで遊ぶ協力モードでも使える。</dd>
+      </div>
+      <div class="settingsItem">
+        <dt>チュートリアル</dt>
+        <dd>対戦チュートリアルと協力チュートリアルの2種類がある。吹き出しガイドに沿って、実際の操作で1ターンの流れを体験できる。所要は90秒から2分。</dd>
+      </div>
+      <div class="settingsItem">
+        <dt>テーマ設定</dt>
+        <dd>テーマカラーを5種から選べる（サイバー・レッド／ディストピア・ブルー／ハッカー・マトリクス／8bit／デイライト）。フォント・発光演出・モーション表示も切り替えられる。</dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- 5. 主力2モードへの導線 -->
+  <section class="modeSec sec">
+    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide">主力2モードの詳しい遊び方</span></h2>
+    <span class="headRule" data-d="0" aria-hidden="true"></span>
+    <div class="featCtaRow reveal" data-d="2">
+      <a class="btnFill en" href="modes/versus.html">VERSUS を見る</a>
+      <a class="btnFill en" href="modes/co-op.html">CO-OP を見る</a>
+    </div>
+  </section>
+
+  <footer class="foot">Ready or Not ／ Ready or Lab</footer>
+</div>
+</div><!-- /.pageScale -->
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

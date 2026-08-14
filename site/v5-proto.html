@@ -1,0 +1,1933 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Ready or Not ｜ v5 プロトタイプ（00・01・01'・02・03・04）</title>
+<meta name="theme-color" content="#00244f">
+<!-- 起動演出の事前クラス付与（新規）。ちらつき防止のため、body の内容が描画される
+     前に同期実行し、html へ intro-lock（今回は出す）／intro-skip（2回目以降・
+     出さない）のどちらかを必ず1つ付ける。sessionStorage が使えない環境
+     （プライベートモード等の例外）では毎回 intro-lock 側に倒し、出す方を既定にする。
+     prefers-reduced-motion はここでは判定しない（<style> 側の @media だけで
+     JS非依存に確実へ無効化するため。§本文の「守るべき規律」参照）。 -->
+<script>/* ?motion=on は JS だけでなく CSS の縮退も解除する。
+   これがないと OS でアニメーションを切っている環境では、罫の描画・文字の
+   立ち上がり・ゲージなど CSS 駆動の演出が検証パラメータを付けても動かない。 */
+if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttribute('data-motion','on');
+/* 検証用：?introfreeze=1 でローディング演出を一時停止する。任意の時点を
+   getAnimations() で走査できるようにするための開発用の逃げ道。 */
+if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribute('data-introfreeze','1');</script>
+<script>
+(function(){
+  var h = document.documentElement;
+  try{
+    if (sessionStorage.getItem('ronIntroSeen') === '1') { h.classList.add('intro-skip'); }
+    else { h.classList.add('intro-lock'); sessionStorage.setItem('ronIntroSeen', '1'); }
+  } catch(e){ h.classList.add('intro-lock'); }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
+     下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
+     画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
+     LPの各節のレイアウト（ヒーロー・なぜ作ったか・カードマーキー・軌道セレクタ・
+     遊び方・締め）は下のページ固有 <style> に残す。 -->
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* ══════════════════════════════════════════════════════════════
+   Ready or Not 公式サイト ── v5 プロトタイプ
+   design/official_site_spec.md §10 準拠。v4（index.html）は破棄予定。
+
+   このファイルは「00 ヒーロー → 01 なぜ作ったか → 01' カードマーキー
+   → 02 カードの詳細（軌道セレクタ） → 03 遊び方 → 04 締め」の6節を実装した
+   検証用である。
+   2026-08-11、学内掲示ポスターとnca.ac.jpを参照してトーンを拡張した
+   （§10.2.1）。地の色はポスター準拠の発色に、ヒーローは実機画面ではなく
+   全画面キービジュアルに置き換えている。書体は2026-08-12に全面改訂し、
+   基本層（Zen Kaku Gothic New／Archivo）＋強調層（Shippori Mincho B1／
+   Playfair Display）の2層構造にした（§10.4.1。旧・極太ゴシック＋ディドネの
+   Dela Gothic One／Bodoni Moda は廃止）。
+   さらに同日、レビュー反映の第2次改訂（§11）で 04 直撃を廃止し、その位置に
+   03 遊び方（対戦／協力。実機画面はここだけの出番）を新設した。地の軌跡は
+   旧 04 の停止点（嵐の紫）を 03 が引き継ぐため、STOPS 配列自体は変更していない。
+   あわせて全節にスクロール出現モーション（§11.3-1）を追加した。
+   目的は5つ。
+     1. ポスター準拠の発色パレット（地の軌跡）が濁らずスクロールで推移するか
+     2. 基本層／強調層の2層タイポグラフィが暗い地で成立するか
+     3. モジュラースケールと12カラムで「文字を消しても個性が残るか」（§0.2）
+     4. rotateXを使わない2D楕円軌道が、ステップ送りの減速演出として成立するか
+     5. animation-timeline:view() のスクロール出現が、非対応ブラウザでも
+        IntersectionObserverの縮退で情報を欠かさずに成立するか
+   05（READY/NOTの二択CTA）は未実装。地の軌跡は本番と同じ6停止点を全スクロールに
+   割り当てている。
+
+   2026-08-12 追記：情報設計（ナビ・パンくず・下部バー）はまだ手を付けず、
+   スクロール演出とローディング演出だけを追加した。
+     ・リベールを罫→見出し→本文の3段カスケードに作り直した（.headRule 新設）
+     ・円グラフの中心数値を .enBase → .jpBase に統一。ゲージの立ち上がりに
+       --e を使う実装は既に入っていたため、そのまま維持している
+     ・初回表示にローディングタイトル（.loadOverlay）を追加。sessionStorage で
+       セッション中2回目以降は出さない。prefers-reduced-motionはCSSの@media
+       だけで無効化し、JSが完全に失敗しても8秒の保険（CSS純正のkeyframes）で
+       画面が操作不能のまま固まらないようにしている
+     ・Lenis（CDN・約7KB）を導入した。wrapper/contentは既定のまま（＝ネイティブ
+       のwindowスクロール）にして、地の軌跡のscrollイベントとanimation-timeline:
+       view()のリベールがLenis導入後も従来どおり発火することを前提にしている
+
+   2026-08-12 第2次追記（§13〜§16の確定分を反映）。
+     ・情報設計（§13）に着手した。上部固定ヘッダ（旧・透過スクリム＋ロゴ／ナビ／CTA
+       の3要素構成）を廃止し、役割を下部固定バー（.bottomBar）へ移した。
+       スクロールに応じてグラデーションで
+       徐々に現れ、HOME／VERSUS／CO-OP／FEATURES／CONTACT の5項目とPLAYボタンを持つ。
+       サブページ（modes/versus.html・modes/co-op.html・features.html・
+       contact.html）はまだ作らず、リンクだけを張っている
+     ・03 の対戦／協力パネルを modes/versus.html・modes/co-op.html への入口リンクに
+       変えた（<article> → <a>）。パネル内の説明文はそのまま残し、LP側に詳細を
+       増やしていない（§13.1）
+     ・03 の後ろに 04 締めを新設した。00 と同じキービジュアル構造（左スクリム＋
+       --kv2 でstorm.webp/storm_1400.webpを差し替え可能）でタグラインを再掲し、
+       PLAY への大きな導線を1つだけ置く。data-stop="5" は STOPS[5]（05 二択の
+       停止点）を指すが、STOPS 配列自体の値は変更していない
+     ・円グラフの数値を防災訓練参加率 8.3%（§14）へ差し替えた。数値・説明・出典は
+       テキストとして残したまま（§5.4）
+     ・01' マーキーのキャプションを「30 CARDS ／ 5 COLORS」、02 の節見出しを
+       「現実とリンクした世界観」に差し替えた（§16）
+
+   2026-08-12 第3次追記（§18 インク背景の実装）。
+     ・STOPS 配列と paintGround（地の軌跡）を撤去した。地は全ページ共通の
+       固定値 oklch(.265 .090 255) になった（site.css の :root）。「時刻を
+       書かずに時間の経過を感じさせる」役割は、節ごとに固定の意味色をまとう
+       インク層（.inkLayer／.inkStage、assets/site.css）が引き継ぐ
+     ・01（青）・01'（赤）・03（緑）は固定の意味色、02（カード）だけは
+       RON_COLORS[].hue に追従する（軌道の選択が変わるたび JS の setInkColor が
+       section#s02 の --ink-color を書き換える）。00・04 はキービジュアル画像
+       そのままでインクを敷かない
+     ・拡散はスクロール連動（animation-timeline:view()）。手前・奥の2層
+       （.inkStage.near/.far）で animation-range を変え、速度差を作った
+     ・data-stop 属性は地の軌跡専用だったため、全節から削除した
+
+   2026-08-12 第4次追記（§18.4 WebGL の島）。
+     ・生WebGL（ライブラリなし・WebGL1）で、インク画像をカーソル波紋＋低周波の
+       流れで歪ませるキャンバスを追加した。01・01'・02・03 だけで動き、00・04
+       では何も描かない。init に成功したときだけ html.ink-gl を付けて
+       .inkLayer を隠す。失敗時・prefers-reduced-motion・低性能端末では
+       キャンバスを作らずCSS版のまま（§18.4 の必須条件5が最優先）。
+     ・実体はページ末尾、既存の軌道セレクタ用スクリプトの直後に置いた新しい
+       <script> 1本（restoreCss() に全失敗経路を集約）。
+
+   2026-08-12 第5次追記（§19 インクを「流す」方式へ作り直し）。
+     ・§18.4のカーソル波紋シェーダーを廃止し、フィードバック移流（ping-pong
+       フレームバッファ）に置き換えた。スクロールは拡散の時間軸そのものになり、
+       蓄積テクスチャに毎フレーム「沈降・拡散・渦・注入」を適用し続ける
+       （移流パスでFBOへ書き、表示パスで画面へ出す2パス構成）。
+     ・注入する色は節ごとの固定意味色（01=青・01'=赤・03=緑）と、02だけは
+       軌道セレクタが書き換える--ink-colorに追従する。ink_1〜ink_5は「結果」
+       ではなく上端の帯に足す注入源（型紙）として使う。
+     ・half-float推奨・_linear拡張なしはNEARESTへ・FBOアタッチ失敗はUNSIGNED_
+       BYTEへ再試行、それも失敗すれば従来どおりrestoreCss()でCSS版へ戻す。
+     ・カーソル追従（pointermove・波紋）は§19が要求しないため削除した。
+
+   2026-08-13追記（00i ファーストビューの作り直し。design/official_site_spec.md
+   §22に実装記録）。
+     ・赤青三角形の激突＋feTurbulence溶け（§21）を全面廃止した。溶け合いが
+       意図した質感にならず、全画面SVGフィルタが重かったため。
+     ・新設計は2段構成。①ローディングのインクが黒く染め切った直後、その黒い
+       面を「or」の文字形にmask-imageでくり抜き、穴からファーストビューが
+       現れる（.fvCutout）。②中央の巨大な「or」の左右から、スクロールに
+       100%連動して Ready／Not が下から浮き出て赤青の境界も波打つ
+       （animation-timeline:scroll(root)。GSAP ScrollTrigherのscrub相当を
+       ライブラリなしで実現）。
+     ・.fvIntro はposition:sticky・height:100svhのみとし、00'タイポ
+       （§20.6.1で既に廃止済み）と同じ「自身の高さぶんだけで完結する」設計を
+       踏襲した。sticky特有の「居座り」対策（display:none切り替え）も同様。
+     ・PLAYボタン（下部バー）にホバーグリッチを追加した（assets/site.css）。
+
+   2026-08-13 第2次追記（design/official_site_spec.md §23に実装記録。
+   ユーザー指摘9件の修正）。
+     ・01の本文が消えていた真因を特定して修正した（.reveal と .whyBody p の
+       animationショートハンドが衝突し、出現アニメーションが一度も走らず
+       opacity:0のまま固定されていた）。読み位置カラースイープは.whyBody p
+       から外し、.cardR にだけ残した（詳細はスタイル側コメント参照）。
+     ・01の円グラフを帯グラフへ差し替えた（平成29年16.0%と令和7年8.3%を
+       並べ、半減を長さで示す）。説明文は「防災訓練に積極的に参加した割合は
+       8年で半減」の1行のみ、出典は「令和8年 防災白書」のみにした。
+     ・01と01'の間隔を詰め、見出し「30 CARDS／5 COLORS」を新設した
+       （体裁は「遊びのほうが、真剣になれる。」と同じ.catch＋.headRule）。
+       旧・下部キャプション（.marqCap）は削除した。
+     ・02の軌道セレクタ（アイコン・文字）をスマホ幅で拡大した。
+     ・02の大判カードの上下がわずかに見切れる不具合を修正した（原因は
+       共通コンポーネント.maskRevealの視差アニメーションが常時scale(1.06)を
+       持つこと。cardArtWrapだけスケール無しの専用キーフレームに差し替えた）。
+     ・02のカード名上の説明文（color.lead）と、大判カード以外の同色一覧
+       （.cardStrip／.cardChip）を撤去し、「詳しく見る」だけを残した。
+     ・03を「遊んで学べる2モード」に作り直した。実機画面のコラージュは撤去し、
+       対戦＝赤面に縦書きVERSUS、協力＝青面に縦書きCOOP（塗りなし・枠線のみ）
+       にした。人数はSVGアイコン（#iconPerson）で表現し、絵文字は使わない。
+       協力の人数表記は「3〜5人」のまま変更していない（ユーザー確認済み）。
+     ・04のタグライン前後のダッシュを外した（「失敗できる災害はここだけ」）。
+       00のタグライン「―防災カードバトル―」は対象外のため変更していない。
+     ・四角いボタン（.ctaMain／.closeCta／.btnFill／.barPlay）に斜め塗りの
+       ホバーを実装し、四角で囲まれていないナビ・パンくず等のテキストリンクに
+       下線を追加した（assets/site.css。整理の判断は同ファイルのコメント参照）。
+   ══════════════════════════════════════════════════════════════ */
+
+/* 共通トークン（--fs-*・--s*・色・グリッド寸法・.e イージング等）は
+   assets/site.css の :root に切り出した（2026-08-12）。ここに残すのは
+   このLPだけで使うキービジュアルの変数だけである。 */
+:root{
+  /* ── ヒーローのキービジュアル（§10.2.1）。背景２＝2枚目のポスターの背景。
+     左＝夜明けの東京タワー／右＝竜巻と落雷。3344×1881 の原版から WebP を
+     2段用意し、幅で読み分ける。§5.2 のとおりヒーロー画像は遅延読み込みしない。 ── */
+  --kv: url('assets/kv/hero_1400.webp');
+  --kv-fallback: linear-gradient(104deg,#0d3a66 0%,#2f6ea8 45%,#4a1a63 52%,#1b0526 100%);
+
+  /* ── 04 締めのキービジュアル。背景１＝1枚目のポスターの背景。
+     左＝青空の東京タワー／右＝紫の雷とスカイツリー。--kv と同じ構造。 ── */
+  --kv2: url('assets/kv/storm_1400.webp');
+  --kv2-fallback: linear-gradient(104deg,#123a63 0%,#2c5f92 42%,#4a1f70 58%,#1c0733 100%);
+}
+
+@media (min-width:1200px){
+  :root{ --kv: url('assets/kv/hero.webp'); --kv2: url('assets/kv/storm.webp'); }
+}
+
+/* 帯グラフ（§14・2026-08-13 円グラフから差し替え。修正2）。平成29年16.0%と
+   令和7年8.3%を同じ基準（16.0%を満尺）で並べ、令和7年の帯が平成29年のちょうど
+   半分の長さになることで「8年で半減」を一目で示す。伸長は transform:scaleX で、
+   --bar-scale（0〜1の無次元数。各行の style属性に埋め込み）を目標値にする。
+   .barChart は .reveal を兼ねる（旧 .donut と同じ考え方）ため、非対応ブラウザの
+   縮退も同じ .is-in で駆動する。数値・年・「8年で半減」は色や図形と独立した
+   テキストとして必ず残す（§5.4。下の統計ラベル・年ラベル・%表記を参照）。 */
+.barFill{transform-origin:left;transform:scaleX(0)}
+@supports (animation-timeline: view()){
+  .barFill{animation:barGrow 1.1s var(--e) both;animation-timeline:view();
+    animation-range:entry 10% entry 90%}
+}
+@supports not (animation-timeline: view()){
+  .barFill{transition:transform 1.1s var(--e)}
+  .barChart.is-in .barFill{transform:scaleX(var(--bar-scale))}
+}
+@keyframes barGrow{ from{transform:scaleX(0)} to{transform:scaleX(var(--bar-scale))} }
+
+/* ══════ 読んでいる位置の色変化（§12.2。actuel-img.com から採った演出） ══════
+   スクロールに応じて、いま読んでいる行が左から明るくなる。適用は読ませる文
+   だけに限る（02 のカード解説 .cardR のみ。見出しには使わない）。
+   ⚠️ background-clip:text は color:transparent を伴うため、非対応時は --t1 の
+   素の文字色に落とす（@supports でガードする。color:transparent が残ると
+   文字が消える）。ベースの color:var(--t1) を先に宣言し、対応ブラウザだけ
+   グラデーション版で上書きする。 */
+.whyBody p, .cardR{ color:var(--t1) }
+
+/* ⚠️ @property は @supports の外に置く。中に入れると、登録に失敗した環境で
+   var(--p) が解決できず linear-gradient ごと無効になる。背景が消えるのに
+   color:transparent だけが残るため、本文が完全に見えなくなる。
+   @supports の条件は view() と background-clip しか見ておらず、@property の
+   可否は判定していないので、条件を満たしたまま文字だけ消える経路があった。
+   保険として var(--p, 0%) の既定値も持たせ、登録に失敗しても未読色で必ず出す。 */
+@property --p{ syntax:'<percentage>'; inherits:false; initial-value:0% }
+
+/* 2026-08-13 修正（項目1）：01 の本文（.whyBody p）が表示されない不具合の
+   真因は @property ではなかった。.whyBody p は <p class="reveal" ...> として
+   .reveal（site.css）も同時に持つ要素であり、.reveal は animation-name:revealIn
+   （opacity 0→1 の出現）を持つ。ここで .whyBody p にも animation ショートハンド
+   （readLine）を宣言すると、.whyBody p のほうが詳細度が高く（クラス+要素型 vs
+   クラス単体）、animationの全サブプロパティを丸ごと上書きしてしまう。結果、
+   revealIn が一度も動かず、.reveal の初期値 opacity:0 のまま固定される
+   （= 本文が永久に透明で消えたまま）。カードの ".cardR" は .reveal を持たない
+   ため同じ事故は起きない。
+   確実に読める状態を最優先し（指示どおり）、01 の本文ではスイープ演出を
+   諦める。.whyBody p は素の color:var(--t1)（上の行で既に指定済み）のまま
+   表示し、.reveal の出現アニメーションだけを動かす。読み位置スイープは
+   .reveal と重ならない .cardR にだけ残す。 */
+@supports ((animation-timeline: view()) and ((background-clip:text) or (-webkit-background-clip:text))){
+  .cardR{
+    /* 未読側は --t2。--t3 だと地に対して約4.6:1 しかなくAAぎりぎりで、
+       スクロールが届くまで本文が読みにくい。--t2 なら約7.6:1。 */
+    background-image:linear-gradient(90deg, var(--t1) 0 var(--p, 0%), var(--t2) var(--p, 0%) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:readLine linear both;
+    animation-timeline:view();
+    animation-range:entry 30% cover 55%;
+  }
+  @keyframes readLine{ to{ --p:100% } }
+}
+
+/* .maskReveal（§12.1 画像マスク開き）・.loadOverlay/.loadTitle（起動演出）・
+   .cursorReticle（照準カーソル）・.wrap/.g12（12カラムグリッド）・
+   .bottomBar とその子要素（下部固定バー）は assets/site.css に共通化した
+   （2026-08-12）。このLPで .maskReveal は .cardArtWrap に、.wrap/.g12 は
+   全節に、そのまま同じクラス名で使い続けている（2026-08-12第7次：03の
+   実機画面は単発の .maskReveal から §20.6 B のコラージュ .wayShotStack /
+   .shotLayer へ置き換えたため、.maskReveal の適用先から外れた）。 */
+
+/* 節番号：左エッジの外側に縦組み。全節が同じ左エッジから始まることを可視化する。
+   LPだけの意匠（サブページはパンくずを使う）なので .sec 本体は共通側、
+   .secNo はこちらに残した。 */
+.secNo{position:absolute;left:0;top:var(--s5);
+  writing-mode:vertical-rl;font-size:var(--fs-s);letter-spacing:var(--tr-label);
+  color:var(--t3);z-index:2}
+@media(max-width:899px){ .secNo{display:none} }
+
+/* ══════ インク背景（§18。地の軌跡の代わりに節の進行を伝える意味色） ══════
+   01（青）・01'（赤）・02（軌道の色に追従）・03（緑）の4節に敷く。00・04は
+   キービジュアル画像そのものが主役なので敷かない（§18.2）。
+   構造：.sec 直下の最初の子として .inkLayer（絶対配置・z-index:0）を置き、
+   既存の内容（.wrap 等・下で z-index:1 を明示）より奥に沈める。中に
+   .inkStage を2枚（near/far）重ね、速度違いで視差を作る（§18.3）。
+   ⚠️ 本文の可読性を最優先するため、不透明度は控えめに固定してある。 */
+.inkLayer{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.why .wrap, .cards .wrap, .ways .wrap, .marq .wrap, .marq .marqInner{
+  position:relative;z-index:1}
+
+/* ══════ WebGL の島（§18.4。条件付き解禁） ══════
+   生WebGLでの初期化に成功したときだけ、ページ末尾のスクリプトが
+   html.ink-gl を付けて .inkLayer をここで隠し、.inkGL（1枚だけの全画面
+   固定キャンバス）に描画を差し替える。既定（クラスなし）では何も変わらず
+   .inkLayer がそのまま見える。⚠️ このルール自体はCSS版の見た目・不透明度・
+   キーフレームを一切変更しない（トグルするだけ）。 */
+html.ink-gl .inkLayer{display:none}
+.inkGL{position:fixed;inset:0;z-index:0;display:block;pointer-events:none;
+  /* ⚠️ canvas は width/height 属性による固有サイズを持つ置換要素なので、
+     inset:0 だけでは引き伸ばされない。内部解像度（0.5倍）はそのままに、
+     表示だけを全画面へ拡大するために width/height が要る。 */
+  width:100%;height:100%}
+
+.why{ --ink-color:#388bfd }         /* 01 なぜ作ったか：青（都市＝守る対象） */
+.marq{ --ink-color:#f85149 }        /* 01' マーキー：赤（災害が来る） */
+/* 03 は赤青パネル自身が画面幅いっぱいの色面を持つため、節のインク背景は
+   出さない。出すとパネルの下に緑の帯が覗いて、意図しない3色目に見える
+   （実際にそう見えていた）。 */
+.ways .inkLayer{display:none}
+/* 02 カードは軌道で選んだ色に追従する（--ink-color を JS の setInkColor が
+   section#s02 のインラインstyleへ直接書く。§下方のスクリプト参照）。 */
+
+/* インク本体。既定（フォールバック）は静止1段階・低い不透明度・ぼかしなしで、
+   縮退時（§5.3）や mask 非対応ブラウザでもここで完結する。
+   背景色（--ink-color）と背景画像（インクの輝度）を同一要素内で
+   background-blend-mode:multiply により合成する。白い部分（輝度1）は
+   color×1=color がそのまま出て、黒い部分（輝度0）は color×0=黒になる。
+   黒が地そのもの（ごく暗い紺）に極めて近いため、地に溶けて消えて見える。 */
+.inkStage{position:absolute;inset:0;
+  --ink-peak:.30;--ink-peak-far:.18;
+  --ink-url:url('assets/ink/ink_2.webp');
+  background-image:var(--ink-url);
+  background-color:var(--ink-color,transparent);
+  background-blend-mode:multiply;
+  /* ⚠️ contain。120% 120% だと縦横を独立に引き伸ばしたうえ箱より大きくなり、
+     ブルームの中心しか映らず「青い大理石模様」に見える。四隅の黒が残る
+     大きさで収めることで、はじめてインクとして読める。 */
+  background-repeat:no-repeat;background-position:center;background-size:contain;
+  opacity:var(--ink-peak);filter:blur(1px);transform:scale(1.05);
+  transition:background-color .3s linear}
+
+
+/* 節ごとの上限（色の明るさで変える。計算根拠は inkNear のコメント） */
+.why  .inkStage{--ink-peak:.37;--ink-peak-far:.22}   /* 青 */
+.marq .inkStage{--ink-peak:.45;--ink-peak-far:.27}   /* 赤 */
+.ways .inkStage{--ink-peak:.32;--ink-peak-far:.19}   /* 緑 */
+.cards .inkStage{--ink-peak:.29;--ink-peak-far:.17}  /* 02は色が変わるため最も明るい黄に合わせる */
+
+/* mask 対応ブラウザでは輝度マスクへ切り替える（§18.2の指示どおり）。
+   黒い部分が完全に透明になり地の色がそのまま見えるため、multiply版より
+   純度の高い発色になる。mask-image は既定でアルファ値を見るため、
+   mask-mode:luminance で輝度を見るよう明示する（Safari は -webkit-mask-image
+   が既定で輝度を見るが、明示のため -webkit-mask-mode も添える）。 */
+@supports ((mask-image: linear-gradient(#000,#000)) or (-webkit-mask-image: linear-gradient(#000,#000))){
+  .inkStage{
+    background-image:none;background-blend-mode:normal;
+    background-color:var(--ink-color,transparent);
+    -webkit-mask-image:var(--ink-url);mask-image:var(--ink-url);
+    -webkit-mask-source-type:luminance;-webkit-mask-mode:luminance;mask-mode:luminance;
+    -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+    -webkit-mask-position:center;mask-position:center;
+    -webkit-mask-size:contain;mask-size:contain;
+  }
+}
+
+/* スクロールに応じて ink_1〜ink_5 を切り替えながら、拡大・ぼかし・不透明度で
+   奥行きを作る（§18.3）。--ink-url は非対応環境向けにキーワード値として
+   キーフレームで切り替えているだけで、色そのものの補間は行わない（切り替えは
+   段階的でよい。「形そのものが育つ動き」は5段の画像差し替えが担う）。
+   near は section の入場中だけで一気に広がり（速い＝手前）、far は section が
+   画面を通過し終えるまでゆっくり広がる（遅い＝奥）。 */
+@supports (animation-timeline: view()){
+  /* 不透明度は節ごとの上限 --ink-peak を基準に取る。上限は「補助文字 --t2 が
+     地に対して4.5:1（AA）を保てる最大値」を色別に計算し、その85%を採った値。
+     色が明るいほど上限が低い（黄0.34 ＜ 緑0.38 ＜ 青0.44 ＜ 紫0.46 ＜ 赤0.53）。 */
+  @keyframes inkNear{
+    0%   { --ink-url:url('assets/ink/ink_1.webp'); opacity:calc(var(--ink-peak) * .36); filter:blur(0px); transform:scale(1) }
+    30%  { --ink-url:url('assets/ink/ink_2.webp'); opacity:var(--ink-peak);             filter:blur(1px); transform:scale(1.04) }
+    60%  { --ink-url:url('assets/ink/ink_3.webp'); opacity:calc(var(--ink-peak) * .82); filter:blur(2px); transform:scale(1.10) }
+    100% { --ink-url:url('assets/ink/ink_4.webp'); opacity:calc(var(--ink-peak) * .55); filter:blur(3px); transform:scale(1.18) }
+  }
+  @keyframes inkFar{
+    0%   { --ink-url:url('assets/ink/ink_2.webp'); opacity:calc(var(--ink-peak-far) * .40); filter:blur(2px); transform:scale(1.1) }
+    50%  { --ink-url:url('assets/ink/ink_3.webp'); opacity:var(--ink-peak-far);             filter:blur(3px); transform:scale(1.14) }
+    100% { --ink-url:url('assets/ink/ink_5.webp'); opacity:calc(var(--ink-peak-far) * .60); filter:blur(4px); transform:scale(1.26) }
+  }
+  .inkStage.near{animation:inkNear linear both;animation-timeline:view();
+    animation-range:entry 0% entry 100%}
+  .inkStage.far{animation:inkFar linear both;animation-timeline:view();
+    animation-range:entry 0% exit 100%}
+}
+
+/* 縮退（§5.3）：拡散もぼかしも動かさず、静止した1段階のみを表示する。
+   .inkStage の既定値（ink_2・opacity .14・blur 3px・scale 1.05）がそのまま
+   最終状態になる。情報は元々インクの色だけなので、静止しても何も欠けない。 */
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .inkStage{
+    animation:none !important;--ink-url:url('assets/ink/ink_2.webp') !important;
+    opacity:.12 !important;filter:none !important;transform:none !important}
+}
+
+
+/* ══════ 00i ファーストビュー（2026-08-13 第2次作り直し）══════
+   スクロールに頼らず、読み込み直後に自動で最後まで進む。
+
+   流れ
+     1. 黒から「or」の形の窓が開き、奥のファーストビューが現れる（.fvReveal）
+     2. 画面全面が赤（自然災害の色）。中央に「Ready ?」
+     3. Ready がわずかに上へ動き、「?」が消え、「or Not」がフェードインする。
+        同時に赤が右上がりの直線で切られ、右側の平行四辺形だけを残して
+        あとは青（都市の色）に変わる
+
+   色は既存の意味色をそのまま使う。赤＝#f85149（災害。site.css の .marq と
+   同じ値）／青＝#388bfd（都市。design_system.md §1.4 のプライマリ）。
+   新しい色は作らない。
+
+   ⚠️ スクロール駆動（animation-timeline）は使わない。時間駆動で自走させる。
+   ⚠️ 巨大レイヤーを作らない。面は常にビューポート等倍のまま clip-path で切る。
+   ⚠️ JSが1行も動かなくても、既定値が最終状態なので情報が欠けない。 ══════ */
+/* ⚠️ sticky は包含ブロックの中でしか貼り付かない。.fvIntro を直接 body の子に
+   すると、包含ブロックが body になりページ末尾まで貼り付き続け、01以降の節の
+   余白から赤青の面が透けて見える（実際に踏んだ）。
+   高さ1画面ぶんの .fvHold で包み、貼り付く範囲をその中に閉じ込める。
+   JSの監視に頼らないので、rAFが止まる環境でも必ず正しく振る舞う。
+   🚫 この入れ子を外さないこと。 */
+.fvHold{height:100svh}
+.fvIntro{position:sticky;top:0;height:100svh;overflow:hidden;
+  background:var(--ground)}
+
+/* ── 赤青の面 ── */
+.fvBlue{position:absolute;inset:0;background:#002A6C}
+.fvRed{position:absolute;inset:0;background:#E60B00;
+  /* 既定＝最終形。右上がりの直線で切った、右側の平行四辺形だけが赤。
+     境界は左下(28%,100%)から右上(58%,0%)へ上がる。 */
+  clip-path:polygon(58% 0%,100% 0%,100% 100%,28% 100%)}
+@keyframes fvSplit{
+  /* はじめは全面が赤。溜めてから一気に切る。 */
+  0%,42% {clip-path:polygon(0% 0%,100% 0%,100% 100%,0% 100%)}
+  100%   {clip-path:polygon(58% 0%,100% 0%,100% 100%,28% 100%)}
+}
+
+/* 境界付近のノイズ（既存グレインと同じ作り。新しい仕組みを増やさない） */
+.fvGrain{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.08;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='fvn'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23fvn)'/%3E%3C/svg%3E")}
+
+/* ── 文字 ──
+   実体の見出しは次の00ヒーローのh1が持つため、ここは装飾（aria-hidden）。
+   ⚠️ ここだけ Outfit 900 を使う。ファーストビューの2語を最大限太く見せる
+   ための例外であり、他の節へ持ち出さないこと（§10.4 の書体規律の例外として
+   ユーザー判断で追加）。 */
+.fvType{position:absolute;z-index:2;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  color:var(--t1);text-align:center;pointer-events:none;
+  font-family:'Outfit','Archivo',sans-serif;font-weight:900;letter-spacing:-.02em;
+  filter:drop-shadow(0 2px 18px rgba(0,0,0,.45))}
+.fvL1,.fvL2{margin:0;line-height:.96;white-space:nowrap}
+.fvL1{font-size:clamp(var(--fs-d3),15vw,calc(var(--fs-d3) * 3.4))}
+.fvQ{display:inline-block;margin-left:.06em;opacity:0}
+
+/* Ready ? の下の区切り線。ここから or Not が滑り出てくる。 */
+/* ⚠️ 幅を em で書かない。.fvRule 自身の font-size は .fvType 由来の素の値で、
+   隣の巨大な見出しとは無関係のため、極端に短い線になって字の下端とぶつかる。
+   画面幅を基準にして、見出しの字幅とつり合う長さにする。 */
+.fvRule{display:block;height:3px;width:min(58vw,40rem);background:currentColor;
+  margin:.7rem 0 .9rem;transform:scaleX(0);transform-origin:center;opacity:.9}
+
+/* ⚠️ or Not は必ず overflow:hidden の箱に入れる。線の裏から出てくる見えを
+   作るのがこの箱の役割で、外すと単に下からフェードするだけになる。 */
+.fvL2Wrap{overflow:hidden;display:block}
+.fvL2{font-size:clamp(var(--fs-d2),11vw,calc(var(--fs-d3) * 2.4));
+  transform:translateY(-102%)}
+/* スマホは or と Not を2行に割る（改行位置の指定）。 */
+.fvL2 .fvBr{display:none}
+@media(max-width:899px){
+  .fvL2{white-space:normal;line-height:1.02}
+  .fvL2 .fvBr{display:block}
+  .fvRule{width:min(76vw,22rem);height:2px;margin:.5rem 0 .6rem}
+}
+
+/* ⚠️ 慣性を出すため、行きすぎてから戻る曲線を使う。単純な減速だと
+   「置きに行った」動きになり、勢いが出ない。 */
+@keyframes fvReadyUp{
+  0%,40%  {transform:translateY(.46em)}
+  100%    {transform:translateY(0)}
+}
+@keyframes fvQOut{ 0%,32%{opacity:1} 58%,100%{opacity:0} }
+@keyframes fvRuleIn{ 0%,44%{transform:scaleX(0)} 100%{transform:scaleX(1)} }
+@keyframes fvOrNotIn{
+  0%,52%  {transform:translateY(-102%)}
+  100%    {transform:translateY(0)}
+}
+
+/* 中身の入れ物。かつて黒から「or」の形の窓を開く演出を挟んでいたが、
+   ファーストビューが「Ready ?」始まりに変わったため撤去した（2026-08-13）。
+   ローディングの暗転から、そのまま赤い画面へ引き渡す。 */
+.fvReveal{position:absolute;inset:0;z-index:1}
+
+/* ⚠️ タイミングはローディングと直列につなぐ。.loadOverlay は 2.95〜3.40秒で
+   消える（site.css）。暗幕が消え切る 3.40秒から演出を始める。
+   site.js は TOTAL_MS+200 後に intro-lock を剥がし、剥がれた瞬間に
+   html.intro-lock 配下の animation はマッチしなくなって既定値（＝最終状態）へ
+   飛ぶ。演出が終わる 5.30秒より前に剥がしてはいけない（TOTAL_MS=5500）。 */
+html.intro-lock .fvRed{animation:fvSplit 1.9s var(--e) 3.40s both}
+html.intro-lock .fvL1{animation:fvReadyUp 1.9s var(--e) 3.40s both}
+html.intro-lock .fvQ{animation:fvQOut 1.9s linear 3.40s both}
+html.intro-lock .fvRule{animation:fvRuleIn 1.9s var(--e) 3.40s both}
+html.intro-lock .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) 3.40s both}
+
+/* 同一セッションの2回目以降はローディングを出さないので、待たずに始める。 */
+html.intro-skip .fvRed{animation:fvSplit 1.9s var(--e) both}
+html.intro-skip .fvL1{animation:fvReadyUp 1.9s var(--e) both}
+html.intro-skip .fvQ{animation:fvQOut 1.9s linear both}
+html.intro-skip .fvRule{animation:fvRuleIn 1.9s var(--e) both}
+html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both}
+
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .fvRed,
+  html:not([data-motion="on"]) .fvL1,
+  html:not([data-motion="on"]) .fvL2{animation:none!important;transform:translateY(0)!important}
+  html:not([data-motion="on"]) .fvRule{animation:none!important;transform:scaleX(1)!important}
+  html:not([data-motion="on"]) .fvQ{animation:none!important;opacity:0!important}
+}
+
+/* ══════ 00 ヒーロー（全画面キービジュアル＋左7カラムの文字。2026-08-11改訂・
+   §10.2.1）。実機画面は主役から外した（03の詳細でのみ使う）。§10.7 の
+   非対称分割そのものは、文字を置くカラムの基準として残す。 ══════ */
+.hero{position:relative;min-height:100svh;display:flex;align-items:stretch;
+  padding-top:var(--s6);overflow:hidden}
+
+.heroKV{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:var(--kv,var(--kv-fallback));background-size:cover;background-position:center}
+/* 稲妻はキービジュアル画像が持つため、CSSでの擬似稲妻は廃止した。 */
+/* 文字側（左）の可読性確保。キービジュアルは明るい夜明けの青のため、
+   白文字がそのままでは沈む。左からごく暗いスクリムを敷く。 */
+.heroKV::after{content:'';position:absolute;inset:0;
+  /* 文字側（左）の可読性。キービジュアルの左は夜明けで明るく、ロゴタイプの帯に
+     そのまま白文字を置くと沈む。実測でこの強度にすると帯の平均輝度が67/255まで
+     下がり、白文字とのコントラスト比は約10.1（AAA）になる。 */
+  background:linear-gradient(100deg,
+    rgba(3,8,16,.78) 0%, rgba(3,8,16,.52) 40%, transparent 74%)}
+
+/* ══════ パララックス（§20.7）。背景（キービジュアル）とテキストが時間差で
+   動く視差をはっきり分かる程度に付ける。.hero 自身の view-timeline を使い、
+   節がビューポートを通過する間、背景はゆっくり／文字はやや速く動かす
+   （速度差が視差として読める程度に留め、酔わない範囲の移動量にする）。
+   scale(1.12) は.maskRevealのパララックス（§12.1）と同じ考え方のブリードで、
+   translateYで動かしても.hero側のoverflow:hiddenの内側に端が透けない余白を
+   確保する（background-size:coverの計算自体は変えない）。
+   非対応ブラウザ・prefers-reduced-motionでは静止（既存の共通@mediaが
+   animationごと無効化する）。 ══════ */
+@supports (animation-timeline: view()){
+  .heroKV{animation:heroKVParallax linear both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+  .heroL{animation:heroLParallax linear both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+}
+@keyframes heroKVParallax{
+  from{transform:translateY(-4%) scale(1.12)}
+  to{transform:translateY(4%) scale(1.12)}
+}
+@keyframes heroLParallax{ from{transform:translateY(calc(var(--s3) * -1))} to{transform:translateY(var(--s3))} }
+
+/* 人物：ポスターと同じく、晴れと嵐の境界に背を向けて立たせる。
+   下端を切って地面に接地させる。文字は左7カラムなので重ならない。 */
+.heroFigure{position:absolute;right:6vw;bottom:0;z-index:1;pointer-events:none;
+  height:min(66svh,640px);width:auto;
+  filter:drop-shadow(0 0 var(--s5) rgba(0,0,0,.55))}
+@media(max-width:899px){ .heroFigure{right:-6vw;height:44svh;opacity:.55} }
+
+.heroL{position:relative;z-index:2;grid-column:1 / 8;min-width:0;align-self:center}
+
+.logo{position:relative;line-height:.92;
+  font-size:clamp(var(--fs-d1),8.4vw,var(--fs-d3));margin-left:-.04em}
+.logo span{display:block}
+.logo .l2{padding-left:.09em}
+/* グランジのかすれ（§10.4.1）。
+   ⚠️ 擬似要素を矩形で重ねてはいけない。ロゴの箱ぜんたいが灰色の四角として
+   浮き上がり、演出ではなく不具合に見える。ノイズは background-clip:text で
+   「文字の内側」に閉じ込める。白ベタとノイズを multiply で合成し、白い文字に
+   暗いかすれが入るポスターの見えを再現する。
+   非対応ブラウザでは color:var(--t1) のまま素の白文字になる（劣化して崩れない）。 */
+.logo{color:var(--t1)}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .logo{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E"),
+      linear-gradient(var(--t1),var(--t1));
+    background-size:180px 180px, 100% 100%;
+    background-blend-mode:multiply;
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent}
+}
+
+.tagline{margin-top:var(--s3);font-size:clamp(var(--fs-h3),3.2vw,var(--fs-h1))}
+
+.cta{margin-top:var(--s5);display:flex;flex-direction:column;gap:var(--s2);
+  align-items:flex-start}
+/* 斜め塗りホバー（項目9）。詳細な設計判断は assets/site.css の該当コメントに
+   まとめてある（同じ仕組みを .closeCta／.btnFill／.barPlay にも適用）。 */
+.ctaMain{position:relative;isolation:isolate;display:flex;flex-direction:column;gap:var(--s1);
+  padding:var(--s3) var(--s4);background:var(--accent);color:#fff;font-weight:700;
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  transition:color .2s var(--e),transform .2s var(--e)}
+.ctaMain::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--gold);
+  clip-path:polygon(0 0,0 0,0 100%,0 100%);transition:clip-path .32s var(--e)}
+.ctaMain:hover::before,.ctaMain:focus-visible::before,.ctaMain:active::before{
+  clip-path:polygon(0 0,100% 0,calc(100% - 1.2em) 100%,0 100%)}
+.ctaMain:hover,.ctaMain:focus-visible,.ctaMain:active{color:var(--ground)}
+.ctaMain b{font-size:var(--fs-h3);line-height:1.2}
+.ctaMain i{font-style:normal;font-size:var(--fs-s);opacity:.86;line-height:1.2}
+.ctaMain:hover i,.ctaMain:focus-visible i,.ctaMain:active i{opacity:1}
+@media(hover:hover){ .ctaMain:hover{transform:translateY(-2px)} }
+.ctaMain:focus-visible{outline:2px solid var(--t1);outline-offset:3px}
+.stores{display:flex;gap:var(--s2);flex-wrap:wrap}
+.store{font-size:var(--fs-s);color:var(--t3);border:1px solid var(--border);
+  padding:var(--s1) var(--s3);line-height:1.5}
+.store em{font-style:normal;display:block;font-size:var(--fs-xs);
+  letter-spacing:var(--tr-label);color:var(--t3)}
+
+/* ══════ 01 なぜ作ったか（8:4。実機画面を置かない唯一の節） ══════ */
+/* 節間の余白（§12.1）：贅沢な余白が静謐さの本質。節と節のあいだは --s7 以上にする。
+   ⚠️ 2026-08-13 修正3：01（データ＋説明）と01'（カードマーキー）の間だけは
+   例外。両節の間に新設した見出し（30 CARDS／5 COLORS）が区切りの役目を
+   引き継ぐため、01側の下余白は --s7 から --s5 へ詰める（01'側は下で調整）。 */
+.why{padding-top:var(--s7);padding-bottom:var(--s5)}
+.whyL{grid-column:1 / 9;min-width:0}
+.whyR{grid-column:9 / 13;min-width:0;align-self:center}
+/* §20.8：右側だけをグリッド外へわずかに逃がす（左エッジは不変）。transform
+   はグリッドのトラック計算に影響しないため、12カラムの規律自体は崩さない。 */
+@media(min-width:900px){ .whyR{transform:translateX(var(--s3))} }
+
+.catch{font-size:clamp(var(--fs-h1),5.6vw,var(--fs-d1))}
+.whyBody{margin-top:var(--s5);max-width:32em;color:var(--t2);line-height:var(--lh-b)}
+.whyBody p + p{margin-top:var(--s3)}
+
+/* 数値は右4カラムに置く。ここが v4 で空いていた側にあたる。
+   8.3%（§14。2026-08-12 差し替え）は SVG のドーナツグラフに置き換える（§11.3-3）。
+   数値・説明文・出典は図形の外に必ずテキストとして残す。色と図形だけで情報を
+   伝えない（§5.4）。 */
+.stat{border-top:1px solid var(--border);padding-top:var(--s3)}
+/* 帯グラフ本体（修正2）。年ラベル｜帯｜数値 の3列。列幅は固定＋伸縮＋内容量で
+   組み、任意比のfrは使わない（年ラベル列だけ文字数ぶんの固定 em 幅）。 */
+.barChart{display:flex;flex-direction:column;gap:var(--s3);max-width:24em}
+.barRow{display:grid;grid-template-columns:5.2em 1fr auto;align-items:center;gap:var(--s2)}
+.barYear{font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--t3)}
+.barTrack{position:relative;height:.75rem;background:var(--border);border-radius:2px;overflow:hidden}
+.barFill{position:absolute;inset:0;background:var(--t3);border-radius:2px}
+.barFill--now{background:var(--gold)}
+.barPct{font-size:var(--fs-h3);line-height:1;letter-spacing:-.02em;white-space:nowrap;color:var(--t1)}
+.barPct span{font-size:.6em;margin-left:.05em}
+.statLabel{margin-top:var(--s4);font-size:var(--fs-b);color:var(--t2);line-height:1.7}
+.statSrc{margin-top:var(--s2);font-size:var(--fs-s);letter-spacing:.04em;color:var(--t3);line-height:1.7}
+@media(max-width:899px){ .stat{margin-top:var(--s5)} }
+
+/* ══════ 01' カードマーキー（全幅。グリッドの左エッジ規律から外れる唯一の要素） ══════ */
+/* 2026-08-13 修正3：見出し「30 CARDS／5 COLORS」を新設し、旧・下部キャプション
+   （.marqCap）は削除した。見出しは「遊びのほうが、真剣になれる。」と同じ体裁
+   （.catch jpAccent ＋ .headRule）を流用する（新規クラスを増やさない）。
+   節の上余白は見出しぶんの視覚的な区切りが立つため --s5 に詰め、マーキー本体は
+   見出し直下から --s5 空けて始める。下余白（02との間）は据え置き --s7。
+   ⚠️ 両端のマスクは .marqViewport（overflow:hidden の直接の親）に置く。
+   §10.8.2 発見4のとおり、行は max-content で親から溢れるため、回転・拡大の
+   トランスフォーム層（.marqInner）に掛けるとマスク画像が溢れた領域で繰り返され
+   効かない。見出しを .marq 直下に追加した今回、.marq 自体をマスクの主体には
+   できない（見出しの左右端まで一緒にフェードしてしまう）ため、マスクの主体を
+   新設の .marqViewport へ移し、見出しはその外に置く。 */
+/* 修正（2026-08-13・項目5「カードギャラリーと現実とリンクした世界観の間が
+   広すぎる」）。旧・padding-bottom:--s7 と次節 .cards の padding-top:--s7 が
+   合算され何もない空間になっていた。§23.3で01→01'間を--s7→--s5に詰めた
+   前例と同じ考え方で、01'→02間もここと.cardsの両側から--s5へ詰める。 */
+.marq{padding-top:var(--s5);padding-bottom:var(--s5)}
+/* 修正（2026-08-13・ユーザー指摘「最上列は上が、最下列は下が見切れる」）。
+   原因：.marqInner は width:max-content で数千pxまで伸びる横長の箱で、それを
+   rotate(-1.5deg) すると、回転後の見かけの高さは「行の高さ」ではなく
+   「幅 × sin(1.5deg)」が支配的になり数十px単位で膨らむ。.marqViewport は
+   overflow:hidden で「回転前（＝未回転の行の高さ）」の箱のまま子を切り抜くため、
+   膨らんだ分だけ上端・下端が欠けていた。マスク（§10.8.2発見4）はこのまま
+   .marqViewport に置く必要があるため overflow:hidden 自体は外せない。
+   代わりに .marqViewport の上下に余白（--s5）を確保し、回転で膨らむ量を
+   吸収できるだけの高さを先に持たせる。 */
+.marqViewport{margin-top:var(--s5);padding-block:var(--s4);overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-size:100% 100%;mask-size:100% 100%}
+.marqInner{transform:rotate(-1.5deg) scale(1.04)}
+.marqRow{display:flex;gap:var(--s2);width:max-content;will-change:transform}
+.marqRow + .marqRow{margin-top:var(--s2)}
+.marqRow img{width:clamp(84px,7vw,124px);aspect-ratio:288/450;object-fit:cover;
+  border-radius:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+
+/* ══════ 02 カードの詳細／軌道セレクタ（5:7。§10.6.3・§10.6.4） ══════ */
+/* padding-top は項目5により --s7→--s5 に詰めた（.marq側の対応する変更と対）。
+   padding-bottom は03との節間なので据え置き --s7。 */
+.cards{padding-top:var(--s5);padding-bottom:var(--s7)}
+
+/* コンテナクエリ（§10.8.3-5）。ビューポート基準の既存 @media(max-width:899px) とは
+   別要素・別ブレイクポイントとして扱う（.g12 とは混在させない）。 */
+.orbitGrid{container-type:inline-size;container-name:orbitgrid;
+  display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--gut)}
+.orbitL{grid-column:1 / 6;min-width:0}
+/* 局所の面（§10.3.4。2026-08-11改訂）。旧版は独自の赤黒グラデーションを敷いて
+   いたが、地そのものが02区間で紫を通るようになったため不要になった。地から
+   自動導出した --surface / --border で一段明るい面を作るだけにする。 */
+.orbitR{grid-column:6 / 13;min-width:0;
+  background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--border);
+  border-radius:4px;padding:var(--s5) var(--s5) var(--s4)}
+/* ⚠️ コンテナクエリは子孫にしか効かない。.orbitGrid 自身をコンテナに
+   指定したうえで @container orbitgrid の中から .orbitGrid を書いても
+   一度も適用されない（自分自身は自分のコンテナクエリの対象外）。
+   実際これでスマホでも12カラムのまま左右に割れ続け、軌道セレクタと
+   カードパネルが潰れていた。縦積みの判断はビューポート基準で書く。 */
+@media(max-width:899px){
+  .orbitGrid{display:block}
+  /* 項目5「楕円カードカテゴリと大判カードの間の余白を詰め、両方を同時に
+     見やすく」。スタック時（スマホ）の縦の隙間を --s6→--s4 に詰めた。 */
+  .orbitR{margin-top:var(--s4)}
+}
+
+.secTitle{font-size:clamp(var(--fs-h1),5.6vw,var(--fs-d1))}
+
+/* 軌道：2Dの楕円パス。rotateX()は使わない（アイコンのぼけとレイヤリング破綻を招く）。
+   ⚠️ ノードは楕円の「上を」動く必要がある。固定スロット間で left/top を
+   CSSトランジションすると2点を直線（弦）で横切り、軌道に見えない。加えて
+   left/top のトランジションは毎フレーム再レイアウトを起こしコンポジタに乗らない。
+   よって位置・拡大・不透明度・重なりは角度から毎フレーム算出し、transform だけで
+   動かす。傾き -8deg も座標計算に含める（親を rotate すると子の正立打ち消しが要る）。 */
+.orbitStage{position:relative;margin-top:var(--s5);aspect-ratio:1/.86;max-width:100%}
+/* 項目5「楕円カードカテゴリ自体はもう少し小さくしてよい。ただしアイコンと
+   文字の大きさは小さくしないこと」。.orbitNode の幅・.orbitCenter/.orbitHint
+   の文字サイズは vw／スケールトークン基準で orbitStage の幅に連動しないため、
+   ここで軌道の器（楕円のパス半径をJSが算出する基準の箱）だけを縮小しても
+   アイコン・文字は影響を受けない。デスクトップ（orbitL/orbitRが横並びになる
+   幅）限定とし、直前の修正4で拡大したばかりのスマホ表示はそのまま。 */
+@media(min-width:900px){
+  .orbitStage{max-width:78%}
+}
+.orbitTrack{position:absolute;inset:0}
+/* 軌道の実線。JS側の楕円（中心 50%/50%、半径 w×.40 / h×.40、傾き -8deg）と
+   同じ図形を border-radius:50% の矩形で描く。SVGを preserveAspectRatio="none" で
+   引き伸ばすと回転が非等方に歪んでJSの座標と一致しないため、この方法を採る。
+   これがないとアイコンが「散らばった点」に見え、軌道として読めない。 */
+.orbitPath{position:absolute;left:10%;top:10%;width:80%;height:80%;
+  border:1px solid var(--border);border-radius:50%;
+  transform:rotate(-8deg);pointer-events:none}
+.orbitCenter{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);
+  font-size:clamp(var(--fs-h3),2.4vw,var(--fs-h2));color:var(--t2);
+  letter-spacing:var(--tr-jp);white-space:nowrap;pointer-events:none;z-index:20}
+
+.orbitNode{position:absolute;left:0;top:0;margin:0;padding:var(--s1);border:0;border-radius:50%;
+  width:clamp(62px,10vw,104px);aspect-ratio:1;
+  background:var(--surface);box-shadow:inset 0 0 0 1px var(--border);cursor:pointer;
+  display:grid;place-items:center;will-change:transform,opacity}
+.orbitNode img{width:74%;height:74%;object-fit:contain;display:block}
+.orbitNode:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* 修正4：スマホ幅ではアイコン・文字が小さすぎるという指摘。orbitNode の幅は
+   vw基準のclampの下限（62px）付近に張り付いていたため下限と上限を底上げする。
+   orbitCenter（選択中の色名）はスケール内の1段上へ（§10.4.2の9段規律を守り、
+   任意の数値は書かない）。旧 .orbitHint（操作説明）は今回 .srOnly へ切り替え
+   視覚表示自体をやめたため、この画面幅別の font-size 指定は不要になった。 */
+@media(max-width:899px){
+  .orbitNode{width:clamp(88px,20vw,120px)}
+  .orbitCenter{font-size:var(--fs-h2)}
+}
+
+/* 右：選択中の色の代表カード（配る演出で切り替わる）＋その色の代表数枚の
+   プレビュー（cards.html の該当色の節への「詳しく見る」付き。修正3）
+   ── 修正2（2026-08-12）：大判カードの切れを解消 ──
+   旧実装は .cardBlock を position:absolute;inset:0 で .cardMain（min-heightで
+   固定した箱）へ完全に重ねていた。.cardBlock は display:flex;flex-direction:column
+   のため、absolute+inset:0 で高さが cardMain の min-height ぴったりに固定されると、
+   画像（.cardArtWrap、aspect-ratio 288:450）とその下のテキスト（色名・リード文・
+   カード名・解説）の合計高さがその箱に収まりきらず、既定の flex-shrink:1 により
+   画像側が押し潰されて aspect-ratio どおりの高さにならなかった。結果、
+   object-fit:cover が縮んだ枠に合わせて画像の上下を切り取り、「中心部しか
+   見えない」状態になっていた。
+   対策：.cardMain 自身を display:grid にし、新旧の .cardBlock を同じ
+   grid-area（1/1）に重ねて出し分ける。position:absolute と違い、グリッドの
+   同一セルに置かれたアイテムは自分の自然な内容量（画像のaspect-ratio込み）を
+   トラックの auto 高さに反映できるため、画像が縮む理由が消える。
+   min-height はグリッドの行に minmax(下限, auto) として渡し、初回描画前の
+   CLS を防ぐ下限としてだけ働かせ、実際のコンテンツがそれより高ければ
+   グリッドが自動的に育つ。.maskReveal のマスク開き演出（§12.1）はこの変更後も
+   .cardArtWrap がそのまま担う（クラス・親子関係を変えていない）。 */
+.cardMain{position:relative;display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:minmax(clamp(430px,34vw,560px),auto)}
+.cardBlock{grid-area:1 / 1;align-self:start;min-width:0;
+  display:flex;flex-direction:column;gap:var(--s2);
+  transition:transform .5s cubic-bezier(.34,1.56,.64,1),opacity .5s cubic-bezier(.34,1.56,.64,1)}
+.cardBlock.entering{transform:translateY(48px);opacity:0;pointer-events:none}
+.cardBlock.leaving{transform:translateY(-48px);opacity:0;pointer-events:none}
+/* 02 の大判カード。.cardArtWrap が .maskReveal を兼ね、開くマスクの親になる
+   （§12.1）。サイズ・角丸・縁の光はラッパー側に移し、img は中身を100%で満たす。
+   flex-shrink:0 を明示し、たとえ将来この列がまた高さ制約を受けても画像側から
+   潰れないようにする（テキスト側が先に折り返しで調整される）。上限を
+   268px→300pxへ拡大した（§修正2「カード自体をもう少し大きくしてよい」）。
+   下限（184px）は320px幅の狭い画面（.orbitR の左右padding var(--s5) が効く
+   コンテナクエリ配下）でこれ以上増やすと横方向が窮屈になるため据え置く。 */
+.cardArtWrap{width:clamp(184px,20vw,300px);aspect-ratio:288/450;border-radius:6px;
+  flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+/* object-fit は contain にする。.cardArtWrap が常に 288:450 を保つよう上で
+   直したため cover と contain は本来同じ見え方になるが、将来の環境差や
+   コンテナクエリの再計算タイミングで枠が一瞬ずれても、contain なら画像が
+   切れる代わりに余白が出るだけで済む（安全側に倒す）。 */
+.cardArt{width:100%;height:100%;object-fit:contain;display:block}
+/* 修正5（2026-08-13）：大判カードの上下がわずかに見切れる不具合。原因は
+   共通コンポーネント .maskReveal > img の視差キーフレーム（site.css
+   .maskParallax）が from/to とも scale(1.06) を持つこと。フルブリードの
+   実機スクショ（.modeShotWrap 等）ではこの6%のにじみ出しが意図どおりだが、
+   288:450 にぴったり収まる cardArt は逆に6%分だけ枠の外へ出て、
+   overflow:hidden（.maskReveal）に上下左右とも切られてしまう。
+   共通側は変えず（他の用途では正しい）、.cardArtWrap 配下だけスケールを
+   持たない専用キーフレームで animation-name を上書きする。 */
+@supports (animation-timeline: view()){
+  .cardArtWrap.maskReveal > img{ animation-name:cardArtParallax }
+  @keyframes cardArtParallax{ from{transform:translateX(-4%)} to{transform:translateX(0)} }
+}
+.cardColor{font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--t3)}
+.cardName{margin-top:var(--s1);font-size:var(--fs-h2)}
+/* color はここで指定しない。§12.2 の読み位置カラースイープが色を持つ。
+   同じ詳細度でこちらが後ろにあるため、指定すると後勝ちでスイープを潰す。 */
+.cardR{font-size:var(--fs-b);line-height:var(--lh-b);max-width:28em}
+
+/* 修正6（2026-08-13）：カード名称の上の説明文（旧 .cardLead＝color.lead）と、
+   大判カード以外の同色カード一覧（旧 .cardStrip／.cardChip、修正3で追加した
+   ものを再度撤去）を削除し、「詳しく見る」だけを残してシンプルにする。
+   右7カラムを「大判カード｜一覧」に割っていた .panelGrid／.cardStripCol も
+   不要になったため撤去し、.orbitR は .cardMain 1本だけを収める（上のCSS参照）。 */
+.cardMoreLink{margin-top:var(--s4);display:inline-flex;align-items:center;gap:var(--s1);
+  font-size:var(--fs-s);letter-spacing:var(--tr-label);color:var(--gold);
+  text-decoration:underline;text-underline-offset:.2em;
+  transition:gap .2s var(--e),color .2s var(--e),filter .2s var(--e)}
+.cardMoreLink span:last-child{transition:transform .2s var(--e)}
+/* 押下の段階（§20.5）。デフォルトが既にgoldのため、押下は明度を上げて区別する。 */
+.cardMoreLink:active{filter:brightness(1.35)}
+@media(hover:hover){
+  .cardMoreLink:hover{gap:var(--s2)}
+  .cardMoreLink:hover span:last-child{transform:translateX(3px)}
+}
+.cardMoreLink:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+/* .srOnly は assets/site.css の共通ユーティリティを使う。 */
+
+/* ══════ 03 遊んで学べる2モード（2026-08-13 作り直し。項目7） ══════
+   旧「遊び方」を全面作り直し。実機画面のコラージュ（.wayShotStack／
+   .shotLayer）は撤去した。代わりに各モードの図版は、自然災害＝赤／都市＝青の
+   意味色を敷いた面に、塗りなし・枠線のみの英字を縦書きで置く（.wayArt）。
+   人数はSVGアイコン（.wayIcon）で表現し、絵文字は使わない。 */
+.ways{padding-top:var(--s7);padding-bottom:var(--s7)}
+/* 罫（.headRule）は .wrap.g12 の直下に直接置かれる唯一のケース（01・02では
+   非グリッドの親div内に収まるため不要）。.wayHead と同じ列に揃える。 */
+.ways .headRule{grid-column:1 / 13}
+.wayHead{grid-column:1 / 13}
+/* ══════ 赤青パネル（2026-08-13 作り直し） ══════
+   各モードの説明を面の中に収める。面そのものが modes/* への入口リンク。
+   .wrap の外（.ways 直下）に置き、画面幅いっぱいを覆う。
+   §10.5.1「全節が同じ左エッジから始まる」規律の例外は 01' マーキーに続く
+   2箇所目である（意図的な例外としてここに明記する）。
+
+   ⚠️ 高さを aspect-ratio で固定しないこと。旧実装は 32/9 に固定していたため
+   縦書きの VERSUS が上下で切れていた。中身の量で伸びるようにする。
+   色はファーストビューと同じ赤 #E60B00／青 #002A6C。 */
+.wayFull{position:relative;z-index:1;margin-top:var(--s5);display:flex}
+.wayFullHalf{flex:1 1 50%;position:relative;overflow:hidden;display:block;
+  padding:var(--s7) var(--s5);min-width:0;
+  text-decoration:none;color:var(--t1);
+  transition:filter .25s var(--e)}
+.wayFullHalf--vs{background:#E60B00}
+.wayFullHalf--coop{background:#002A6C}
+@media(hover:hover){ .wayFullHalf:hover{filter:brightness(1.08)} }
+.wayFullHalf:focus-visible{outline:2px solid var(--gold);outline-offset:-6px}
+
+/* 背景の縦書き英字。節見出し（.jpAccent＝明朝）に対応する欧文の強調層
+   ＝ .enAccent（Playfair Display）を使う（§10.4 の対応関係どおり）。
+   主役ではないので枠線は細いまま、不透明度も落とす。 */
+.wayArtWord{position:absolute;top:50%;right:var(--s4);translate:0 -50%;
+  writing-mode:vertical-rl;text-orientation:upright;
+  line-height:.86;letter-spacing:.06em;pointer-events:none;
+  font-size:clamp(var(--fs-d1),11vw,calc(var(--fs-d3) * 1.6));
+  color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.5);opacity:.9}
+@supports not (-webkit-text-stroke: 1px #fff){
+  .wayArtWord{color:rgba(255,255,255,.14)}
+}
+/* スクロールに連れて、縦書きの英字だけが上下にゆっくり流れる（視差）。
+   ⚠️ animation ショートハンドで他の指定を潰さないよう、個別プロパティで書く。 */
+@supports (animation-timeline: view()){
+  .wayArtWord{animation-name:wayWordDrift;animation-timing-function:linear;
+    animation-fill-mode:both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+}
+@keyframes wayWordDrift{
+  from{translate:0 calc(-50% - var(--s5))}
+  to  {translate:0 calc(-50% + var(--s5))}
+}
+
+.wayInner{position:relative;z-index:1;display:block;max-width:26em}
+.wayMode{display:block;font-size:clamp(var(--fs-h2),3.2vw,var(--fs-h1));
+  transition:color .2s var(--e)}
+@media(hover:hover){ .wayFullHalf:hover .wayMode{color:var(--gold)} }
+.wayFullHalf:active .wayMode{color:var(--gold)}
+.waySub{display:block;margin-top:var(--s1);font-size:var(--fs-h3);
+  color:rgba(255,255,255,.86)}
+
+/* 人数（SVGアイコン。ゲーム本体と同じ発想で絵文字は使わない）。
+   アイコンは装飾なので aria-hidden、実数は .en のテキストで必ず残す。 */
+.wayCount{margin-top:var(--s3);display:flex;flex-wrap:wrap;align-items:center;
+  gap:var(--s2);color:rgba(255,255,255,.86)}
+.wayCountGroup{display:inline-flex;align-items:center;gap:.28em}
+.wayIcon{width:1.1em;height:1.1em;color:#fff}
+.wayCountSep{color:rgba(255,255,255,.6)}
+
+.wayBody{display:block;margin-top:var(--s3);font-size:var(--fs-s);
+  color:rgba(255,255,255,.86);line-height:var(--lh-b)}
+.wayNote{display:block;margin-top:var(--s2);font-size:var(--fs-s);
+  color:rgba(255,255,255,.66);line-height:var(--lh-b)}
+
+/* 境界の×。線が交差する点が2つの面の境界線にちょうど重なる。
+   ⚠️ viewBox の中心(50,50)が交点なので、要素の中心を境界に合わせれば
+   交点が境界に乗る。左右分割時は left:50%、上下分割時は top:50%。 */
+.wayCross{position:absolute;z-index:2;pointer-events:none;
+  left:50%;top:50%;translate:-50% -50%;
+  width:clamp(4.5rem,7vw,7.5rem);height:clamp(4.5rem,7vw,7.5rem)}
+.wayCross line{stroke:#fff;stroke-width:1.1;vector-effect:non-scaling-stroke;
+  stroke-linecap:round;opacity:.9}
+
+@media(max-width:899px){
+  .wayFull{flex-direction:column}
+  .wayFullHalf{padding:var(--s6) var(--pad)}
+  /* 縦積みになると境界は水平線になる。×はその上に置く。 */
+  .wayCross{width:clamp(3.4rem,14vw,5rem);height:clamp(3.4rem,14vw,5rem)}
+  /* 画面右端の方へ寄せる（項目指定）。文字が本文に被らないよう不透明度も下げる。 */
+  .wayArtWord{right:calc(var(--pad) * -.35);opacity:.55;
+    font-size:clamp(var(--fs-d2),26vw,var(--fs-d3))}
+  .wayInner{max-width:none}
+}
+
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .wayArtWord{
+    animation:none!important;translate:0 -50%!important}
+}
+
+/* ══════ 04 締め（新設。§13。00 と同じキービジュアル構造でタグラインを再掲し、
+   PLAY への大きな導線を1つだけ置く。全画面（min-height:100svh）。下部固定バー
+   （§13.2）の高さぶんの下余白を padding-bottom で確保し、align-items:center が
+   コンテンツをその分だけ上へ寄せる。これにより演出（全面余白そのものの効果）を
+   下バーが潰さない。 ══════ */
+.close{position:relative;min-height:100svh;display:flex;align-items:center;
+  padding-bottom:var(--s6);overflow:hidden}
+
+.closeKV{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:var(--kv2,var(--kv2-fallback));background-size:cover;background-position:center}
+/* 左スクリムは00と同じ考え方（§10.2.1・§11.4）。文字が乗る左側の輝度を落として
+   可読性を確保する。 */
+.closeKV::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(100deg,
+    rgba(3,8,16,.78) 0%, rgba(3,8,16,.52) 40%, transparent 74%)}
+
+/* パララックス（§20.7）。00 のヒーローと同じ考え方（scale(1.12)のブリード＋
+   translateY）で、storm.webp（背景）とタグライン（文字）に速度差を付ける。 */
+@supports (animation-timeline: view()){
+  .closeKV{animation:closeKVParallax linear both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+  .closeL{animation:closeLParallax linear both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+}
+@keyframes closeKVParallax{
+  from{transform:translateY(-4%) scale(1.12)}
+  to{transform:translateY(4%) scale(1.12)}
+}
+@keyframes closeLParallax{ from{transform:translateY(calc(var(--s3) * -1))} to{transform:translateY(var(--s3))} }
+
+/* §20.8：8:4だった旧比率を6:6ぶんさらに右へ寄せ、キービジュアルの見える
+   面積を増やす（左エッジ＝カラム1は不変。崩すのは右側だけの原則どおり）。 */
+.closeL{position:relative;z-index:2;grid-column:1 / 7;min-width:0}
+/* タグラインの再掲。00 の .tagline（clamp上限 --fs-h1）より大きく出す。 */
+.closeTag{font-size:clamp(var(--fs-d1),6.4vw,var(--fs-d3));line-height:var(--lh-d)}
+/* 修正（2026-08-13・スマホ改行）：「失敗できる／災害はここだけ」の2行に収める。
+   漢字はclosetTagの地の大きさのまま、平仮名（.tagKana）だけをスマホ幅で
+   縮小する。.barPct span の .6em 相対縮小と同じ考え方（新規トークンを増やさず
+   emで比率だけ変える）。PCでは1行のままなので縮小しない。 */
+@media(max-width:899px){
+  .closeTag .tagKana{font-size:.66em}
+}
+/* 斜め塗りホバー（項目9。.ctaMain と同じ仕組み）。 */
+.closeCta{position:relative;isolation:isolate;margin-top:var(--s5);display:inline-flex;align-items:center;
+  padding:var(--s3) var(--s6);background:var(--accent);color:#fff;font-weight:700;
+  font-size:var(--fs-h3);letter-spacing:var(--tr-label);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  transition:color .2s var(--e),transform .2s var(--e)}
+.closeCta::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--gold);
+  clip-path:polygon(0 0,0 0,0 100%,0 100%);transition:clip-path .32s var(--e)}
+.closeCta:hover::before,.closeCta:focus-visible::before,.closeCta:active::before{
+  clip-path:polygon(0 0,100% 0,calc(100% - 1.2em) 100%,0 100%)}
+.closeCta:hover,.closeCta:focus-visible,.closeCta:active{color:var(--ground)}
+@media(hover:hover){ .closeCta:hover{transform:translateY(-2px)} }
+.closeCta:focus-visible{outline:2px solid var(--t1);outline-offset:3px}
+
+/* .foot（フッター文字組）は assets/site.css の共通ユーティリティを使う。 */
+
+/* prefers-reduced-motion の共通ルール（*・.reveal・.headRule・.maskReveal>img・
+   .loadOverlay・.loadTitle・html.intro-lock・.bottomBar）は assets/site.css に
+   移した。ここに残すのはLP固有の要素（ドーナツグラフ・読み位置の色スイープ）
+   だけである。 */
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .barFill{transform:scaleX(var(--bar-scale)) !important}
+  html:not([data-motion="on"]) .cardR{ --p:100% !important }}
+</style>
+</head>
+<body>
+
+<!-- SVGスプライト（項目7・03の人数表記）。絵文字を使わず、線画の人物アイコンを
+     <use> で使い回す。装飾専用のシンボル定義のみで、それ自体は非表示。 -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="iconPerson" viewBox="0 0 24 24">
+    <circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
+    <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+  </symbol>
+</svg>
+
+<!-- ══════ 起動演出オーバーレイ（§20.1・2026-08-12：4幕へ作り直し） ══════
+     装飾専用（実体は直後のヒーロー h1 が持つ）なので aria-hidden にする。
+     4幕の進行は assets/site.css の animation-delay だけで完結し、JS非依存。
+     幕1＝produced/by Ready or Lab、幕2＝feTurbulence+feDisplacementMapの
+     黒インク（SVGのみ・WebGL不使用）、幕3＝ロゴのイーズイン、幕4＝全体
+     フェードでファーストビューへ。 -->
+<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
+  <div class="loadCredit">
+    <span class="loadCreditLine enBase">produced</span>
+    <span class="loadCreditLine enBase">by Ready or Lab</span>
+    <span class="loadCreditRule" aria-hidden="true"></span>
+  </div>
+  <span class="loadCount" aria-hidden="true"></span>
+  <div class="loadInk" aria-hidden="true">
+      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
+           重ね、白を透過させて黒だけを残す（§20.1改）。
+           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
+              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
+              確実に引っかかる。再生は等速1回きりにすること。 -->
+      <video class="loadInkVid" src="assets/ink/ink_load_timed.mp4"
+             muted playsinline preload="auto" aria-hidden="true"></video>
+    </div>
+  <div class="loadBlackout" aria-hidden="true"></div>
+</div>
+
+<!-- 背景の粒子と幾何学的な線（今回追加）。本文より後ろに敷く静的な奥行き演出。
+     18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
+     transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
+<div class="bgField" aria-hidden="true">
+  <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
+  <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
+  <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
+  <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
+  <span class="bgDot bgDot--a" style="--y:6%;animation-delay:-5s"></span>
+  <span class="bgDot bgDot--a" style="--y:22%;animation-delay:-16s"></span>
+  <span class="bgDot bgDot--a" style="--y:38%;animation-delay:-27s"></span>
+  <span class="bgDot bgDot--a" style="--y:54%;animation-delay:-38s"></span>
+  <span class="bgDot bgDot--a" style="--y:70%;animation-delay:-49s"></span>
+  <span class="bgDot bgDot--a" style="--y:86%;animation-delay:-60s"></span>
+  <span class="bgDot bgDot--b" style="--y:12%;animation-delay:-4s"></span>
+  <span class="bgDot bgDot--b" style="--y:28%;animation-delay:-11s"></span>
+  <span class="bgDot bgDot--b" style="--y:44%;animation-delay:-18s"></span>
+  <span class="bgDot bgDot--b" style="--y:60%;animation-delay:-25s"></span>
+  <span class="bgDot bgDot--b" style="--y:76%;animation-delay:-32s"></span>
+  <span class="bgDot bgDot--b" style="--y:92%;animation-delay:-39s"></span>
+  <span class="bgDot bgDot--c" style="--y:18%;animation-delay:-3s"></span>
+  <span class="bgDot bgDot--c" style="--y:34%;animation-delay:-8s"></span>
+  <span class="bgDot bgDot--c" style="--y:50%;animation-delay:-13s"></span>
+  <span class="bgDot bgDot--c" style="--y:66%;animation-delay:-18s"></span>
+  <span class="bgDot bgDot--c" style="--y:82%;animation-delay:-23s"></span>
+  <span class="bgDot bgDot--c" style="--y:98%;animation-delay:-28s"></span>
+</div>
+
+<!-- ══════ 下部固定バー（§13.2。2026-08-12：上部固定ヘッダを廃止し、役割を
+     こちらへ移す） ══════
+     DOM順は旧ヘッダの位置を踏襲する。screen reader はランドマーク単位で移動する
+     ため視覚位置とは無関係に到達でき、キーボードでTabした最初の到達先が
+     このナビになる。:focus-within でopacityを1に上書きするため、ページ最上部で
+     視覚的に薄い状態でもフォーカス直後には必ず見える（§13.2・キーボード要件）。 -->
+<!-- ロゴ：画面左上に固定（§20.4）。ナビではなくロゴの組み。リンク先はホーム。 -->
+<a class="siteLogo" href="#s00" aria-label="ホーム">
+  <span class="brandTile"><img src="assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
+  <span class="siteLogoText enBase">Ready or Not</span>
+</a>
+
+<!-- ハンバーガー：ロゴの対角（画面右上）に固定。押すとページ一覧（.navMenu）が
+     開閉する（今回新設。下部バーはPLAY専用に縮めたため、ページ移動はここへ
+     集約した）。開閉の実処理は assets/site.js の initNavMenu が担う。 -->
+<button type="button" class="hamburgerBtn" id="navToggle" aria-expanded="false" aria-controls="navMenu" aria-label="メニューを開く">
+  <span class="hamburgerBox" aria-hidden="true"><span></span><span></span><span></span></span>
+</button>
+
+<nav class="bottomBar en" aria-label="PLAYへ">
+  <a class="barPlay" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html"><span class="barPlayText">PLAY</span></a>
+</nav>
+
+<!-- 背後の暗転スクリム。押すと閉じる。 -->
+<div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<!-- ページ一覧。JSが完全に落ちてもリンク自体はDOMに存在し続け、Tabで
+     フォーカスが入れば :focus-within により可視化される（§13.2の下部バーが
+     採っていた縮退方針をそのまま踏襲。§10.0.1段階2）。 -->
+<nav class="navMenu" id="navMenu" aria-label="ページ一覧">
+  <div class="navMenuPanel">
+    <ul class="navMenuList en">
+      <li><a href="#s00" aria-current="page">HOME</a></li>
+      <li><a href="modes/versus.html">VERSUS</a></li>
+      <li><a href="modes/co-op.html">CO-OP</a></li>
+      <li><a href="features.html">FEATURES</a></li>
+      <li><a href="cards.html">CARDS</a></li>
+      <li><a href="contact.html">CONTACT</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ══════ pageScale：ページ本体（今回新設。ハンバーガーメニューを開くと
+     ここだけがわずかに縮む）。固定要素（loadOverlay/siteLogo/hamburgerBtn/
+     navScrim/navMenu/カーソルレティクル/inkGLキャンバス）は意図してこの外に
+     置く。transform は position:fixed 子孫の containing block を書き換える
+     ため、固定要素を内側に入れると画面に張り付かなくなる（安全条件）。
+     .fvIntro（sticky）は内側にあるが、overflow:hidden を持たせていないため
+     stickyの基準（最も近いスクロールコンテナ）は変わらず、§23.10で見つかった
+     居座り対策には影響しない。 ══════ -->
+<div class="pageScale">
+
+<!-- ══════ 00i ファーストビュー：黒からの「or」抜き＋赤青スクラブ（2026-08-13
+     作り直し） ══════
+     装飾専用（実体は次の00ヒーローの<h1 class="logo">が持つ）なので
+     aria-hidden にする。.loadOverlay と同じ考え方。 -->
+<div class="fvHold">
+<section class="fvIntro sec" id="fvIntro" aria-hidden="true">
+  <div class="fvReveal">
+    <div class="fvBlue"></div>
+    <div class="fvRed"></div>
+    <div class="fvGrain"></div>
+    <div class="fvType">
+      <p class="fvL1">Ready<span class="fvQ">?</span></p>
+      <span class="fvRule" aria-hidden="true"></span>
+      <span class="fvL2Wrap"><span class="fvL2">or<span class="fvBr"></span> Not</span></span>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ══════ 00 ヒーロー ══════ -->
+<section class="sec hero" id="s00">
+  <div class="heroKV" aria-hidden="true"></div>
+  <img class="heroFigure" src="assets/kv/person_900.webp" alt="" aria-hidden="true" width="900" height="1350">
+  <div class="wrap g12" style="width:100%">
+    <span class="secNo en">00</span>
+    <div class="heroL">
+      <h1 class="logo enBase reveal" data-d="0"><span>READY</span><span class="l2">OR NOT</span></h1>
+      <p class="tagline jpAccent reveal" data-d="1">―防災カードバトル―</p>
+      <div class="cta reveal" data-d="2">
+        <a class="ctaMain" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html">
+          <b>ブラウザですぐ遊ぶ</b>
+          <i>ダウンロード不要・登録不要</i>
+        </a>
+        <div class="stores">
+          <span class="store">Google Play<em>準備中</em></span>
+          <span class="store">App Store<em>準備中</em></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ 01 なぜ作ったか ══════ -->
+<section class="sec why" id="s01">
+  <div class="inkLayer" aria-hidden="true">
+    <div class="inkStage near"></div>
+    <div class="inkStage far"></div>
+  </div>
+  <div class="wrap g12">
+    <span class="secNo en">01</span>
+    <div class="whyL">
+      <h2 class="catch jpAccent reveal" data-d="1"><span class="hSlide">遊びのほうが、<br>真剣になれる。</span></h2>
+      <span class="headRule" data-d="0" aria-hidden="true"></span>
+      <div class="whyBody">
+        <p class="reveal" data-d="2">避難訓練や講義では、正しい知識を身に付けられるけど退屈。<br>それは実際に災害を経験し失敗できないから。</p>
+        <p class="reveal" data-d="3">ゲームという仮想空間で仲間とスマホで気軽にプレイして<br>防災について有機的な学びを得よう。</p>
+      </div>
+    </div>
+    <div class="whyR">
+      <!-- §14 確定分に、2026-08-13 修正2で帯グラフへ差し替え。令和8年版
+           防災白書 図表4-2-2。平成29年16.0%と令和7年8.3%を並べ、半減が
+           一目で分かるようにする。数値・年・結論は色や図形と独立した
+           テキストとして必ず残す（§5.4）。 -->
+      <div class="stat reveal" data-d="2">
+        <div class="barChart reveal" data-d="2">
+          <div class="barRow">
+            <span class="barYear en">平成29年</span>
+            <div class="barTrack"><div class="barFill" style="--bar-scale:1"></div></div>
+            <p class="barPct jpBase">16.0<span>%</span></p>
+          </div>
+          <div class="barRow">
+            <span class="barYear en">令和7年</span>
+            <div class="barTrack"><div class="barFill barFill--now" style="--bar-scale:.519"></div></div>
+            <p class="barPct jpBase">8.3<span>%</span></p>
+          </div>
+        </div>
+        <p class="statLabel">防災訓練に積極的に参加した割合は<b style="color:var(--gold)">8年で半減</b></p>
+        <p class="statSrc">令和8年 防災白書</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ 01' カードマーキー（3段・交互方向。§11.3-4） ══════ -->
+<section class="sec marq" id="s01m" aria-label="収録カード">
+  <div class="inkLayer" aria-hidden="true">
+    <div class="inkStage near"></div>
+    <div class="inkStage far"></div>
+  </div>
+  <div class="wrap">
+    <!-- スマホでは「30 CARDS」で改行し「5 COLORS」を2行目にする。「／」はPC版のみ表示。 -->
+    <h2 class="catch jpAccent reveal" data-d="0"><span class="hSlide">30 CARDS<span class="pcOnly"> ／ </span><br class="mobileBr">5 COLORS</span></h2>
+    <span class="headRule" data-d="0" aria-hidden="true"></span>
+  </div>
+  <div class="marqViewport">
+    <div class="marqInner">
+      <div class="marqRow" data-marq="1"></div>
+      <div class="marqRow" data-marq="-1"></div>
+      <div class="marqRow" data-marq="1"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ 02 カードの詳細（軌道セレクタ） ══════
+     --ink-color は section 自身に初期値（RON_COLORS[0]=都市・青）を置く。
+     JS未実行でも色が破綻しないようにするためで、以降は setInkColor（下方の
+     軌道セレクタのスクリプト）が同じプロパティを同じ場所へ書き換えて追従させる
+     （§18.2）。.inkLayer 側には持たせない（子が持つとJSの上書きを覆い隠す）。 -->
+<section class="sec cards" id="s02" style="--ink-color:#388bfd">
+  <div class="inkLayer" aria-hidden="true">
+    <div class="inkStage near"></div>
+    <div class="inkStage far"></div>
+  </div>
+  <div class="wrap">
+    <span class="secNo en">02</span>
+    <div class="orbitGrid">
+      <div class="orbitL">
+        <h2 class="secTitle jpAccent reveal" data-d="1"><span class="hSlide">現実とリンクした<br class="mobileBr">世界観</span></h2>
+        <span class="headRule" data-d="0" aria-hidden="true"></span>
+        <div class="orbitStage reveal" data-d="2">
+          <div class="orbitPath" aria-hidden="true"></div>
+          <div class="orbitTrack" role="group" aria-label="カードの5色を選ぶ" aria-describedby="orbitHintTxt"></div>
+          <p class="orbitCenter jpBase" aria-hidden="true"></p>
+        </div>
+        <!-- 修正6（2026-08-13）：「→ で切り替え／Enter で選択」の操作説明文言を
+           画面表示から削除した（ユーザー指摘）。aria-describedby から参照される
+           要素自体はキーボード操作者向けの説明として有用なため消さず、
+           .srOnly（視覚的に隠すが読み上げは残す）へ切り替えた。 -->
+      <p class="srOnly" id="orbitHintTxt">← → で切り替え ／ Enter で選択</p>
+      </div>
+      <!-- 修正6（2026-08-13）：大判カード以外の同色一覧（旧 .cardStrip／
+           .cardChip）を撤去し、「詳しく見る」だけを残してシンプルにした。
+           .cardMain（大判カード＋詳しく見る）だけを .orbitR 直下に置く。 -->
+      <div class="orbitR reveal" data-d="3">
+        <p class="cardAnnounce srOnly" aria-live="polite"></p>
+        <div class="cardMain"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ 03 遊んで学べる2モード（2026-08-13 作り直し。項目7）
+     実機画面のコラージュは撤去。対戦・協力とも、意味色の面に塗りなし・
+     枠線のみの英字を縦書きで置いた図版＋SVGアイコンの人数表記にした。 ══════ -->
+<section class="sec ways" id="s03">
+  <div class="inkLayer" aria-hidden="true">
+    <div class="inkStage near"></div>
+    <div class="inkStage far"></div>
+  </div>
+  <div class="wrap g12">
+    <span class="secNo en">03</span>
+    <!-- スマホでは「遊んで学べる」で改行し「2モード」を2行目にする。 -->
+    <h2 class="wayHead secTitle jpAccent reveal" data-d="1"><span class="hSlide">遊んで学べる<br class="mobileBr">2モード</span></h2>
+    <span class="headRule" data-d="0" aria-hidden="true"></span>
+  </div>
+
+  <!-- 赤青パネル。各モードの説明を面の中に収める（2026-08-13）。
+       .wrap の外に置き画面幅いっぱいを覆う（§10.5.1 の左エッジ規律の例外。
+       理由はCSS側コメント参照）。面そのものが modes/* への入口リンクになる。 -->
+  <div class="wayFull reveal" data-d="2">
+    <a class="wayFullHalf wayFullHalf--vs" href="modes/versus.html">
+      <span class="wayArtWord enAccent" aria-hidden="true">VERSUS</span>
+      <span class="wayInner">
+        <span class="wayMode en">対戦モード</span>
+        <span class="waySub jpAccent">シンプル・王道カードバトル</span>
+        <span class="wayCount">
+          <span class="wayCountGroup"><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">1人</span></span>
+          <span class="wayCountSep en" aria-hidden="true">/</span>
+          <span class="wayCountGroup"><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">2人</span></span>
+        </span>
+        <span class="wayBody">毎ターン攻守を入れ替えで行い、防災と災害をサクッと体験しながら学べる。始めるならまずはこれがオススメ。</span>
+        <span class="wayNote">CPU対戦で1人でもプレイできる。</span>
+      </span>
+    </a>
+
+    <a class="wayFullHalf wayFullHalf--coop" href="modes/co-op.html">
+      <span class="wayArtWord enAccent" aria-hidden="true">COOP</span>
+      <span class="wayInner">
+        <span class="wayMode en">協力モード</span>
+        <span class="waySub jpAccent">激動のサバイバル</span>
+        <span class="wayCount">
+          <span class="wayCountGroup"><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">3人</span></span>
+          <span class="wayCountSep en" aria-hidden="true">〜</span>
+          <span class="wayCountGroup"><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">5人</span></span>
+        </span>
+        <span class="wayBody">災害を操る自然サイド（1人）と防災を行う都市サイド（複数人）に分かれてプレイするサバイバル形式。都市同士の共助が協力プレイの勝利の鍵</span>
+      </span>
+    </a>
+
+    <!-- 2つの面の境界に置く×。線が交差する点が境界線に重なる。 -->
+    <svg class="wayCross" viewBox="0 0 100 100" aria-hidden="true">
+      <line x1="8" y1="8" x2="92" y2="92"></line>
+      <line x1="92" y1="8" x2="8" y2="92"></line>
+    </svg>
+  </div>
+</section>
+
+<!-- ══════ 04 締め（新設。§13）。タグライン再掲＋PLAY への大きな導線を1つ。
+     00 と同じ左スクリム構造を storm.webp（--kv2）に対して掛ける。 ══════ -->
+<section class="sec close" id="s04">
+  <div class="closeKV" aria-hidden="true"></div>
+  <div class="wrap g12" style="width:100%">
+    <span class="secNo en">04</span>
+    <div class="closeL">
+      <!-- スマホでは「失敗できる」／「災害はここだけ」の2行に収める。漢字の大きさは
+           そのままにし、平仮名（.tagKana）だけをスマホ幅で縮小して収める
+           （全体を一律縮小しない。指示どおり）。 -->
+      <p class="closeTag jpAccent reveal" data-d="0">失敗<span class="tagKana">できる</span><br class="mobileBr">災害<span class="tagKana">はここだけ</span></p>
+      <a class="closeCta reveal" data-d="1" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html">PLAY</a>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap foot">Ready or Not ／ Ready or Lab ── v5 プロトタイプ（00・01・01'・02・03・04）</footer>
+</div><!-- /.pageScale -->
+
+<!-- 慣性スクロール（Lenis・約7KB・CDN読み込み）。GSAP・ScrollTrigger・Barba・
+     jQuery・SplitType は追加しない。body末尾に置き、初回描画（ヒーローのLCP）を
+     ブロックしないようにする。wrapper/content オプションを渡さず既定値
+     （window / document.documentElement）のまま使うことで、要素をtransformで
+     動かす仮想スクロールではなく、ブラウザ本来のスクロール位置を直接動かす
+     ネイティブ実装のまま使う（Lenis公式README：「wraps the browser's own
+     scroll, so position:sticky, anchor links, and accessibility keep
+     working」）。これにより scroll イベントと animation-timeline:view() は
+     Lenis導入後もそのまま発火し続ける。読み込みに失敗しても window.Lenis が
+     存在しないだけで、下のスクリプトは素のネイティブスクロールへ自然に
+     フォールバックする（コンソールエラーは出ない）。 -->
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
+<!-- 共通スクリプト（site.js）。起動演出・Lenis初期化・スクロール出現の
+     フォールバック・カーソルレティクル・下部固定バーの出現を担う
+     （2026-08-12切り出し）。window.RonSite を通じて reduce（reduced-motion
+     判定）と addScrollHandler（単一rAFバッチへの相乗り）をこのページの
+     固有スクリプトへ公開する。 -->
+<script src="assets/site.js"></script>
+<script src="assets/site-data.js"></script>
+<script>
+(function(){
+  'use strict';
+  /* prefers-reduced-motion の判定（?motion=on の検証用エスケープ込み）は
+     site.js が一度だけ計算し、window.RonSite.reduce として公開している。
+     このLP固有スクリプト（マーキー・軌道セレクタ・インク層の色追従）はそれを使う。 */
+  var reduce = window.RonSite.reduce;
+
+  
+    /* ── 地の軌跡は廃止した（§18.1）。STOPS配列とpaintGroundが担っていた
+     「時刻を書かずに時間の経過を感じさせる」役割は、節ごとに固定の意味色を
+     まとうインク層（§18.2・下の inkColor 節）が引き継ぐ。地そのものは
+     site.css の :root で全ページ共通の固定値 oklch(.265 .090 255) になった。 */
+
+  /* ── 01' カードマーキー（3段・交互方向。§11.3-4）──
+     行ごとに逆方向（→／←／→）へ流し、速度差で視差を作る。ホバーで減速する
+     （停止はしない）。CSSアニメーションでは duration の変更が進行位置の飛びを
+     生むため、rAFで位置を直接動かして速度そのものを補間する。
+     3段の内訳は自然災害＋人為災害／政策2種／都市。RON_CARDS と RON_CITIES を
+     過不足なく1回ずつ割るため、同じカードが同じ段に重複することはない。 */
+  var rows = Array.prototype.slice.call(document.querySelectorAll('[data-marq]'));
+  var disasters = RON_CARDS.filter(function(c){ return c.c === 'dis' || c.c === 'hum'; });
+  var policies  = RON_CARDS.filter(function(c){ return c.c === 'shield' || c.c === 'inst'; });
+  var sets   = [ disasters, policies, RON_CITIES ];
+  var speeds = [ 46, 34, 26 ];   /* px/s。段ごとに速度を変える */
+
+  rows.forEach(function(row, ri){
+    var set = sets[ri];
+    /* 継ぎ目なく回すため同じ並びを2周ぶん敷く */
+    row.innerHTML = set.concat(set).map(function(card){
+      return '<img src="' + ronImg(card) + '" alt="' + card.n + '" loading="lazy">';
+    }).join('');
+
+    var dir  = parseFloat(row.getAttribute('data-marq'));
+    var base = speeds[ri];
+    var x = 0, v = base, target = base, last = 0;
+
+    row.addEventListener('pointerenter', function(){ target = base * .25; });
+    row.addEventListener('pointerleave', function(){ target = base; });
+
+    if (reduce) return;   /* 縮退：流さず静止した帯として見せる */
+
+    (function step(now){
+      if (!last) last = now;
+      var dt = Math.min(.05, (now - last) / 1000);
+      last = now;
+      v += (target - v) * Math.min(1, dt * 3);
+      var half = row.scrollWidth / 2;
+      x = half ? (x + v * dt * dir) % half : 0;
+      row.style.transform = 'translate3d(' + (dir > 0 ? x - half : x) + 'px,0,0)';
+      requestAnimationFrame(step);
+    })(0);
+  });
+
+  /* ── 02 軌道セレクタ（§10.6.3・§10.6.4）──
+     連続値 phase（単位＝スロット）を1本持ち、各ノードの角度を
+     θi = 90° + (i - phase) × 72° として毎フレーム算出する。phase が整数 i のとき
+     ノード i が手前（90°＝下端）に来る。位置は楕円のパラメータ表示で求め、
+     -8deg の傾きを座標側で掛ける。奥行きは sin(θ) から連続補間するため、
+     移動中も拡大・不透明度・重なりが軌道と正しく一致する。
+     イージングは CSS の --e と同じ cubic-bezier(.16,1,.3,1) をJSで解いて使う。
+     右のカードは進行率80%（900ms×.8＝720ms）の地点で先行して切り替える。
+     完全同期は機械的に見えるため、わずかに先行させる（§10.6.4）。
+     自動送りは1ステップ900ms＋保持2600msの周期。reduced-motion では自動送りを止め、
+     押した色へ即座に切り替える（縮退時の情報欠落なし）。 */
+  var orbitTrack = document.querySelector('.orbitTrack');
+  if (orbitTrack) {
+    var orbitCenter = document.querySelector('.orbitCenter');
+    var cardMain     = document.querySelector('.cardMain');
+    var cardAnnounce = document.querySelector('.cardAnnounce');
+
+    var orbitNodes = RON_COLORS.map(function(color, i){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'orbitNode';
+      btn.setAttribute('aria-pressed', 'false');
+      btn.innerHTML = '<img src="' + color.icon + '" alt="" loading="lazy">';
+      btn.addEventListener('click', function(){ goTo(i); });
+      btn.addEventListener('keydown', function(e){
+        if (e.key === 'ArrowRight'){ e.preventDefault(); goTo(front + 1); }
+        else if (e.key === 'ArrowLeft'){ e.preventDefault(); goTo(front - 1); }
+        else if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); goTo(i); }
+      });
+      orbitTrack.appendChild(btn);
+      return btn;
+    });
+
+    var front = 0, currentCardId = RON_COLORS[0].rep, dealTimer = null, autoTimer = null;
+
+    var STEP_MS = 900, HOLD_MS = 2600;
+    var orbitStage = document.querySelector('.orbitStage');
+    var phase = 0, animFrom = 0, animTo = 0, animT0 = 0, animRAF = 0;
+
+    /* CSS の --e（cubic-bezier(.16,1,.3,1)）と同じカーブをJSで解く。
+       x から t を二分法で求め、その t の y を返す。 */
+    function easeE(x){
+      var x1 = .16, x2 = .3, y1 = 1, y2 = 1;
+      function bx(u){ return 3*(1-u)*(1-u)*u*x1 + 3*(1-u)*u*u*x2 + u*u*u; }
+      function by(u){ return 3*(1-u)*(1-u)*u*y1 + 3*(1-u)*u*u*y2 + u*u*u; }
+      var lo = 0, hi = 1, u = x;
+      for (var i = 0; i < 18; i++){ u = (lo + hi) / 2; if (bx(u) < x) lo = u; else hi = u; }
+      return by(u);
+    }
+
+    function renderOrbit(){
+      var w = orbitStage.clientWidth, h = orbitStage.clientHeight;
+      if (!w || !h) return;
+      var cx = w / 2, cy = h / 2, rx = w * .40, ry = h * .40;
+      var tilt = -8 * Math.PI / 180, ct = Math.cos(tilt), st = Math.sin(tilt);
+      orbitNodes.forEach(function(node, i){
+        var a  = (90 + (i - phase) * 72) * Math.PI / 180;
+        var ex = rx * Math.cos(a), ey = ry * Math.sin(a);
+        var x  = cx + ex * ct - ey * st;
+        var y  = cy + ex * st + ey * ct;
+        var d  = (Math.sin(a) + 1) / 2;            /* 1＝手前 0＝最奥 */
+        node.style.transform = 'translate3d(' + x.toFixed(2) + 'px,' + y.toFixed(2) +
+          'px,0) translate(-50%,-50%) scale(' + (.55 + .45 * d).toFixed(3) + ')';
+        node.style.opacity = (.35 + .65 * d).toFixed(3);
+        node.style.zIndex  = String(10 + Math.round(d * 80));
+      });
+    }
+
+    function updateNodeState(){
+      orbitNodes.forEach(function(node, i){
+        var isFront = i === front;
+        node.setAttribute('aria-pressed', isFront ? 'true' : 'false');
+        node.setAttribute('aria-label', RON_COLORS[i].name + (isFront ? '（選択中）' : ''));
+      });
+    }
+
+    /* 最短方向へ回す。差が3以上なら逆回りのほうが近い（§10.6.4） */
+    function spinTo(next){
+      var diff = (next - front + 5) % 5;
+      if (diff > 2.5) diff -= 5;
+      cancelAnimationFrame(animRAF);
+      animFrom = phase; animTo = phase + diff; animT0 = 0;
+      if (reduce){ phase = animTo; renderOrbit(); return; }
+      animRAF = requestAnimationFrame(function run(now){
+        if (!animT0) animT0 = now;
+        var t = Math.min(1, (now - animT0) / STEP_MS);
+        phase = animFrom + (animTo - animFrom) * easeE(t);
+        renderOrbit();
+        if (t < 1) animRAF = requestAnimationFrame(run);
+      });
+    }
+
+    function dealCard(cardId){
+      var color = RON_COLORS[front];
+      var card = ronCardsOf(color.id).filter(function(c){ return c.id === cardId; })[0];
+      if (!card) return;
+      currentCardId = cardId;
+
+      var old = cardMain.querySelector('.cardBlock');
+      var el = document.createElement('div');
+      el.className = 'cardBlock entering';
+      /* 修正6：カード名称の上の説明文（旧 color.lead＝.cardLead）と、大判カード
+         以外の同色一覧（旧 .cardStrip）は撤去した。「詳しく見る」（cards.html の
+         該当色の節へ飛ぶ）は色が変わるたびにこのテンプレートごと作り直すため、
+         href・aria-label も毎回ここで直接埋め込む（別要素への追従処理は不要）。 */
+      el.innerHTML =
+        '<div class="cardArtWrap maskReveal"><img class="cardArt" src="' + ronImg(card) + '" alt="' + card.n + '・' + color.name + '" loading="lazy"></div>' +
+        '<p class="cardColor en">' + color.en + '</p>' +
+        '<p class="cardName jpBase">' + card.n + '</p>' +
+        '<p class="cardR">' + card.r + '</p>' +
+        '<a class="cardMoreLink en" href="cards.html#' + color.id + '" aria-label="' + color.name + 'の全カードを見る"><span>詳しく見る</span><span aria-hidden="true">→</span></a>';
+      cardMain.appendChild(el);
+
+      if (reduce) {
+        el.classList.remove('entering');
+      } else {
+        requestAnimationFrame(function(){ el.classList.remove('entering'); });
+      }
+      if (old) {
+        if (reduce) {
+          old.remove();
+        } else {
+          old.classList.add('leaving');
+          setTimeout(function(){ if (old.parentNode) old.remove(); }, 520);
+        }
+      }
+
+      orbitCenter.textContent = color.name;
+      cardAnnounce.textContent = color.name + '・' + card.n;
+    }
+
+    /* ── インク層の色追従（§18.2「02 の追従が設計の要である」）──
+       02 の背景に敷いたインク層（.inkLayer、section#s02 の直下）は --ink-color を
+       参照して染まる。軌道で選んだ RON_COLORS[].hue（各色の代表色。02の枠セレクタが
+       アイコンに使っている値と同じ）をそのまま渡すだけで、CSS側のインク層が
+       追従する（mask/blend の実体はこのファイル冒頭の .inkStage 定義を参照）。 */
+    var cardsSection = document.getElementById('s02');
+    function setInkColor(color){
+      if (cardsSection) cardsSection.style.setProperty('--ink-color', color.hue);
+    }
+
+    function goTo(target){
+      var next = ((target % 5) + 5) % 5;
+      if (next === front) return;
+      spinTo(next);              /* front を書き換える前に呼ぶ（差分の起点に使うため） */
+      front = next;
+      setInkColor(RON_COLORS[front]);
+      updateNodeState();
+      clearTimeout(dealTimer);
+      if (reduce) {
+        dealCard(RON_COLORS[front].rep);
+      } else {
+        dealTimer = setTimeout(function(){ dealCard(RON_COLORS[front].rep); },
+                               Math.round(STEP_MS * .8));
+      }
+      scheduleAuto();
+    }
+
+    function scheduleAuto(){
+      clearTimeout(autoTimer);
+      if (reduce) return;   /* 縮退：自動送りなし。手動選択は維持（§10.6.4） */
+      autoTimer = setTimeout(function(){ goTo(front + 1); }, STEP_MS + HOLD_MS);
+    }
+
+    updateNodeState();
+    renderOrbit();
+    setInkColor(RON_COLORS[front]);
+    if (window.ResizeObserver) new ResizeObserver(renderOrbit).observe(orbitStage);
+    else window.addEventListener('resize', renderOrbit, { passive:true });
+    dealCard(RON_COLORS[front].rep);
+    scheduleAuto();
+  }
+})();
+</script>
+<script>
+/* WebGLの島（§19・移流ping-pong）。失敗経路は必ずrestoreCss()でCSS版へ戻す
+   （§19.6・§18.4条件5最優先）。スクロールは拡散の時間軸：蓄積バッファに
+   沈降・拡散・渦・注入を毎フレーム適用し続ける。 */
+(function(){
+'use strict';
+
+/* ══════ WebGLインクの有効化スイッチ ══════
+   2026-08-12：流れる方式（§19）は画面に何も出力できていない。注入量を4.5倍・
+   沈降を3.6倍にしても変化がなく、値ではなくどこかで経路が切れている。特定に
+   時間がかかるため、いったん無効化してCSS版のインクに戻す。
+   ⚠️ 再開するときは true に戻すだけでよい。コードは全て残してある。 */
+var ENABLE_GL_INK = false;
+if (!ENABLE_GL_INK) return;
+
+var reduce = (window.RonSite && window.RonSite.reduce) ||
+  (window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+   !/[?&]motion=on(&|$)/.test(location.search));
+if (reduce) return;
+var hc = navigator.hardwareConcurrency, dm = navigator.deviceMemory;
+if ((hc && hc <= 2) || (dm && dm <= 2)) return;
+if (!('IntersectionObserver' in window)) return;
+
+var secs = Array.prototype.slice.call(
+  document.querySelectorAll('.why, .marq, .ways, .cards'));
+if (!secs.length) return;
+
+/* 節ごとの固定意味色。02は軌道セレクタが書き換える--ink-colorに毎フレーム追従。 */
+var SEC_COLOR = { s01:'#388bfd', s01m:'#f85149' };   /* s03 はインクを出さない */
+
+function hexToRgb(hex){
+  var v = parseInt(hex.replace('#', ''), 16);
+  return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
+}
+function clamp(x, lo, hi){ return x < lo ? lo : (x > hi ? hi : x); }
+
+/* ①移流：前フレーム(uSrc)を沈降＋渦でずらし5タップ平均で拡散、濃度を減衰。
+   上端の帯に型紙(uInj)からインクを注入。②表示：0〜2px相当の5タップぼかし。 */
+var VERT = 'attribute vec2 aPos;varying vec2 vUv;' +
+  'void main(){vUv=aPos*0.5+0.5;gl_Position=vec4(aPos,0.0,1.0);}';
+
+var FRAG_ADV =
+'precision mediump float;varying vec2 vUv;' +
+'uniform sampler2D uSrc,uInj;uniform vec3 uInjColor;' +
+'uniform float uSink,uSpread,uDecay,uCurlAmt,uCurlScale,uT,uInjY,uInjAmt,uAspect;' +
+'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}' +
+'float noise(vec2 p){vec2 i=floor(p),f=fract(p);' +
+'float a=hash(i),b=hash(i+vec2(1.,0.)),c=hash(i+vec2(0.,1.)),d=hash(i+vec2(1.,1.));' +
+'vec2 u=f*f*(3.0-2.0*f);return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}' +
+'vec2 curl(vec2 p){float e=0.06;' +
+'float n1=noise(p+vec2(0.,e)),n2=noise(p-vec2(0.,e));' +
+'float n3=noise(p+vec2(e,0.)),n4=noise(p-vec2(e,0.));' +
+'return vec2(n1-n2,n4-n3)/(2.0*e);}' +
+'float lum(vec3 c){return dot(c,vec3(0.299,0.587,0.114));}' +
+'vec4 samp(vec2 uv){' +
+'  vec2 p=uv+vec2(0.0,uSink);' +                 /* 沈降 */
+'  vec2 cp=vec2(p.x*uAspect,p.y);' +
+'  p+=curl(cp*uCurlScale+uT*0.06)*uCurlAmt;' +    /* 渦 */
+'  if(p.x<0.0||p.x>1.0||p.y<0.0||p.y>1.0)return vec4(0.0);' +
+'  return texture2D(uSrc,p);}' +
+'void main(){' +
+'  vec4 c=samp(vUv);' +
+'  c+=samp(vUv+vec2(uSpread,0.0));c+=samp(vUv-vec2(uSpread,0.0));' + /* 拡散 */
+'  c+=samp(vUv+vec2(0.0,uSpread*0.6));c+=samp(vUv-vec2(0.0,uSpread*0.6));' +
+'  c*=0.2;c*=uDecay;' +
+'  vec2 iuv=vec2(vUv.x+sin(uT*0.05)*0.06,(vUv.y-uInjY)/(1.0-uInjY));' +
+'  if(iuv.x>0.0&&iuv.x<1.0&&iuv.y>0.0&&iuv.y<1.0){' +   /* 注入 */
+'    float m=lum(texture2D(uInj,iuv).rgb)*uInjAmt;' +
+'    c.rgb+=uInjColor*m;c.a+=m;' +
+'  }' +
+'  gl_FragColor=clamp(c,0.0,1.0);}';
+
+var FRAG_DISP =
+'precision mediump float;varying vec2 vUv;' +
+'uniform sampler2D uSrc;uniform vec2 uTexel;' +
+'void main(){' +
+'  vec4 c=texture2D(uSrc,vUv)*0.4;' +
+'  c+=texture2D(uSrc,vUv+vec2(uTexel.x,0.0))*0.15;' +
+'  c+=texture2D(uSrc,vUv-vec2(uTexel.x,0.0))*0.15;' +
+'  c+=texture2D(uSrc,vUv+vec2(0.0,uTexel.y))*0.15;' +
+'  c+=texture2D(uSrc,vUv-vec2(0.0,uTexel.y))*0.15;' +
+'  gl_FragColor=c;}';
+
+var canvas, gl, progAdv, progDisp, quadBuf, Uadv = {}, Udisp = {};
+var simType, simFilter, pair, front, back, injPh;
+var injCache = {}, injLoading = {};
+var active = false, running = false, raf = 0, io = null, visible = {};
+var prevSy = 0, prevT = 0;
+var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+
+/* 初回値・要チューニング（§19.2の4要素）。 */
+var BASE_DRIFT = .4, VEL_SCALE = .0009, STEP_MAX = 4;
+/* 2026-08-12 実測調整。初期値では注入量と沈降速度が小さすぎ、インクが
+   ほとんど見えなかった。注入 .10→.45、沈降 .0028→.010、渦 .05→.09。 */
+var SINK_STEP = .010, SPREAD_STEP = .0035, CURL_STEP = .09, CURL_SCALE = 3;
+var DECAY_BASE = .985, INJ_STEP = .45, INJ_Y = .72, BLUR_PX = 1.4;
+
+function restoreCss(){
+  if (!active && !canvas) return;
+  active = false; running = false;
+  if (raf) cancelAnimationFrame(raf);
+  if (io) io.disconnect();
+  window.removeEventListener('resize', onResize);
+  document.removeEventListener('visibilitychange', upd);
+  document.documentElement.classList.remove('ink-gl');
+  if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+}
+
+function compile(type, src){
+  var sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw 0;
+  return sh;
+}
+function link(vsrc, fsrc){
+  var p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vsrc));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fsrc));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw 0;
+  p.aPos = gl.getAttribLocation(p, 'aPos');
+  return p;
+}
+function bindQuad(p){
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.enableVertexAttribArray(p.aPos);
+  gl.vertexAttribPointer(p.aPos, 2, gl.FLOAT, false, 0, 0);
+}
+function uniforms(p, names){
+  var u = {}, i;
+  for (i = 0; i < names.length; i++) u[names[i]] = gl.getUniformLocation(p, names[i]);
+  return u;
+}
+function texP(f){   /* WRAP/FILTERの4点セット（3箇所で共用） */
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+}
+function makeTex1x1(){
+  var t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,0]));
+  texP(gl.NEAREST);
+  return t;
+}
+function makeFboTex(w, h, type, filter){
+  var t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  texP(filter);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, type, null);
+  return t;
+}
+function makeFbo(tex){
+  var fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  var ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return ok ? fb : null;
+}
+function buildPair(w, h, type, filter){
+  var ta = makeFboTex(w, h, type, filter), fa = makeFbo(ta);
+  var tb = makeFboTex(w, h, type, filter), fb = makeFbo(tb);
+  if (!fa || !fb){   /* 失敗した側の資源も残さず片付ける（フォールバック再試行の前に） */
+    gl.deleteTexture(ta); gl.deleteTexture(tb);
+    if (fa) gl.deleteFramebuffer(fa); if (fb) gl.deleteFramebuffer(fb);
+    return null;
+  }
+  return { texA: ta, fboA: fa, texB: tb, fboB: fb };
+}
+function freePair(p){
+  if (!p) return;
+  gl.deleteFramebuffer(p.fboA); gl.deleteFramebuffer(p.fboB);
+  gl.deleteTexture(p.texA); gl.deleteTexture(p.texB);
+}
+
+function ensureInj(n){
+  if (injCache[n]) return injCache[n];
+  if (!injLoading[n]){
+    injLoading[n] = true;
+    var img = new Image();
+    img.onload = function(){
+      if (!active) return;
+      try {
+        var t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        texP(gl.LINEAR);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        injCache[n] = t;
+      } catch (e) { restoreCss(); }
+    };
+    img.onerror = function(){ restoreCss(); };
+    img.src = 'assets/ink/ink_' + n + '.webp';
+  }
+  return injPh;
+}
+
+function onResize(){
+  if (!active) return;
+  var w = Math.max(1, Math.floor(window.innerWidth * .5 * dpr));
+  var h = Math.max(1, Math.floor(window.innerHeight * .5 * dpr));
+  if (canvas.width === w && canvas.height === h) return;
+  canvas.width = w; canvas.height = h;
+  gl.viewport(0, 0, w, h);
+  try {
+    var np = buildPair(w, h, simType, simFilter);
+    if (!np) throw 0;
+    freePair(pair);
+    pair = np;
+    front = { tex: pair.texA, fbo: pair.fboA };
+    back  = { tex: pair.texB, fbo: pair.fboB };
+  } catch (e) { restoreCss(); }
+}
+
+function upd(){
+  var anyVisible = false, k;
+  for (k in visible){ if (visible[k] > 0){ anyVisible = true; break; } }
+  var should = active && anyVisible && document.visibilityState === 'visible';
+  if (should && !running){ running = true; prevT = 0; raf = requestAnimationFrame(loop); }
+  if (!should && running){ running = false; if (raf) cancelAnimationFrame(raf); }
+}
+
+/* 最も支配的な節の意味色を返す（02は軌道選択色）。 */
+function currentColor(){
+  var best = null, bestR = 0, k;
+  for (k in visible){ if (visible[k] > bestR){ bestR = visible[k]; best = k; } }
+  if (!best) return null;
+  if (best === 's02'){
+    var sec = document.getElementById('s02');
+    var hex = sec && getComputedStyle(sec).getPropertyValue('--ink-color').trim();
+    return hex || '#388bfd';
+  }
+  return SEC_COLOR[best] || null;
+}
+
+function loop(now){
+  if (!running) return;
+  raf = requestAnimationFrame(loop);
+  if (!prevT){ prevT = now; prevSy = window.pageYOffset || 0; }
+
+  /* ⚠️ 速度は自前計算：(scrollY-前回)/経過時間。Lenisのvelocityは露出されて
+     おらず縮退時も動く必要があるため使わない。値は必ずクランプする。 */
+  var dt = Math.min(.12, (now - prevT) / 1000) || .016;
+  prevT = now;
+  var sy = window.pageYOffset || document.documentElement.scrollTop || 0;
+  var rawV = Math.abs(sy - prevSy) / dt;
+  prevSy = sy;
+  var step = clamp(BASE_DRIFT + Math.min(rawV, 4000) * VEL_SCALE, BASE_DRIFT, STEP_MAX);
+
+  var colorHex = currentColor();
+  var docH = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  var idx = 1 + Math.min(4, Math.floor(clamp(sy / docH, 0, .999) * 5));
+  var injTex = ensureInj(idx);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, back.fbo);
+  gl.disable(gl.BLEND);
+  gl.useProgram(progAdv);
+  bindQuad(progAdv);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, front.tex); gl.uniform1i(Uadv.uSrc, 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, injTex);   gl.uniform1i(Uadv.uInj, 1);
+  gl.uniform1f(Uadv.uSink, SINK_STEP * step);
+  gl.uniform1f(Uadv.uSpread, SPREAD_STEP * step);
+  gl.uniform1f(Uadv.uDecay, Math.pow(DECAY_BASE, step));
+  gl.uniform1f(Uadv.uCurlAmt, CURL_STEP * step);
+  gl.uniform1f(Uadv.uCurlScale, CURL_SCALE);
+  gl.uniform1f(Uadv.uT, now / 1000);
+  gl.uniform1f(Uadv.uInjY, INJ_Y);
+  gl.uniform1f(Uadv.uAspect, canvas.width / (canvas.height || 1));
+  if (colorHex){
+    var rgb = hexToRgb(colorHex);
+    gl.uniform3f(Uadv.uInjColor, rgb[0], rgb[1], rgb[2]);
+    gl.uniform1f(Uadv.uInjAmt, INJ_STEP * step);
+  } else {
+    gl.uniform3f(Uadv.uInjColor, 0, 0, 0);
+    gl.uniform1f(Uadv.uInjAmt, 0);
+  }
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  var tmp = front; front = back; back = tmp;
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.useProgram(progDisp);
+  bindQuad(progDisp);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, front.tex); gl.uniform1i(Udisp.uSrc, 0);
+  gl.uniform2f(Udisp.uTexel, BLUR_PX / canvas.width, BLUR_PX / canvas.height);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+try {
+  canvas = document.createElement('canvas');
+  canvas.className = 'inkGL';
+  canvas.setAttribute('aria-hidden', 'true');
+
+  gl = canvas.getContext('webgl', { alpha:true, antialias:false, premultipliedAlpha:true, powerPreference:'low-power' });
+  if (!gl) throw 0;
+
+  progAdv = link(VERT, FRAG_ADV);
+  progDisp = link(VERT, FRAG_DISP);
+  Uadv = uniforms(progAdv, ['uSrc','uInj','uInjColor','uSink','uSpread','uDecay','uCurlAmt','uCurlScale','uT','uInjY','uInjAmt','uAspect']);
+  Udisp = uniforms(progDisp, ['uSrc','uTexel']);
+
+  quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+
+  /* half-float推奨。_linear拡張が無ければNEAREST。FBOにアタッチできなければ
+     UNSIGNED_BYTEへ再試行、それも駄目なら復帰（§19安全条件）。 */
+  var extF = gl.getExtension('OES_texture_half_float');
+  var extL = extF && gl.getExtension('OES_texture_half_float_linear');
+  var w = Math.max(1, Math.floor(window.innerWidth * .5 * dpr));
+  var h = Math.max(1, Math.floor(window.innerHeight * .5 * dpr));
+
+  simType = extF ? extF.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
+  simFilter = extF ? (extL ? gl.LINEAR : gl.NEAREST) : gl.LINEAR;
+  pair = buildPair(w, h, simType, simFilter);
+  if (!pair && extF){
+    simType = gl.UNSIGNED_BYTE; simFilter = gl.LINEAR;
+    pair = buildPair(w, h, simType, simFilter);
+  }
+  if (!pair) throw 0;
+  front = { tex: pair.texA, fbo: pair.fboA };
+  back  = { tex: pair.texB, fbo: pair.fboB };
+
+  injPh = makeTex1x1();
+  canvas.width = w; canvas.height = h;
+} catch (e) {
+  restoreCss();
+  canvas = null;
+  gl = null;
+}
+
+if (gl && canvas) {
+  canvas.addEventListener('webglcontextlost', function(ev){ ev.preventDefault(); restoreCss(); }, false);
+
+  document.body.insertBefore(canvas, document.body.firstChild);
+  document.documentElement.classList.add('ink-gl');
+  active = true;
+
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  window.addEventListener('resize', onResize, { passive:true });
+  document.addEventListener('visibilitychange', upd);
+
+  io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){ visible[en.target.id] = en.isIntersecting ? en.intersectionRatio : 0; });
+    upd();
+  }, { threshold: [0,.05,.1,.2,.3,.4,.5,.6,.7,.8,.9,1] });
+  secs.forEach(function(s){ io.observe(s); });
+  upd();
+}
+})();
+</script>
+</body>
+</html>

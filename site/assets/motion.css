@@ -1,0 +1,398 @@
+/* ══════════════════════════════════════════════════════════════
+   Ready or Not 公式サイト ── 共通モーション基盤 v4 (motion.css)
+   design/official_site_spec.md §6.7 / design/site_motion_research.md 準拠。
+   index.html が読み込む。旧3案（layout-a/b/c）はこのファイルの
+   旧版に依存しているため、以後このファイルは index.html 専用として
+   書き直す（3案のHTML/CSSは無変更で残すため、崩れても構わない）。
+
+   実装の絶対原則（研究記録より）：
+   1. JSがやってよいのは「クラスを付ける／属性を変える／CSSカスタム
+      プロパティに数値を入れる」の3つだけ。transformを毎フレーム書かない
+   2. requestAnimationFrame のスクロールループは作らない。スクロール連動は
+      IntersectionObserver によるクラス／属性切り替えで実現する
+   3. イージングは --e の1本に統一する
+   ══════════════════════════════════════════════════════════════ */
+
+:root{
+  --e: cubic-bezier(.16,1,.3,1);
+  --not-bg:#05070a;
+  --ready-bg:#eef2f6;
+}
+html{ background:var(--not-bg); transition:background-color 1.6s var(--e); }
+body{ background:transparent; position:relative; }
+
+/* ページ本体はこの層に乗せる。
+   ⚠️ z-index を指定してはならない。指定すると .ron-page が積み重ねコンテキストを
+   作り、中の .inv が「自分の親コンテキストの背景」としか合成できなくなるため、
+   兄弟である .ron-field が合成対象から外れて差分反転が効かなくなる。
+   position:relative かつ z-index:auto なら積み重ねコンテキストを作らず、
+   .ron-field と同じ z-index:0 の層でDOM順により上に描かれる。 */
+.ron-page{ position:relative; }
+
+/* ---------------------------------------------------------------
+   汎用ユーティリティ：不透明な板。淡色の地の上でも本文が読めなくなら
+   ないための土台（M8の地がヒーロー/05にだけ出るため、そこに載る文字は
+   これで守るか、.inv で自動反転させるかのどちらかにする）。
+   --------------------------------------------------------------- */
+.plate{ background:var(--bg1,#161b22); border:1px solid var(--bg3,#30363d); }
+.plate-fit{ width:fit-content; max-width:100%; }
+
+/* ---------------------------------------------------------------
+   M8 二値の相転移（ヒーロー／CTAの2箇所だけ）。
+   §6.7.3・§6.7.4 準拠：連続値(--gp)をやめ、IntersectionObserver が
+   「今どの節が主に見えているか」でこの層の on/off と data-phase を
+   切り替えるだけにする（motion.js 側）。中間の節では opacity:0 で
+   完全に消える。
+   ⚠️ clip-path（M6・ヒーロー画像側）とはDOM上の祖先を分けること。
+   .ron-field は body 直下の独立レイヤであり、[data-window] を持つ
+   画像コンテナの祖先にもならない・子孫にもならない。
+   --------------------------------------------------------------- */
+.ron-field{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  opacity:0; background:var(--ready-bg);
+  transition:opacity .8s var(--e);
+  --ang:255deg; --a:46%; --b:54%;
+  -webkit-mask-image:linear-gradient(var(--ang), transparent var(--a), #000 var(--b));
+          mask-image:linear-gradient(var(--ang), transparent var(--a), #000 var(--b));
+}
+.ron-field.on{ opacity:1; }
+/* 境界はぼかしすぎないこと。幅を広く取ると画面全体が中間の灰色になり、
+   差分合成の文字が地に沈んで読めなくなる（v3で実際に踏んだ）。 */
+.ron-field[data-phase="hero"]{ --ang:255deg; --a:47.5%; --b:52.5%; }
+.ron-field[data-phase="cta"]{ --ang:288deg; --a:44%; --b:56%; }
+@media (prefers-reduced-motion:reduce){ .ron-field{ transition:none; } }
+
+/* 差分合成で自動反転する文字。表示用の大きな文字だけに使う
+   （ヒーロー見出し・巨大番号・タグライン等）。祖先に transform/opacity/
+   filter/clip-path を掛けないこと（積み重ねコンテキストが合成を隔離する）。 */
+.inv{ color:#fff; mix-blend-mode:difference; }
+
+/* ---------------------------------------------------------------
+   汎用の出現ユーティリティ（M1/M3/M4に属さない小要素向け）。
+   IntersectionObserver によるクラス付けのみで、rAFは使わない。
+   --------------------------------------------------------------- */
+[data-reveal]{
+  opacity:0; transform:translateY(16px);
+  transition:opacity .6s var(--e), transform .6s var(--e);
+  transition-delay:var(--d,0s);
+}
+[data-reveal].in{ opacity:1; transform:none; }
+@media (prefers-reduced-motion:reduce){
+  [data-reveal]{ opacity:1; transform:none; transition:none; }
+}
+
+/* ---------------------------------------------------------------
+   M1 行単位カスケード（★最重要）。
+   motion.js の buildLines() が [data-lines] 要素の中身を
+   <span class="ln" style="--l:N"><span class="ln-i">…</span></span>
+   に組み替える。ここでは見た目だけを定義する。
+   - .ln  : overflow:hidden の窓（行の高さぶんだけ）
+   - .ln-i: 窓の中身。translateY(105%) rotate(2deg) → none
+   - 遅延 : transition-delay: calc(var(--l) * .06s)
+   完了後、motion.js が .ln の overflow を visible に戻す
+   （掛けっぱなしだと下付き文字や影が切れるため）。
+   --------------------------------------------------------------- */
+[data-lines] .ln{ display:block; overflow:hidden; }
+[data-lines] .ln-i{
+  display:block;
+  transform:translateY(105%) rotate(2deg);
+  transition:transform .7s var(--e);
+  /* --l0 は行番号に足す任意の基準オフセット（ページ側が段落単位の
+     演出タイミングを作るために使う。既定0＝行番号だけで決まる）。 */
+  transition-delay:calc((var(--l,0) + var(--l0,0)) * .06s);
+}
+[data-lines].in .ln-i{ transform:none; }
+/* mix-blend-mode は継承しないため、.inv な data-lines 要素でも
+   実際に文字を描画する .ln-i 側に掛け直す（M2の.chと同じ理由）。 */
+.inv[data-lines] .ln-i{ mix-blend-mode:difference; }
+@media (prefers-reduced-motion:reduce){
+  [data-lines] .ln{ overflow:visible; }
+  [data-lines] .ln-i{ transform:none; transition:none; }
+}
+
+/* ---------------------------------------------------------------
+   M2 文字単位分解。ヒーローの READY OR NOT だけに使う。
+   motion.js の splitKinetic() が [data-kinetic] の中身を
+   <span class="wd"><span class="ch" style="--i:N">…</span></span> へ分解する。
+   L1完了後（body.ron-ready）に --i を使った時間差で立ち上がる。
+   --------------------------------------------------------------- */
+[data-kinetic] .wd{ display:inline-block; white-space:nowrap; }
+[data-kinetic] .ch{
+  display:inline-block;
+  clip-path:inset(0 0 100% 0);
+  transform:translateY(55%);
+  opacity:0;
+}
+.ron-ready [data-kinetic] .ch{
+  animation:ron-kinetic-rise .7s var(--e) both;
+  animation-delay:calc(var(--i,0) * .022s);
+}
+/* mix-blend-mode は継承しないため、.inv な data-kinetic 要素の
+   分解済み文字（.ch）1つ1つに改めて掛け直す。 */
+.inv[data-kinetic] .ch{ mix-blend-mode:difference; }
+@keyframes ron-kinetic-rise{
+  to{ clip-path:inset(0 0 0% 0); transform:translateY(0); opacity:1; }
+}
+@media (prefers-reduced-motion:reduce){
+  [data-kinetic] .ch{ clip-path:none; transform:none; opacity:1; animation:none; }
+}
+
+/* ---------------------------------------------------------------
+   M3 奥行きカルーセル（★最重要）。カードと都市の見せ方をこれに統一する。
+   見た目の状態は全部 [data-position="N"] の属性セレクタに書き切り、
+   JSは data-position の数字を回すだけ（motion.js の mountCarousel）。
+   transform は1s、width/height は1.5s と尺をずらして厚みを出す。
+   奥のものほど filter:blur() を強くする。
+   単位は %（コンテナ基準）にして、ページ側でコンテナの寸法だけ決めれば
+   使い回せるようにする。
+   --------------------------------------------------------------- */
+[data-carousel]{ position:relative; }
+[data-carousel] .cItem{
+  position:absolute; top:50%; left:30%; cursor:pointer;
+  transition:transform 1s var(--e),
+             width 1.5s var(--e),
+             height 1.5s var(--e),
+             filter .8s var(--e),
+             opacity .6s var(--e);
+  will-change:transform;
+}
+[data-carousel] .cItem img{
+  width:100%; height:100%; object-fit:cover; display:block;
+  border:1px solid var(--bg3,#30363d); background:var(--bg1,#161b22);
+}
+[data-carousel] .cItem[data-position="0"]{
+  z-index:6; width:42%; height:78%; filter:none; opacity:1;
+  transform:translate(-50%,-50%) rotate(-5deg);
+}
+[data-carousel] .cItem[data-position="1"]{
+  z-index:5; width:33%; height:63%; filter:blur(2px); opacity:.92;
+  transform:translate(46%,-64%) rotate(7deg);
+}
+[data-carousel] .cItem[data-position="2"]{
+  z-index:4; width:26%; height:50%; filter:blur(5px); opacity:.72;
+  transform:translate(142%,-72%) rotate(9deg);
+}
+[data-carousel] .cItem[data-position="3"]{
+  z-index:3; width:20%; height:40%; filter:blur(9px); opacity:.46;
+  transform:translate(232%,-78%) rotate(6deg);
+}
+[data-carousel] .cItem[data-position="4"]{
+  z-index:2; width:15%; height:32%; filter:blur(13px); opacity:.24;
+  transform:translate(306%,-82%) rotate(4deg);
+}
+[data-carousel] .cItem[data-position="hidden"]{
+  z-index:1; width:15%; height:32%; filter:blur(13px); opacity:0; pointer-events:none;
+  transform:translate(340%,-82%) rotate(4deg);
+}
+/* カードは縦長。幅と高さを別々の%で指定するとコンテナの縦横比しだいで
+   横長に潰れるため、高さだけを効かせて幅はカードの比率から決める。
+   ⚠️ 上の [data-position="N"] 群より後ろに置くこと（同詳細度・後勝ち）。 */
+[data-carousel] .cItem{ aspect-ratio:63/88; }
+[data-carousel] .cItem[data-position]{ width:auto; }
+@media (hover:hover){
+  [data-carousel] .cItem[data-position="0"]:hover img{ filter:brightness(1.08); }
+}
+@media (prefers-reduced-motion:reduce){
+  [data-carousel] .cItem{ transition:none; }
+}
+
+/* ---------------------------------------------------------------
+   M4 円環図。02の導入。中心にタイトル、周囲の軌道上に5色を配置する。
+   円は SVG <circle> を stroke-dasharray/stroke-dashoffset で描く。
+   .orbit.in は IntersectionObserver が付ける（汎用reveal observerが兼任）。
+   --------------------------------------------------------------- */
+.orbit{ position:relative; }
+.orbit .orbitTrack{ fill:none; stroke:var(--bg3,#30363d); stroke-width:1; }
+.orbit .orbitRing{
+  fill:none; stroke:var(--blue,#388bfd); stroke-width:2; stroke-linecap:round;
+  stroke-dasharray:654; stroke-dashoffset:654;
+  transition:stroke-dashoffset 1.3s var(--e);
+}
+.orbit.in .orbitRing{ stroke-dashoffset:0; }
+.orbit .orbitCenter{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  text-align:center; font-weight:900; font-size:.72rem; letter-spacing:.14em;
+  color:var(--t2,#8b949e);
+}
+.orbit .orbitNodes{ position:absolute; inset:0; }
+.orbit .orbitNode{
+  position:absolute; top:50%; left:50%; width:64px; margin:-32px 0 0 -32px;
+  text-align:center; cursor:pointer; opacity:0;
+  transform:translate(-50%,-50%) rotate(var(--ang,0deg)) translate(0,-104px) rotate(calc(var(--ang,0deg) * -1)) scale(.6);
+  transition:opacity .5s var(--e), transform .5s var(--e);
+  transition-delay:calc(var(--ni,0) * .08s);
+}
+.orbit.in .orbitNode{
+  opacity:1;
+  transform:translate(-50%,-50%) rotate(var(--ang,0deg)) translate(0,-104px) rotate(calc(var(--ang,0deg) * -1)) scale(1);
+}
+.orbit .orbitNode img{ width:24px; height:24px; display:block; margin:0 auto 4px; }
+.orbit .orbitNode span{ display:block; font-size:.6rem; color:var(--t2,#8b949e); line-height:1.3; }
+@media (hover:hover){ .orbit .orbitNode:hover span{ color:var(--t1,#e6edf3); } }
+@media (prefers-reduced-motion:reduce){
+  .orbit .orbitRing{ transition:none; stroke-dashoffset:0; }
+  .orbit .orbitNode{
+    transition:none; opacity:1;
+    transform:translate(-50%,-50%) rotate(var(--ang,0deg)) translate(0,-104px) rotate(calc(var(--ang,0deg) * -1)) scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------
+   M5 コマ送り。静止画を数枚積み、is-current の付け替えだけで動かす
+   （動画・GIFは使わない）。motion.js の initFlipbooks() が担当。
+   --------------------------------------------------------------- */
+[data-flip]{ position:relative; overflow:hidden; }
+[data-flip] .flipImg{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0;
+}
+[data-flip] .flipImg.is-current{ opacity:1; }
+@media (prefers-reduced-motion:reduce){
+  [data-flip] .flipImg{ transition:none; }
+}
+
+/* ---------------------------------------------------------------
+   M6 窓開き。ヒーロー画像側だけに掛ける（M8の差分合成とは祖先を分ける）。
+   角丸の窓から始まり、初回のみ全画面へ開く（motion.jsが intro完了イベントで
+   .open を付ける。以後はスクロール連動させない＝rAFを使わない）。
+   --------------------------------------------------------------- */
+[data-window]{
+  clip-path:inset(20px 20px 46% 20px round 20px);
+  transition:clip-path 1.2s var(--e);
+}
+[data-window].open{ clip-path:inset(0 0 0 0 round 0); }
+@media (max-width:640px){
+  [data-window]{ clip-path:inset(10px 10px 46% 10px round 16px); }
+}
+@media (prefers-reduced-motion:reduce){
+  [data-window]{ transition:none; clip-path:inset(0 0 0 0 round 0); }
+}
+
+/* ---------------------------------------------------------------
+   M7 ハンバーガーメニュー。ライブラリなし。
+   遷移中は #menuBtn が disabled になる（motion.js側）。
+   閉じる際は .open を即座に外すが、visibility の transition-delay で
+   退出アニメーション（opacity/transform）が最後まで見えてから
+   操作不能になるようにする（「クラス除去を遅らせる」と同じ効果を
+   CSS側の遅延で作る）。
+   --------------------------------------------------------------- */
+.siteHeader{
+  position:fixed; top:0; left:0; right:0; z-index:90;
+  padding:14px 18px; pointer-events:none;
+}
+.siteHeader .hdrRow{
+  max-width:1280px; margin:0 auto; display:flex; align-items:center;
+  justify-content:space-between;
+}
+.siteHeader .logo{
+  pointer-events:auto; text-decoration:none; color:var(--t1,#e6edf3);
+  font-weight:900; font-size:.72rem; letter-spacing:.1em;
+  padding:9px 12px; background:rgba(5,7,10,.55); border:1px solid var(--bg3,#30363d);
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+}
+.menuBtn{
+  pointer-events:auto; position:relative; width:44px; height:44px;
+  background:rgba(5,7,10,.55); border:1px solid var(--bg3,#30363d); cursor:pointer;
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+}
+.menuBtn span{
+  position:absolute; left:12px; right:12px; height:2px; background:var(--t1,#e6edf3);
+  transition:transform .3s var(--e), opacity .3s var(--e);
+}
+.menuBtn span:nth-child(1){ top:15px; }
+.menuBtn span:nth-child(2){ top:21px; }
+.menuBtn span:nth-child(3){ top:27px; }
+.menuBtn[aria-expanded="true"] span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+.menuBtn[aria-expanded="true"] span:nth-child(2){ opacity:0; }
+.menuBtn[aria-expanded="true"] span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+.menuBtn:disabled{ opacity:.55; cursor:default; }
+.menuDrawer{
+  position:fixed; inset:0; z-index:89; background:rgba(5,7,10,.97);
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+  gap:4px; padding:0 40px;
+  opacity:0; visibility:hidden; transform:translateY(-10px);
+  transition:opacity .35s var(--e), transform .35s var(--e), visibility 0s linear .35s;
+}
+.menuDrawer.open{
+  opacity:1; visibility:visible; transform:none;
+  transition:opacity .35s var(--e), transform .35s var(--e), visibility 0s linear 0s;
+}
+.menuDrawer a{
+  color:var(--t1,#e6edf3); text-decoration:none; font-weight:900;
+  font-size:clamp(1.3rem,5.4vw,2.1rem); padding:9px 0;
+}
+.menuDrawer a small{
+  display:block; font-size:.6rem; color:var(--t3,#484f58); font-weight:700;
+  letter-spacing:.12em; margin-top:2px;
+}
+.menuDrawer .menuCTA{
+  margin-top:22px; font-size:.85rem; font-weight:900; padding:13px 22px;
+  background:var(--accent,#fa2a4e); color:#fff;
+}
+@media (hover:hover){ .menuDrawer a:not(.menuCTA):hover{ color:var(--blue,#388bfd); } }
+@media (prefers-reduced-motion:reduce){
+  .menuDrawer{ transition:none; } .menuBtn span{ transition:none; }
+}
+
+/* ---------------------------------------------------------------
+   L1 起動演出。カードが降る（T1）。枚数・大きさ・角度・落下順は
+   毎回JSが乱数で決め、動き自体はCSSのkeyframesが担う。
+   localStorageで24時間に1回。8秒の保険タイマーは motion.js 側。
+   --------------------------------------------------------------- */
+html.ron-l1-lock{ overflow:hidden; height:100%; }
+.ron-l1{
+  position:fixed; inset:0; z-index:999; overflow:hidden; pointer-events:none;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(56,139,253,.10), transparent 60%),
+    var(--not-bg,#05070a);
+}
+.ron-l1.out{ opacity:0; transition:opacity .4s var(--e); }
+.ron-l1 .fc{
+  position:absolute; top:-25%; left:var(--x,50%); width:var(--w,70px);
+  filter:drop-shadow(0 12px 20px rgba(0,0,0,.55));
+  /* 落下は expo-out ではなく ease-in にする。--e は「動き出して静かに止まる」
+     曲線であり、落下に使うと途中で失速して落ちて見えない。ここは物理が優先。 */
+  animation:ron-fall var(--dur,1.3s) cubic-bezier(.42,0,.85,.6) both;
+  animation-delay:var(--delay,0s);
+}
+.ron-l1 .fc img{
+  width:100%; display:block; border-radius:6px; border:1px solid rgba(255,255,255,.14);
+}
+@keyframes ron-fall{
+  from{ transform:translate(-50%,-24vh) rotate(var(--rot,0deg)); opacity:0; }
+  6%{ opacity:1; }
+  to{ transform:translate(-50%,132vh) rotate(calc(var(--rot,0deg) * 2.2)); opacity:1; }
+}
+/* 起動演出の中央に置くワードマーク。カードが降る前から出しておかないと
+   最初の1秒がほぼ真っ暗になり、待たされている印象しか残らない。 */
+.ron-l1 .l1mark{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  font-family:'Orbitron',sans-serif; font-weight:900; letter-spacing:.06em;
+  font-size:clamp(1.9rem,7.4vw,5.4rem); line-height:.94; text-align:center;
+  color:#fff; white-space:nowrap; z-index:2;
+  animation:ron-l1mark 1.5s var(--e) both;
+}
+.ron-l1 .l1mark span{ display:block; color:transparent; -webkit-text-stroke:1.5px rgba(255,255,255,.55); }
+@keyframes ron-l1mark{
+  from{ opacity:0; letter-spacing:.34em; filter:blur(7px); }
+  to{ opacity:1; letter-spacing:.06em; filter:blur(0); }
+}
+@media (prefers-reduced-motion:reduce){ .ron-l1{ display:none; } }
+
+/* ---------------------------------------------------------------
+   05 備える：READY / NOT の2択CTA。
+   --------------------------------------------------------------- */
+.ron-cta-pair{ display:flex; gap:2px; margin-top:1.2em; max-width:640px; }
+.ron-cta{
+  flex:1 1 0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:.4em; padding:1.5em 1em; text-decoration:none; font-weight:900;
+  transition:transform .2s var(--e), filter .2s var(--e);
+}
+.ron-cta .w{ font-family:'Orbitron',sans-serif; letter-spacing:.08em; font-size:clamp(1.15rem,4.4vw,1.7rem); }
+.ron-cta .s{ font-family:'Noto Sans JP',sans-serif; font-weight:700; letter-spacing:.02em; font-size:.68rem; opacity:.8; }
+.ron-cta-ready{ background:var(--ready-bg,#eef2f6); color:#0d1117; }
+.ron-cta-not{ background:var(--not-bg,#05070a); color:#fff; border:1px solid var(--bg3,#30363d); }
+@media (hover:hover){
+  .ron-cta:hover{ transform:translateY(-3px); filter:brightness(1.06); }
+}
+.ron-cta:active{ transform:translateY(-1px) scale(.99); }
+@media (max-width:640px){ .ron-cta-pair{ flex-direction:column; } }

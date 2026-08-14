@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>カード一覧（CARDS）｜ Ready or Not</title>
+<meta name="theme-color" content="#00244f">
+<!-- 起動演出の事前クラス付与。modes/co-op.html と同じ同期スクリプトを複製している
+     （最初の描画より前に同期実行する必要があるため、外部化するとFOUCの原因になる）。 -->
+<script>/* ?motion=on は JS だけでなく CSS の縮退も解除する。
+   これがないと OS でアニメーションを切っている環境では、罫の描画・文字の
+   立ち上がり・ゲージなど CSS 駆動の演出が検証パラメータを付けても動かない。 */
+if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttribute('data-motion','on');</script>
+<script>
+(function(){
+  var h = document.documentElement;
+  try{
+    if (sessionStorage.getItem('ronIntroSeen') === '1') { h.classList.add('intro-skip'); }
+    else { h.classList.add('intro-lock'); sessionStorage.setItem('ronIntroSeen', '1'); }
+  } catch(e){ h.classList.add('intro-lock'); }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Shippori+Mincho+B1:wght@800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* 地の色は全ページ共通の固定値（§18.1。design/official_site_spec.md §18）。
+   旧・地の軌跡（節ごとに異なる停止点）は廃止し、全ページ oklch(.265 .090 255) に
+   揃えた。site.css の :root 既定値と同じだが、このページ単体で開いた場合の
+   フォールバックとして明示している。 */
+:root{ --gL:.265; --gC:.090; --gH:255; }
+
+/* このページだけで使う追加コンポーネント。font-size は9段・margin/padding/gapは
+   7段のスケールのみを組み合わせている（design/official_site_spec.md §10.5）。
+   grid-template-columns の track 最小幅（140px）はレイアウトの寸法でありスペーシング
+   スケールの対象外（co-op.html の --gut と同じ扱い）。 */
+.cardJump{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);margin-top:var(--s5)}
+.cardJump a{display:inline-flex;align-items:center;gap:var(--s1);
+  font-size:var(--fs-s);letter-spacing:var(--tr-jp);color:var(--t2);
+  transition:color .2s var(--e)}
+.cardJump a::before{content:'';width:.6em;height:.6em;border-radius:50%;
+  background:var(--c,var(--t3));flex:none}
+.cardJump a:hover,.cardJump a:focus-visible{color:var(--t1);outline:2px solid var(--gold);outline-offset:3px}
+
+.colorSec{padding-top:var(--s7)}
+.colorHead{display:flex;align-items:flex-start;gap:var(--s3)}
+.colorHead img{width:2.5rem;height:2.5rem;flex:none;margin-top:.2em}
+.colorHead h2{font-size:clamp(var(--fs-h1),5vw,var(--fs-d1));line-height:var(--lh-h);
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--s2)}
+.colorHead h2 .colorEn{font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--t3)}
+.colorLead{margin-top:var(--s2);color:var(--t2);font-size:var(--fs-b);line-height:var(--lh-b)}
+.colorMeaning{margin-top:var(--s1);font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--t3)}
+
+.cardGrid{margin-top:var(--s4);display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--s3)}
+.cardEntry{margin:0;display:flex;flex-direction:column;gap:var(--s1)}
+.cardEntry img{width:100%;border-radius:4px;box-shadow:inset 0 0 0 1px var(--border)}
+.cardEntry figcaption{display:flex;flex-direction:column;gap:var(--s1)}
+.cardEntry b{font-size:var(--fs-s);color:var(--t1);font-weight:700;letter-spacing:var(--tr-jp)}
+.cardEntry span{font-size:var(--fs-xs);color:var(--t2);line-height:var(--lh-b)}
+</style>
+</head>
+<body>
+
+<!-- 起動演出オーバーレイ（LP・CO-OPと同一マークアップ・§20.1で4幕へ作り直し）。 -->
+<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
+  <div class="loadCredit">
+    <span class="loadCreditLine enBase">produced</span>
+    <span class="loadCreditLine enBase">by Ready or Lab</span>
+    <span class="loadCreditRule" aria-hidden="true"></span>
+  </div>
+  <span class="loadCount" aria-hidden="true"></span>
+  <div class="loadInk" aria-hidden="true">
+      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
+           重ね、白を透過させて黒だけを残す（§20.1改）。
+           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
+              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
+              確実に引っかかる。再生は等速1回きりにすること。 -->
+      <video class="loadInkVid" src="assets/ink/ink_load_timed.mp4"
+             muted playsinline preload="auto" aria-hidden="true"></video>
+    </div>
+  <div class="loadBlackout" aria-hidden="true"></div>
+</div>
+
+<!-- 背景の粒子と幾何学的な線（今回追加）。本文より後ろに敷く静的な奥行き演出。
+     18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
+     transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
+<div class="bgField" aria-hidden="true">
+  <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
+  <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
+  <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
+  <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
+  <span class="bgDot bgDot--a" style="--y:6%;animation-delay:-5s"></span>
+  <span class="bgDot bgDot--a" style="--y:22%;animation-delay:-16s"></span>
+  <span class="bgDot bgDot--a" style="--y:38%;animation-delay:-27s"></span>
+  <span class="bgDot bgDot--a" style="--y:54%;animation-delay:-38s"></span>
+  <span class="bgDot bgDot--a" style="--y:70%;animation-delay:-49s"></span>
+  <span class="bgDot bgDot--a" style="--y:86%;animation-delay:-60s"></span>
+  <span class="bgDot bgDot--b" style="--y:12%;animation-delay:-4s"></span>
+  <span class="bgDot bgDot--b" style="--y:28%;animation-delay:-11s"></span>
+  <span class="bgDot bgDot--b" style="--y:44%;animation-delay:-18s"></span>
+  <span class="bgDot bgDot--b" style="--y:60%;animation-delay:-25s"></span>
+  <span class="bgDot bgDot--b" style="--y:76%;animation-delay:-32s"></span>
+  <span class="bgDot bgDot--b" style="--y:92%;animation-delay:-39s"></span>
+  <span class="bgDot bgDot--c" style="--y:18%;animation-delay:-3s"></span>
+  <span class="bgDot bgDot--c" style="--y:34%;animation-delay:-8s"></span>
+  <span class="bgDot bgDot--c" style="--y:50%;animation-delay:-13s"></span>
+  <span class="bgDot bgDot--c" style="--y:66%;animation-delay:-18s"></span>
+  <span class="bgDot bgDot--c" style="--y:82%;animation-delay:-23s"></span>
+  <span class="bgDot bgDot--c" style="--y:98%;animation-delay:-28s"></span>
+</div>
+
+<!-- ロゴ：画面左上に固定（§20.4）。ナビではなくロゴの組み。リンク先はホーム。 -->
+<a class="siteLogo" href="v5-proto.html" aria-label="ホーム">
+  <span class="brandTile"><img src="assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
+  <span class="siteLogoText enBase">Ready or Not</span>
+</a>
+
+<!-- ハンバーガー：ロゴの対角（画面右上）に固定。押すとページ一覧（.navMenu）が
+     開閉する（今回新設。下部バーはPLAY専用に縮めたため、ページ移動はここへ
+     集約した）。開閉の実処理は assets/site.js の initNavMenu が担う。 -->
+<button type="button" class="hamburgerBtn" id="navToggle" aria-expanded="false" aria-controls="navMenu" aria-label="メニューを開く">
+  <span class="hamburgerBox" aria-hidden="true"><span></span><span></span><span></span></span>
+</button>
+
+<nav class="bottomBar en" aria-label="PLAYへ">
+  <a class="barPlay" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html"><span class="barPlayText">PLAY</span></a>
+</nav>
+
+<div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<nav class="navMenu" id="navMenu" aria-label="ページ一覧">
+  <div class="navMenuPanel">
+    <ul class="navMenuList en">
+      <li><a href="v5-proto.html">HOME</a></li>
+      <li><a href="modes/versus.html">VERSUS</a></li>
+      <li><a href="modes/co-op.html">CO-OP</a></li>
+      <li><a href="features.html">FEATURES</a></li>
+      <li><a href="cards.html" aria-current="page">CARDS</a></li>
+      <li><a href="contact.html">CONTACT</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="pageScale">
+<div class="wrap">
+  <!-- パンくず（§13.3） -->
+  <p class="crumb en"><a href="v5-proto.html">HOME</a><span>/</span><b>CARDS</b></p>
+
+  <!-- 1. ページ名＋枚数 -->
+  <header class="modeHead reveal" data-d="0">
+    <h1 class="modeName enBase">CARDS</h1>
+    <p class="modeMeta en">30 CARDS ／ 5 COLORS</p>
+  </header>
+
+  <!-- 2. 現実とリンクした世界観（§16 確定コピー） -->
+  <section class="modeSec sec">
+    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide">現実とリンクした世界観</span></h2>
+    <span class="headRule" data-d="0" aria-hidden="true"></span>
+    <div class="modeBody reveal" data-d="2">
+      <p>都市も、災害も、政策カードも、すべて現実にある出来事や制度がもとになっている。色ごとに切り替えて、1枚ずつ確かめられる。</p>
+    </div>
+  </section>
+
+  <!-- 色から探す（内部リンク） -->
+  <nav class="cardJump reveal" data-d="0" aria-label="色から探す">
+    <a href="#city" style="--c:#388bfd">都市</a>
+    <a href="#dis" style="--c:#f85149">自然災害</a>
+    <a href="#hum" style="--c:#a371f7">人為災害</a>
+    <a href="#shield" style="--c:#3fb950">政策・シールド</a>
+    <a href="#inst" style="--c:#e3b341">政策・即時</a>
+  </nav>
+
+  <!-- 都市（青） -->
+  <section class="colorSec sec" id="city">
+    <span class="headRule" data-d="0" aria-hidden="true" style="background:#388bfd"></span>
+    <div class="colorHead reveal" data-d="1">
+      <img src="assets/icons/neon_city.webp" alt="" width="64" height="64" loading="lazy">
+      <div>
+        <h2 class="jpBase">都市<span class="en colorEn">CITY</span></h2>
+        <p class="colorLead">守る対象。すべて実在の都市で、それぞれが災害史を背負っている。</p>
+        <p class="colorMeaning">青 ＝ 情報・操作対象</p>
+      </div>
+    </div>
+    <div class="cardGrid reveal" data-d="2">
+      <figure class="cardEntry"><img src="assets/cities/kobe.webp" alt="神戸（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>神戸</b><span>1995年 阪神・淡路大震災。復興が防災投資を制度化した</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/sendai.webp" alt="仙台（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>仙台</b><span>2011年 東日本大震災。仙台防災枠組が世界の政策を変えた</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/tokyo.webp" alt="東京（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>東京</b><span>1923年 関東大震災。首都直下地震という最大の宿題</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/osaka.webp" alt="大阪（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>大阪</b><span>地下街と高潮。南海トラフに向き合う西日本の中枢</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/nagoya.webp" alt="名古屋（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>名古屋</b><span>1959年 伊勢湾台風。日本初の災害対策基本法を生んだ</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/kumamoto.webp" alt="熊本（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>熊本</b><span>2016年 熊本地震。前震と本震、想定外への適応</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/niigata.webp" alt="新潟（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>新潟</b><span>1964年 新潟地震。液状化研究の原点となった</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/hiroshima.webp" alt="広島（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>広島</b><span>2014年 8月豪雨。山地に囲まれた地形と土砂災害</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/kagoshima.webp" alt="鹿児島（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>鹿児島</b><span>桜島と共生する。ゼロリスクを目指さない防災哲学</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/rotterdam.webp" alt="ロッテルダム（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>ロッテルダム</b><span>国土の1/4が海面下。水と共存するオランダ型防災</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/new_orleans.webp" alt="ニューオーリンズ（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>ニューオーリンズ</b><span>2005年 ハリケーン・カトリーナ。堤防決壊と避難の失敗</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cities/istanbul.webp" alt="イスタンブール（都市カード）" width="288" height="450" loading="lazy"><figcaption><b>イスタンブール</b><span>北アナトリア断層直上。事後学習型防災の現実</span></figcaption></figure>
+    </div>
+  </section>
+
+  <!-- 自然災害（赤） -->
+  <section class="colorSec sec" id="dis">
+    <span class="headRule" data-d="0" aria-hidden="true" style="background:#f85149"></span>
+    <div class="colorHead reveal" data-d="1">
+      <img src="assets/icons/neon_disaster.webp" alt="" width="64" height="64" loading="lazy">
+      <div>
+        <h2 class="jpBase">自然災害<span class="en colorEn">DISASTER</span></h2>
+        <p class="colorLead">いつ来るか誰にも分からない。順番も規模も選べない。</p>
+        <p class="colorMeaning">赤 ＝ 危険・被害</p>
+      </div>
+    </div>
+    <div class="cardGrid reveal" data-d="2">
+      <figure class="cardEntry"><img src="assets/cards/earthquake.webp" alt="地震（自然災害カード）" width="288" height="450" loading="lazy"><figcaption><b>地震</b><span>プレート境界の国に暮らす前提。備えの有無が被害を分ける</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/tsunami.webp" alt="津波（自然災害カード）" width="288" height="450" loading="lazy"><figcaption><b>津波</b><span>海岸都市に追加被害。地形が曝露の大きさを決める</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/flood.webp" alt="洪水（自然災害カード）" width="288" height="450" loading="lazy"><figcaption><b>洪水</b><span>水害は最も頻度が高い。堤防と避難の両輪で備える</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/typhoon.webp" alt="台風（自然災害カード）" width="288" height="450" loading="lazy"><figcaption><b>台風</b><span>手札を奪う。備蓄が尽きる状況を再現する</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/wildfire.webp" alt="大火災（自然災害カード）" width="288" height="450" loading="lazy"><figcaption><b>大火災</b><span>延焼は地震の二次災害としても起きる</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/landslide.webp" alt="土砂崩れ（自然災害カード）" width="288" height="450" loading="lazy"><figcaption><b>土砂崩れ</b><span>山間の都市に追加被害。地形リスクの現れ</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/compound.webp" alt="複合災害（自然災害カード）" width="288" height="450" loading="lazy"><figcaption><b>複合災害</b><span>対応する余裕を奪う。同時多発の恐ろしさ</span></figcaption></figure>
+    </div>
+  </section>
+
+  <!-- 人為災害（紫） -->
+  <section class="colorSec sec" id="hum">
+    <span class="headRule" data-d="0" aria-hidden="true" style="background:#a371f7"></span>
+    <div class="colorHead reveal" data-d="1">
+      <img src="assets/icons/neon_jinzai.webp" alt="" width="64" height="64" loading="lazy">
+      <div>
+        <h2 class="jpBase">人為災害<span class="en colorEn">HUMAN</span></h2>
+        <p class="colorLead">脅威は自然だけではない。人がつくる災害もある。</p>
+        <p class="colorMeaning">紫 ＝ 特殊・無効化</p>
+      </div>
+    </div>
+    <div class="cardGrid reveal" data-d="2">
+      <figure class="cardEntry"><img src="assets/cards/pollution.webp" alt="公害（人為災害カード）" width="288" height="450" loading="lazy"><figcaption><b>公害</b><span>人がつくる災害。自然災害だけが脅威ではない</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/terror.webp" alt="テロ攻撃（人為災害カード）" width="288" height="450" loading="lazy"><figcaption><b>テロ攻撃</b><span>対応の余地を奪う。想定外への備えを問う</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/rumor.webp" alt="デマ拡散（人為災害カード）" width="288" height="450" loading="lazy"><figcaption><b>デマ拡散</b><span>社会的脆弱性。情報の混乱が被害を広げる</span></figcaption></figure>
+    </div>
+  </section>
+
+  <!-- 政策・シールド（緑） -->
+  <section class="colorSec sec" id="shield">
+    <span class="headRule" data-d="0" aria-hidden="true" style="background:#3fb950"></span>
+    <div class="colorHead reveal" data-d="1">
+      <img src="assets/icons/neon_policy_shield.webp" alt="" width="64" height="64" loading="lazy">
+      <div>
+        <h2 class="jpBase">政策・シールド<span class="en colorEn">SHIELD</span></h2>
+        <p class="colorLead">事前に置いて備える。起きてからでは、もう遅い。</p>
+        <p class="colorMeaning">緑 ＝ 安全・防御</p>
+      </div>
+    </div>
+    <div class="cardGrid reveal" data-d="2">
+      <figure class="cardEntry"><img src="assets/cards/quake_wall.webp" alt="耐震補強（政策カード・シールド）" width="288" height="450" loading="lazy"><figcaption><b>耐震補強</b><span>事前投資の代表。1981年の新耐震基準に基づく構造強化</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/dam.webp" alt="堤防建設（政策カード・シールド）" width="288" height="450" loading="lazy"><figcaption><b>堤防建設</b><span>ハード対策。高コストだが特定の災害に確実に効く</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/evacuation.webp" alt="広域避難指示（政策カード・シールド）" width="288" height="450" loading="lazy"><figcaption><b>広域避難指示</b><span>逃げるという判断の制度化。特殊効果を打ち消す</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/bousai_cho.webp" alt="防災庁設置（政策カード・シールド）" width="288" height="450" loading="lazy"><figcaption><b>防災庁設置</b><span>恒久的な体制づくり。2025年に日本で実際に設置された</span></figcaption></figure>
+    </div>
+  </section>
+
+  <!-- 政策・即時（黄） -->
+  <section class="colorSec sec" id="inst">
+    <span class="headRule" data-d="0" aria-hidden="true" style="background:#e3b341"></span>
+    <div class="colorHead reveal" data-d="1">
+      <img src="assets/icons/neon_policy_instant.webp" alt="" width="64" height="64" loading="lazy">
+      <div>
+        <h2 class="jpBase">政策・即時<span class="en colorEn">INSTANT</span></h2>
+        <p class="colorLead">その場で使う。訓練・情報・連携が、緊急時の行動を変える。</p>
+        <p class="colorMeaning">黄 ＝ 注意・要対応</p>
+      </div>
+    </div>
+    <div class="cardGrid reveal" data-d="2">
+      <figure class="cardEntry"><img src="assets/cards/drill.webp" alt="避難訓練（政策カード・即時）" width="288" height="450" loading="lazy"><figcaption><b>避難訓練</b><span>ソフト対策。訓練が緊急時の行動を変える</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/agreement.webp" alt="相互支援協定（政策カード・即時）" width="288" height="450" loading="lazy"><figcaption><b>相互支援協定</b><span>自治体間の広域連携。大きく立て直せる</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/hazard_map.webp" alt="ハザードマップ整備（政策カード・即時）" width="288" height="450" loading="lazy"><figcaption><b>ハザードマップ整備</b><span>情報整備が選択肢を広げる。備えの前提は情報</span></figcaption></figure>
+      <figure class="cardEntry"><img src="assets/cards/rolling_stock.webp" alt="ローリングストック（政策カード・即時）" width="288" height="450" loading="lazy"><figcaption><b>ローリングストック</b><span>備蓄は回して更新し続けてこそ機能する</span></figcaption></figure>
+    </div>
+  </section>
+
+  <footer class="foot">Ready or Not ／ Ready or Lab</footer>
+</div>
+</div><!-- /.pageScale -->
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

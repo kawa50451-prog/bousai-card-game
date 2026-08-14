@@ -1,0 +1,844 @@
+/* ══════════════════════════════════════════════════════════════
+   ゲーム本体（PLAY）のリンク先について
+
+   現在の向き先： https://kawa50451-prog.github.io/bousai-card-game/game_online.html
+   将来の向き先： https://toshibousai-cardgame.web.app/
+
+   配布用の Firebase 版は 2026-08-12 時点で GitHub Pages 版より古く、
+   協力モード・復興回数・都市HP・マイ都市・問題工房が入っていない。
+   サイトは協力モードの詳細ページを持つため、同期が済むまで Firebase を
+   指してはいけない（存在しない機能を宣伝することになる）。
+
+   同期後の切り替えは、site/ 配下の全HTMLに対する1回の置換で済む：
+     旧 https://kawa50451-prog.github.io/bousai-card-game/game_online.html
+     新 https://toshibousai-cardgame.web.app/
+   ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   Ready or Not 公式サイト ── 共通スタイル（site.css）
+   design/official_site_spec.md §10 準拠。
+
+   2026-08-12：site/v5-proto.html（LP）から複数ページ共通の部分を切り出した。
+   共通化したのは、トークン（--fs-*・--s*・色・地の軌跡の基盤）、基本タイポグラフィ、
+   .reveal / .headRule、下部固定バー、ローディング演出、カーソルレティクル、グレイン、
+   グリッド（.wrap/.g12）、画像マスク開き（.maskReveal）。
+   LPの各節のレイアウト（ヒーロー・なぜ作ったか・カードマーキー・軌道セレクタ・
+   遊び方・締め）と、そこでしか使わない演出（地の軌跡のスクロール連動・読み位置の
+   色スイープ・ドーナツグラフ）は v5-proto.html 側にページ固有のまま残している。
+   加えて、/modes/* サブページ共通の骨格（パンくず・モード見出し・実機画面・
+   1ターンの流れ・リスク方程式・学びの対応表・設定パネル）もここに含めた
+   （§13〜§15）。
+
+   ⚠️ この切り出しは整理であって改修ではない。v5-proto.html の見た目と挙動が
+   切り出し前と一切変わらないことを最優先にしている。
+
+   2026-08-12 第6次（§20 リッチ化）：下部バーからアイコンを外し、画面左上固定の
+   .siteLogo（ロゴの組み。ナビではない）へ独立させた。下部バーは角丸の浮いた板に
+   作り直し、ファーストビューでは透明、スクロールで不透明度が上がる。カーソル
+   レティクルはホバーで拡大・押下でgoldへ変わる2信号に分けた。.reveal の移動量を
+   強め、テキストリンク群（下部バー・パンくず）にホバー／押下の2段階を追加した。
+
+   2026-08-13 第3次：下部固定バーをPLAY専用に縮小し、ページ移動（HOME/VERSUS/
+   CO-OP/FEATURES/CARDS/CONTACT）を画面右上のハンバーガー（.hamburgerBtn）
+   経由の全画面メニュー（.navScrim/.navMenu/.navMenuPanel/.navMenuList）へ
+   移した。開くとページ本体（.pageScale）がわずかに縮んでから一覧が現れる。
+   すりガラスの質感（blur(20px) saturate(165%)＋groundの半透明）は、縮んだ
+   PLAY・ハンバーガー・開いた一覧の3面すべてに同じ値で通してある。 ══════════════════════ */
+
+:root{
+  /* ── 地の色（§18.1。2026-08-12：地の軌跡＝STOPS配列とpaintGroundは廃止した）。
+     全節・全ページ共通の固定値。ここを書き換えるだけで --ground/--surface/--border
+     （すぐ下で var(--gL)/var(--gC)/var(--gH) から自動導出される）が全ページ一括で
+     追従するため、個々のUIコンポーネント側は一切変更していない。
+     節ごとの進行感（旧・地の軌跡が担っていた役割）はインク層の色（§18.2）が引き継ぐ。
+     サブページ（/modes/*・features/cards/contact）も同じ値に揃えてある。 ── */
+  --gL:.265; --gC:.090; --gH:255;
+  --ground : oklch(var(--gL) var(--gC) var(--gH));
+  --surface: oklch(calc(var(--gL) + .06) calc(var(--gC) * .95) var(--gH));
+  --border : oklch(calc(var(--gL) + .15) calc(var(--gC) * .75) var(--gH));
+
+  /* ── 文字と意味色（§10.3.5） ── */
+  --t1:#eef3f9; --t2:#b9c6d8; --t3:#7d8ba0;
+  --accent:#fa2a4e; --accent-rgb:250,42,78;   /* 面と図形専用。文字色には使わない */
+  --gold:#ffd24a;                             /* 第2アクセント。文の中の要点だけを金にする */
+
+  /* ── モジュラースケール 1.333（§10.4.2）。この9段以外を font-size に書かない ── */
+  --fs-d3:5.61rem; --fs-d2:4.21rem; --fs-d1:3.16rem; --fs-h1:2.37rem;
+  --fs-h2:1.78rem; --fs-h3:1.33rem; --fs-b:1rem; --fs-s:.75rem; --fs-xs:.563rem;
+
+  /* ── スペーシング 8px・7段（§10.5.2）。この7段以外を margin/padding/gap に書かない ── */
+  --s1:.5rem; --s2:1rem; --s3:1.5rem; --s4:2.5rem; --s5:4rem; --s6:6.5rem; --s7:10.5rem;
+
+  /* ── 組み（§10.4.3） ── */
+  --lh-d:1.15; --lh-h:1.4; --lh-b:1.8;
+  --tr-jp:.02em;        /* 和文・基本層（Zen Kaku Gothic New）。角ゴシックは大きくすると詰まって見えるため開く */
+  --tr-jp-accent:.01em; /* 和文・強調層（Shippori Mincho B1） */
+  --tr-label:.14em;     /* 欧文ラベル・大文字（.en＝Archivo 600） */
+  --tr-en-d:-.02em;     /* 欧文ディスプレイ（Archivo・Playfair Display）。大きくすると空いて見えるため詰める */
+
+  /* ── グリッド（§10.5.1） ── */
+  --gut:24px;
+  --pad:clamp(24px,5vw,80px);
+
+  --e:cubic-bezier(.16,1,.3,1);
+  --e-back:cubic-bezier(.34,1.56,.64,1); /* オーバーシュート専用（見出し横スライド）。y値が一瞬1を超える */
+}
+
+/* 相対カラー構文（§10.8.3-3）。対応ブラウザでは面・罫を地の色から直接導出し、
+   手書きcalc()を消す。非対応時は:root既定のcalc()版（--gC*.95等）を残す。 */
+@supports (color: oklch(from red l c h)){
+  :root{
+    --surface: oklch(from var(--ground) calc(l + .06) calc(c * .95) h);
+    --border : oklch(from var(--ground) calc(l + .15) calc(c * .75) h);
+  }
+}
+
+*{box-sizing:border-box}
+/* ルートを流動化する（§10.4.2）。PCで文字が小さいという指摘への対処。
+   表にない数値を font-size に書かないため、個々の clamp() を手で書き換えるのでは
+   なく、基準そのものを動かして9段のスケールを丸ごと持ち上げる。16px→21px（1900px以上）。 */
+html{font-size:clamp(16px, .42vw + 12.6px, 21px);
+  overflow-x:clip;background:var(--ground);transition:background-color .4s linear}
+body{margin:0;overflow-x:clip;color:var(--t1);background:transparent;
+  font-family:'Zen Kaku Gothic New',system-ui,sans-serif;font-weight:400;
+  font-size:var(--fs-b);line-height:var(--lh-b);-webkit-font-smoothing:antialiased}
+h1,h2,p{margin:0}
+/* height:auto は必須。width/height 属性で固有比率を伝えると、
+   CSS側で高さを解放しない限り属性値がそのまま高さになる（画像が縦に伸びる）。 */
+img{max-width:100%;display:block;height:auto}
+a{color:inherit;text-decoration:none}
+
+/* ══════ タイポグラフィ：基本層＋強調層の2層構造（§10.4.1） ══════ */
+.jpBase{font-family:'Zen Kaku Gothic New',sans-serif;font-weight:900;
+  line-height:var(--lh-d);letter-spacing:var(--tr-jp);
+  text-box:cap alphabetic}
+.enBase{font-family:'Archivo',sans-serif;font-weight:800;letter-spacing:var(--tr-en-d)}
+/* 強調層。タグライン・キャッチコピー・節見出しに使う
+   （2026-08-12 拡張。節見出し「現実とリンクした世界観」「遊び方」を
+   キャッチと同じ書体に揃えるというユーザー判断による。
+   🚫 本文・UI・ラベルへの流用は引き続き禁止）。 */
+.jpAccent{font-family:'Shippori Mincho B1',serif;font-weight:800;
+  line-height:var(--lh-d);letter-spacing:var(--tr-jp-accent);
+  text-box:cap alphabetic}
+.enAccent{font-family:'Playfair Display',serif;font-weight:900;letter-spacing:var(--tr-en-d)}
+.en{font-family:'Archivo',sans-serif;font-weight:600;letter-spacing:var(--tr-label)}
+
+/* グレインは装飾ではなくディザである。極暗の大面積グラデーションが
+   8bit表示で起こすバンディングを潰す（§10.3.3）。縮退時も残す。 */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ══════ スクロール出現（§11.3-1・§20.7で移動量を強化） ══════
+   すべての主要要素を、ビューポートに入ったら下からふわりと出現させる。
+   translateY(--s6)→0・scale(.96)→1・opacity 0→1（2026-08-12：--s5→--s6へ、
+   わずかな拡大を追加してリベールをいまより強く見せる）。対応ブラウザは
+   animation-timeline:view() だけで駆動し、rAFループを増やさない。非対応時は
+   IntersectionObserver でクラス .is-in を付与し、通常の transition に
+   切り替える（各ページの site.js が担う）。stagger は data-d="0"〜"3" の4段。
+   ⚠️ .reveal は <section> そのものには付けない。節全体が薄くなり、読んでいる
+   最中に内容が消える不具合が実際に起きたため（§20.7）。 */
+.reveal{opacity:0;transform:translateY(var(--s6)) scale(.96)}
+
+@supports (animation-timeline: view()){
+  .reveal{
+    animation-name:revealIn;animation-timing-function:linear;animation-fill-mode:both;
+    animation-timeline:view();animation-range:entry 0% entry 100%}
+  .reveal[data-d="1"]{animation-delay:12%}
+  .reveal[data-d="2"]{animation-delay:24%}
+  .reveal[data-d="3"]{animation-delay:36%}
+}
+@supports not (animation-timeline: view()){
+  .reveal{transition:opacity .7s var(--e),transform .7s var(--e)}
+  .reveal[data-d="1"]{transition-delay:.12s}
+  .reveal[data-d="2"]{transition-delay:.24s}
+  .reveal[data-d="3"]{transition-delay:.36s}
+  .reveal.is-in{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes revealIn{
+  from{opacity:0;transform:translateY(var(--s6)) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+/* 見出し直後の細い罫（2026-08-12：見出しの上から下へ移設）。太さ1〜2pxは
+   margin/padding/gap ではないため §10.5.2 の7段規律の対象外。scaleX(0)→1・
+   transform-origin:left で左から右へ伸びる。data-d="0" を持たせ、DOM順は
+   見出し（data-d="1"）の直後だが、アニメーションは data-d の遅延段で見出しより
+   先に動き出す（罫→見出し→本文の出現順序は維持。位置だけ動かした）。
+   margin-bottom はあえて持たせない。罫の直後に来る本文側要素（.whyBody や
+   .modeBody 等）が既に §10.5.2 の7段から選んだ margin-top を持っており、
+   それをそのまま罫→本文の間隔として使う。ここに margin-bottom を足すと
+   文脈によって（通常フローでの隣接マージン相殺／グリッドアイテムでの非相殺）
+   合計間隔が場所ごとにばらつくため、罫側は見出しとの間隔（margin-top）だけを持つ。 */
+.headRule{display:block;transform-origin:left;transform:scaleX(0);
+  width:clamp(4rem,34%,18rem);height:1px;background:var(--gold);
+  margin-top:var(--s2)}
+@supports (animation-timeline: view()){
+  .headRule{animation-name:ruleIn;animation-timing-function:linear;animation-fill-mode:both;
+    animation-timeline:view();animation-range:entry 0% entry 100%}
+}
+@supports not (animation-timeline: view()){
+  .headRule{transition:transform .6s var(--e)}
+  .headRule.is-in{transform:scaleX(1)}
+}
+@keyframes ruleIn{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
+
+/* ══════ 見出しの横スライド出現＋オーバーシュート（今回追加） ══════
+   参照：showdot.jp の見出し演出。演出だけを採り、ライブラリは採らない。
+   対象は節見出しだけ（.catch/.secTitle/.wayHead＝LP、.modeSecTitle＝
+   サブページ共通の節見出し）。本文・ラベル・UIには広げない。
+   仕組み：見出し本体（h2等）に overflow:hidden を持たせてマスクにし、
+   中の文字列を包む .hSlide だけを横方向へスライドさせる。マスクの外に
+   文字がある間は overflow:hidden で物理的に隠れるため、opacity操作は
+   不要（フェードではなく縁から滑り出る動き）。
+   ⚠️ 開始位置は自分自身の幅を基準（-105%）にすること。vw など画面基準の
+   固定値にすると、見出しの文字がその値より長いときに末尾がマスク内に残り、
+   「隠れた状態から滑り出る」ではなく「途中まで見えている文字が動く」に
+   なってしまう。-105% なら文字長に関わらず必ず左端の外へ出る。
+   オーバーシュートは cubic-bezier(.34,1.56,.64,1)（easeOutBack。y値が
+   一瞬1を超えるため「行きすぎてから戻る」動きになる）を from/to の2点
+   だけの keyframes に適用して作る。多段keyframesにしないほうが実装が
+   安定するため（厳守事項で過去に踏んだ巨大レイヤー等の反省を踏まえ、
+   ここでは単純な2点構成に留めた）。
+   これらの見出しは既存の .reveal（§11.3-1・縦フェード＋scale）も同時に
+   持っているため、演出を .hSlide 側へ一本化するにあたり .reveal 側の
+   動きだけを打ち消す（対象外の .reveal はそのまま）。打ち消しに
+   animation ショートハンドを使っているのは、この見出し要素の上で
+   意図して1つのアニメーションだけに絞りたいケースだからである
+   （厳守事項1が禁じる「別のアニメーションを意図せず潰す」ケースとは
+   異なる）。
+   ⚠️ prefers-reduced-motion では、site.css 既存の
+   `html:not([data-motion="on"]) *{animation:none!important}` により
+   hSlideIn 自体は止まるが、静的な transform:translateX(-105%) は
+   打ち消されないと文字がマスクの外に隠れたまま固定されてしまう
+   （情報欠落）。そのため .hSlide の transform を明示的に none へ戻す
+   行を下に個別で持たせてある。 */
+:is(.catch,.secTitle,.wayHead,.modeSecTitle).reveal{
+  overflow:hidden;opacity:1;transform:none;animation:none}
+
+.hSlide{display:inline-block;transform:translateX(-105%)}
+@supports (animation-timeline: view()){
+  .hSlide{
+    animation-name:hSlideIn;animation-timing-function:var(--e-back);animation-fill-mode:both;
+    animation-timeline:view();animation-range:entry 10% entry 80%}
+}
+@supports not (animation-timeline: view()){
+  .hSlide{transition:transform .7s var(--e-back)}
+  :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hSlide{transform:translateX(0)}
+}
+@keyframes hSlideIn{ from{transform:translateX(-105%)} to{transform:translateX(0)} }
+
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .hSlide{transform:none !important}
+}
+
+/* ══════ 画像がマスクで開く（§12.1） ══════
+   clip-path:inset() を scroll-driven で動かし、マスクが横に開いて中身が現れる
+   動きにする。親に overflow:hidden を持たせ、子（img）を逆方向にわずかに動かして
+   視差を作る。--mo の @property 初期値は 0%（＝マスクなし＝全面表示）にして
+   あるため、非対応ブラウザや prefers-reduced-motion では
+   アニメーションが走らず、そのまま情報が欠けずに全体表示される。 */
+.maskReveal{position:relative;overflow:hidden}
+/* ⚠️ @property は @supports の外に置く（v5-proto.html の --p と同じ理由）。
+   登録に失敗した環境で var(--mo) が解決できず、clip-path ごと無効になる。 */
+@property --mo{ syntax:'<percentage>'; inherits:false; initial-value:0% }
+
+@supports (animation-timeline: view()){
+  .maskReveal{
+    clip-path:inset(0 var(--mo, 0%) 0 0);
+    animation:maskOpen linear both;
+    animation-timeline:view();
+    animation-range:entry 0% entry 70%;
+  }
+  .maskReveal > img{
+    animation:maskParallax linear both;
+    animation-timeline:view();
+    animation-range:entry 0% entry 70%;
+  }
+  @keyframes maskOpen{ from{ --mo:100% } to{ --mo:0% } }
+  @keyframes maskParallax{ from{ transform:translateX(-4%) scale(1.06) } to{ transform:translateX(0) scale(1.06) } }
+}
+@media (prefers-reduced-motion: reduce){ html:not([data-motion="on"]) .maskReveal{ clip-path:none } }
+
+/* ══════ 背景の粒子と幾何学的な線（今回追加。全ページ共通） ══════
+   参照：showdot.jp。紺の地（--ground）の上に、静かに横流れする奥行きを
+   足す。演出だけを採り、ライブラリは採らない。新しい色は作らず、粒子・
+   線とも白（--t1）または既存の罫トークン（--border）の低不透明度で
+   表現する。
+   ⚠️ 負荷対策（ユーザーのPCが重いための最優先事項）：
+     ・要素は粒子18個＋線4本の計22個に絞った（粒子20個以内の指示を満たす）
+     ・動かすのは transform と opacity だけ（left/top/width等は静的に
+       置くのみで、アニメーションはさせない）
+     ・JSのrAFループは増やしていない。すべてCSSアニメーションのみ
+     ・canvas / WebGL は使わない
+     ・幾何学的な線は静止させ、アニメーションを持たせていない
+       （粒子の18本だけが常時走るアニメーションになる）
+   本文（.sec）より確実に後ろに敷くため、.bgField は z-index:0 の
+   position:fixed とする（.sec/footer が z-index:1 を持つのはそのまま。
+   厳守事項8参照）。.pageScale の外（body直下）に置くことで、ハンバーガー
+   メニューを開いたときの scale(.94) の影響を受けない（.loadOverlay/
+   .siteLogo と同じ理由）。
+   3層（速度・大きさ・不透明度が段ごとに違う）にして奥行きを出す：
+   --a＝遠景（小さい・薄い・遅い）／--b＝中景／--c＝近景（大きい・濃い・速い）。
+   各粒子は要素ごとに --y（縦位置）と animation-delay（負値）だけを
+   インラインで持たせ、同じ帯に固まって流れないよう出発位置をずらす。
+   prefers-reduced-motion では、既存の
+   `html:not([data-motion="on"]) *{animation:none!important}` が
+   .bgDot のアニメーションにもそのまま効くため、個別の @media は
+   重ねて書いていない（要素は残り、静止した点と線になるだけで情報は
+   何も持たないため欠落もしない）。 */
+.bgField{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+
+.bgDot{position:absolute;left:-8%;top:var(--y,50%);border-radius:50%;
+  background:var(--t1);
+  animation-name:bgDotDrift;animation-timing-function:linear;animation-iteration-count:infinite;
+  will-change:transform}
+.bgDot--a{width:2px;height:2px;opacity:.16;animation-duration:65s}
+.bgDot--b{width:3px;height:3px;opacity:.28;animation-duration:45s}
+.bgDot--c{width:5px;height:5px;opacity:.42;animation-duration:32s}
+@keyframes bgDotDrift{ from{transform:translateX(0)} to{transform:translateX(116vw)} }
+
+.bgLine{position:absolute;height:1px;background:var(--t1);opacity:.1;transform-origin:left center}
+
+/* ══════ 起動演出：4幕ローディング（§20.1・2026-08-12。§12.4を置き換え） ══════
+   合計2.2秒、4幕で構成する。
+     幕1 0.0–0.5s：真っ白な画面。中央に produced/by Ready or Lab（2行）と
+                   見出し線が小さくフェードイン
+     幕2 0.5–1.3s：黒いインクの染みが中心から全方向へ、速度と衝撃を持って
+                   広がる。feTurbulence + feDisplacementMap で有機的に歪ませる
+                   （WebGL不使用。ENABLE_GL_INKとは無関係の別系統）。画面が
+                   真っ暗になるまで
+     幕3 1.3–1.9s：暗転した画面にブランドロゴがイーズインで登場
+     幕4 1.9–2.2s：ロゴ＋オーバーレイ全体がフェードし、下に先に描画済みの
+                   ヒーローが現れる
+   演出そのものはCSSのanimation-delayだけで進行する（JSのクラス切り替えに
+   依存しない）。これにより site.js の initIntro が完全に失敗しても4幕は
+   最後まで自動再生され、オーバーレイも自動的に消える。JSが担うのは
+   幕2終了後にインクの<svg>を実際にDOMから外すこと（コストを0.8秒に
+   閉じ込める。ただし.loadInk自体にも同じ目的のCSSオンリーの
+   display:none落としを二重で持たせてある）と、演出完了後にオーバーレイ
+   ノードを片付けることだけである。
+   🚫 JSが失敗してもオーバーレイが残ってページが操作不能にならないこと。
+   これが最優先。CSSだけで効く失効タイマーを二重に置く
+   （2.4秒＝一次・8秒＝二次。8秒は既存の保険をそのまま踏襲）。
+   prefers-reduced-motion は下の @media だけで確実に無効化する（JS非依存）。
+   sessionStorage で同一セッション中は2回目以降出さない（各ページ<head>の
+   同期スクリプトが判定する）。 */
+.loadOverlay{position:fixed;inset:0;z-index:200;
+  overflow:hidden;background:#fff;
+  animation:loadOverlayOut .45s var(--e) 2.95s both,
+            loadOverlayHide 0s 3.7s forwards,
+            introHideForce 0s 8s forwards}
+@keyframes loadOverlayOut{ from{opacity:1} to{opacity:0;pointer-events:none} }
+@keyframes loadOverlayHide{ to{ display:none } }
+.loadOverlay.is-leaving{opacity:0;pointer-events:none}
+html.intro-skip .loadOverlay{display:none}
+@keyframes introHideForce{ to{ display:none } }
+
+html.intro-lock{overflow:hidden;
+  animation:introUnlockPrimary 0s 3.4s forwards, introUnlockForce 0s 8s forwards}
+@keyframes introUnlockPrimary{ to{ overflow:visible } }
+@keyframes introUnlockForce{ to{ overflow:visible } }
+
+/* ── 幕1（0–0.5s）：produced / by Ready or Lab ── */
+.loadCredit{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  opacity:0;transform:translateY(var(--s1));
+  animation:loadCreditIn .75s var(--e) both}
+@keyframes loadCreditIn{
+  0%{opacity:0;transform:translateY(var(--s1))}
+  100%{opacity:1;transform:translateY(0)}
+}
+.loadCreditLine{display:block;font-size:var(--fs-xs);letter-spacing:var(--tr-label);
+  color:#0b1420;text-align:center;line-height:1.7}
+.loadCreditRule{display:block;width:2.5rem;height:1px;background:#0b1420;
+  margin-top:var(--s1);transform-origin:center;transform:scaleX(0);
+  animation:loadCreditRuleIn .52s var(--e) .18s both}
+@keyframes loadCreditRuleIn{ to{ transform:scaleX(1) } }
+
+/* ── 幕2（0.5–1.3s）：黒いインクの染み ──
+   feTurbulence（fractalNoise）で歪みの元ノイズを作り、feGaussianBlurで
+   丸めて「表面張力」らしい滑らかな凹凸にしてからfeDisplacementMapへ渡す
+   （要件1：有機的な歪み）。baseFrequencyを時間で下げ、粗い高周波ノイズから
+   大ぶりな低周波の歪みへ移すことで、拡大しながら形そのものが育つ動きにする。
+   displacementのscaleを0から一気に上げて触手状の突起を伸ばし（要件3）、
+   出力側の最終feGaussianBlurで輪郭をわずかに滲ませる（要件2）。
+   フィルタの発火はこの0.8秒のみ（SMILのbegin/durで自己完結、JS不要）。 */
+.loadInk{position:absolute;inset:0;z-index:2;width:100%;height:100%;overflow:hidden;
+  display:block;pointer-events:none;
+  /* ⚠️ 乗算はこの親に掛ける。動画側に掛けてはいけない。
+     .loadInk は z-index を持つため合成のグループを分離する。その内側で
+     mix-blend-mode を指定すると、合成相手が「グループ内の何もない透明」に
+     なり、白が抜けずに動画の白い矩形がクレジットを覆う。ここに掛ければ
+     .loadOverlay の白地とクレジットを相手に合成される。 */
+  mix-blend-mode:multiply;
+  /* 幕2が終わったら描画から外す。JSが止まっていても効くCSS側の保険。 */
+  animation:loadInkHide 0s 3.00s forwards}
+@keyframes loadInkHide{ to{ display:none } }
+
+/* 幕2（0.75〜2.65秒）：実写のインク動画。
+   ⚠️ 過去の失敗を繰り返さないための経緯。
+     1. invert(1) …… 画像の大半が白い矩形になり、白地の上でインクが見えなかった
+     2. 輝度マスク … PCでは出たが iPhone で消えた。mask-mode:luminance が Safari
+                     未対応で、不透明なWebPがアルファマスク扱いになり矩形が真っ黒に
+     3. 巨大レイヤー… 150vmax を scale(3.4) で拡大していたため、iPhone（画素密度3）
+                     で内部1万数千ピクセルとなりテクスチャ上限を超えて描画ごと消滅
+   結局どれもコードで流体を描こうとしたのが原因である。実写の動画素材を
+   mix-blend-mode:multiply で重ねる方式に変えた。multiply は白を透過させ
+   黒だけを残すので、白地のオーバーレイにそのまま馴染む。
+   素材は ffmpeg で加工済み（assets/ink/ink_load_timed.mp4・240KB）。
+     ・白点を 214→255 へ持ち上げて地を純白にした（元素材の地はグレー）
+     ・setpts で時間を再マッピングし「静か→不意打ちの爆発」を焼き込んだ
+       （尺2.10秒・緩急0.25・素材0.00〜5.80秒。2026-08-12 ユーザー決定）
+     ・1.9秒に切り詰めた。元は9.8秒・2.25MB
+   ⚠️ 緩急は素材側にある。playbackRate や currentTime で操作しないこと。 */
+.loadInkVid{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;
+  /* 滴の落下点をクレジットの少し上へ逃がす。真上に落とすと、読ませたい
+     produced / by Ready or Lab が現れた直後に黒い塊で塗り潰され、墨消しの
+     ように見える。上へ逃がすと、文字が読めている状態からインクが下りてきて
+     呑み込む流れになる。scale は translate で空く端を埋めるためのもので、
+     画面の1.18倍までしか広げない（巨大レイヤーを作らないこと）。 */
+  transform:translateY(-9%) scale(1.18);
+  opacity:0;animation:loadVidShow 0s linear .75s both}
+@keyframes loadVidShow{ from{opacity:0} to{opacity:1} }
+
+/* 安全網：SVGフィルタやtransformの解釈差があっても、幕2の終わりには必ず
+   画面が真っ暗になるようにする（インクの見た目の成否と独立した保険）。
+   幕3のあいだ黒を維持し、幕4はオーバーレイ本体（loadOverlayOut）と
+   歩調を合わせてロゴごと消える。 */
+.loadBlackout{position:absolute;inset:0;z-index:3;background:#04070c;
+  opacity:0;animation:loadBlackoutSeq .60s linear 2.40s both}
+@keyframes loadBlackoutSeq{
+  0%{opacity:0}
+  35%{opacity:0}
+  80%{opacity:1}
+  100%{opacity:1}
+}
+
+/* ── 0→100 のカウント（今回追加。参照：showdot.jp の素材読み込みカウント） ──
+   目的は素材（動画・CSS・JS）の読み込み時間を演出として見せること。
+   JSに依存しない形にするため、@propertyで整数として登録したカスタム
+   プロパティ --n と、CSSの counter() だけで組む。
+   幕1の頭（0.00s）から幕2がインクで画面を覆い切る瞬間（2.85s）に100へ
+   到達するよう animation-duration を2.85sに合わせてある。インクの尺・
+   タイミング自体はここでは一切変更していない。
+   位置は右下の隅。produced/by Ready or Lab のクレジット（画面中央）と
+   喧嘩しないよう小さく控えめに置く。z-indexは.loadCreditと同じ1にして
+   あるため、幕2のインクが中央から広がって覆っていく過程で、クレジットと
+   同じタイミングでこの数字も呑み込まれる（100に達する頃に自然と隠れる）。
+   ⚠️ @property は @supports の外（トップレベル）に置く。@supports の中に
+   入れると登録に失敗した環境で var(--n) が解決できず宣言ごと無効になる
+   （実際に踏んだ不具合。上の .maskReveal の --mo と同じ注意点）。
+   ⚠️ カウンタが出ない環境（@property非対応など）でも破綻しないよう、
+   counter-reset に var(--n, 0) のフォールバックを渡してある。その場合は
+   「0%」で静止するだけで、要素が消えたり空白のまま浮いたりはしない。 */
+@property --n{ syntax:'<integer>'; inherits:false; initial-value:0 }
+.loadCount{position:absolute;z-index:1;right:var(--s3);bottom:var(--s3);
+  font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:#0b1420;
+  opacity:0;pointer-events:none;
+  counter-reset:n var(--n, 0);
+  animation-name:loadCountFade,loadCountUp;
+  animation-duration:.3s,2.85s;
+  animation-timing-function:var(--e),linear;
+  animation-fill-mode:both,both}
+.loadCount::before{content:counter(n) '%'}
+@keyframes loadCountFade{ to{opacity:.55} }
+@keyframes loadCountUp{ from{--n:0} to{--n:100} }
+
+/* ── 幕3は廃止した（2026-08-12）──
+   ローディングの最後にロゴを出すのをやめ、タイトルはファーストビューだけで
+   見せる。同じ字を2度続けて出す必要がないため。暗転したままオーバーレイごと
+   退場し、ファーストビューへ引き渡す。 */
+/* ══════ カスタムカーソル：照準レティクル（§10.8.3-7・§20.3で拡大／色変化を追加） ══════
+   地の部分では出さない。押せる要素にホバーしたときだけ現れて拡大する。
+   PC（hover:hoverとpointer:fineの両方）に限定する。
+   🚫 cursor:none にしない。ネイティブカーソルは残したまま重ねる。
+   ホバー＝拡大（.is-active）、押下＝色変化（.is-pressed）の2つの信号を分ける。
+   拡大と色変化は独立に効くため、ホバー中に押すと両方が同時に見える。 */
+@media (hover:hover) and (pointer:fine){
+  .cursorReticle{position:fixed;top:0;left:0;width:2.5rem;height:2.5rem;
+    margin-top:-1.25rem;margin-left:-1.25rem;border-radius:50%;
+    border:1px solid var(--t1);pointer-events:none;z-index:98;
+    opacity:0;translate:-100px -100px;scale:.55;
+    transition:opacity .2s var(--e),scale .3s var(--e),border-color .15s var(--e);
+    will-change:translate}
+  .cursorReticle::before, .cursorReticle::after{content:'';position:absolute;background:var(--t1);
+    transition:background-color .15s var(--e)}
+  .cursorReticle::before{left:50%;top:-6px;bottom:-6px;width:1px;transform:translateX(-50%)}
+  .cursorReticle::after{top:50%;left:-6px;right:-6px;height:1px;transform:translateY(-50%)}
+  /* ホバー：2.5rem→約4.5rem相当（scale 1.8）まで明確に広がる。 */
+  .cursorReticle.is-active{opacity:1;scale:1.8}
+  /* 押下：goldへ。§20.5のテキストのタップ反応と同じ規則。 */
+  .cursorReticle.is-pressed{border-color:var(--gold)}
+  .cursorReticle.is-pressed::before, .cursorReticle.is-pressed::after{background:var(--gold)}
+}
+
+/* ── グリッド：12カラム／ガター24px。全ページ共通の基盤（§10.5.1） ── */
+.wrap{max-width:1280px;margin:0 auto;padding-inline:var(--pad);position:relative}
+.g12{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--gut)}
+@media(max-width:899px){ .g12{display:block} }
+/* ⚠️ z-index を明示する。inkGL キャンバスが z-index:0 の固定要素なので、
+   節が z-index:auto のままだと描画順が保証されず、キャンバスが本文や
+   カードの上に被って全体が霞む。footer も同様に持ち上げる。 */
+.sec{position:relative;z-index:1}
+body > footer{position:relative;z-index:1}
+
+.srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ══════ スマホ改行の出し分け（今回3箇所で共通使用） ══════
+   新しいブレークポイントは増やさず、既存の @media(max-width:899px) を使う。
+   .mobileBr：PCでは無い扱い（改行しない）、スマホでだけ改行する <br> に使う。
+   .pcOnly：スマホでだけ非表示にする（区切り記号などPC版限定の表示に使う）。 */
+.mobileBr{display:none}
+.pcOnly{display:inline}
+@media(max-width:899px){
+  .mobileBr{display:block}
+  .pcOnly{display:none}
+}
+
+/* ══════ ロゴ：画面左上に固定（§20.4） ══════
+   2026-08-12 第6次：アイコンを下部バーから外し、ここへ独立させた。役割は
+   ナビではなくロゴの組みなので、§13.2で下部バーへナビを一本化した判断とは
+   矛盾しない（これは上部ヘッダの部分復活ではなくロゴだけの復活）。
+   ヒーローのキービジュアルに重なる前提のため、drop-shadowで可読性を確保する
+   （背景がどんな明るさでも輪郭が沈まないよう2段のシャドウを重ねる）。 */
+.siteLogo{position:fixed;top:var(--s3);left:var(--pad);z-index:85;
+  display:flex;align-items:center;gap:var(--s2);
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.6)) drop-shadow(0 0 10px rgba(0,0,0,.35))}
+.siteLogo .brandTile{flex:none;width:calc(var(--fs-h2) * 1.7);aspect-ratio:1;
+  display:block;overflow:hidden;border-radius:8px;background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--border)}
+.siteLogo .brandTile img{width:100%;height:100%;object-fit:cover;display:block}
+/* 項目9で他ページへのテキストリンクに下線を足したが、ロゴは「サイトを
+   離れるリンク」ではなく識別マークなので同列に扱わない（2026-08-13修正）。
+   下線は付けず、ホバー／タップの色だけボタンと同じ gold に揃える。 */
+.siteLogoText{font-size:var(--fs-s);letter-spacing:var(--tr-label);color:var(--t1);
+  transition:color .2s var(--e)}
+.siteLogo:hover .siteLogoText,.siteLogo:active .siteLogoText{color:var(--gold)}
+.siteLogo:focus-visible{outline:2px solid var(--gold);outline-offset:4px;border-radius:8px}
+@media(max-width:640px){ .siteLogoText{display:none} }
+
+/* ══════ 下部固定バー（§13.2・§20.4で角丸の浮いた板へ・今回さらにPLAY専用へ縮小） ══════
+   ページ移動用のリンク（HOME/VERSUS/CO-OP/FEATURES/CONTACT）はここから外し、
+   画面右上の .hamburgerBtn 経由の .navMenu へ移した（下のブロック参照）。
+   下部バーはPLAYだけを収める細い浮き板になった。
+   ファーストビューでは--barPの初期値0により完全に透明。スクロールに応じて
+   site.jsが0〜1へ書き込み、不透明度が上がる。グラスモフィズムはblurに
+   saturateを重ねて質感を強める（§2-⑤の例外＝固定ヘッダ相当のナビなので許容）。
+   JSが失敗した場合やprefers-reduced-motionでは常時フル表示に倒す
+   （縮退で情報が欠けないための保険。下の@mediaブロックを参照）。 */
+.bottomBar{position:fixed;right:var(--pad);bottom:var(--s3);z-index:80;
+  display:flex;padding:var(--s1);
+  border-radius:20px;overflow:hidden;
+  opacity:var(--barP,0);
+  transition:opacity .3s var(--e);
+  background:color-mix(in oklch, var(--ground) 62%, transparent);
+  box-shadow:inset 0 0 0 1px var(--border), 0 16px 40px rgba(0,0,0,.35);
+  -webkit-backdrop-filter:blur(20px) saturate(165%);backdrop-filter:blur(20px) saturate(165%)}
+.bottomBar:hover,.bottomBar:focus-within{opacity:1}
+
+/* ══════ ハンバーガーメニュー（今回新設） ══════
+   ロゴの対角＝画面右上に固定する。押すとページ一覧（.navMenu）が開閉する。
+   面はPLAYボタンを包む .bottomBar と全く同じグラスモフィズムの値
+   （ground 62%のcolor-mix・inset罫・blur(20px) saturate(165%)）を使い、
+   縮んだPLAY・ハンバーガー・開いた一覧の3面で質感を揃える（指示のとおり）。
+   3本線→×へのモーフィングは html.menu-visible で切り替える。開閉の実処理
+   （aria-expanded・Escape・フォーカストラップ・スクロールロック）はsite.jsが担う。 */
+.hamburgerBtn{position:fixed;top:var(--s3);right:var(--pad);z-index:90;
+  width:calc(var(--fs-h2) * 1.7);aspect-ratio:1;display:grid;place-items:center;
+  border:0;border-radius:8px;padding:0;cursor:pointer;
+  background:color-mix(in oklch, var(--ground) 62%, transparent);
+  box-shadow:inset 0 0 0 1px var(--border), 0 16px 40px rgba(0,0,0,.35);
+  -webkit-backdrop-filter:blur(20px) saturate(165%);backdrop-filter:blur(20px) saturate(165%);
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+.hamburgerBtn:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+.hamburgerBox{position:relative;width:1.1em;height:.78em;display:block;font-size:var(--fs-h3)}
+.hamburgerBox span{position:absolute;left:0;right:0;height:2px;margin:0;background:var(--t1);border-radius:1px;
+  transition:transform .3s var(--e),opacity .2s var(--e),background-color .2s var(--e)}
+.hamburgerBox span:nth-child(1){top:0}
+.hamburgerBox span:nth-child(2){top:50%;margin-top:-1px}
+.hamburgerBox span:nth-child(3){bottom:0}
+.hamburgerBtn:hover .hamburgerBox span,.hamburgerBtn:focus-visible .hamburgerBox span{background:var(--gold)}
+html.menu-visible .hamburgerBox span:nth-child(1){transform:translateY(.36em) rotate(45deg)}
+html.menu-visible .hamburgerBox span:nth-child(2){opacity:0}
+html.menu-visible .hamburgerBox span:nth-child(3){transform:translateY(-.36em) rotate(-45deg)}
+@media(max-width:480px){ .hamburgerBtn{width:calc(var(--fs-h3) * 2.1)} }
+
+/* 背後の暗転スクリム。押すと閉じる。 */
+.navScrim{position:fixed;inset:0;z-index:82;
+  background:color-mix(in oklch, var(--ground) 78%, transparent);
+  opacity:0;pointer-events:none;transition:opacity .4s var(--e)}
+html.menu-open .navScrim{opacity:1;pointer-events:auto}
+
+/* ページ一覧パネル。既定（JS未実行・閉時）は透明×クリック不能だが、
+   .navMenu自身をdisplay:noneにはしない。.bottomBarと同じ理由（§13.2の
+   フォールバック）で、キーボードでTabして中のリンクにフォーカスが入れば
+   :focus-within が働いて可視化される（JSが完全に落ちても情報を欠かさない）。
+   開く動き（§慣性）：.pageScale が縮み始めた少し後（site.jsのOPEN_DELAY）に
+   html.menu-visible が付き、パネルは弾みのある拡大で現れる。閉じるときは
+   逆順（パネルが先に縮み、その後に .pageScale が戻る）。 */
+.navMenu{position:fixed;inset:0;z-index:84;display:flex;align-items:center;justify-content:center;
+  padding:var(--pad);
+  opacity:0;visibility:hidden;pointer-events:none;transform:scale(.96);
+  transition:opacity .35s var(--e),transform .35s var(--e),visibility 0s linear .35s}
+.navMenu:focus-within{opacity:1;visibility:visible;pointer-events:auto;transform:scale(1);
+  transition:opacity .3s var(--e),transform .3s var(--e),visibility 0s linear 0s}
+html.menu-visible .navMenu{opacity:1;visibility:visible;pointer-events:auto;transform:scale(1);
+  transition:opacity .45s var(--e),transform .45s cubic-bezier(.34,1.56,.64,1),visibility 0s linear 0s}
+
+.navMenuPanel{width:min(92vw,26rem);max-height:calc(100svh - var(--pad) * 2);overflow-y:auto;
+  border-radius:20px;padding:var(--s5);
+  background:color-mix(in oklch, var(--ground) 62%, transparent);
+  box-shadow:inset 0 0 0 1px var(--border), 0 24px 60px rgba(0,0,0,.5);
+  -webkit-backdrop-filter:blur(20px) saturate(165%);backdrop-filter:blur(20px) saturate(165%)}
+
+.navMenuList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+/* ⚠️ 6項目が1画面に必ず収まる寸法にすること。--fs-h1 まで大きくすると
+   下2項目が切れてパネル内スクロールが出る（実際に出た）。
+   縦の余白と字送りを詰め、上限を --fs-h2 に抑える。 */
+.navMenuList a{display:block;padding:var(--s1) 0;
+  font-size:clamp(var(--fs-b),3.4vw,var(--fs-h2));letter-spacing:var(--tr-label);
+  color:var(--t2);border-bottom:1px solid var(--border);
+  transition:color .2s var(--e),padding-left .2s var(--e)}
+.navMenuList li:last-child a{border-bottom:0}
+.navMenuList a:hover{color:var(--gold);padding-left:var(--s2)}
+.navMenuList a:active{color:var(--gold)}
+.navMenuList a:focus-visible{color:var(--gold);outline:2px solid var(--gold);outline-offset:3px}
+.navMenuList a[aria-current="page"]{color:var(--gold)}
+
+/* ══════ ページ本体の「奥へ縮む」演出（今回新設） ══════
+   .pageScale はloadOverlay／siteLogo／hamburgerBtn／navScrim／navMenuの
+   外側（=固定要素は含まない）で、実際にスクロールする本文だけを包む。
+   固定要素を含めないため、この transform は position:fixed の要素の
+   containing block を書き換えない（安全条件）。.fvIntro（sticky）は
+   .pageScale の内側にあるが、sticky の基準は最も近い「スクロールコンテナ」
+   （overflow が visible でない祖先）であって transform では変わらないため、
+   ここに overflow:hidden を足さない限り §23.10 で見つかった sticky の
+   挙動には影響しない（意図して overflow:hidden を持たせていない）。 */
+.pageScale{transition:transform .5s var(--e);transform-origin:center top}
+html.menu-open .pageScale{transform:scale(.94)}
+html.menu-open{overflow:hidden}
+
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .pageScale{transition:none!important;transform:none!important}
+  html:not([data-motion="on"]) .navMenu,
+  html:not([data-motion="on"]) .navMenu:focus-within{transition:none!important}
+  html:not([data-motion="on"]) .navScrim{transition:none!important}
+  html:not([data-motion="on"]) .hamburgerBox span{transition:none!important}
+}
+
+/* ══════ PLAYボタン（項目9） ══════
+   四角で囲まれたボタンに、ユーザー指定の斜め塗りホバーを実装する。
+   指定コードはborder-trickで疑似要素の高さを60px固定にしていたため、
+   ボタンの高さが変わると破綻する（⚠️指示の警告どおり）。ここでは
+   clip-path:polygon() を使い、疑似要素自身のサイズを親と同じ inset:0 に
+   したうえで多角形の頂点だけを rest（幅0の帯）→hover（右端だけ1.2em
+   斜めに欠けた台形）へ transition する。頂点座標はすべて%か em なので、
+   ボタンの高さ・幅が変わっても破綻しない（相対値で組む）。
+   色はこのサイトのトークンへ読み替えた：#333 は使わず、塗りは gold
+   （第2アクセント。地に対して9.41のAAAコントラストがあり、文字色にも使える
+   §10.3.5）、地の文字は白（アイコンで既にaccent赤を敷いているため、赤の
+   上に赤を重ねても変化が見えない。ゆえに赤の上に金を重ねる）。ホバー中の
+   文字色は暗い --ground に替える（gold地に白文字はコントラストが取れない
+   ため）。
+   ⚠️ 既存の金色2段階ホバー（--gold。§20.5）との整理：四角ボタン自体には
+   元々2段階ホバーが無く（filter:brightness(1.08)のみ）、今回はそれを
+   斜め塗りに置き換えた。四角で「囲まれていない」テキストリンク側
+   （.navMenuList a・.crumb a・.siteLogoText・.cardMoreLink）は逆に、既存の
+   金色ホバーの仕組みをそのまま残し、下線を新設しただけである。理由は、
+   ボタンの塗り色を gold に決めた以上、テキストリンクのホバー色も同じ
+   gold に揃えるのが「その色はボタンと同じ色にする」という指示に最も
+   素直に合致し、かつ既存の gold システムを壊さずに済むため。2段階
+   （ホバー＝中間色／押下＝純gold）だった箇所は単一のgoldへ単純化した
+   （押下時だけ変わる意味が、下線という新しい常時シグナルの追加で薄れた
+   ため）。
+   PLAYボタンは元々 ::before/::after を「RGB分解グリッチ」に使っていたため
+   （PC限定の既存演出）、斜め塗り用の ::before と衝突する。グリッチ側を
+   内側の .barPlayText 要素へ移し、.barPlay 自身の ::before を新設した
+   斜め塗りに空ける。 ══════ */
+.barPlay{position:relative;isolation:isolate;overflow:hidden;flex:none;display:flex;align-items:center;
+  padding:var(--s2) var(--s4);background:var(--accent);color:#fff;
+  font-weight:700;font-size:var(--fs-s);
+  transition:color .2s var(--e)}
+.barPlay::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--gold);
+  clip-path:polygon(0 0,0 0,0 100%,0 100%);transition:clip-path .32s var(--e)}
+.barPlay:hover::before,.barPlay:focus-visible::before,.barPlay:active::before{
+  clip-path:polygon(0 0,100% 0,calc(100% - 1.2em) 100%,0 100%)}
+.barPlay:hover,.barPlay:focus-visible,.barPlay:active{color:var(--ground)}
+.barPlay:focus-visible{outline:2px solid var(--t1);outline-offset:-4px}
+
+.barPlayText{position:relative;display:inline-block}
+
+/* ══════ PLAYボタンのグリッチ（既存。00i ファーストビュー作り直しに合わせて
+   追加したもの）。カーソルを乗せた一瞬だけ、文字がRGB分解したようにブレる。
+   2026-08-13：斜め塗りホバー新設にともない、.barPlay 自身の ::before/::after
+   から内側の .barPlayText::before/::after へ移設した（マークアップ側は
+   <span class="barPlayText">PLAY</span> に更新済み）。CSSのみ・JS不要。
+   PC限定（hover:hover and pointer:fine）。 ══════ */
+@media (hover:hover) and (pointer:fine){
+  .barPlayText::before,.barPlayText::after{
+    content:'PLAY';position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:var(--fs-s);letter-spacing:inherit;
+    opacity:0;pointer-events:none;mix-blend-mode:screen}
+  /* 新色は増やさない。--accent（赤）と、site.css .why の --ink-color と
+     同じ都市青（#388bfd）をそのまま使う。 */
+  .barPlayText::before{color:var(--accent)}
+  .barPlayText::after{color:#388bfd}
+  .barPlay:hover .barPlayText::before{animation:fvPlayGlitchR .32s steps(2,jump-none) 1}
+  .barPlay:hover .barPlayText::after{animation:fvPlayGlitchB .32s steps(2,jump-none) 1}
+  @keyframes fvPlayGlitchR{
+    0%{opacity:0;transform:translate(0,0)}
+    12%{opacity:.85;transform:translate(-3px,1px)}
+    32%{opacity:0;transform:translate(2px,-1px)}
+    58%{opacity:.7;transform:translate(-2px,0)}
+    80%{opacity:0;transform:translate(1px,1px)}
+    100%{opacity:0;transform:translate(0,0)}
+  }
+  @keyframes fvPlayGlitchB{
+    0%{opacity:0;transform:translate(0,0)}
+    14%{opacity:.75;transform:translate(3px,-1px)}
+    34%{opacity:0;transform:translate(-2px,1px)}
+    60%{opacity:.6;transform:translate(2px,0)}
+    82%{opacity:0;transform:translate(-1px,-1px)}
+    100%{opacity:0;transform:translate(0,0)}
+  }
+}
+@media (prefers-reduced-motion: reduce){
+  /* *{animation:none!important} は疑似要素には及ばないため個別に無効化する。 */
+  html:not([data-motion="on"]) .barPlayText::before,
+  html:not([data-motion="on"]) .barPlayText::after{animation:none!important;opacity:0!important}
+}
+
+.foot{padding:var(--s5) 0 var(--s6);font-size:var(--fs-xs);color:var(--t3);
+  letter-spacing:.04em;border-top:1px solid var(--border)}
+
+/* ══════ サブページ共通の骨格（/modes/*。§13〜§15） ══════ */
+
+/* パンくず（§13.3）。サブページの左上に置く。HOME / MODES / VERSUS の形。
+   padding-topは--s5→--s6へ（2026-08-12・§20.4）。左上固定の.siteLogoと
+   同じ左端（--pad）から始まるため、--s5のままだとロゴの真下に重なる。
+   ロゴの実測高さ（--fs-h2 * 1.7 ≒ 3rem前後）と上オフセット（--s3）を
+   足した分より確実に大きい--s6を取り、常に逃げ切る余白にする。 */
+.crumb{padding-top:var(--s6);font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--t3)}
+/* 項目9：下線を常設し、ホバー／タップの色をボタンと同じgoldに揃える
+   （整理の判断は .barPlay の「斜め塗りホバー」コメント参照）。 */
+.crumb a{color:var(--t2);text-decoration:underline;text-underline-offset:.2em;
+  transition:color .2s var(--e)}
+.crumb a:hover,.crumb a:active{color:var(--gold)}
+.crumb a:focus-visible{color:var(--gold);outline:2px solid var(--gold);outline-offset:3px}
+.crumb span{color:var(--t3);margin:0 var(--s1)}
+.crumb b{color:var(--t1);font-weight:600}
+
+/* 1. モード名＋人数・所要時間 */
+.modeHead{padding-top:var(--s6)}
+.modeName{font-size:clamp(var(--fs-d1),9vw,var(--fs-d3))}
+.modeMeta{margin-top:var(--s3);font-size:var(--fs-s);letter-spacing:var(--tr-label);color:var(--gold)}
+
+/* 2. 実機画面を大きく */
+.modeShot{padding-top:var(--s7)}
+.modeShotWrap{max-width:clamp(240px,30vw,340px);margin:0 auto;border-radius:16px;
+  aspect-ratio:1080/2340;background:var(--surface);box-shadow:inset 0 0 0 1px var(--border)}
+.modeShotWrap img{width:100%;display:block}
+
+/* 3. 1ターンの流れ（フェーズ図） */
+.flowSec{padding-top:var(--s7)}
+.flowRow{margin-top:var(--s5);display:flex;flex-wrap:wrap;align-items:stretch;gap:var(--s3)}
+.flowStep{flex:1 1 clamp(160px,22%,220px);display:flex;flex-direction:column;gap:var(--s1);
+  padding:var(--s3);background:var(--surface);box-shadow:inset 0 0 0 1px var(--border);border-radius:4px}
+.flowStep b{font-size:var(--fs-h3);color:var(--t1);line-height:var(--lh-h)}
+.flowStep span{font-size:var(--fs-s);color:var(--t2);line-height:var(--lh-b)}
+.flowStep i{font-style:normal;font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--gold)}
+.flowArrow{align-self:center;flex:none;font-size:var(--fs-h3);color:var(--t3)}
+@media(max-width:640px){ .flowArrow{display:none} }
+
+/* 4. 何を決めるゲームか／本文パネル共通 */
+.modeSec{padding-top:var(--s7)}
+.modeSecTitle{font-size:clamp(var(--fs-h1),5vw,var(--fs-d1))}
+.modeBody{margin-top:var(--s4);max-width:36em;color:var(--t2);line-height:var(--lh-b)}
+.modeBody p + p{margin-top:var(--s3)}
+
+/* 5. リスク方程式（ハザード×曝露×脆弱性） */
+.eq{margin-top:var(--s5);display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--s2);
+  font-size:clamp(var(--fs-h3),3vw,var(--fs-h1))}
+.eq b{color:var(--t1)}
+.eq i{font-style:normal;color:var(--t3);font-size:.7em;padding:0 var(--s1)}
+
+.pairGrid{margin-top:var(--s5);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3)}
+@media(max-width:899px){ .pairGrid{grid-template-columns:1fr;gap:var(--s3)} }
+.pairCard{padding:var(--s4) var(--s3);background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--border);border-radius:4px}
+.pairCard b{display:block;font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--gold)}
+.pairCard h3{margin-top:var(--s2);font-size:var(--fs-h2);color:var(--t1);line-height:var(--lh-h)}
+.pairCard p{margin-top:var(--s2);font-size:var(--fs-s);color:var(--t2);line-height:var(--lh-b)}
+
+.insight{margin-top:var(--s6);max-width:40em}
+.insight h3{font-size:var(--fs-h2);color:var(--t1);line-height:var(--lh-h)}
+.insight p{margin-top:var(--s3);font-size:var(--fs-b);color:var(--t2);line-height:var(--lh-b)}
+.insight p + p{margin-top:var(--s3)}
+
+/* 6. 設定でできること → PLAY */
+.settingsList{margin-top:var(--s4);display:grid;gap:var(--s2)}
+.settingsItem{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);padding:var(--s3) 0;
+  border-top:1px solid var(--border);font-size:var(--fs-s);line-height:var(--lh-b)}
+.settingsItem dt{flex:0 0 auto;min-width:9em;color:var(--gold);font-weight:700;letter-spacing:var(--tr-jp)}
+.settingsItem dd{flex:1 1 20em;margin:0;color:var(--t2)}
+
+/* 斜め塗りホバー（項目9。.barPlay と同じ仕組み。詳しい設計判断はそちらの
+   コメント参照）。 */
+.btnFill{position:relative;isolation:isolate;display:inline-flex;align-items:center;margin-top:var(--s5);
+  padding:var(--s3) var(--s6);background:var(--accent);color:#fff;font-weight:700;
+  font-size:var(--fs-h3);letter-spacing:var(--tr-label);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  transition:color .2s var(--e),transform .2s var(--e)}
+.btnFill::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--gold);
+  clip-path:polygon(0 0,0 0,0 100%,0 100%);transition:clip-path .32s var(--e)}
+.btnFill:hover::before,.btnFill:focus-visible::before,.btnFill:active::before{
+  clip-path:polygon(0 0,100% 0,calc(100% - 1.2em) 100%,0 100%)}
+.btnFill:hover,.btnFill:focus-visible,.btnFill:active{color:var(--ground)}
+@media(hover:hover){ .btnFill:hover{transform:translateY(-2px)} }
+.btnFill:focus-visible{outline:2px solid var(--t1);outline-offset:3px}
+
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) *{animation:none !important;transition:none !important}
+  html:not([data-motion="on"]) .reveal{opacity:1 !important;transform:none !important}
+  html:not([data-motion="on"]) .headRule{transform:scaleX(1) !important}
+  html:not([data-motion="on"]) .maskReveal > img{ transform:none !important }
+  html:not([data-motion="on"]) .loadOverlay{display:none !important}
+  html:not([data-motion="on"]).intro-lock{overflow:visible !important}
+  html:not([data-motion="on"]) .bottomBar{opacity:1 !important}}
+
+/* ══════ 画面遷移：View Transitions（§20.2） ══════
+   6ページ（LP・modes/versus・modes/co-op・features・cards・contact）が
+   共通で読み込む本ファイルに1回書くだけで全ページに効く。JSは使わない。
+   非対応ブラウザでは @view-transition が丸ごと無視され、通常のページ遷移に
+   そのまま落ちる（未知の @規則はパース時に無害に読み飛ばされる仕様のため、
+   コンソールエラーにもならない）。
+   既定のクロスフェードは新旧スナップショットの背景が食い違う一瞬に白が
+   挟まりやすいため、::view-transition-image-pair(root) の背景を地の色
+   （--ground）で明示的に固定し、スライドやスケールを使わない単純な
+   不透明度クロスフェードだけに絞る（地の色を保ったまま重なる。§20.2）。 */
+@view-transition{ navigation:auto }
+
+::view-transition-group(root){ animation-duration:.42s; animation-timing-function:var(--e) }
+::view-transition-image-pair(root){ background-color:var(--ground) }
+::view-transition-old(root),
+::view-transition-new(root){
+  animation-duration:.42s;animation-timing-function:linear;
+  mix-blend-mode:normal;height:100%}
+::view-transition-old(root){ animation-name:ronFadeOut }
+::view-transition-new(root){ animation-name:ronFadeIn }
+@keyframes ronFadeOut{ from{opacity:1} to{opacity:0} }
+@keyframes ronFadeIn{ from{opacity:0} to{opacity:1} }
+
+@media (prefers-reduced-motion: reduce){
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root){ animation:none !important }
+}
+
+/* 検証用：ローディング演出の一時停止（?introfreeze=1）。本番の挙動には影響しない。 */
+html[data-introfreeze] .loadOverlay,
+html[data-introfreeze] .loadOverlay *{ animation-play-state:paused !important }
+html[data-introfreeze] .loadOverlay{ display:flex !important }
+html[data-introfreeze] .loadInk{ display:block !important }
