@@ -15103,6 +15103,42 @@
       DD.phase = 'prep';
       render();
     }
+    // 「シミュレーション」の仮結果画面（2026-08-15）。
+    // ⚠️ 本番の結果画面（dailyRenderResult）とは別物である。DD.simPreview だけを読み、
+    //    DD.hp / DD.results / 記録（ストリーク・理論値達成）には一切触れない。
+    //    ここから「戻る」（dailySimBack）で割当を保ったまま備えフェーズへ戻れる。
+    // 🚫 この関数を消さないこと。render の振り分け（DD.phase === 'simresult'）が
+    //    直接呼んでおり、無いと押した瞬間に例外が出て画面が固まる（実際に起きた）。
+    function dailyRenderSimResult() {
+      const sp = DD.simPreview;
+      if (!sp) { DD.phase = 'prep'; return dailyRenderPrep(); }
+      const rows = (sp.results || []).map((r, i) => {
+        const cards = (r.cards || []).map(c => `<span style="display:inline-flex;align-items:center;font-size:.72rem;padding:2px 7px;border-radius:8px;background:var(--bg3,#21262d);color:var(--t0);margin-right:4px">${_escHtml(c.name)}</span>`).join('');
+        return `<div style="background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;padding:10px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-weight:800;color:var(--t0);font-size:.86rem">${i + 1}. ${_escHtml(r.card ? r.card.name : '')}</div>
+            <div style="font-weight:900;color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'};font-size:1.05rem">${r.dmg}<span style="font-size:.66rem;color:var(--t2);margin-left:3px">被害</span></div>
+          </div>
+          <div style="font-size:.7rem;color:var(--t2)">HP ${r.hpBefore} → ${r.hpAfter}</div>
+          ${cards ? `<div style="margin-top:6px">${cards}</div>` : '<div style="margin-top:6px;font-size:.7rem;color:var(--t3)">対応なし</div>'}
+        </div>`;
+      }).join('');
+      const optimalLine = (typeof DD.optimal === 'number')
+        ? `<div style="font-size:.78rem;color:var(--t0);margin-top:6px">理論値：最小被害 <strong style="color:#e3c34d">${DD.optimal}</strong> ／ この案：被害 <strong>${sp.totalDamage}</strong></div>` : '';
+      return `<div class="dd-wrap" style="padding:16px 16px 96px">
+        <div style="text-align:center;background:rgba(63,185,80,.12);border:1px solid #3fb950;border-radius:10px;padding:9px;margin-bottom:12px;font-size:.76rem;color:#9ff0a8;line-height:1.5">
+          仮決定の結果です。記録には反映されません
+        </div>
+        <div style="text-align:center;margin-bottom:12px">
+          <div style="font-size:.72rem;color:var(--t2)">この案での最終HP</div>
+          <div style="font-size:2rem;font-weight:900;color:${sp.evalColor || 'var(--t0)'}">${sp.hp}</div>
+          <div style="font-size:.76rem;color:${sp.evalColor || 'var(--t2)'};font-weight:700">${_escHtml(sp.evalLabel || '')}</div>
+          ${optimalLine}
+        </div>
+        ${rows}
+        <button class="btn-ho" style="width:100%;margin-top:10px;padding:12px" onclick="dailySimBack()">戻って組み替える</button>
+      </div>`;
+    }
     // 「決定」ボタンは確認ポップを挟む（実機フィードバック⑪。2026-08-15修正：旧「シミュレーション実行」を
     // 「決定」に改名し、公式記録に反映する側の操作として確認ポップはこちらにのみ残す）。
     function dailyRequestRunSimulation() {
