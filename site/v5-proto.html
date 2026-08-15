@@ -550,9 +550,21 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
 .heroFigure{position:absolute;right:6vw;bottom:0;z-index:1;pointer-events:none;
   height:min(66svh,640px);width:auto;
   filter:drop-shadow(0 0 var(--s5) rgba(0,0,0,.55))}
-@media(max-width:899px){ .heroFigure{right:-6vw;height:44svh;opacity:.55} }
+/* 不透明度が低すぎて後ろ姿が沈んでいた（実機で確認）。上げて見えるようにする。 */
+@media(max-width:899px){ .heroFigure{right:-4vw;height:48svh;opacity:.9} }
 
+
+/* ⚠️ スマホは画面が縦長なので、cover だと横方向が大きく切られる。
+   background-position:center のままだと左側しか見えない（実機で確認）。
+   絵の主題が右側にあるため、スマホでは右へ寄せて見せる。 */
+@media(max-width:899px){
+  .heroKV{background-position:78% center}
+  .closeKV{background-position:76% center}
+}
 .heroL{position:relative;z-index:2;grid-column:1 / 8;min-width:0;align-self:center}
+/* 左上のロゴは position:fixed のため、スマホではヒーローのロゴタイプと
+   重なる。上に余白を取って逃がす。 */
+@media(max-width:899px){ .heroL{padding-top:var(--s7)} }
 
 .logo{position:relative;line-height:.92;
   font-size:clamp(var(--fs-d1),8.4vw,var(--fs-d3));margin-left:-.04em}
@@ -847,8 +859,12 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
    ⚠️ 高さを aspect-ratio で固定しないこと。旧実装は 32/9 に固定していたため
    縦書きの VERSUS が上下で切れていた。中身の量で伸びるようにする。
    色はファーストビューと同じ赤 #E60B00／青 #002A6C。 */
-.wayFull{position:relative;z-index:1;margin-top:var(--s5);display:flex}
-.wayFullHalf{flex:1 1 50%;position:relative;overflow:hidden;display:block;
+/* ⚠️ flex で並べると、中身の量が違う2つの面の高さが揃わず、境界が
+   ちょうど50%の位置に来ない。×を top:50% に置いても境界からずれる
+   （実機でずれていた）。grid で1fr:1frにすれば必ず等分になる。 */
+.wayFull{position:relative;z-index:1;margin-top:var(--s5);
+  display:grid;grid-template-columns:1fr 1fr}
+.wayFullHalf{position:relative;overflow:hidden;display:block;
   padding:var(--s7) var(--s5);min-width:0;
   text-decoration:none;color:var(--t1);
   transition:filter .25s var(--e)}
@@ -860,32 +876,32 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
 /* 背景の縦書き英字。節見出し（.jpAccent＝明朝）に対応する欧文の強調層
    ＝ .enAccent（Playfair Display）を使う（§10.4 の対応関係どおり）。
    主役ではないので枠線は細いまま、不透明度も落とす。 */
-.wayArtWord{position:absolute;top:50%;right:var(--s4);translate:0 -50%;
-  writing-mode:vertical-rl;text-orientation:upright;
-  line-height:.86;letter-spacing:.06em;pointer-events:none;
-  font-size:clamp(var(--fs-d1),11vw,calc(var(--fs-d3) * 1.6));
+/* ⚠️ 1語のまま writing-mode で縦に流すと、面の高さより文字列が長くなった
+   ときに端が切れる（実機で VERSUS の V・E・S が欠けていた）。
+   1文字ずつの子要素にして縦のflexで space-between すれば、面の高さが
+   いくつでも必ず全文字が収まり、端から端へ均等に散る。 */
+.wayArtWord{position:absolute;top:var(--s4);bottom:var(--s4);right:var(--s4);
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  line-height:1;pointer-events:none;
+  font-size:clamp(var(--fs-h1),9vw,calc(var(--fs-d3) * 1.3));
   color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.5);opacity:.9}
+.wayArtWord > span{display:block}
 @supports not (-webkit-text-stroke: 1px #fff){
   .wayArtWord{color:rgba(255,255,255,.14)}
 }
 /* スクロールに連れて、縦書きの英字だけが上下にゆっくり流れる（視差）。
    ⚠️ animation ショートハンドで他の指定を潰さないよう、個別プロパティで書く。 */
-@supports (animation-timeline: view()){
-  .wayArtWord{animation-name:wayWordDrift;animation-timing-function:linear;
-    animation-fill-mode:both;animation-timeline:view();
-    animation-range:cover 0% cover 100%}
-}
-@keyframes wayWordDrift{
-  from{translate:0 calc(-50% - var(--s5))}
-  to  {translate:0 calc(-50% + var(--s5))}
-}
 
 .wayInner{position:relative;z-index:1;display:block;max-width:26em}
-.wayMode{display:block;font-size:clamp(var(--fs-h2),3.2vw,var(--fs-h1));
-  transition:color .2s var(--e)}
+/* ジャンプ率を上げる。モード名を大きく、副題を一段落として差を付ける。
+   見出しの下には他節と同じ考え方で罫を引く（ここは面の上なので白）。 */
+.wayMode{display:block;font-size:clamp(var(--fs-h1),6.4vw,var(--fs-d1));
+  line-height:1.15;transition:color .2s var(--e)}
+.wayMode::after{content:'';display:block;width:clamp(3rem,26%,10rem);height:1px;
+  background:#fff;opacity:.9;margin-top:var(--s2)}
 @media(hover:hover){ .wayFullHalf:hover .wayMode{color:var(--gold)} }
 .wayFullHalf:active .wayMode{color:var(--gold)}
-.waySub{display:block;margin-top:var(--s1);font-size:var(--fs-h3);
+.waySub{display:block;margin-top:var(--s2);font-size:var(--fs-b);
   color:rgba(255,255,255,.86)}
 
 /* 人数（SVGアイコン。ゲーム本体と同じ発想で絵文字は使わない）。
@@ -911,7 +927,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
   stroke-linecap:round;opacity:.9}
 
 @media(max-width:899px){
-  .wayFull{flex-direction:column}
+  .wayFull{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
   .wayFullHalf{padding:var(--s6) var(--pad)}
   /* 縦積みになると境界は水平線になる。×はその上に置く。 */
   .wayCross{width:clamp(3.4rem,14vw,5rem);height:clamp(3.4rem,14vw,5rem)}
@@ -1269,7 +1285,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
        理由はCSS側コメント参照）。面そのものが modes/* への入口リンクになる。 -->
   <div class="wayFull reveal" data-d="2">
     <a class="wayFullHalf wayFullHalf--vs" href="modes/versus.html">
-      <span class="wayArtWord enAccent" aria-hidden="true">VERSUS</span>
+      <span class="wayArtWord enAccent" aria-hidden="true"><span>V</span><span>E</span><span>R</span><span>S</span><span>U</span><span>S</span></span>
       <span class="wayInner">
         <span class="wayMode en">対戦モード</span>
         <span class="waySub jpAccent">シンプル・王道カードバトル</span>
@@ -1284,7 +1300,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
     </a>
 
     <a class="wayFullHalf wayFullHalf--coop" href="modes/co-op.html">
-      <span class="wayArtWord enAccent" aria-hidden="true">COOP</span>
+      <span class="wayArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>O</span><span>P</span></span>
       <span class="wayInner">
         <span class="wayMode en">協力モード</span>
         <span class="waySub jpAccent">激動のサバイバル</span>
