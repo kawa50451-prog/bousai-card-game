@@ -45,12 +45,19 @@ window.RonSite = (function(){
     }
 
     var ACT2_END_MS = 3850;   /* 幕1(0.75s)+幕2(動画2.10s) */
-    var TOTAL_MS = 4500;      /* 幕1+幕2+退場(3.4秒)＋ファーストビューの窓開き(〜4.35秒)。
+    var TOTAL_MS = 8400;      /* ローディング4幕（.loadOverlayが3.95〜4.40秒で消える）に、
+                                 00i ファーストビュー（v5-proto.html の .fvIntro。
+                                 4.40秒起点で幕1[0.4s]+幕2[1.6s]+幕3[2.0s]＝4.0秒）を
+                                 直列でつないだ合計（4.40+4.00=8.40秒）。
                                  ⚠️ intro-lock はこの値+200ms で剥がされる。剥がれた瞬間に
-                                 html.intro-lock 配下のアニメーションが打ち切られるため、
-                                 .fvReveal の窓開きが終わるまで剥がしてはいけない。
-                                 スクロール固定自体は CSS の introUnlockPrimary が3.4秒で
-                                 解除するので、ここを伸ばしても操作は待たせない。 */
+                                 html.intro-lock 配下のアニメーションが打ち切られて既定値
+                                 （＝各要素の最終状態）へ飛ぶため、.fvIntro の演出が終わる
+                                 8.40秒より前に剥がしてはいけない。
+                                 ⚠️ .fvIntro 側の --fvFlipCount/--fvFlipMs（幕2の長さ）を
+                                 変更した場合、この値も合わせて手動で計算し直すこと
+                                 （自動連動ではない）。
+                                 スクロール固定自体は CSS の introUnlockPrimary が4.4秒で
+                                 解除するので、ここを伸ばしても操作の開始は待たせない。 */
     var INK_START_MS = 1750;   /* 幕1が明けた瞬間。CSSの .loadInkVid の遅延と同じ値 */
     var done = false;
 

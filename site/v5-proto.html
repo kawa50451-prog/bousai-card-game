@@ -387,125 +387,293 @@ html.ink-gl .inkLayer{display:none}
 }
 
 
-/* ══════ 00i ファーストビュー（2026-08-13 第2次作り直し）══════
-   スクロールに頼らず、読み込み直後に自動で最後まで進む。
+/* ══════ 00i ファーストビュー（2026-08-15 全面作り直し）══════
+   旧「Ready ? → Ready or Not」の赤青分割は破棄した。新しい指示は3幕・4秒：
 
-   流れ
-     1. 黒から「or」の形の窓が開き、奥のファーストビューが現れる（.fvReveal）
-     2. 画面全面が赤（自然災害の色）。中央に「Ready ?」
-     3. Ready がわずかに上へ動き、「?」が消え、「or Not」がフェードインする。
-        同時に赤が右上がりの直線で切られ、右側の平行四辺形だけを残して
-        あとは青（都市の色）に変わる
+     幕1 [0.0–0.4s] 純黒の画面に、地震カード（assets/cards/earthquake.webp）が
+                    右から3D回転＋カメラシェイクで中央へ突き刺さる
+     幕2 [0.4–2.0s] 衝撃で白黒の激しいストロボ。同時に大文字「READY OR NOT」を
+                    4行スタックで表示し、各行が塗り⇄輪郭をストロボと同期して
+                    ランダムに切り替える
+     幕3 [2.0–4.0s] 点滅が瞬時に止み、3行が消えて1行だけが画面中央に残る。
+                    直後、行の下にアクセント赤のマーカーが慣性を伴って
+                    左から右へ伸び、静止したまま残り時間を持つ
 
-   色は既存の意味色をそのまま使う。赤＝#f85149（災害。site.css の .marq と
-   同じ値）／青＝#388bfd（都市。design_system.md §1.4 のプライマリ）。
-   新しい色は作らない。
+   スクロールに頼らず、読み込み直後に自動で最後まで進む時間駆動アニメーション。
+   ⚠️ 巨大レイヤーを作らない。カードは実寸（288×450）に近いclampサイズのまま
+      transformで動かすだけで、画面ごと拡大するような指定はしていない。
+   ⚠️ JSが1行も動かなくても、既定値（各要素の「素の」CSS宣言）が幕3終了後の
+      最終状態と一致するように作ってある（下の「既定値の設計」参照）。
+   ⚠️ 実機レビューで発覚した不具合の修正（2026-08-15第2次）：白フラッシュの
+      瞬間、文字が白いまま（塗りでも輪郭でも）で白地に埋もれて読めなくなって
+      いた。地の明滅（.fvStrobe）と全く同じ delay/duration/iteration-count/
+      direction で文字の色（白⇄黒）を反転させることで解決した（詳細は
+      .fvRow の定義コメント参照）。 */
 
-   ⚠️ スクロール駆動（animation-timeline）は使わない。時間駆動で自走させる。
-   ⚠️ 巨大レイヤーを作らない。面は常にビューポート等倍のまま clip-path で切る。
-   ⚠️ JSが1行も動かなくても、既定値が最終状態なので情報が欠けない。 ══════ */
 /* ⚠️ sticky は包含ブロックの中でしか貼り付かない。.fvIntro を直接 body の子に
    すると、包含ブロックが body になりページ末尾まで貼り付き続け、01以降の節の
-   余白から赤青の面が透けて見える（実際に踏んだ）。
+   余白から演出が透けて見える（実際に踏んだ）。
    高さ1画面ぶんの .fvHold で包み、貼り付く範囲をその中に閉じ込める。
    JSの監視に頼らないので、rAFが止まる環境でも必ず正しく振る舞う。
    🚫 この入れ子を外さないこと。 */
 .fvHold{height:100svh}
-.fvIntro{position:sticky;top:0;height:100svh;overflow:hidden;
-  background:var(--ground)}
+.fvIntro{position:sticky;top:0;height:100svh;overflow:hidden;background:#000}
 
-/* ── 赤青の面 ── */
-.fvBlue{position:absolute;inset:0;background:#002A6C}
-.fvRed{position:absolute;inset:0;background:#E60B00;
-  /* 既定＝最終形。右上がりの直線で切った、右側の平行四辺形だけが赤。
-     境界は左下(28%,100%)から右上(58%,0%)へ上がる。 */
-  clip-path:polygon(58% 0%,100% 0%,100% 100%,28% 100%)}
-@keyframes fvSplit{
-  /* はじめは全面が赤。溜めてから一気に切る。 */
-  0%,42% {clip-path:polygon(0% 0%,100% 0%,100% 100%,0% 100%)}
-  100%   {clip-path:polygon(58% 0%,100% 0%,100% 100%,28% 100%)}
+/* ══════ 点滅の強さはここの3変数だけで調整できる ══════
+   --fvFlipCount … 点滅の「回数」（1回＝黒→白の1サイクル。1反復の前半49.9%が
+                   黒、後半50%〜が白というキーフレーム構造を animation-
+                   iteration-count 回だけ繰り返す設計。§29実装記録参照）
+   --fvFlipMs    … 1サイクルあたりの時間＝「間隔」（小さいほど速く激しい。
+                   前半・後半はこの半分ずつの長さになる）
+   --fvStrobeBright … 白フラッシュの「明るさ」（0〜1）
+   既定は 16回 × .1s＝1.6s で、幕2の長さ（0.4〜2.0s＝1.6s）にちょうど収まる。
+   ⚠️ この2つを変えて幕2の長さ（--fvAct2Dur）を変えた場合、幕3の開始が
+      連動してずれる（マーカー等の delay は var(--fvAct2Dur) から自動計算して
+      いるため見た目は破綻しないが）、site.js の TOTAL_MS はこのファイルの
+      合計尺に合わせて手動で計算し直すこと（自動連動ではない）。
+   ⚠️ steps()+animation-direction:alternate は使わない。1区間の steps()は
+      順再生・逆再生を問わず常に終端値を返すため、alternateと組み合わせると
+      「最初の1回しか切り替わらない」事故になる（実機検証で発見。詳細は
+      直下の .fvStrobe 定義コメント）。 */
+.fvStage{
+  --fvFlipCount:16; --fvFlipMs:.1s; --fvStrobeBright:1;
+  --fvAct2Dur:calc(var(--fvFlipCount) * var(--fvFlipMs));
+  position:absolute;inset:0;perspective:900px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transform:translate(0,0)}
+
+/* ── 幕1：地震カードの突入 ──
+   既定（＝最終形）は opacity:0（画面に無い）。0%キーフレームで画面右外・
+   3D回転・縮小の状態へ戻し（animation-fill-mode:both の逆方向フィルにより
+   delay中もこの0%の見えになる）、そこから中央へ突き刺す。 */
+.fvCard{position:absolute;inset:0;margin:auto;z-index:2;
+  width:clamp(120px,24vw,260px);height:auto;aspect-ratio:288/450;
+  border-radius:6px;object-fit:cover;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 18px 48px rgba(0,0,0,.55);
+  opacity:0}
+@keyframes fvCardIn{
+  0%  {opacity:1;transform:translateX(150vw) rotateY(112deg) rotateZ(-16deg) scale(.68)}
+  62% {opacity:1;transform:translateX(0) rotateY(-6deg) rotateZ(1deg) scale(1.05)}
+  100%{opacity:0;transform:translateX(0) rotateY(0deg) rotateZ(0deg) scale(1)}
+}
+/* カメラシェイク：突入の衝撃で画面全体（.fvStage）が揺れる。 */
+@keyframes fvShake{
+  0%  {transform:translate(0,0) rotate(0deg)}
+  20% {transform:translate(-7px,4px) rotate(-.5deg)}
+  40% {transform:translate(6px,-5px) rotate(.6deg)}
+  60% {transform:translate(-4px,4px) rotate(-.3deg)}
+  80% {transform:translate(2px,-2px) rotate(.15deg)}
+  100%{transform:translate(0,0) rotate(0deg)}
 }
 
-/* 境界付近のノイズ（既存グレインと同じ作り。新しい仕組みを増やさない） */
-.fvGrain{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.08;
+/* ── 幕2：白黒ストロボ（背景の面） ──
+   既定は opacity:0（黒地のまま）。steps()＋animation-iteration-countを
+   --fvFlipCount/--fvFlipMs だけで駆動するため、この2変数を変えるだけで
+   回数と間隔の両方が変わる。 */
+.fvStrobe{position:absolute;inset:0;z-index:1;background:#fff;opacity:0}
+/* ⚠️ 実装中に踏んだ事故（2026-08-15第2次）：steps(1,jump-start)は「1区間の
+   関数」であり、区間内のどの入力値（0でも1でも、順再生でも逆再生でも）に
+   対しても出力は常に「終端の値」に固定される。そのため
+   animation-direction:alternate と組み合わせても、偶数番目（逆再生）の
+   反復も steps(1) を通すと同じ終端値になり、実質「最初の1回だけ切り替わって
+   あとは変化しない」（＝点滅していないのと同じ）という不具合を実機検証で
+   発見した（コーディネーターの実画面レビューで「白フラッシュの間ずっと
+   文字が読めない」と指摘され、原因調査の過程で判明）。
+   対策：steps()には頼らず、1回の反復（--fvFlipMsぶん）の中に「前半＝黒
+   （49.9%まで）→後半＝白（50%から）」という2値をキーフレーム自体に
+   直接埋め込み、animation-direction は normal（alternateをやめる）にした。
+   反復のたびに同じ0%→100%を律儀に繰り返すだけで、黒→白→黒→白…の
+   点滅がキーフレームの構造そのものから機械的に生まれる。49.9%→50%という
+   ごく短い遷移幅はほぼ瞬時の切り替わりに見える（linearで十分。stepsは
+   もう使わない）。 */
+@keyframes fvStrobeFlip{
+  0%,49.9%{opacity:0}
+  50%,100%{opacity:var(--fvStrobeBright)}
+}
+/* 幕2が終わる瞬間に強制的に opacity:0（黒）へ固定する専用アニメーション。
+   fvStrobeFlipの直後（コンポジット順で後＝優先）に重ねる。
+   animation-fill-mode は forwardsのみ（bothにしない）。delay前は
+   「効果なし」にして幕2の間 fvStrobeFlipの点滅をそのまま透過させ、
+   delay後だけ黒で上書きする。 */
+@keyframes fvStrobeSettle{ to{opacity:0} }
+
+/* 既存グレインと同じ作り（新しい仕組みを増やさない）。常時ごく薄く重ねる。 */
+.fvGrain{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:.06;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='fvn'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23fvn)'/%3E%3C/svg%3E")}
 
-/* ── 文字 ──
-   実体の見出しは次の00ヒーローのh1が持つため、ここは装飾（aria-hidden）。
-   ⚠️ ここだけ Outfit 900 を使う。ファーストビューの2語を最大限太く見せる
-   ための例外であり、他の節へ持ち出さないこと（§10.4 の書体規律の例外として
-   ユーザー判断で追加）。 */
-.fvType{position:absolute;z-index:2;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  color:var(--t1);text-align:center;pointer-events:none;
+/* ── 「READY OR NOT」4行スタック ──
+   .fvRows は幕1では空（4行とも既定 opacity:0）。幕2の頭で4行そろって現れ、
+   塗り⇄輪郭をストロボと同じ変数で切り替える。幕3で3行（.fvRow--fade）が
+   消え、1行（.fvRow--keep）だけが残る。
+   ⚠️ 3行が消えるとき、opacityだけでなく line-height も0へ畳む。.fvRows が
+   display:flex かつ justify-content:center のため、消えた行の分だけ
+   自動的に再センタリングされ、残る1行が「完全に中央」になる（transformで
+   個別に動かす必要がない）。 */
+.fvRows{position:relative;z-index:3;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:var(--s1)}
+.fvRow{position:relative;display:inline-block;margin:0;white-space:nowrap;
   font-family:'Outfit','Archivo',sans-serif;font-weight:900;letter-spacing:-.02em;
-  filter:drop-shadow(0 2px 18px rgba(0,0,0,.45))}
-.fvL1,.fvL2{margin:0;line-height:.96;white-space:nowrap}
-.fvL1{font-size:clamp(var(--fs-d3),15vw,calc(var(--fs-d3) * 3.4))}
-.fvQ{display:inline-block;margin-left:.06em;opacity:0}
-
-/* Ready ? の下の区切り線。ここから or Not が滑り出てくる。 */
-/* ⚠️ 幅を em で書かない。.fvRule 自身の font-size は .fvType 由来の素の値で、
-   隣の巨大な見出しとは無関係のため、極端に短い線になって字の下端とぶつかる。
-   画面幅を基準にして、見出しの字幅とつり合う長さにする。 */
-.fvRule{display:block;height:3px;width:min(58vw,40rem);background:currentColor;
-  margin:.7rem 0 .9rem;transform:scaleX(0);transform-origin:center;opacity:.9}
-
-/* ⚠️ or Not は必ず overflow:hidden の箱に入れる。線の裏から出てくる見えを
-   作るのがこの箱の役割で、外すと単に下からフェードするだけになる。 */
-.fvL2Wrap{overflow:hidden;display:block}
-.fvL2{font-size:clamp(var(--fs-d2),11vw,calc(var(--fs-d3) * 2.4));
-  transform:translateY(-102%)}
-/* スマホは or と Not を2行に割る（改行位置の指定）。 */
-.fvL2 .fvBr{display:none}
-@media(max-width:899px){
-  .fvL2{white-space:normal;line-height:1.02}
-  .fvL2 .fvBr{display:block}
-  .fvRule{width:min(76vw,22rem);height:2px;margin:.5rem 0 .6rem}
+  font-size:clamp(2rem,9.2vw,6.6rem);line-height:1.05;text-transform:uppercase;
+  color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0);
+  filter:drop-shadow(0 2px 14px rgba(0,0,0,.5));
+  opacity:0;
+  /* ⚠️ 実機レビューで発覚した不具合の修正（2026-08-15第2次）：白フラッシュの
+     瞬間、文字が白いまま（塗りでも輪郭でも）で白地に埋もれて読めなくなって
+     いた。.fvStrobe と .fvRow の点滅が完全に同位相のため、地が白の瞬間は
+     必ず文字も「白」側の状態だったのが原因。地の色（.fvStrobeの明滅）に
+     文字色を連動反転させて解く：黒地では白、白地では黒。
+     形（塗りか輪郭か）と色（白か黒か）を別軸にするため、色は
+     var(--rowShapeAnim) が指す各キーフレーム内で「形とセットの色」として
+     一緒に持たせる（形だけ・色だけを別アニメーションに分けると、CSSは
+     同一プロパティを複数アニメーションで持てず、後勝ちで片方が消える
+     ため）。--rowShapeAnim はキーフレーム名を差し込むためのカスタム
+     プロパティで、行ごとに参照するキーフレームだけを差し替える
+     （タイミング指定＝delay/duration/iteration-countは共通のまま）。 */
+  --rowShapeAnim:fvRowFlip}
+/* 既定＝最終形。生き残る1行だけ、素の宣言そのものを「見えている」にしておく。 */
+.fvRow--keep{opacity:1}
+/* ── 形のバリエーション（3種）。すべて .fvStrobe と全く同じ delay/duration/
+   iteration-count/direction で駆動するため、地の色の切り替わりと1フレーム
+   もずれない。4行のうち2行はこの既定（fvRowFlip＝塗り⇄輪郭のトグル）を使い、
+   残り2行に .fvRow--outline／.fvRow--solid を明示的に付けて「塗りの行と
+   輪郭だけの行が混在する」見た目を保つ（実装記録：地の色と関係なく形だけを
+   固定した行を混ぜることで、常読める塗り／輪郭を保ったまま雑然とした
+   グリッチ感を残せる）。 */
+/* ⚠️ fvStrobeFlip と同じ理由・同じ作法（steps()×alternateを使わない）。
+   1回の反復の中に「前半＝黒地フェーズの色（49.9%まで）→後半＝白地
+   フェーズの色（50%から）」を直接埋め込み、animation-direction は
+   normal。.fvStrobe と全く同じ delay/duration/iteration-count/direction
+   で駆動するため、地の色の切り替わりと1フレームもずれない。 */
+@keyframes fvRowFlip{
+  0%,49.9%  { color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(0,0,0,0) }
+  50%,100%  { color:#000;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #000 }
+}
+.fvRow--outline{--rowShapeAnim:fvRowFlipOutline}
+@keyframes fvRowFlipOutline{
+  0%,49.9%  { color:#fff;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #fff }
+  50%,100%  { color:#000;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #000 }
+}
+.fvRow--solid{--rowShapeAnim:fvRowFlipSolid}
+@keyframes fvRowFlipSolid{
+  0%,49.9%  { color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(0,0,0,0) }
+  50%,100%  { color:#000;-webkit-text-fill-color:#000;-webkit-text-stroke:0 rgba(255,255,255,0) }
+}
+/* fvStrobeSettle と同じ理由・同じ作法。fvRowFlip系の最終停止（塗りか輪郭か・
+   白か黒か）は --fvFlipCount の偶奇に賭けない。幕2が終わる瞬間、地が黒へ
+   強制固定される（fvStrobeSettle）のと同じタイミングで、文字も白塗りへ
+   強制固定する。var(--rowShapeAnim) より後ろに列挙し、fill-mode は
+   forwards のみ。 */
+@keyframes fvRowSettle{ to{ color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0) } }
+/* 0秒アニメーション＝指定した瞬間に値を切り替えるだけのトリガー
+   （.loadInkHide などサイト内の既存の作法と同じ）。
+   ⚠️ from/to を両方明示すること。.fvRow--keep の素の宣言は opacity:1
+   （既定＝最終形）のため、to だけのキーフレームだと暗黙のfromがその1を
+   拾ってしまい、delay中（幕1の間）から常時 opacity:1 のまま＝生き残る行が
+   カード突入の裏で先に見えてしまう事故を実際に踏んだ。 */
+@keyframes fvRowEnter{ from{opacity:0} to{opacity:1} }
+/* ⚠️ .fvRow--fade はこの1本だけで opacity を持つこと（enterと2本立てに
+   しない）。同じプロパティを複数アニメーションで触ると、delay中（まだ
+   どちらも発火していない間）は「後に列挙したアニメーションのfrom」が勝つ
+   （Web Animationsのコンポジット順）。enter用とvanish用を分けたところ、
+   3本目（vanish）のfrom=opacity:1が2本目（enter）のfrom=opacity:0を
+   上書きし、消える3行が幕1の間から見えてしまう事故を実際に踏んだ。
+   duration を幕2の長さ（--fvAct2Dur）そのものにして、登場から消滅までを
+   1本のキーフレームで完結させる。 */
+@keyframes fvRowFadeLifecycle{
+  0%  {opacity:0;line-height:0}
+  3%  {opacity:1;line-height:1.05}
+  97% {opacity:1;line-height:1.05}
+  100%{opacity:0;line-height:0}
 }
 
-/* ⚠️ 慣性を出すため、行きすぎてから戻る曲線を使う。単純な減速だと
-   「置きに行った」動きになり、勢いが出ない。 */
-@keyframes fvReadyUp{
-  0%,40%  {transform:translateY(.46em)}
-  100%    {transform:translateY(0)}
-}
-@keyframes fvQOut{ 0%,32%{opacity:1} 58%,100%{opacity:0} }
-@keyframes fvRuleIn{ 0%,44%{transform:scaleX(0)} 100%{transform:scaleX(1)} }
-@keyframes fvOrNotIn{
-  0%,52%  {transform:translateY(-102%)}
-  100%    {transform:translateY(0)}
-}
+/* ── マーカー：生き残った行の下に、キーカラーの赤が慣性を伴って伸びる ── */
+.fvMark{position:absolute;left:0;right:0;top:calc(100% + var(--s1) * .6);
+  height:clamp(3px,.55vw,6px);border-radius:2px;background:var(--accent);
+  transform-origin:left center;transform:scaleX(1)}
+@keyframes fvMarkDraw{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
 
-/* 中身の入れ物。かつて黒から「or」の形の窓を開く演出を挟んでいたが、
-   ファーストビューが「Ready ?」始まりに変わったため撤去した（2026-08-13）。
-   ローディングの暗転から、そのまま赤い画面へ引き渡す。 */
-.fvReveal{position:absolute;inset:0;z-index:1}
+/* ══════ タイミング（intro-lock：ローディング直後＝4.40秒起点） ══════
+   .loadOverlay は 3.95〜4.40秒で消える（site.css）。ファーストビューは
+   その直後、4.40秒から始める。
+   site.js の TOTAL_MS はこの合計尺（既定で 4.40+4.0=8.40秒）の終わりに
+   合わせてある。TOTAL_MS+200ms で intro-lock が剥がされ、剥がれた瞬間に
+   html.intro-lock 配下の animation は既定値（＝幕3終了後の最終状態）へ飛ぶため、
+   8.40秒より前に剥がしてはいけない。 */
+html.intro-lock .fvCard{animation:fvCardIn .4s var(--e) 4.40s both}
+html.intro-lock .fvStage{animation:fvShake .3s var(--e) 4.62s both}
+html.intro-lock .fvStrobe{
+  animation-name:fvStrobeFlip,fvStrobeSettle;
+  animation-duration:var(--fvFlipMs),0s;
+  animation-timing-function:linear,linear;
+  animation-iteration-count:var(--fvFlipCount),1;
+  animation-direction:normal,normal;
+  animation-delay:4.80s,calc(4.80s + var(--fvAct2Dur));
+  animation-fill-mode:both,forwards}
+html.intro-lock .fvRow{
+  animation-name:fvRowEnter,var(--rowShapeAnim),fvRowSettle;
+  animation-duration:0s,var(--fvFlipMs),0s;
+  animation-timing-function:linear,linear,linear;
+  animation-iteration-count:1,var(--fvFlipCount),1;
+  animation-direction:normal,normal,normal;
+  animation-delay:4.80s,4.80s,calc(4.80s + var(--fvAct2Dur));
+  animation-fill-mode:both,both,forwards}
+html.intro-lock .fvRow--fade{
+  animation-name:fvRowFadeLifecycle,var(--rowShapeAnim);
+  animation-duration:var(--fvAct2Dur),var(--fvFlipMs);
+  animation-timing-function:linear,linear;
+  animation-iteration-count:1,var(--fvFlipCount);
+  animation-direction:normal,normal;
+  animation-delay:4.80s,4.80s;animation-fill-mode:both,both}
+html.intro-lock .fvMark{animation:fvMarkDraw .6s var(--e) calc(4.95s + var(--fvAct2Dur)) both}
 
-/* ⚠️ タイミングはローディングと直列につなぐ。.loadOverlay は 2.95〜3.40秒で
-   消える（site.css）。暗幕が消え切る 3.40秒から演出を始める。
-   site.js は TOTAL_MS+200 後に intro-lock を剥がし、剥がれた瞬間に
-   html.intro-lock 配下の animation はマッチしなくなって既定値（＝最終状態）へ
-   飛ぶ。演出が終わる 5.30秒より前に剥がしてはいけない（TOTAL_MS=5500）。 */
-html.intro-lock .fvRed{animation:fvSplit 1.9s var(--e) 4.40s both}
-html.intro-lock .fvL1{animation:fvReadyUp 1.9s var(--e) 4.40s both}
-html.intro-lock .fvQ{animation:fvQOut 1.9s linear 4.40s both}
-html.intro-lock .fvRule{animation:fvRuleIn 1.9s var(--e) 4.40s both}
-html.intro-lock .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) 3.40s both}
+/* 同一セッションの2回目以降はローディングを出さないので、待たずに始める
+   （起点0秒。各delayから4.40sを引いた値）。 */
+html.intro-skip .fvCard{animation:fvCardIn .4s var(--e) both}
+html.intro-skip .fvStage{animation:fvShake .3s var(--e) .22s both}
+html.intro-skip .fvStrobe{
+  animation-name:fvStrobeFlip,fvStrobeSettle;
+  animation-duration:var(--fvFlipMs),0s;
+  animation-timing-function:linear,linear;
+  animation-iteration-count:var(--fvFlipCount),1;
+  animation-direction:normal,normal;
+  animation-delay:.4s,calc(.4s + var(--fvAct2Dur));
+  animation-fill-mode:both,forwards}
+html.intro-skip .fvRow{
+  animation-name:fvRowEnter,var(--rowShapeAnim),fvRowSettle;
+  animation-duration:0s,var(--fvFlipMs),0s;
+  animation-timing-function:linear,linear,linear;
+  animation-iteration-count:1,var(--fvFlipCount),1;
+  animation-direction:normal,normal,normal;
+  animation-delay:.4s,.4s,calc(.4s + var(--fvAct2Dur));
+  animation-fill-mode:both,both,forwards}
+html.intro-skip .fvRow--fade{
+  animation-name:fvRowFadeLifecycle,var(--rowShapeAnim);
+  animation-duration:var(--fvAct2Dur),var(--fvFlipMs);
+  animation-timing-function:linear,linear;
+  animation-iteration-count:1,var(--fvFlipCount);
+  animation-direction:normal,normal;
+  animation-delay:.4s,.4s;animation-fill-mode:both,both}
+html.intro-skip .fvMark{animation:fvMarkDraw .6s var(--e) calc(.55s + var(--fvAct2Dur)) both}
 
-/* 同一セッションの2回目以降はローディングを出さないので、待たずに始める。 */
-html.intro-skip .fvRed{animation:fvSplit 1.9s var(--e) both}
-html.intro-skip .fvL1{animation:fvReadyUp 1.9s var(--e) both}
-html.intro-skip .fvQ{animation:fvQOut 1.9s linear both}
-html.intro-skip .fvRule{animation:fvRuleIn 1.9s var(--e) both}
-html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both}
-
+/* ⚠️ 点滅は体調に影響しうるため、reduced-motion では完全に止める。
+   全アニメーションを無効化し、幕3終了後の最終状態（黒地＋1行＋マーカー）を
+   即座に固定表示する。 */
 @media (prefers-reduced-motion: reduce){
-  html:not([data-motion="on"]) .fvRed,
-  html:not([data-motion="on"]) .fvL1,
-  html:not([data-motion="on"]) .fvL2{animation:none!important;transform:translateY(0)!important}
-  html:not([data-motion="on"]) .fvRule{animation:none!important;transform:scaleX(1)!important}
-  html:not([data-motion="on"]) .fvQ{animation:none!important;opacity:0!important}
+  html:not([data-motion="on"]) .fvCard,
+  html:not([data-motion="on"]) .fvStage,
+  html:not([data-motion="on"]) .fvStrobe,
+  html:not([data-motion="on"]) .fvRow,
+  html:not([data-motion="on"]) .fvMark{animation:none!important}
+  html:not([data-motion="on"]) .fvCard{opacity:0!important}
+  html:not([data-motion="on"]) .fvStage{transform:translate(0,0)!important}
+  html:not([data-motion="on"]) .fvStrobe{opacity:0!important}
+  html:not([data-motion="on"]) .fvRow{opacity:0!important}
+  html:not([data-motion="on"]) .fvRow--keep{opacity:1!important}
+  html:not([data-motion="on"]) .fvMark{transform:scaleX(1)!important}
+}
+
+@media(max-width:899px){
+  .fvRow{font-size:clamp(1.6rem,10.5vw,3.2rem)}
 }
 
 /* ══════ 00 ヒーロー（全画面キービジュアル＋左7カラムの文字。2026-08-11改訂・
@@ -1129,21 +1297,22 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
      居座り対策には影響しない。 ══════ -->
 <div class="pageScale">
 
-<!-- ══════ 00i ファーストビュー：黒からの「or」抜き＋赤青スクラブ（2026-08-13
-     作り直し） ══════
+<!-- ══════ 00i ファーストビュー：地震カード突入＋ストロボ＋READY OR NOT
+     （2026-08-15 全面作り直し） ══════
      装飾専用（実体は次の00ヒーローの<h1 class="logo">が持つ）なので
      aria-hidden にする。.loadOverlay と同じ考え方。 -->
 <div class="fvHold">
 <section class="fvIntro sec" id="fvIntro" aria-hidden="true">
-  <div class="fvReveal">
-    <div class="fvBlue"></div>
-    <div class="fvRed"></div>
-    <div class="fvGrain"></div>
-    <div class="fvType">
-      <p class="fvL1">Ready<span class="fvQ">?</span></p>
-      <span class="fvRule" aria-hidden="true"></span>
-      <span class="fvL2Wrap"><span class="fvL2">or<span class="fvBr"></span> Not</span></span>
+  <div class="fvStage">
+    <div class="fvStrobe"></div>
+    <img class="fvCard" src="assets/cards/earthquake.webp" alt="" aria-hidden="true" width="288" height="450">
+    <div class="fvRows">
+      <span class="fvRow fvRow--fade">READY OR NOT</span>
+      <span class="fvRow fvRow--fade fvRow--outline">READY OR NOT</span>
+      <span class="fvRow fvRow--keep">READY OR NOT<span class="fvMark" aria-hidden="true"></span></span>
+      <span class="fvRow fvRow--fade fvRow--solid">READY OR NOT</span>
     </div>
+    <div class="fvGrain"></div>
   </div>
 </section>
 </div>
