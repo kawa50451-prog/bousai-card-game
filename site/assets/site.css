@@ -211,8 +211,14 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
    打ち消されないと文字がマスクの外に隠れたまま固定されてしまう
    （情報欠落）。そのため .hSlide の transform を明示的に none へ戻す
    行を下に個別で持たせてある。 */
+/* ⚠️ ここで overflow:hidden を掛けてはいけない。見出しは .jpAccent の
+   text-box:cap alphabetic で箱が字面まで詰められており、中の行ボックスの
+   ほうが背が高い。overflow:hidden にすると2行目以降が箱からはみ出して
+   切り落とされ、スマホで「遊びのほうが、」が丸ごと消えた（実機で発生）。
+   マスクは要らない。html 側の overflow-x:clip が画面外へ出た文字を隠すため、
+   -105% から滑り込ませれば「画面の外から入ってくる」見えは成立する。 */
 :is(.catch,.secTitle,.wayHead,.modeSecTitle).reveal{
-  overflow:hidden;opacity:1;transform:none;animation:none}
+  opacity:1;transform:none;animation:none}
 
 .hSlide{display:inline-block;transform:translateX(-105%)}
 @supports (animation-timeline: view()){
@@ -297,6 +303,15 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 @keyframes bgDotDrift{ from{transform:translateX(0)} to{transform:translateX(116vw)} }
 
 .bgLine{position:absolute;height:1px;background:var(--t1);opacity:.1;transform-origin:left center}
+
+/* ⚠️ 粒子は left:-8%（画面外）から始まり、アニメーションだけが画面内へ運ぶ。
+   そのため prefers-reduced-motion で animation が止まると、18個すべてが
+   画面外に留まって1つも見えなくなる（実機で実際にそうなった）。
+   縮退時は各粒子の --x（HTML側にインラインで持たせた静止位置）へ置き、
+   動かないだけで「見えている」状態にする。 */
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .bgDot{ left:var(--x, 50%) }
+}
 
 /* ══════ 起動演出：4幕ローディング（§20.1・2026-08-12。§12.4を置き換え） ══════
    合計2.2秒、4幕で構成する。
