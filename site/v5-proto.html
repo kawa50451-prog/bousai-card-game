@@ -956,7 +956,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
 /* ⚠️ この指定は .closeKV の定義より後ろに置くこと。詳細度が同じ(0,1,0)なので、
    定義より前に書くと後勝ちで打ち消される（実際に効いていなかった）。
    スマホは縦長で cover の横方向が大きく切られるため、右へ寄せて見せる。 */
-@media(max-width:899px){ .closeKV{background-position:74% center} }
+@media(max-width:899px){ .closeKV{background-position:100% center} }
 /* 左スクリムは00と同じ考え方（§10.2.1・§11.4）。文字が乗る左側の輝度を落として
    可読性を確保する。 */
 .closeKV::after{content:'';position:absolute;inset:0;
@@ -982,13 +982,13 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
 .closeL{position:relative;z-index:2;grid-column:1 / 7;min-width:0}
 /* タグラインの再掲。00 の .tagline（clamp上限 --fs-h1）より大きく出す。 */
 .closeTag{font-size:clamp(var(--fs-d1),6.4vw,var(--fs-d3));line-height:var(--lh-d)}
-/* 修正（2026-08-13・スマホ改行）：「失敗できる／災害はここだけ」の2行に収める。
-   漢字はclosetTagの地の大きさのまま、平仮名（.tagKana）だけをスマホ幅で
-   縮小する。.barPct span の .6em 相対縮小と同じ考え方（新規トークンを増やさず
-   emで比率だけ変える）。PCでは1行のままなので縮小しない。 */
-@media(max-width:899px){
-  .closeTag .tagKana{font-size:.66em}
-}
+/* ⚠️ 「失敗できる／災害はここだけ」の2行組みと、平仮名の縮小は、
+   スマホだけでなく全幅で効かせること。PCでも改行が入らないと、
+   「失敗でき／る災害は／ここだけ」のように語の途中で3行に割れる
+   （実機で発生）。改行位置と字の大小は文の意味に属する組版であり、
+   画面幅で変えるべきものではない。 */
+.closeTag .tagKana{font-size:.66em}
+.closeTag .tagBr{display:block}
 /* 斜め塗りホバー（項目9。.ctaMain と同じ仕組み）。 */
 .closeCta{position:relative;isolation:isolate;margin-top:var(--s5);display:inline-flex;align-items:center;
   padding:var(--s3) var(--s6);background:var(--accent);color:#fff;font-weight:700;
@@ -1109,12 +1109,12 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
 <nav class="navMenu" id="navMenu" aria-label="ページ一覧">
   <div class="navMenuPanel">
     <ul class="navMenuList en">
-      <li><a href="#s00" aria-current="page"><img class="navMenuImg" src="assets/shots/s01_home.webp" alt="" loading="lazy" width="800" height="1733"><span class="navMenuLabel">HOME</span></a></li>
-      <li><a href="modes/versus.html"><img class="navMenuImg" src="assets/shots/s02_vs_response.webp" alt="" loading="lazy" width="800" height="1733"><span class="navMenuLabel">VERSUS</span></a></li>
-      <li><a href="modes/co-op.html"><img class="navMenuImg" src="assets/shots/s04_coop_battle.webp" alt="" loading="lazy" width="800" height="1733"><span class="navMenuLabel">CO-OP</span></a></li>
-      <li><a href="features.html"><img class="navMenuImg" src="assets/shots/s05_daily_prep.webp" alt="" loading="lazy" width="800" height="1733"><span class="navMenuLabel">FEATURES</span></a></li>
-      <li><a href="cards.html"><img class="navMenuImg" src="assets/shots/s06_gallery.webp" alt="" loading="lazy" width="800" height="1733"><span class="navMenuLabel">CARDS</span></a></li>
-      <li><a href="contact.html"><img class="navMenuImg" src="assets/kv/person_900.webp" alt="" loading="lazy" width="900" height="1350"><span class="navMenuLabel">CONTACT</span></a></li>
+      <li><a href="#s00" aria-current="page"><img class="navMenuImg" src="assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
+      <li><a href="modes/versus.html"><img class="navMenuImg" src="assets/navicons/versus.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="modes/co-op.html"><img class="navMenuImg" src="assets/navicons/coop.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="features.html"><img class="navMenuImg" src="assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
+      <li><a href="cards.html"><img class="navMenuImg" src="assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="contact.html"><img class="navMenuImg" src="assets/navicons/contact.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CONTACT</span></a></li>
     </ul>
   </div>
 </nav>
@@ -1332,7 +1332,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
       <!-- スマホでは「失敗できる」／「災害はここだけ」の2行に収める。漢字の大きさは
            そのままにし、平仮名（.tagKana）だけをスマホ幅で縮小して収める
            （全体を一律縮小しない。指示どおり）。 -->
-      <p class="closeTag jpAccent reveal" data-d="0">失敗<span class="tagKana">できる</span><br class="mobileBr">災害<span class="tagKana">はここだけ</span></p>
+      <p class="closeTag jpAccent reveal" data-d="0">失敗<span class="tagKana">できる</span><br class="tagBr">災害<span class="tagKana">はここだけ</span></p>
       <a class="closeCta reveal" data-d="1" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html">PLAY</a>
     </div>
   </div>

@@ -206,100 +206,81 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 }
 @keyframes ruleIn{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
 
-/* ══════ 見出しの帯モーション（2026-08-15：作り直し） ══════
-   参照：showdot.jp の見出し演出を再観察して作り直した。旧実装（8/15朝の
-   §24.3/§25.2）は「帯と文字が1枚の板になったまま画面外(-105%)から
-   スライドで飛び出す」1つの動きだった。ユーザー指摘は2点。
-     1. イージングが cubic-bezier(.34,1.56,.64,1)（easeOutBack）で
-        オーバーシュートしており「勢いが良すぎて慣性が働いている感じがしない」
-     2. 「四角囲みが登場するモーションは形だけで、四角が出てくるだけでは
-        ない。マーカーで線を引くように帯が左から右へ伸び、その通過に合わせて
-        中の文字が現れる。帯と文字はわずかにずれた時間差で動く」
-   （実測：showdot.jpは黒帯に白抜き文字、こちらは金帯に濃紺文字で構成は同じ。
-   跳ね返りは無く、素早く出て長く尾を引いて減速する＝--eそのもの）。
-   対応として、帯（::before）と文字（.hText）を別要素に分離した。
-     ・帯：::before を transform-origin:left の scaleX(0→1) で左から右へ
-       伸ばす。GSAPの timeline でいう1本目の .to()
-     ・文字：.hText を opacity 0→1 ＋ わずかな translateY で現す。GSAPの
-       `.to(B,{...},"<")`（前の動きと同じ位置を起点にしつつ少し遅らせる）
-       に相当する重なりを作るため、帯より少し後ろへずらした animation-range
-       を文字側に与えている（同じrangeにanimation-delayだけを足す案は、
-       この見出しの実スクロール幅が極端に狭いために失敗した。理由は下の
-       @supports ブロック内のコメントを参照）
+/* ══════ 見出しの帯モーション（2026-08-15：2回目の作り直し） ══════
+   参照：showdot.jp をヘッドレスChromeでDOM走査して実測し直した（ユーザー
+   指摘2件への対応）。「文字の移動量と幅がまだ速い」「四角が出てくるまでの
+   モーションが速くて再現できていない。四角が出る前に細かい小さい円のような
+   動きがある」。
+   実測の要点：showdot.jpは黒い小円（2〜11px、matrix(scale)の倍率が
+   1.23〜3.80と円ごとに違う）を1006個DOMに持ち、それが左から順に育って
+   融合し、隙間のない帯になってから中の文字が現れる。1000個の要素を作るのは
+   禁止（厳守事項8）なので、この「点が育って融合する」見え方だけを
+   radial-gradient の繰り返しで再現する（1個の疑似要素で足りる）。
+   前回実装（今朝・§26）は帯を1枚の板として scaleX(0→1) で伸ばすだけで、
+   点を経ずに四角が出るだけだった。今回はこれを次の2段に分けて作り直す。
+     1. 帯：::before に14pxおきの円の列（radial-gradient×repeat-x）を描き、
+        円の半径に相当する停止位置 --dotR を0%→130%まで育てて融合させる。
+        あわせて2枚目のマスク（--dotSweepで動かすlinear-gradient）で列を
+        左から右へ明かし、「まず点が左から右へ並んで現れ、そのあと全体が
+        育って融合する」という順序を作る（1個のプロパティでは点1つ1つに
+        個別の時間差を持たせられないため、sweep＝出現順／dotR＝成長、の
+        2段構えで近似している。うまくいかなかった点は
+        design/official_site_spec.md §を参照）
+     2. 文字：.hText を opacity 0→1 ＋ わずかな translateY（.3em→.12emへ
+        縮小。「移動量がまだ速い」への対応）で、帯（--dotR）の育ちが終わって
+        から現す
    イージングは両方とも --e（cubic-bezier(.16,1,.3,1)＝GSAPのpower4.out
-   相当）に統一し、旧 --e-back は使わない。
+   相当）のまま。跳ねさせない。
+   ⚠️ animation-range は entry ではなく cover を使う。この見出し（2行・
+   約114px）は entry 0%→100% の実スクロール幅が要素自身の高さに縛られる
+   （＝仕様上 min(要素の高さ, ビューポート高さ) しかない。PCで実測約114px）
+   ため、%を広げても実際に動く距離が伸びない。cover は「要素が入り始めて
+   から完全に出きるまで」＝viewportHeight＋要素の高さ が母数になり、PCで
+   実測約1000px（entryの約9倍）。同じ開始トリガー（要素が入り始める点＝
+   どちらも0%）を保ったまま、実際に動く距離だけを稼げる。
    対象は節見出しだけ（.catch/.secTitle/.wayHead＝LP、.modeSecTitle＝
    サブページ共通の節見出し）。本文・ラベル・UIには広げない。
-   ⚠️ 帯は scaleX（transform）で伸ばす。clip-path や overflow:hidden は
-   使わない。理由は変わらない：見出し本体（h2）は .jpAccent の
-   text-box:cap alphabetic で箱が字面まで詰められており、中の行ボックスの
-   ほうが背が高い。箱を基準に切ると2行目以降が箱からはみ出して切り落とされ、
-   スマホで「遊びのほうが、」が丸ごと消えた実績がある（実機で発生）。
-   transform:scaleX は箱そのものを切らず見た目だけを伸縮させるため、この
-   事故を再現しない。
    これらの見出しは既存の .reveal（§11.3-1・縦フェード＋scale）も同時に
    持っているため、演出を .hSlide 側へ一本化するにあたり .reveal 側の
-   動きだけを打ち消す（対象外の .reveal はそのまま）。打ち消しに animation
-   ショートハンドを使っているのは、この見出し要素の上で意図して1つの
-   アニメーションだけに絞りたいケースだからである（厳守事項1が禁じる
-   「別のアニメーションを意図せず潰す」ケースとは異なる）。 */
+   動きだけを打ち消す（対象外の .reveal はそのまま）。 */
 :is(.catch,.secTitle,.wayHead,.modeSecTitle).reveal{
   opacity:1;transform:none;animation:none}
 
 /* .hSlide 自身は帯の土台（position:relative）だけを担う。isolation:isolate
    は下の ::before（z-index:-1）が .barPlay/.btnFill と同じ考え方で自分の
-   内側だけに留まり、ページ全体のスタッキングへ漏れ出さないようにするため。 */
+   内側だけに留まり、ページ全体のスタッキングへ漏れ出さないようにするため。
+   ::before の transform:scaleX(0) は非対応環境（@supports not）向けの
+   初期値・フォールバック。対応環境では下の @supports ブロックで
+   transform:none に上書きし、育つ動きを background-image 側（--dotR/
+   --dotSweep）に委ねる。 */
 .hSlide{display:inline-block;position:relative;isolation:isolate;vertical-align:top}
 .hSlide::before{content:'';position:absolute;inset:0;z-index:-1;
   transform-origin:left;transform:scaleX(0)}
-.hText{display:inline-block;opacity:0;transform:translateY(.3em)}
+.hText{display:inline-block;opacity:0;transform:translateY(.12em)}
 
-@supports (animation-timeline: view()){
-  /* ⚠️ 時間差の作り方：当初は同じrangeにanimation-delay（%指定）だけを足す
-     案を試したが、実測（headlessでscrollYを刻んで.hSlide::beforeの
-     transformと.hTextのopacityを直接読んだ）で失敗が判明した。この見出し
-     （2行・約114px）は entry 0%→100% の実スクロール幅が要素自身の高さに
-     収まる（=わずか約114px）ため、animation-delayの%指定は「同じrange・
-     短縮された持続時間」として解決され、文字側が帯に急いで追いつく形になり
-     時間差がほぼ見えなかった（%delayぶん短縮されたdurationが帯と同じ終端に
-     収束するため）。そのため、帯と文字それぞれに別々の animation-range を
-     与える方式に切り替えた。開始・終了とも文字側が帯よりentry 13ptぶん
-     後ろへずれ、各々が同じ幅（33pt）で自分のペースで動く。これで
-     「帯が伸びきる前に文字が追いかけ始め、帯より少し遅れて文字も伸びきる」
-     という重なりが実際のスクロールで確認できる（動作確認は下の§26参照）。 */
-  .hSlide::before{
-    animation-name:hBandGrow;animation-timing-function:var(--e);animation-fill-mode:both;
-    animation-timeline:view();animation-range:entry 22% entry 55%}
-  .hText{
-    animation-name:hTextIn;animation-timing-function:var(--e);animation-fill-mode:both;
-    animation-timeline:view();animation-range:entry 35% entry 68%}
-}
-@supports not (animation-timeline: view()){
-  .hSlide::before{transition:transform .5s var(--e)}
-  .hText{transition:opacity .5s var(--e) .12s, transform .5s var(--e) .12s}
-  :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hSlide::before{transform:scaleX(1)}
-  :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hText{opacity:1;transform:translateY(0)}
-}
-@keyframes hBandGrow{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
-@keyframes hTextIn{ from{opacity:0;transform:translateY(.3em)} to{opacity:1;transform:translateY(0)} }
+/* ⚠️ @property は @supports の外（トップレベル）に置く。中に入れると登録に
+   失敗した環境で var() が解決できず、宣言ごと無効になる（厳守事項2）。
+   --dotR：点の半径に相当する radial-gradient の停止位置（百分率）。
+   --dotSweep：点の列を左から右へ明かしていくマスクの境界位置（百分率）。 */
+@property --dotR{ syntax:'<percentage>'; inherits:false; initial-value:0% }
+@property --dotSweep{ syntax:'<percentage>'; inherits:false; initial-value:0% }
 
-@media (prefers-reduced-motion: reduce){
-  html:not([data-motion="on"]) .hSlide::before{transform:scaleX(1) !important}
-  html:not([data-motion="on"]) .hText{opacity:1 !important;transform:none !important}
-}
-
-/* ══════ 見出しの四角囲み（§25.2。今回は帯側=::beforeへ塗り色を移設） ══════
+/* ══════ 見出しの四角囲み（§25.2の土台。塗り色と余白） ══════
    参照：showdot.jp。節見出しの文字を --headFill で塗った帯の上に置く。
    文字色は指示どおり --ground そのもの（濃紺）。--headFill（実測
    #ffc751相当）に対するコントラスト比は9.92:1（AAA）で4.5:1を大きく上回る。
    color は .hSlide に置いたまま子の .hText へ継承させる（color は継承
    プロパティなので二重定義が要らない）。
-   ⚠️ 罫（.headRule）はこの四角自体が見出しの区切りとして十分強いため、19箇所
-   すべてでHTML側から撤去した（判断と理由は design/official_site_spec.md
-   §25参照）。CSS定義自体は他で参照されなくなったが、影響範囲を最小にするため
-   残してある。 */
+   ⚠️ ここは background（ショートハンド）ではなく background-color だけを
+   使う。下の @supports ブロックが .hSlide::before に background-image／
+   mask-image で「点の列」を描いており、同じ詳細度の .hSlide::before に対して
+   ショートハンドの background を書くと background-image を none に
+   リセットしてしまい、点が消えて素の帯だけが残る事故になる（厳守事項3）。
+   このルールを @supports ブロックより前に置くこと自体は動作上必須ではない
+   （同じ詳細度なら @supports 側が後勝ちする）が、読む順を「土台→上書き」に
+   揃えるために先に置いている。 */
 :is(.catch,.secTitle,.wayHead,.modeSecTitle) .hSlide::before{
-  background:var(--headFill)}
+  background-color:var(--headFill)}
 :is(.catch,.secTitle,.wayHead,.modeSecTitle) .hSlide{
   color:var(--ground);padding:var(--s2) var(--s3)}
 /* ⚠️ 見出し本体（h2）は .jpAccent/.jpBase の text-box:cap alphabetic により、
@@ -312,6 +293,83 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
    相殺の対象だが、padding は相殺されないため、四角の視覚的なはみ出し分を
    確実に別枠で確保できる。 */
 :is(.catch,.secTitle,.wayHead,.modeSecTitle){padding-bottom:var(--s5)}
+
+@supports (animation-timeline: view()){
+  /* 点の列（帯）。radial-gradient を14pxおきに繰り返して1行ぶんの点を作り
+     （background-size:14px 100%）、円の停止位置 --dotR を0%→130%まで育てる。
+     100%はタイルの対角（farthest-corner）にちょうど届く値、130%はそれを
+     超えて確実に全面を塗りつぶすための余裕（角に塗り残しが出る事故を
+     避けるため）。mask-image は --dotSweep で列を左から右へ明かす2枚目の
+     マスク。--dotSweep は --dotR より短い range（cover 10%→20%。--dotRは
+     10%→34%）で先に終わらせているため、「まず点の列が左から右へ素早く
+     現れ（sweep）、そのあと全体が一斉に育って融合する（dotR）」という
+     順序になる。transform:none で非対応フォールバックのscaleX(0)を
+     打ち消す。 */
+  :is(.catch,.secTitle,.wayHead,.modeSecTitle) .hSlide::before{
+    transform:none;
+    background-color:transparent;
+    background-image:radial-gradient(circle, var(--headFill) var(--dotR,0%), transparent var(--dotR,0%));
+    background-size:14px 100%;
+    background-repeat:repeat-x;
+    mask-image:linear-gradient(90deg,#000 0%,#000 var(--dotSweep,0%),transparent calc(var(--dotSweep,0%) + 10%));
+    -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 var(--dotSweep,0%),transparent calc(var(--dotSweep,0%) + 10%));
+    animation-name:hDotGrow,hDotSweep;
+    animation-timing-function:var(--e),var(--e);
+    animation-fill-mode:both,both;
+    animation-timeline:view(),view();
+    /* cover 10%を起点にする理由は上の大コメント参照。cover換算でこの見出しの
+       entry完了（＝要素が画面に全部入りきる点）はおよそ15%相当なので、10%は
+       まだそのentry途中＝旧実装とほぼ同じ体感の始点を保っている。 */
+    animation-range:cover 10% cover 34%, cover 10% cover 20%;
+  }
+  /* 文字は帯（--dotR）の育ちが終わる cover 34% から始め、cover 50% で
+     完了させる。この見出し・このビューポートでは「画面に全部入りきって
+     いる」期間（containに相当）がおよそcover 85%付近まで続くため、文字が
+     出そろう時点でも見出しはまだ画面内に留まっている（実測は
+     design/official_site_spec.md §を参照）。 */
+  .hText{
+    animation-name:hTextIn;animation-timing-function:var(--e);animation-fill-mode:both;
+    animation-timeline:view();animation-range:cover 34% cover 50%;
+  }
+}
+@supports not (animation-timeline: view()){
+  /* 非対応環境では点を経ずに素の帯を出す（情報が欠けないこと）。既存どおり
+     scaleX(0→1) の板で表現し、site.js の IntersectionObserver が付与する
+     .is-in で駆動する。 */
+  .hSlide::before{transition:transform .6s var(--e)}
+  .hText{transition:opacity .6s var(--e) .12s, transform .6s var(--e) .12s}
+  :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hSlide::before{transform:scaleX(1)}
+  :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hText{opacity:1;transform:translateY(0)}
+}
+/* ⚠️ hDotGrow は from/to の単純な2点ではなく、途中に停止点を打ってある。
+   --e（power4.out）は「進行の前半で一気に値が動き、後半でゆっくり収束する」
+   カーブのため、from/to だけで0%→130%を animation-timing-function に任せると、
+   実測でスクロール開始からわずか2〜3pxの間に半分近く育ってしまい、「小さい点が
+   並んでいる」瞬間がほぼ見えなかった（headlessで実測して判明。うまくいかな
+   かった点として design/official_site_spec.md §に記録）。対応として、
+   キーフレームの値カーブ自体を後ろ寄りにした（0%〜55%はdotRを8%未満＝隣と
+   触れる直前の小さい点のまま留め、55%以降で一気に130%まで育てて融合させる）。
+   animation-timing-function は --e のまま変えていない。 */
+@keyframes hDotGrow{
+  0%{ --dotR:0% }
+  30%{ --dotR:3% }
+  55%{ --dotR:7% }
+  78%{ --dotR:22% }
+  100%{ --dotR:130% }
+}
+@keyframes hDotSweep{ from{ --dotSweep:0% } to{ --dotSweep:100% } }
+@keyframes hTextIn{ from{opacity:0;transform:translateY(.12em)} to{opacity:1;transform:translateY(0)} }
+
+@media (prefers-reduced-motion: reduce){
+  /* transform・mask-image・background-imageの3経路すべてを打ち消し、対応・
+     非対応どちらの実装でも「完成した帯＋見える文字」の最終状態へ確実に
+     固定する（情報が欠けないこと）。 */
+  html:not([data-motion="on"]) .hSlide::before{
+    transform:scaleX(1) !important;
+    mask-image:none !important; -webkit-mask-image:none !important;
+    background-image:none !important; background-color:var(--headFill) !important}
+  html:not([data-motion="on"]) .hText{opacity:1 !important;transform:none !important}
+}
 
 /* ══════ 画像がマスクで開く（§12.1） ══════
    clip-path:inset() を scroll-driven で動かし、マスクが横に開いて中身が現れる
@@ -745,7 +803,10 @@ html.menu-visible .navMenu{opacity:1;visibility:visible;pointer-events:auto;tran
    スクリーンショット・キービジュアル）を流用し、新しい画像は増やさない
    （表示サイズに対して過大にならないよう width/height はサムネイル用に
    縮小した固定寸法・object-fit:coverで切り出す）。 */
-.navMenuImg{flex:none;width:clamp(3.6rem,13vw,4.6rem);aspect-ratio:3/4;
+/* ⚠️ 枠は横長にすること。差し込む絵（assets/navicons/）は 480x360 の横長で、
+   縦長の枠に cover で嵌めると構図の左右が切り落とされ、意味が読めなくなる
+   （5つ並べたアイコンが3つしか見えない等）。 */
+.navMenuImg{flex:none;width:clamp(5.2rem,19vw,6.8rem);aspect-ratio:4/3;
   object-fit:cover;border-radius:6px;
   box-shadow:inset 0 0 0 1px var(--border);
   transition:transform .25s var(--e)}
