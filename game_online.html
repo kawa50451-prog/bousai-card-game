@@ -41,6 +41,9 @@
           link.id = 'ron-font-orbitron'; link.rel = 'stylesheet';
           link.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap';
           document.head.appendChild(link);
+        } else if (s.font === 'large' || s.font === 'contrast') {
+          // 2026-08-15追加：視認性の系統。外部フォントを取らないため取得待ちが無くFOUCも起きない。
+          document.documentElement.classList.add('ron-font-' + s.font);
         } else if (s.font === '8bit') {
           // 2026-07-17ユーザーレビュー修正：8bitフォント（日本語対応のDotGothic16）。Orbitronと同じ早期取得パターン。
           document.documentElement.classList.add('ron-font-8bit');
@@ -134,6 +137,17 @@
        素の#fff/#ffffffハードコードのうち「ページ/パネル背景に直接乗る自由文字・ゴーストボタン」箇所を対象に置き換えた
        （適用範囲の詳細はdesign_system.md §1.6参照）。
        html[data-theme="cyber-red"] は現行デフォルトと同値（未指定=:root既定と完全一致、明示指定時の冗長フォールバックとして定義）。 ── */
+    /* ══ 視認性の系統（2026-08-15 追加）══
+       フォントの選択肢を「見た目の趣味」から「読みやすさ」の軸へ組み替えた。
+       カスタマイズであると同時にアクセシビリティの改善になる。
+       ⚠️ 文字サイズは rem 基準の一括拡大にする。個別のpxを書き換えて回ると取りこぼす。 */
+    html.ron-font-large { font-size: 112.5%; }
+    /* 高コントラスト：文字を白へ寄せ補助文字の灰色を持ち上げる。地は触らない
+       （テーマの選択と衝突させないため）。枠線も一段はっきりさせる。 */
+    html.ron-font-contrast {
+      --t0: #ffffff; --t1: #ffffff; --t2: #d6dde6; --t3: #b3bdc9; --bg3: #4a5563;
+    }
+    html.ron-font-contrast .btn-ho, html.ron-font-contrast .lobby-btn-gallery { border-width: 2px; }
     html[data-theme="cyber-red"] {
       --bg0: #0d1117; --bg0-soft: #111827; --bg0-deep: #080d14;
       --bg1: #161b22; --bg1-rgb: 22, 27, 34; --bg2: #21262d; --bg3: #30363d;
@@ -148,6 +162,37 @@
       --bg0: #070b07; --bg0-soft: #0c170c; --bg0-deep: #030602;
       --bg1: #0e160e; --bg1-rgb: 14, 22, 14; --bg2: #162216; --bg3: #26392a;
       --accent: #39ff6a; --accent-rgb: 57, 255, 106; --accent-dark-rgb: 10, 110, 45;
+    }
+    /* ══ 時間帯と天候のテーマ（2026-08-15 追加）══
+       方向はユーザーと合意済み：テーマを「時間帯と天候」で分ける。どれも防災の
+       文脈で意味を持ち、5色の意味色（§1.4）の骨格を壊さない。可愛い・ポップへ
+       振れる余地が構造的に無いため世界観も崩れない。
+       ⚠️ 設定画面に「夜明け」等の直接的な語は出さない（ユーザー指示）。
+          呼び名は RON_THEMES 側で「ムーンライト」等の情緒のある語にする。
+       ⚠️ --t0〜--t3（文字色）は上書きしない。どれも暗い地なので既定の白系で成立する。 */
+    /* 月明かり：深い藍。夜間の避難を想起させる静かな地 */
+    html[data-theme="moonlight"] {
+      --bg0: #070d18; --bg0-soft: #0e1830; --bg0-deep: #04070f;
+      --bg1: #101a2c; --bg1-rgb: 16, 26, 44; --bg2: #182741; --bg3: #27395a;
+      --accent: #7aa2ff; --accent-rgb: 122, 162, 255; --accent-dark-rgb: 40, 70, 150;
+    }
+    /* 夜明け：薄明の藍から差す琥珀。訓練が始まる時刻 */
+    html[data-theme="firstlight"] {
+      --bg0: #0d1020; --bg0-soft: #1a1a33; --bg0-deep: #070812;
+      --bg1: #171a2e; --bg1-rgb: 23, 26, 46; --bg2: #23253d; --bg3: #3a3453;
+      --accent: #ffb347; --accent-rgb: 255, 179, 71; --accent-dark-rgb: 150, 95, 20;
+    }
+    /* 豪雨：灰と青。視界が悪く判断が難しい天候 */
+    html[data-theme="downpour"] {
+      --bg0: #0b1014; --bg0-soft: #141d24; --bg0-deep: #060a0d;
+      --bg1: #121a20; --bg1-rgb: 18, 26, 32; --bg2: #1c262e; --bg3: #2c3a44;
+      --accent: #5fc9e8; --accent-rgb: 95, 201, 232; --accent-dark-rgb: 25, 95, 115;
+    }
+    /* 延焼：赤橙。最も切迫した状況の色 */
+    html[data-theme="emberfall"] {
+      --bg0: #120a08; --bg0-soft: #21100c; --bg0-deep: #0a0504;
+      --bg1: #1b100c; --bg1-rgb: 27, 16, 12; --bg2: #2a1712; --bg3: #40241a;
+      --accent: #ff7a29; --accent-rgb: 255, 122, 41; --accent-dark-rgb: 150, 60, 10;
     }
     /* 2026-07-17ユーザーレビュー修正：8bitテーマ（レトロゲーム風の濃紺〜黒×限定色パレット）。文字トークンは
        他のダークテーマ同様--t0〜--t3を上書きしない（暗背景のため既定の白系文字のままで成立する）。ドット感は
@@ -5662,6 +5707,12 @@
       { id: 'hacker-matrix', label: 'ハッカー・マトリクス', swatchBg: '#070b07', swatchAccent: '#39ff6a' },
       { id: '8bit',          label: '8bit',                 swatchBg: '#0a0a1a', swatchAccent: '#ff004d' },
       { id: 'light',         label: 'デイライト',           swatchBg: '#f2f0ea', swatchAccent: '#d6294a' }, // 2026-07-21：表示名を「ハザードマップ」から変更（カード名「ハザードマップ整備」との混同回避・一般ユーザーへの直感的な伝達性優先）。世界観コンセプト名「紙のハザードマップ」はworldview.md §11に残置。data-theme id=lightは互換のため不変
+      // ── 時間帯と天候（2026-08-15 追加。ユーザーと合意した方向） ──
+      // ⚠️ 呼び名に「夜明け」等の直接的な語を使わない（ユーザー指示）。情緒のある語にする。
+      { id: 'moonlight',  label: 'ムーンライト',   swatchBg: '#070d18', swatchAccent: '#7aa2ff' },
+      { id: 'firstlight', label: 'ファーストライト', swatchBg: '#0d1020', swatchAccent: '#ffb347' },
+      { id: 'downpour',   label: 'ダウンポア',     swatchBg: '#0b1014', swatchAccent: '#5fc9e8' },
+      { id: 'emberfall',  label: 'エンバーフォール', swatchBg: '#120a08', swatchAccent: '#ff7a29' },
     ];
     // 2026-08-15追加：対戦CPU戦でカード工房のマイ都市を使うかの設定（既定OFF）。既存プレイヤーの保存済み設定は
     // ronGetSettings()のスプレッド展開で自動的にfalse補完されるため後方互換は保たれる。
@@ -5723,6 +5774,10 @@
       html.classList.toggle('ron-motion-force', s.motion === 'on');
       html.classList.toggle('ron-motion-off', s.motion === 'off');
       html.classList.toggle('ron-font-digital', s.font === 'digital');
+      // 2026-08-15：視認性の系統。⚠️ ここへの追加を忘れると、<head>の早期適用だけが
+      //   効いて初回表示では変わるのに、設定画面で切り替えても何も起きない状態になる（実際にそうなった）。
+      html.classList.toggle('ron-font-large', s.font === 'large');
+      html.classList.toggle('ron-font-contrast', s.font === 'contrast');
       html.classList.toggle('ron-font-8bit', s.font === '8bit');
       if (s.font === 'digital') _ronEnsureDigitalFont();
       else if (s.font === '8bit') _ronEnsure8bitFont();
@@ -5746,7 +5801,10 @@
       // 2026-07-18モーション強化：選択中テーマのスウォッチ右上にチェックマークをポップ表示する（coopIcoCheckCircle流用）
       const themeChips = RON_THEMES.map(t => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}">${s.theme === t.id ? `<span class="settings-theme-check">${coopIcoCheckCircle(11,'#fff')}</span>` : ''}</span><span class="settings-theme-label">${t.label}</span></button>`).join('');
       // 2026-07-17ユーザーレビュー修正：8bit（DotGothic16）を追加し3択に拡張
-      const fontSeg = [['default', '標準'], ['digital', 'デジタル'], ['8bit', '8bit']].map(([f, label]) => `<button class="settings-seg-btn${s.font === f ? ' active' : ''}" onclick="ronSetFont('${f}')">${label}</button>`).join('');
+      /* 2026-08-15：フォントの選択肢を「見た目の趣味」から「視認性の系統」へ組み替えた
+      （ユーザーと合意）。カスタマイズであると同時にアクセシビリティの改善になり、
+      審査でも説明しやすい。既存の digital / 8bit は保存済み設定のために残す。 */
+    const fontSeg = [['default', '標準'], ['large', '大きめ'], ['contrast', '高コントラスト']].map(([f, label]) => `<button class="settings-seg-btn${s.font === f ? ' active' : ''}" onclick="ronSetFont('${f}')">${label}</button>`).join('');
       const glowClass = s.glow !== false ? 'ios-switch on' : 'ios-switch';
       // 2026-07-28追加：モーション設定（自動/オン/オフの3択。design_system.md §10・今回タスク指示）。
       // 自動＝OSのprefers-reduced-motionにそのまま従う既定値。オン＝OSがreduceでも演出を表示。オフ＝OSの設定に関わらず常に停止。
@@ -5767,7 +5825,7 @@
         <div class="hint-box-header"><span class="hint-title">${uiIcoGear(15)} 設定</span><button class="hint-close" onclick="toggleSettings()">✕</button></div>
         <div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:8px">テーマカラー</div><div class="settings-theme-row">${themeChips}</div></div>
         <hr class="hint-divider">
-        <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">フォント</span><span class="settings-row-desc">${s.font === '8bit' ? 'ピクセル書体（日本語も含めて変わります）' : '数字・英字の書体を切り替えます（日本語は変わりません）'}</span></div><div class="settings-seg">${fontSeg}</div></div>
+        <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">文字の見やすさ</span><span class="settings-row-desc">${s.font === '8bit' ? 'ピクセル書体（日本語も含めて変わります）' : '読みやすさを選べます（字の大きさ・文字と背景の差）'}</span></div><div class="settings-seg">${fontSeg}</div></div>
         <hr class="hint-divider">
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">グロー効果</span><span class="settings-row-desc">発光演出を抑えて動作を軽くします</span></div><div class="${glowClass}" onclick="ronSetGlow(!this.classList.contains('on'))" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>
         <hr class="hint-divider">
