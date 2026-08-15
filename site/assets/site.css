@@ -84,8 +84,12 @@
   --gut:24px;
   --pad:clamp(24px,5vw,80px);
 
-  --e:cubic-bezier(.16,1,.3,1);
-  --e-back:cubic-bezier(.34,1.56,.64,1); /* オーバーシュート専用（見出し横スライド）。y値が一瞬1を超える */
+  --e:cubic-bezier(.16,1,.3,1); /* GSAPのpower4.out相当。跳ねずに長く尾を引いて減速する。
+    全リベール（.reveal/.headRule/.maskReveal/.hSlide/.barFill）で共通に使う既定イージング */
+  --e-back:cubic-bezier(.34,1.56,.64,1); /* オーバーシュート専用。y値が一瞬1を超える。
+    2026-08-15：見出し横スライド（.hSlide）から撤去した（「勢いが良すぎる」という指摘の
+    原因だったため）。現在どこからも参照されていないが、跳ね返りが意図的に必要になる
+    箇所のために定義だけ残す */
 }
 
 /* 相対カラー構文（§10.8.3-3）。対応ブラウザでは面・罫を地の色から直接導出し、
@@ -152,8 +156,16 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 
 @supports (animation-timeline: view()){
   .reveal{
-    animation-name:revealIn;animation-timing-function:linear;animation-fill-mode:both;
-    animation-timeline:view();animation-range:entry 0% entry 100%}
+    /* 2026-08-15：timing-functionをlinearからvar(--e)へ変更した。linearは
+       スクロール量にそのまま比例するだけで「慣性が働いている感じがしない」
+       （ユーザー指摘）。var(--e)＝power4.out相当にすると、スクロール駆動でも
+       進行の後半でしっかり減速するため、time-based transitionと同じ「勢いよく
+       出て長く尾を引く」体感になる（.barFillが元々この考え方で作られており、
+       それに揃えた）。range開始も entry 0% → entry 28% へ後ろにずらし、要素が
+       画面にある程度入ってから動き出すようにした（「表示タイミングが早い」の
+       指摘への対処）。 */
+    animation-name:revealIn;animation-timing-function:var(--e);animation-fill-mode:both;
+    animation-timeline:view();animation-range:entry 28% entry 92%}
   .reveal[data-d="1"]{animation-delay:12%}
   .reveal[data-d="2"]{animation-delay:24%}
   .reveal[data-d="3"]{animation-delay:36%}
@@ -184,8 +196,9 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
   width:clamp(4rem,34%,18rem);height:1px;background:var(--gold);
   margin-top:var(--s2)}
 @supports (animation-timeline: view()){
-  .headRule{animation-name:ruleIn;animation-timing-function:linear;animation-fill-mode:both;
-    animation-timeline:view();animation-range:entry 0% entry 100%}
+  /* 2026-08-15：.reveal と同じ理由でvar(--e)へ、rangeも entry 20% から開始に変更した。 */
+  .headRule{animation-name:ruleIn;animation-timing-function:var(--e);animation-fill-mode:both;
+    animation-timeline:view();animation-range:entry 20% entry 70%}
 }
 @supports not (animation-timeline: view()){
   .headRule{transition:transform .6s var(--e)}
@@ -193,78 +206,102 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 }
 @keyframes ruleIn{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
 
-/* ══════ 見出しの横スライド出現＋オーバーシュート（今回追加） ══════
-   参照：showdot.jp の見出し演出。演出だけを採り、ライブラリは採らない。
+/* ══════ 見出しの帯モーション（2026-08-15：作り直し） ══════
+   参照：showdot.jp の見出し演出を再観察して作り直した。旧実装（8/15朝の
+   §24.3/§25.2）は「帯と文字が1枚の板になったまま画面外(-105%)から
+   スライドで飛び出す」1つの動きだった。ユーザー指摘は2点。
+     1. イージングが cubic-bezier(.34,1.56,.64,1)（easeOutBack）で
+        オーバーシュートしており「勢いが良すぎて慣性が働いている感じがしない」
+     2. 「四角囲みが登場するモーションは形だけで、四角が出てくるだけでは
+        ない。マーカーで線を引くように帯が左から右へ伸び、その通過に合わせて
+        中の文字が現れる。帯と文字はわずかにずれた時間差で動く」
+   （実測：showdot.jpは黒帯に白抜き文字、こちらは金帯に濃紺文字で構成は同じ。
+   跳ね返りは無く、素早く出て長く尾を引いて減速する＝--eそのもの）。
+   対応として、帯（::before）と文字（.hText）を別要素に分離した。
+     ・帯：::before を transform-origin:left の scaleX(0→1) で左から右へ
+       伸ばす。GSAPの timeline でいう1本目の .to()
+     ・文字：.hText を opacity 0→1 ＋ わずかな translateY で現す。GSAPの
+       `.to(B,{...},"<")`（前の動きと同じ位置を起点にしつつ少し遅らせる）
+       に相当する重なりを作るため、帯より少し後ろへずらした animation-range
+       を文字側に与えている（同じrangeにanimation-delayだけを足す案は、
+       この見出しの実スクロール幅が極端に狭いために失敗した。理由は下の
+       @supports ブロック内のコメントを参照）
+   イージングは両方とも --e（cubic-bezier(.16,1,.3,1)＝GSAPのpower4.out
+   相当）に統一し、旧 --e-back は使わない。
    対象は節見出しだけ（.catch/.secTitle/.wayHead＝LP、.modeSecTitle＝
    サブページ共通の節見出し）。本文・ラベル・UIには広げない。
-   仕組み：見出し本体（h2等）に overflow:hidden を持たせてマスクにし、
-   中の文字列を包む .hSlide だけを横方向へスライドさせる。マスクの外に
-   文字がある間は overflow:hidden で物理的に隠れるため、opacity操作は
-   不要（フェードではなく縁から滑り出る動き）。
-   ⚠️ 開始位置は自分自身の幅を基準（-105%）にすること。vw など画面基準の
-   固定値にすると、見出しの文字がその値より長いときに末尾がマスク内に残り、
-   「隠れた状態から滑り出る」ではなく「途中まで見えている文字が動く」に
-   なってしまう。-105% なら文字長に関わらず必ず左端の外へ出る。
-   オーバーシュートは cubic-bezier(.34,1.56,.64,1)（easeOutBack。y値が
-   一瞬1を超えるため「行きすぎてから戻る」動きになる）を from/to の2点
-   だけの keyframes に適用して作る。多段keyframesにしないほうが実装が
-   安定するため（厳守事項で過去に踏んだ巨大レイヤー等の反省を踏まえ、
-   ここでは単純な2点構成に留めた）。
+   ⚠️ 帯は scaleX（transform）で伸ばす。clip-path や overflow:hidden は
+   使わない。理由は変わらない：見出し本体（h2）は .jpAccent の
+   text-box:cap alphabetic で箱が字面まで詰められており、中の行ボックスの
+   ほうが背が高い。箱を基準に切ると2行目以降が箱からはみ出して切り落とされ、
+   スマホで「遊びのほうが、」が丸ごと消えた実績がある（実機で発生）。
+   transform:scaleX は箱そのものを切らず見た目だけを伸縮させるため、この
+   事故を再現しない。
    これらの見出しは既存の .reveal（§11.3-1・縦フェード＋scale）も同時に
    持っているため、演出を .hSlide 側へ一本化するにあたり .reveal 側の
-   動きだけを打ち消す（対象外の .reveal はそのまま）。打ち消しに
-   animation ショートハンドを使っているのは、この見出し要素の上で
-   意図して1つのアニメーションだけに絞りたいケースだからである
-   （厳守事項1が禁じる「別のアニメーションを意図せず潰す」ケースとは
-   異なる）。
-   ⚠️ prefers-reduced-motion では、site.css 既存の
-   `html:not([data-motion="on"]) *{animation:none!important}` により
-   hSlideIn 自体は止まるが、静的な transform:translateX(-105%) は
-   打ち消されないと文字がマスクの外に隠れたまま固定されてしまう
-   （情報欠落）。そのため .hSlide の transform を明示的に none へ戻す
-   行を下に個別で持たせてある。 */
-/* ⚠️ ここで overflow:hidden を掛けてはいけない。見出しは .jpAccent の
-   text-box:cap alphabetic で箱が字面まで詰められており、中の行ボックスの
-   ほうが背が高い。overflow:hidden にすると2行目以降が箱からはみ出して
-   切り落とされ、スマホで「遊びのほうが、」が丸ごと消えた（実機で発生）。
-   マスクは要らない。html 側の overflow-x:clip が画面外へ出た文字を隠すため、
-   -105% から滑り込ませれば「画面の外から入ってくる」見えは成立する。 */
+   動きだけを打ち消す（対象外の .reveal はそのまま）。打ち消しに animation
+   ショートハンドを使っているのは、この見出し要素の上で意図して1つの
+   アニメーションだけに絞りたいケースだからである（厳守事項1が禁じる
+   「別のアニメーションを意図せず潰す」ケースとは異なる）。 */
 :is(.catch,.secTitle,.wayHead,.modeSecTitle).reveal{
   opacity:1;transform:none;animation:none}
 
-.hSlide{display:inline-block;transform:translateX(-105%)}
+/* .hSlide 自身は帯の土台（position:relative）だけを担う。isolation:isolate
+   は下の ::before（z-index:-1）が .barPlay/.btnFill と同じ考え方で自分の
+   内側だけに留まり、ページ全体のスタッキングへ漏れ出さないようにするため。 */
+.hSlide{display:inline-block;position:relative;isolation:isolate;vertical-align:top}
+.hSlide::before{content:'';position:absolute;inset:0;z-index:-1;
+  transform-origin:left;transform:scaleX(0)}
+.hText{display:inline-block;opacity:0;transform:translateY(.3em)}
+
 @supports (animation-timeline: view()){
-  .hSlide{
-    animation-name:hSlideIn;animation-timing-function:var(--e-back);animation-fill-mode:both;
-    animation-timeline:view();animation-range:entry 10% entry 80%}
+  /* ⚠️ 時間差の作り方：当初は同じrangeにanimation-delay（%指定）だけを足す
+     案を試したが、実測（headlessでscrollYを刻んで.hSlide::beforeの
+     transformと.hTextのopacityを直接読んだ）で失敗が判明した。この見出し
+     （2行・約114px）は entry 0%→100% の実スクロール幅が要素自身の高さに
+     収まる（=わずか約114px）ため、animation-delayの%指定は「同じrange・
+     短縮された持続時間」として解決され、文字側が帯に急いで追いつく形になり
+     時間差がほぼ見えなかった（%delayぶん短縮されたdurationが帯と同じ終端に
+     収束するため）。そのため、帯と文字それぞれに別々の animation-range を
+     与える方式に切り替えた。開始・終了とも文字側が帯よりentry 13ptぶん
+     後ろへずれ、各々が同じ幅（33pt）で自分のペースで動く。これで
+     「帯が伸びきる前に文字が追いかけ始め、帯より少し遅れて文字も伸びきる」
+     という重なりが実際のスクロールで確認できる（動作確認は下の§26参照）。 */
+  .hSlide::before{
+    animation-name:hBandGrow;animation-timing-function:var(--e);animation-fill-mode:both;
+    animation-timeline:view();animation-range:entry 22% entry 55%}
+  .hText{
+    animation-name:hTextIn;animation-timing-function:var(--e);animation-fill-mode:both;
+    animation-timeline:view();animation-range:entry 35% entry 68%}
 }
 @supports not (animation-timeline: view()){
-  .hSlide{transition:transform .7s var(--e-back)}
-  :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hSlide{transform:translateX(0)}
+  .hSlide::before{transition:transform .5s var(--e)}
+  .hText{transition:opacity .5s var(--e) .12s, transform .5s var(--e) .12s}
+  :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hSlide::before{transform:scaleX(1)}
+  :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hText{opacity:1;transform:translateY(0)}
 }
-@keyframes hSlideIn{ from{transform:translateX(-105%)} to{transform:translateX(0)} }
+@keyframes hBandGrow{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
+@keyframes hTextIn{ from{opacity:0;transform:translateY(.3em)} to{opacity:1;transform:translateY(0)} }
 
 @media (prefers-reduced-motion: reduce){
-  html:not([data-motion="on"]) .hSlide{transform:none !important}
+  html:not([data-motion="on"]) .hSlide::before{transform:scaleX(1) !important}
+  html:not([data-motion="on"]) .hText{opacity:1 !important;transform:none !important}
 }
 
-/* ══════ 見出しの四角囲み（今回追加） ══════
-   参照：showdot.jp。節見出し（.catch/.secTitle/.wayHead/.modeSecTitle。既存の
-   .hSlide 横スライドが乗る19箇所すべて）の文字を、--headFill で塗った四角の
-   中に置く。.hSlide は元々「横から現れる」ための inline-block なので、背景と
-   パディングを足すだけで「四角が横から飛び出してくる」演出になる（新しい
-   アニメーションは増やしていない。既存の hSlideIn をそのまま流用する）。
+/* ══════ 見出しの四角囲み（§25.2。今回は帯側=::beforeへ塗り色を移設） ══════
+   参照：showdot.jp。節見出しの文字を --headFill で塗った帯の上に置く。
    文字色は指示どおり --ground そのもの（濃紺）。--headFill（実測
    #ffc751相当）に対するコントラスト比は9.92:1（AAA）で4.5:1を大きく上回る。
-   vertical-align:top は、inline-block の既定 baseline 揃えだと下に余分な
-   ディセンダー分の隙間ができ、パディングと合わさって間延びするのを防ぐため。
+   color は .hSlide に置いたまま子の .hText へ継承させる（color は継承
+   プロパティなので二重定義が要らない）。
    ⚠️ 罫（.headRule）はこの四角自体が見出しの区切りとして十分強いため、19箇所
    すべてでHTML側から撤去した（判断と理由は design/official_site_spec.md
    §25参照）。CSS定義自体は他で参照されなくなったが、影響範囲を最小にするため
    残してある。 */
+:is(.catch,.secTitle,.wayHead,.modeSecTitle) .hSlide::before{
+  background:var(--headFill)}
 :is(.catch,.secTitle,.wayHead,.modeSecTitle) .hSlide{
-  background:var(--headFill);color:var(--ground);
-  padding:var(--s2) var(--s3);vertical-align:top}
+  color:var(--ground);padding:var(--s2) var(--s3)}
 /* ⚠️ 見出し本体（h2）は .jpAccent/.jpBase の text-box:cap alphabetic により、
    自分の行ボックスを字面の高さぶんだけに詰めている。この詰めは h2 自身の
    レイアウト高さ（＝直後の兄弟要素の開始位置の基準）には影響するが、内側の
@@ -288,16 +325,21 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 @property --mo{ syntax:'<percentage>'; inherits:false; initial-value:0% }
 
 @supports (animation-timeline: view()){
+  /* 2026-08-15：マスク開き本体（maskOpen）は .reveal と同じ理由で
+     timing-functionをlinearからvar(--e)へ、rangeもentry 0%→entry 25%へ
+     後ろにずらした。画像の視差（maskParallax）はマスクの開きに従属する
+     副次的な動きなので、rangeだけ揃えてtiming-functionはlinearのまま
+     残す（視差はスクロール量に素直に追従させたい）。 */
   .maskReveal{
     clip-path:inset(0 var(--mo, 0%) 0 0);
-    animation:maskOpen linear both;
+    animation:maskOpen var(--e) both;
     animation-timeline:view();
-    animation-range:entry 0% entry 70%;
+    animation-range:entry 25% entry 85%;
   }
   .maskReveal > img{
     animation:maskParallax linear both;
     animation-timeline:view();
-    animation-range:entry 0% entry 70%;
+    animation-range:entry 25% entry 85%;
   }
   @keyframes maskOpen{ from{ --mo:100% } to{ --mo:0% } }
   @keyframes maskParallax{ from{ transform:translateX(-4%) scale(1.06) } to{ transform:translateX(0) scale(1.06) } }
@@ -395,8 +437,8 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
    同期スクリプトが判定する）。 */
 .loadOverlay{position:fixed;inset:0;z-index:200;
   overflow:hidden;background:#fff;
-  animation:loadOverlayOut .45s var(--e) 2.95s both,
-            loadOverlayHide 0s 3.7s forwards,
+  animation:loadOverlayOut .45s var(--e) 3.95s both,
+            loadOverlayHide 0s 4.7s forwards,
             introHideForce 0s 8s forwards}
 @keyframes loadOverlayOut{ from{opacity:1} to{opacity:0;pointer-events:none} }
 @keyframes loadOverlayHide{ to{ display:none } }
@@ -405,7 +447,7 @@ html.intro-skip .loadOverlay{display:none}
 @keyframes introHideForce{ to{ display:none } }
 
 html.intro-lock{overflow:hidden;
-  animation:introUnlockPrimary 0s 3.4s forwards, introUnlockForce 0s 8s forwards}
+  animation:introUnlockPrimary 0s 4.4s forwards, introUnlockForce 0s 8s forwards}
 @keyframes introUnlockPrimary{ to{ overflow:visible } }
 @keyframes introUnlockForce{ to{ overflow:visible } }
 
@@ -413,7 +455,7 @@ html.intro-lock{overflow:hidden;
 .loadCredit{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
   opacity:0;transform:translateY(var(--s1));
-  animation:loadCreditIn .75s var(--e) both}
+  animation:loadCreditIn .70s var(--e) 1.05s both}
 @keyframes loadCreditIn{
   0%{opacity:0;transform:translateY(var(--s1))}
   100%{opacity:1;transform:translateY(0)}
@@ -422,7 +464,7 @@ html.intro-lock{overflow:hidden;
   color:#0b1420;text-align:center;line-height:1.7}
 .loadCreditRule{display:block;width:2.5rem;height:1px;background:#0b1420;
   margin-top:var(--s1);transform-origin:center;transform:scaleX(0);
-  animation:loadCreditRuleIn .52s var(--e) .18s both}
+  animation:loadCreditRuleIn .52s var(--e) 1.23s both}
 @keyframes loadCreditRuleIn{ to{ transform:scaleX(1) } }
 
 /* ── 幕2（0.5–1.3s）：黒いインクの染み ──
@@ -442,7 +484,7 @@ html.intro-lock{overflow:hidden;
      .loadOverlay の白地とクレジットを相手に合成される。 */
   mix-blend-mode:multiply;
   /* 幕2が終わったら描画から外す。JSが止まっていても効くCSS側の保険。 */
-  animation:loadInkHide 0s 3.00s forwards}
+  animation:loadInkHide 0s 4.00s forwards}
 @keyframes loadInkHide{ to{ display:none } }
 
 /* 幕2（0.75〜2.65秒）：実写のインク動画。
@@ -469,7 +511,7 @@ html.intro-lock{overflow:hidden;
      呑み込む流れになる。scale は translate で空く端を埋めるためのもので、
      画面の1.18倍までしか広げない（巨大レイヤーを作らないこと）。 */
   transform:translateY(-9%) scale(1.18);
-  opacity:0;animation:loadVidShow 0s linear .75s both}
+  opacity:0;animation:loadVidShow 0s linear 1.75s both}
 @keyframes loadVidShow{ from{opacity:0} to{opacity:1} }
 
 /* 安全網：SVGフィルタやtransformの解釈差があっても、幕2の終わりには必ず
@@ -477,7 +519,7 @@ html.intro-lock{overflow:hidden;
    幕3のあいだ黒を維持し、幕4はオーバーレイ本体（loadOverlayOut）と
    歩調を合わせてロゴごと消える。 */
 .loadBlackout{position:absolute;inset:0;z-index:3;background:#04070c;
-  opacity:0;animation:loadBlackoutSeq .60s linear 2.40s both}
+  opacity:0;animation:loadBlackoutSeq .60s linear 3.40s both}
 @keyframes loadBlackoutSeq{
   0%{opacity:0}
   35%{opacity:0}
@@ -507,12 +549,18 @@ html.intro-lock{overflow:hidden;
   font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:#0b1420;
   opacity:0;pointer-events:none;
   counter-reset:n var(--n, 0);
-  animation-name:loadCountFade,loadCountUp;
-  animation-duration:.3s,2.85s;
-  animation-timing-function:var(--e),linear;
-  animation-fill-mode:both,both}
+  /* ⚠️ カウントとクレジットとインクを重ねないこと。同時に進むとインクの
+     見せ場が他の要素に食われる（実機で「染みが飛ぶ」と指摘された）。
+     カウント(0〜1.05秒) → クレジット(1.05〜1.75秒) → インク(1.75〜3.85秒)
+     の順に、重ならないよう直列で並べる。 */
+  animation-name:loadCountFade,loadCountUp,loadCountOut;
+  animation-duration:.3s,1.05s,.25s;
+  animation-timing-function:var(--e),linear,var(--e);
+  animation-delay:0s,0s,1.05s;
+  animation-fill-mode:both,both,forwards}
 .loadCount::before{content:counter(n) '%'}
 @keyframes loadCountFade{ to{opacity:.55} }
+@keyframes loadCountOut{ to{opacity:0} }
 @keyframes loadCountUp{ from{--n:0} to{--n:100} }
 
 /* ── 幕3は廃止した（2026-08-12）──
@@ -911,7 +959,7 @@ html.menu-open{overflow:hidden}
 .btnFill{position:relative;isolation:isolate;display:inline-flex;align-items:center;margin-top:var(--s5);
   padding:var(--s3) var(--s6);background:var(--accent);color:#fff;font-weight:700;
   font-size:var(--fs-h3);letter-spacing:var(--tr-label);
-  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  /* 角の斜め欠けは外した（ユーザー指示。指定コードに無い要素だった）。 */
   transition:color .2s var(--e),transform .2s var(--e)}
 .btnFill::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--gold);
   clip-path:polygon(0 0,0 0,0 100%,0 100%);transition:clip-path .32s var(--e)}

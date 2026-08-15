@@ -204,8 +204,10 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
    テキストとして必ず残す（§5.4。下の統計ラベル・年ラベル・%表記を参照）。 */
 .barFill{transform-origin:left;transform:scaleX(0)}
 @supports (animation-timeline: view()){
+  /* 2026-08-15：他のリベールと同じ理由で開始位置を entry 10% → entry 28% に
+     後ろへずらした（timing-functionは元からvar(--e)で変更不要）。 */
   .barFill{animation:barGrow 1.1s var(--e) both;animation-timeline:view();
-    animation-range:entry 10% entry 90%}
+    animation-range:entry 28% entry 90%}
 }
 @supports not (animation-timeline: view()){
   .barFill{transition:transform 1.1s var(--e)}
@@ -485,10 +487,10 @@ html.ink-gl .inkLayer{display:none}
    site.js は TOTAL_MS+200 後に intro-lock を剥がし、剥がれた瞬間に
    html.intro-lock 配下の animation はマッチしなくなって既定値（＝最終状態）へ
    飛ぶ。演出が終わる 5.30秒より前に剥がしてはいけない（TOTAL_MS=5500）。 */
-html.intro-lock .fvRed{animation:fvSplit 1.9s var(--e) 3.40s both}
-html.intro-lock .fvL1{animation:fvReadyUp 1.9s var(--e) 3.40s both}
-html.intro-lock .fvQ{animation:fvQOut 1.9s linear 3.40s both}
-html.intro-lock .fvRule{animation:fvRuleIn 1.9s var(--e) 3.40s both}
+html.intro-lock .fvRed{animation:fvSplit 1.9s var(--e) 4.40s both}
+html.intro-lock .fvL1{animation:fvReadyUp 1.9s var(--e) 4.40s both}
+html.intro-lock .fvQ{animation:fvQOut 1.9s linear 4.40s both}
+html.intro-lock .fvRule{animation:fvRuleIn 1.9s var(--e) 4.40s both}
 html.intro-lock .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) 3.40s both}
 
 /* 同一セッションの2回目以降はローディングを出さないので、待たずに始める。 */
@@ -559,7 +561,6 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
    絵の主題が右側にあるため、スマホでは右へ寄せて見せる。 */
 @media(max-width:899px){
   .heroKV{background-position:78% center}
-  .closeKV{background-position:76% center}
 }
 .heroL{position:relative;z-index:2;grid-column:1 / 8;min-width:0;align-self:center}
 /* 左上のロゴは position:fixed のため、スマホではヒーローのロゴタイプと
@@ -952,6 +953,10 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
 
 .closeKV{position:absolute;inset:0;z-index:0;pointer-events:none;
   background-image:var(--kv2,var(--kv2-fallback));background-size:cover;background-position:center}
+/* ⚠️ この指定は .closeKV の定義より後ろに置くこと。詳細度が同じ(0,1,0)なので、
+   定義より前に書くと後勝ちで打ち消される（実際に効いていなかった）。
+   スマホは縦長で cover の横方向が大きく切られるため、右へ寄せて見せる。 */
+@media(max-width:899px){ .closeKV{background-position:74% center} }
 /* 左スクリムは00と同じ考え方（§10.2.1・§11.4）。文字が乗る左側の輝度を落として
    可読性を確保する。 */
 .closeKV::after{content:'';position:absolute;inset:0;
@@ -1175,7 +1180,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
   <div class="wrap g12">
     <span class="secNo en">01</span>
     <div class="whyL">
-      <h2 class="catch jpAccent reveal" data-d="1"><span class="hSlide">遊びのほうが、<br>真剣になれる。</span></h2>
+      <h2 class="catch jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">遊びのほうが、<br>真剣になれる。</span></span></h2>
       <div class="whyBody">
         <p class="reveal" data-d="2">避難訓練や講義では、正しい知識を身に付けられるけど退屈。<br>それは実際に災害を経験し失敗できないから。</p>
         <p class="reveal" data-d="3">ゲームという仮想空間で仲間とスマホで気軽にプレイして<br>防災について有機的な学びを得よう。</p>
@@ -1214,7 +1219,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
   </div>
   <div class="wrap">
     <!-- スマホでは「30 CARDS」で改行し「5 COLORS」を2行目にする。「／」はPC版のみ表示。 -->
-    <h2 class="catch jpAccent reveal" data-d="0"><span class="hSlide">30 CARDS<span class="pcOnly"> ／ </span><br class="mobileBr">5 COLORS</span></h2>
+    <h2 class="catch jpAccent reveal" data-d="0"><span class="hSlide"><span class="hText">30 CARDS<span class="pcOnly"> ／ </span><br class="mobileBr">5 COLORS</span></span></h2>
   </div>
   <div class="marqViewport">
     <div class="marqInner">
@@ -1239,7 +1244,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
     <span class="secNo en">02</span>
     <div class="orbitGrid">
       <div class="orbitL">
-        <h2 class="secTitle jpAccent reveal" data-d="1"><span class="hSlide">現実とリンクした<br class="mobileBr">世界観</span></h2>
+        <h2 class="secTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">現実とリンクした<br class="mobileBr">世界観</span></span></h2>
         <div class="orbitStage reveal" data-d="2">
           <div class="orbitPath" aria-hidden="true"></div>
           <div class="orbitTrack" role="group" aria-label="カードの5色を選ぶ" aria-describedby="orbitHintTxt"></div>
@@ -1273,7 +1278,7 @@ html.intro-skip .fvL2{animation:fvOrNotIn 1.9s cubic-bezier(.22,1.28,.36,1) both
   <div class="wrap g12">
     <span class="secNo en">03</span>
     <!-- スマホでは「遊んで学べる」で改行し「2モード」を2行目にする。 -->
-    <h2 class="wayHead secTitle jpAccent reveal" data-d="1"><span class="hSlide">遊んで学べる<br class="mobileBr">2モード</span></h2>
+    <h2 class="wayHead secTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">遊んで学べる<br class="mobileBr">2モード</span></span></h2>
   </div>
 
   <!-- 赤青パネル。各モードの説明を面の中に収める（2026-08-13）。

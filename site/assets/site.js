@@ -44,14 +44,14 @@ window.RonSite = (function(){
       return;
     }
 
-    var ACT2_END_MS = 2850;   /* 幕1(0.75s)+幕2(動画2.10s) */
-    var TOTAL_MS = 5500;      /* 幕1+幕2+退場(3.4秒)＋ファーストビューの窓開き(〜4.35秒)。
+    var ACT2_END_MS = 3850;   /* 幕1(0.75s)+幕2(動画2.10s) */
+    var TOTAL_MS = 4500;      /* 幕1+幕2+退場(3.4秒)＋ファーストビューの窓開き(〜4.35秒)。
                                  ⚠️ intro-lock はこの値+200ms で剥がされる。剥がれた瞬間に
                                  html.intro-lock 配下のアニメーションが打ち切られるため、
                                  .fvReveal の窓開きが終わるまで剥がしてはいけない。
                                  スクロール固定自体は CSS の introUnlockPrimary が3.4秒で
                                  解除するので、ここを伸ばしても操作は待たせない。 */
-    var INK_START_MS = 750;   /* 幕1が明けた瞬間。CSSの .loadInkVid の遅延と同じ値 */
+    var INK_START_MS = 1750;   /* 幕1が明けた瞬間。CSSの .loadInkVid の遅延と同じ値 */
     var done = false;
 
     /* 検証用（?introfreeze=1）：CSS側は animation-play-state:paused で止まるが、
