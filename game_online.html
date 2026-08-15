@@ -15891,9 +15891,18 @@
       const cBad = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:9px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
       const cOk  = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:9px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);white-space:nowrap';
       const baseChip = `<span style="${cBad}">基礎 ${r.card.baseDamage}</span>`;
-      const lineChips = r.lines.filter(l => l.d != null).map(l => `<span style="${l.d > 0 ? cBad : cOk}">${_escHtml(l.t.split(/[：（(]/)[0])} ${l.d > 0 ? '+' : ''}${l.d}</span>`).join('');
+      /* 表示順（2026-08-15・ユーザー指示）：①即時回復 → ②ダメージ計算 → ③最終HP → ④比較。
+         回復（即時回復カード）は「先に効いたもの」として内訳の先頭へ、基礎ダメージの前に置く。
+         ⚠️ これは「表示の順序だけ」の変更である。エンジンの計算順（ダメージ→回復）は変えていない。
+            したがってここで途中のHPを書いてはいけない。書くと実際の計算順と食い違って数字が
+            合わなくなる。HPは行の下に、実際の前後の値だけを出す。 */
+      const _isHeal = l => l.d != null && l.d < 0 && /回復|支援/.test(l.t);
+      const _valued = r.lines.filter(l => l.d != null);
+      const _chip = l => `<span style="${l.d > 0 ? cBad : cOk}">${_escHtml(l.t.split(/[：（(]/)[0])} ${l.d > 0 ? '+' : ''}${l.d}</span>`;
+      const healChips = _valued.filter(_isHeal).map(_chip).join('');
+      const lineChips = _valued.filter(l => !_isHeal(l)).map(_chip).join('');
       return `<div class="dd-sol-dmg"><span class="dd-sol-dmg-num" style="color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span class="dd-sol-dmg-label">被害</span></div>
-      <div class="dd-sol-chips">${baseChip}${lineChips}</div>`;
+      <div class="dd-sol-chips">${healChips}${baseChip}${lineChips}</div>`;
     }
     // (b) 行トグルの開閉。コーディネーター指摘：本日bcb8c2fで「トグル操作がオーバーレイ全体を再描画してカード画像が
     // ちらつく」不具合を修正済みのため、同種の教訓に従いここでもDD状態・render()を一切経由しない。
