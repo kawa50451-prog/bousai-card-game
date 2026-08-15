@@ -60,6 +60,11 @@
   --t1:#eef3f9; --t2:#b9c6d8; --t3:#7d8ba0;
   --accent:#fa2a4e; --accent-rgb:250,42,78;   /* 面と図形専用。文字色には使わない */
   --gold:#ffd24a;                             /* 第2アクセント。文の中の要点だけを金にする */
+  /* 見出しの四角囲み（今回追加）の塗り色。--gold の明度・彩度に、--ground の
+     色相 --gH（255°）の補色（+180°＝75°）を掛け合わせたもの。非対応ブラウザ
+     向けのフォールバックはオフラインで計算した実測値（詳細は下の@supportsブロック
+     と§10.3.5相当のコメントを参照）。 */
+  --headFill:#ffc751;
 
   /* ── モジュラースケール 1.333（§10.4.2）。この9段以外を font-size に書かない ── */
   --fs-d3:5.61rem; --fs-d2:4.21rem; --fs-d1:3.16rem; --fs-h1:2.37rem;
@@ -89,6 +94,13 @@
   :root{
     --surface: oklch(from var(--ground) calc(l + .06) calc(c * .95) h);
     --border : oklch(from var(--ground) calc(l + .15) calc(c * .75) h);
+    /* --headFill＝地の濃紺の補色。oklch(from …) は1色の l/c/h しか取り出せない
+       ため、明度・彩度は --gold から、色相だけ --gH（:root の地の色相トークン。
+       今は255°）+180° に差し替える。calc(var(--gH) + 180) は435°になるが、
+       hue は周期量なのでブラウザ側で360°を引いた75°として解決される。
+       実測：oklch(from #ffd24a l c 75) ≈ #ffc751（--gold #ffd24a とほぼ同じ
+       明るさの黄色で、地 --ground #00244f との補色関係を満たす）。 */
+    --headFill: oklch(from var(--gold) l c calc(var(--gH) + 180));
   }
 }
 
@@ -235,6 +247,34 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 @media (prefers-reduced-motion: reduce){
   html:not([data-motion="on"]) .hSlide{transform:none !important}
 }
+
+/* ══════ 見出しの四角囲み（今回追加） ══════
+   参照：showdot.jp。節見出し（.catch/.secTitle/.wayHead/.modeSecTitle。既存の
+   .hSlide 横スライドが乗る19箇所すべて）の文字を、--headFill で塗った四角の
+   中に置く。.hSlide は元々「横から現れる」ための inline-block なので、背景と
+   パディングを足すだけで「四角が横から飛び出してくる」演出になる（新しい
+   アニメーションは増やしていない。既存の hSlideIn をそのまま流用する）。
+   文字色は指示どおり --ground そのもの（濃紺）。--headFill（実測
+   #ffc751相当）に対するコントラスト比は9.92:1（AAA）で4.5:1を大きく上回る。
+   vertical-align:top は、inline-block の既定 baseline 揃えだと下に余分な
+   ディセンダー分の隙間ができ、パディングと合わさって間延びするのを防ぐため。
+   ⚠️ 罫（.headRule）はこの四角自体が見出しの区切りとして十分強いため、19箇所
+   すべてでHTML側から撤去した（判断と理由は design/official_site_spec.md
+   §25参照）。CSS定義自体は他で参照されなくなったが、影響範囲を最小にするため
+   残してある。 */
+:is(.catch,.secTitle,.wayHead,.modeSecTitle) .hSlide{
+  background:var(--headFill);color:var(--ground);
+  padding:var(--s2) var(--s3);vertical-align:top}
+/* ⚠️ 見出し本体（h2）は .jpAccent/.jpBase の text-box:cap alphabetic により、
+   自分の行ボックスを字面の高さぶんだけに詰めている。この詰めは h2 自身の
+   レイアウト高さ（＝直後の兄弟要素の開始位置の基準）には影響するが、内側の
+   .hSlide に足したパディングつきの背景box（見た目の高さ）には影響しない
+   ため、そのままでは直後の本文（.whyBody 等）が四角の下辺に食い込んで重なる
+   （実機で確認）。margin-bottom ではなく padding-bottom を使う：直後の
+   要素側が既に持つ margin-top（--s5 等）はブロックの垂直マージンどうしの
+   相殺の対象だが、padding は相殺されないため、四角の視覚的なはみ出し分を
+   確実に別枠で確保できる。 */
+:is(.catch,.secTitle,.wayHead,.modeSecTitle){padding-bottom:var(--s5)}
 
 /* ══════ 画像がマスクで開く（§12.1） ══════
    clip-path:inset() を scroll-driven で動かし、マスクが横に開いて中身が現れる
@@ -585,14 +625,23 @@ body > footer{position:relative;z-index:1}
   filter:drop-shadow(0 1px 3px rgba(0,0,0,.85))}
 .hamburgerBtn:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
 .hamburgerBox{position:relative;width:1.1em;height:.78em;display:block;font-size:var(--fs-h3)}
+/* ⚠️ 今回改訂：3本線→×のモーフィングを「線の回転・消失を滑らかにつなぐ」よう
+   作り直した。以前は外側2本のtransform（.3s）と中央のopacity（.2s）が別の
+   長さで動いており、終わるタイミングがずれて「バラバラに変化して見える」
+   問題があった。3本とも同じduration/easing（.32s・var(--e)）に揃え、中央の
+   線はopacityだけでなくtransform-origin:centerでscaleX(0)も同時に動かす
+   ことで「中央の線が線分として縮んでから消える」→外側2本が同じ拍で回転して
+   Xを形づくる、という1つの動きに見えるようにした。animationショートハンドは
+   使わず個別プロパティのままなので、他の指定を潰す事故（厳守事項1）は起きない。 */
 .hamburgerBox span{position:absolute;left:0;right:0;height:2px;margin:0;background:var(--t1);border-radius:1px;
-  transition:transform .3s var(--e),opacity .2s var(--e),background-color .2s var(--e)}
+  transform-origin:center;
+  transition:transform .32s var(--e),opacity .32s var(--e),background-color .2s var(--e)}
 .hamburgerBox span:nth-child(1){top:0}
 .hamburgerBox span:nth-child(2){top:50%;margin-top:-1px}
 .hamburgerBox span:nth-child(3){bottom:0}
 .hamburgerBtn:hover .hamburgerBox span,.hamburgerBtn:focus-visible .hamburgerBox span{background:var(--gold)}
 html.menu-visible .hamburgerBox span:nth-child(1){transform:translateY(.36em) rotate(45deg)}
-html.menu-visible .hamburgerBox span:nth-child(2){opacity:0}
+html.menu-visible .hamburgerBox span:nth-child(2){opacity:0;transform:scaleX(0)}
 html.menu-visible .hamburgerBox span:nth-child(3){transform:translateY(-.36em) rotate(-45deg)}
 @media(max-width:480px){ .hamburgerBtn{width:calc(var(--fs-h3) * 2.1)} }
 
@@ -618,25 +667,66 @@ html.menu-open .navScrim{opacity:1;pointer-events:auto}
 html.menu-visible .navMenu{opacity:1;visibility:visible;pointer-events:auto;transform:scale(1);
   transition:opacity .45s var(--e),transform .45s cubic-bezier(.34,1.56,.64,1),visibility 0s linear 0s}
 
+/* ⚠️ 今回改訂：taotajima.jp（参照）のように各項目へ画像を付けたぶん、6項目を
+   1画面に収めきる制約は外した（旧コメント「6項目が1画面に必ず収まる寸法に」
+   は撤回）。.navMenuPanel の overflow-y:auto は元から持たせてあったが、
+   今回はじめて実際にスクロールが働く前提の設計にする。 */
 .navMenuPanel{width:min(92vw,26rem);max-height:calc(100svh - var(--pad) * 2);overflow-y:auto;
-  border-radius:20px;padding:var(--s5);
+  overscroll-behavior:contain;
+  border-radius:20px;padding:var(--s4) var(--s5);
   background:color-mix(in oklch, var(--ground) 62%, transparent);
   box-shadow:inset 0 0 0 1px var(--border), 0 24px 60px rgba(0,0,0,.5);
   -webkit-backdrop-filter:blur(20px) saturate(165%);backdrop-filter:blur(20px) saturate(165%)}
 
 .navMenuList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-/* ⚠️ 6項目が1画面に必ず収まる寸法にすること。--fs-h1 まで大きくすると
-   下2項目が切れてパネル内スクロールが出る（実際に出た）。
-   縦の余白と字送りを詰め、上限を --fs-h2 に抑える。 */
-.navMenuList a{display:block;padding:var(--s1) 0;
-  font-size:clamp(var(--fs-b),3.4vw,var(--fs-h2));letter-spacing:var(--tr-label);
+/* 画像付きの行（今回追加）。左に画像、右にラベル。.navMenuPanel の
+   overflow-y:auto が最も近いスクロールコンテナになるため、animation-timeline:
+   view() は追加のコンテナ指定なしでこのスクロールに連動する。 */
+.navMenuList a{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0;
+  font-size:clamp(var(--fs-b),3.2vw,var(--fs-h3));letter-spacing:var(--tr-label);
   color:var(--t2);border-bottom:1px solid var(--border);
-  transition:color .2s var(--e),padding-left .2s var(--e)}
+  transition:color .2s var(--e)}
 .navMenuList li:last-child a{border-bottom:0}
-.navMenuList a:hover{color:var(--gold);padding-left:var(--s2)}
+.navMenuList a:hover{color:var(--gold)}
 .navMenuList a:active{color:var(--gold)}
 .navMenuList a:focus-visible{color:var(--gold);outline:2px solid var(--gold);outline-offset:3px}
 .navMenuList a[aria-current="page"]{color:var(--gold)}
+.navMenuLabel{flex:1 1 auto}
+
+/* 参照サイトはVERSUSなど各項目に写真を添えている。既存アセット（ゲーム内
+   スクリーンショット・キービジュアル）を流用し、新しい画像は増やさない
+   （表示サイズに対して過大にならないよう width/height はサムネイル用に
+   縮小した固定寸法・object-fit:coverで切り出す）。 */
+.navMenuImg{flex:none;width:clamp(3.6rem,13vw,4.6rem);aspect-ratio:3/4;
+  object-fit:cover;border-radius:6px;
+  box-shadow:inset 0 0 0 1px var(--border);
+  transition:transform .25s var(--e)}
+.navMenuList a:hover .navMenuImg,.navMenuList a:focus-visible .navMenuImg{transform:scale(1.06)}
+
+/* ══════ スクロール上下端での変形・フェード（今回追加） ══════
+   参照：taotajima.jp。画像・文字が端に近づくにつれて縮小しながら薄くなる。
+   ライブラリなしで animation-timeline:view() だけで作る。.navMenuList の
+   最も近いスクロール祖先は .navMenuPanel（overflow-y:auto）なので、追加の
+   scroll-timeline名や祖先指定は不要（view()は自分自身の可視範囲を見る）。
+   animation-range:cover 0%〜100% は「要素がスクロールポートに入り始めてから
+   完全に出きるまで」の全区間を0〜100%に割り当てる。0%/100%（＝上下端で
+   隠れかけ）を縮小・低opacityに、15%〜85%（＝ほぼ全体が見えている中間）を
+   等倍・不透明にすることで、上下端でだけ変形させる。 */
+@supports (animation-timeline: view()){
+  .navMenuList li{
+    animation-name:navItemEdge;animation-timing-function:linear;animation-fill-mode:both;
+    animation-timeline:view();animation-range:cover 0% cover 100%}
+}
+@keyframes navItemEdge{
+  0%{opacity:.12;transform:scale(.8)}
+  15%{opacity:1;transform:scale(1)}
+  85%{opacity:1;transform:scale(1)}
+  100%{opacity:.12;transform:scale(.8)}
+}
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .navMenuList li{
+    animation:none!important;opacity:1!important;transform:none!important}
+}
 
 /* ══════ ページ本体の「奥へ縮む」演出（今回新設） ══════
    .pageScale はloadOverlay／siteLogo／hamburgerBtn／navScrim／navMenuの
