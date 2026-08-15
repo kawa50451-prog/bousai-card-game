@@ -2011,6 +2011,48 @@
         repeating-linear-gradient(0deg, rgba(var(--t0-rgb),.045) 0, rgba(var(--t0-rgb),.045) 1px, transparent 1px, transparent 24px),
         repeating-linear-gradient(90deg, rgba(var(--t0-rgb),.045) 0, rgba(var(--t0-rgb),.045) 1px, transparent 1px, transparent 24px);
     }
+    /* 2026-08-15：カード工房エディタのプレビューをExcelの左列固定表示のようにスクロール追従させる（sticky）。
+       祖先（body/#app/.screen/.ws-editor-screen）にoverflow:hidden/autoやtransformが無いことを確認済みで、
+       topはウィンドウのスクロールに対して効く。スマホ縦画面で場所を取りすぎないよう常に小さめの固定サイズ
+       （#cw-live-mount側でwidth:clamp(118px,34vw,190px)を指定）で表示し、拡大はしない
+       （カードが画面の半分を占めると設定操作の妨げになるため）。背景は.ws-editor-screenの方眼紙と同系の
+       単色で不透明にし、下の設定項目がスクロールで裏を通り抜けて透けないようにする。 */
+    .cw-sticky-preview {
+      position: sticky;
+      top: 8px;
+      z-index: 5;
+      display: flex;
+      justify-content: center;
+      padding: 8px 0 10px;
+      margin-bottom: 8px;
+      background: var(--bg0-deep, var(--bg0));
+      box-shadow: 0 10px 14px -10px rgba(0,0,0,.45);
+    }
+    /* 2026-08-15：詳細設定（発動タイミング→トリガー災害）の開閉に慣性モーションを付ける。
+       フルrender()のたびにDOMノードを丸ごと作り直す設計のため、「開く」はCSSキーフレームで新規挿入時に
+       常に再生されるオーバーシュート演出（cw-accordion-in、行きすぎてから戻るback-out系イージング）、
+       「閉じる」はJS側（cwAnimateCloseThenRender）で実際の状態変更を一呼吸遅らせ、その間だけこのクラスで
+       滑らかにフェードアウトさせる。prefers-reduced-motionでは両方とも即座に切り替える（情報欠落防止）。 */
+    @keyframes cw-accordion-in {
+      0%   { opacity: 0; transform: scaleY(.82) translateY(-4px); }
+      55%  { opacity: 1; transform: scaleY(1.05) translateY(0); }
+      100% { opacity: 1; transform: scaleY(1) translateY(0); }
+    }
+    .cw-accordion-panel {
+      transform-origin: top;
+      animation: cw-accordion-in .38s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    .cw-accordion-panel.cw-accordion-closing {
+      animation: none;
+      opacity: 0;
+      transform: scaleY(.9);
+      transition: opacity .2s ease-out, transform .2s ease-out;
+      pointer-events: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cw-accordion-panel { animation: none; }
+      .cw-accordion-panel.cw-accordion-closing { transition: none; opacity: 1; transform: none; }
+    }
 
     /* §3.3片辺アクセント＋§3.4計器の文法：スライダー・数値設定を「仕様書の項目行」へ。
        既存の全周dashed枠の縦積み（囲みボックス）をやめ、左辺2pxアクセント＋下辺1px罫線のリスト構造にする（§3.5）。
@@ -5591,7 +5633,9 @@
       { id: '8bit',          label: '8bit',                 swatchBg: '#0a0a1a', swatchAccent: '#ff004d' },
       { id: 'light',         label: 'デイライト',           swatchBg: '#f2f0ea', swatchAccent: '#d6294a' }, // 2026-07-21：表示名を「ハザードマップ」から変更（カード名「ハザードマップ整備」との混同回避・一般ユーザーへの直感的な伝達性優先）。世界観コンセプト名「紙のハザードマップ」はworldview.md §11に残置。data-theme id=lightは互換のため不変
     ];
-    const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', glow: true, motion: 'on' };
+    // 2026-08-15追加：対戦CPU戦でカード工房のマイ都市を使うかの設定（既定OFF）。既存プレイヤーの保存済み設定は
+    // ronGetSettings()のスプレッド展開で自動的にfalse補完されるため後方互換は保たれる。
+    const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', glow: true, motion: 'on', cwCpu: false };
     function ronGetSettings() {
       try {
         const raw = localStorage.getItem(RON_SETTINGS_KEY);
@@ -5663,6 +5707,7 @@
     function ronSetFont(font)     { const s = ronGetSettings(); s.font = font;    ronSaveSettings(s); render(); }
     function ronSetGlow(on)       { const s = ronGetSettings(); s.glow = !!on;    ronSaveSettings(s); render(); }
     function ronSetMotion(mode)   { const s = ronGetSettings(); s.motion = mode;  ronSaveSettings(s); render(); }
+    function ronSetCwCpu(on)      { const s = ronGetSettings(); s.cwCpu = !!on;   ronSaveSettings(s); render(); }
 
     let _settingsOpen = false;
     function toggleSettings() { _settingsOpen = !_settingsOpen; render(); }
@@ -5678,6 +5723,16 @@
       const motionVal = s.motion || 'auto';
       const motionSeg = [['auto', '自動'], ['on', 'オン'], ['off', 'オフ']].map(([m, label]) => `<button class="settings-seg-btn${motionVal === m ? ' active' : ''}" onclick="ronSetMotion('${m}')">${label}</button>`).join('');
       const motionDesc = motionVal === 'on' ? 'OSの設定に関わらず演出を表示します' : motionVal === 'off' ? 'OSの設定に関わらず演出を止めます' : 'OSの「アニメーションを減らす」設定にそのまま従います';
+      // 2026-08-15追加：対戦CPU戦でカード工房のマイ都市を使うかの設定。マイ都市が1枚もない場合は
+      // 空の選択肢を選ばせないため、スイッチを無効化した見た目にして理由を添える（設定項目自体は残し、
+      // カード工房への導線として機能させる。design_system.md §10.1「デッドスペースは罪」に沿い、
+      // 行を消すより「今は使えないが何をすれば使えるか」を示す方を優先した）。
+      const cwCardCount = cwLoadAll().length;
+      const cwCpuOn = s.cwCpu === true && cwCardCount > 0;
+      const cwCpuSwitchClass = cwCpuOn ? 'ios-switch on' : 'ios-switch';
+      const cwCpuRow = cwCardCount > 0
+        ? `<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">対戦CPU戦でマイ都市を使う</span><span class="settings-row-desc">オンにすると、都市ガチャの後にカード工房のマイ都市へ差し替えられます（あなたの都市のみ・CPUには影響しません）</span></div><div class="${cwCpuSwitchClass}" onclick="ronSetCwCpu(!this.classList.contains('on'))" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>`
+        : `<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label" style="color:var(--t3)">対戦CPU戦でマイ都市を使う</span><span class="settings-row-desc">カード工房でマイ都市を1枚以上作成すると使えるようになります</span></div><div class="ios-switch" style="flex-shrink:0;opacity:.4;pointer-events:none"><div class="track"><div class="knob"></div></div></div></div>`;
       return `<div class="hint-overlay" onclick="toggleSettings()"><div class="hint-box" onclick="event.stopPropagation()">
         <div class="hint-box-header"><span class="hint-title">${uiIcoGear(15)} 設定</span><button class="hint-close" onclick="toggleSettings()">✕</button></div>
         <div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:8px">テーマカラー</div><div class="settings-theme-row">${themeChips}</div></div>
@@ -5687,6 +5742,8 @@
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">グロー効果</span><span class="settings-row-desc">発光演出を抑えて動作を軽くします</span></div><div class="${glowClass}" onclick="ronSetGlow(!this.classList.contains('on'))" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>
         <hr class="hint-divider">
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">モーション</span><span class="settings-row-desc">${motionDesc}</span></div><div class="settings-seg">${motionSeg}</div></div>
+        <hr class="hint-divider">
+        ${cwCpuRow}
       </div></div>`;
     }
 
@@ -6135,6 +6192,22 @@
     function getActiveCity(pi) { const p = G.players[pi]; return p.cities[p.activeCityIdx]; }
     function getActiveCityHp(pi) { const p = G.players[pi]; return p.cityHps[p.activeCityIdx]; }
     function getActiveMaxHp(pi) { return G.players[pi].cities[G.players[pi].activeCityIdx].hp; }
+    // ── カード工房：都市能力パラメータ化の共通ヘルパー ──
+    // quake_regen/flood_budget/flood_draw/quake_drawの4種は元々「対象災害idが実装側に固定」だった
+    // （niigata=地震／rotterdam・nagoya=洪水・津波／istanbul=地震）。カード工房のカテゴリB特殊効果
+    // （custom_regen/custom_budgetのevent mode・custom_draw）で任意の自然災害7種をトリガーに選べるようにする
+    // ため、city.abilityTargets配列を使った汎用チェックへ置き換える。実在都市（CITIES）はabilityTargetsを
+    // 持たないため、この既定値へフォールバックすることで既存4都市の挙動を完全に維持する。
+    const RON_LEGACY_ABILITY_TARGETS = {
+      quake_regen: ['earthquake'],        // niigata
+      flood_budget: ['flood', 'tsunami'], // rotterdam
+      flood_draw: ['flood', 'tsunami'],   // nagoya
+      quake_draw: ['earthquake'],         // istanbul
+    };
+    function ronAbilityTargetMatch(city, abilityType, disasterId) {
+      const targets = (city && Array.isArray(city.abilityTargets)) ? city.abilityTargets : (RON_LEGACY_ABILITY_TARGETS[abilityType] || null);
+      return !!targets && targets.includes(disasterId);
+    }
     function getBudget(pi) { const p = G.players[pi]; const c = getActiveCity(pi); let b = 3; if (c && c.abilityType === 'extra_budget') b += c.abilityValue; if (c && c.abilityType === 'flood_budget' && p.effects.floodBonusTurns > 0) b += c.abilityValue; if (p.effects.debtBudget > 0) b -= p.effects.debtBudget; return Math.max(0, b); }
     function getBudgetLeft(pi) { return getBudget(pi) - G.players[pi].budgetUsed; }
     // ── 予算pipゲージ（コイン型SVG）。対戦・協力の全予算表示箇所で共通利用。design_system.md準拠で絵文字不使用 ──
@@ -6463,10 +6536,10 @@
         if (defCity.abilityType === 'resist_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：洪水・津波軽減（防災投資）`, -defCity.abilityValue); }
         if (defCity.abilityType === 'resist_custom' && Array.isArray(defCity.abilityTargets) && defCity.abilityTargets.includes(attackCard.id)) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：${defCity.abilityTargets.map(cwCustomResistTargetLabel).join('・')}軽減（防災投資）`, -defCity.abilityValue); }
         if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：連続被弾軽減（適応力）`, -defCity.abilityValue); }
-        if (defCity.abilityType === 'quake_regen' && attackCard.id === 'earthquake') def.effects.quakeHitThisTurn = true;
-        if (defCity.abilityType === 'flood_budget' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { def.effects.floodBonusTurns = 1; ld('city_effect', `${defCity.name}の都市能力：次ターン予算+${defCity.abilityValue}（洪水後の復旧力）`, null); G._nextTurnEvents[defIdx].push({ type: 'flood_budget', cityIcon: terrainImg(defCity, 18), cityName: defCity.name, bonusAmt: defCity.abilityValue }); }
-        if (defCity.abilityType === 'flood_draw' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
-        if (defCity.abilityType === 'quake_draw' && attackCard.id === 'earthquake') { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
+        if (defCity.abilityType === 'quake_regen' && ronAbilityTargetMatch(defCity, 'quake_regen', attackCard.id)) def.effects.quakeHitThisTurn = true;
+        if (defCity.abilityType === 'flood_budget' && ronAbilityTargetMatch(defCity, 'flood_budget', attackCard.id)) { def.effects.floodBonusTurns = 1; ld('city_effect', `${defCity.name}の都市能力：次ターン予算+${defCity.abilityValue}（洪水後の復旧力）`, null); G._nextTurnEvents[defIdx].push({ type: 'flood_budget', cityIcon: terrainImg(defCity, 18), cityName: defCity.name, bonusAmt: defCity.abilityValue }); }
+        if (defCity.abilityType === 'flood_draw' && ronAbilityTargetMatch(defCity, 'flood_draw', attackCard.id)) { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
+        if (defCity.abilityType === 'quake_draw' && ronAbilityTargetMatch(defCity, 'quake_draw', attackCard.id)) { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
       }
       def.effects.disastersReceivedThisTurn++;
       // 防災庁
@@ -6649,7 +6722,18 @@
     function selectCityOrder(playerIdx, firstIdx) {
       const p = G.players[playerIdx];
       if (firstIdx === 1) { [p.cities[0], p.cities[1]] = [p.cities[1], p.cities[0]]; [p.cityHps[0], p.cityHps[1]] = [p.cityHps[1], p.cityHps[0]]; }
-      if (playerIdx === 0) { G.gachaCurrent = { playerIdx: 1, pickNum: 0, revealed: null }; G.screen = 'gacha'; }
+      if (playerIdx === 0) {
+        // 2026-08-15追加：対戦CPU戦・設定ON・マイ都市が1枚以上のときだけ、都市ガチャの直後に
+        // 「マイ都市に差し替える」任意画面を挟む。isCpuMode限定のためオンライン対戦・協力・2人対戦の
+        // 挙動は一切変わらない（この分岐自体に到達しない）。CPU（playerIdx 1）側のガチャ・ドラフトは無改修。
+        if (isCpuMode && ronGetSettings().cwCpu && cwLoadAll().length > 0) {
+          G._cwMatchOriginal = [p.cities[0], p.cities[1]];
+          G._cwMatchPicks = [null, null];
+          G.screen = 'cwMatchSwap';
+        } else {
+          G.gachaCurrent = { playerIdx: 1, pickNum: 0, revealed: null }; G.screen = 'gacha';
+        }
+      }
       else { G.deck = createDeck(); G.discard = []; G.log = []; G.turnsEach = [0, 0]; G.activePlayer = 0; G.players.forEach(p => { p.hand = []; p.budgetUsed = 0; p.effects = mkEffects(); }); startDraft(0); }
       pushState(); render();
     }
@@ -7498,7 +7582,8 @@
       // （render()はCOが立てば先頭でrenderCoop()へ分岐するため、この判定自体は主に対戦側の待ち時間をカバーする）。
       if (_autoRejoinPending && !roomId && !CO && G.screen === 'lobby') return 'reconnecting';
       if (myRole === 'spectator') return 'spectator';
-      if (G.screen === 'lobby' || G.screen === 'waiting_connection' || G.screen === 'tutorial') return G.screen;
+      // cwMatchSwap：対戦CPU戦限定の任意画面（isCpuMode時のみ到達）。所有者判定不要のためlobby等と同様に素通しする。
+      if (G.screen === 'lobby' || G.screen === 'waiting_connection' || G.screen === 'tutorial' || G.screen === 'cwMatchSwap') return G.screen;
       const mi = myPlayerIdx;
       switch (G.screen) {
         case 'cityOrder': return G.cityOrderState?.playerIdx === mi ? 'cityOrder' : 'waiting';
@@ -8065,6 +8150,7 @@
         case 'lobby': html = renderLobby(); break;
         case 'waiting_connection': html = renderWaitingConnection(); break;
         case 'cityOrder': html = renderCityOrderSelect(); break;
+        case 'cwMatchSwap': html = renderCwMatchSwap(); break;
         case 'gacha': html = renderGacha(); break;
         case 'draft': html = renderDraft(); break;
         case 'turnDraw': html = renderTurnDraw(); break;
@@ -9739,12 +9825,20 @@
       const myCity2 = G.players[mi].cities[1] || null;
       const oppCity2 = G.players[oi].cities[1] || null;
       const _svgChevron = `<svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,1 6.5,4.5 2.5,8"/></svg>`;
-      const _mkCityBadge = (city, label) => city
-        ? `<div class="go-city-badge" onclick="goGalleryFromResult('city','${city.id}','${city.name}','city')"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name">${city.name}</div></div>`
-        : `<div class="go-city-badge" style="opacity:.3;cursor:default;pointer-events:none"><div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name" style="font-size:.7rem">未使用</div></div>`;
+      // 2026-08-15追加：対戦CPU戦のマイ都市（city.custom）はimages/cities/配下に実ファイルが無いためcwCardImageで代替し、
+      // カード図鑑（実在都市のみ収録）には無いカードのためタップ導線（onclick／カーソル）も外す。実在都市は無改修。
+      const _mkCityBadge = (city, label, key) => {
+        if (!city) return `<div class="go-city-badge" style="opacity:.3;cursor:default;pointer-events:none"><div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name" style="font-size:.7rem">未使用</div></div>`;
+        if (city.custom) {
+          const cardLike = { id: city.id, name: city.name, terrain: city.isMountain ? 'mountain' : (city.isCoastal ? 'coastal' : 'inland'), abilityId: city.abilityId, flavor: city.flavor, art: city.art };
+          const art = `<div style="width:100%;max-width:72px;aspect-ratio:288/450;border-radius:8px;overflow:hidden;margin:0 auto">${cwCardImage(cardLike, 'full', 'cw-cimg-go-' + key)}</div>`;
+          return `<div class="go-city-badge" style="cursor:default">${art}<div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name">${city.name}</div></div>`;
+        }
+        return `<div class="go-city-badge" onclick="goGalleryFromResult('city','${city.id}','${city.name}','city')"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name">${city.name}</div></div>`;
+      };
       const hasCity2 = !!(myCity2 || oppCity2);
-      const _page1 = `<div class="go-city-badges-page">${_mkCityBadge(myCity,'あなた')}<div class="go-city-badge-vs">VS</div>${_mkCityBadge(oppCity,'相手')}</div>`;
-      const _page2 = hasCity2 ? `<div class="go-city-badges-page">${_mkCityBadge(myCity2,'あなた2')}<div class="go-city-badge-vs">VS</div>${_mkCityBadge(oppCity2,'相手2')}</div>` : '';
+      const _page1 = `<div class="go-city-badges-page">${_mkCityBadge(myCity,'あなた','p1a')}<div class="go-city-badge-vs">VS</div>${_mkCityBadge(oppCity,'相手','p1b')}</div>`;
+      const _page2 = hasCity2 ? `<div class="go-city-badges-page">${_mkCityBadge(myCity2,'あなた2','p2a')}<div class="go-city-badge-vs">VS</div>${_mkCityBadge(oppCity2,'相手2','p2b')}</div>` : '';
       const _nextBtn = hasCity2 ? `<button class="go-city-badges-next" id="city-badge-next-btn" onclick="toggleCityBadgePage()">${_svgChevron}</button>` : '';
       const cityBadgesHtml = (myCity && oppCity) ? `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_city.webp" style="width:20px;height:20px;object-fit:contain"> 対戦都市 — タップしてカード図鑑へ</div><div class="go-city-badges-outer"><div class="go-city-badges-clip"><div class="go-city-badges-track" id="city-badges-track">${_page1}${_page2}</div></div>${_nextBtn}</div></div>` : '';
       const myDmgEvts = hist.filter(ev => ev.type === 'damage' && ev.playerIdx === myPlayerIdx);
@@ -9899,9 +9993,14 @@
       if (!c) { _cityInfoModal = null; return ''; }
       const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
       const terrain = c.isCoastal ? '海岸都市' : c.isMountain ? '山間部都市' : '内陸都市';
+      // 2026-08-15追加：対戦CPU戦のマイ都市（c.custom）はimages/cities/配下に実ファイルが無いため、
+      // カード工房のcanvas合成一枚絵（cwCardImage）で代替する。実在都市（custom未設定）は既存の<img>のまま無改修。
+      const cityArtHtml = c.custom
+        ? `<div style="display:flex;justify-content:center;margin-bottom:6px">${cwCardImage({ id: c.id, name: c.name, terrain: c.isMountain ? 'mountain' : (c.isCoastal ? 'coastal' : 'inland'), abilityId: c.abilityId, flavor: c.flavor, art: c.art }, 'sm', 'cw-cimg-cityinfo-' + idx)}</div>`
+        : `<img src="images/cities/${c.id}.webp" style="width:120px;border-radius:10px;display:block;margin:0 auto 6px" alt="" onerror="this.style.display='none'">`;
       return `<div class="city-info-overlay" onclick="hideCityInfo()">
         <div class="city-info-box" onclick="event.stopPropagation()">
-          <img src="images/cities/${c.id}.webp" style="width:120px;border-radius:10px;display:block;margin:0 auto 6px" alt="" onerror="this.style.display='none'">
+          ${cityArtHtml}
           <div style="text-align:center;margin-bottom:2px">${terrainImg(c, 28)}</div>
           <div style="font-size:1.1rem;font-weight:700;text-align:center;margin:3px 0">${c.name}</div>
           <div style="font-size:.73rem;color:var(--t2);text-align:center">${terrain} ／ HP <strong style="color:${hpColor(hp, mxHp)}">${hp}</strong>/${mxHp}</div>
@@ -12352,10 +12451,10 @@
       if (city.abilityType === 'resist_flood' && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= city.abilityValue; ld(`${city.name}：洪水・津波軽減`, -city.abilityValue); }
       if (city.abilityType === 'resist_custom' && Array.isArray(city.abilityTargets) && city.abilityTargets.includes(atk.id)) { dmg -= city.abilityValue; ld(`${city.name}：${city.abilityTargets.map(cwCustomResistTargetLabel).join('・')}軽減`, -city.abilityValue); }
       if (city.abilityType === 'second_hit_reduce' && e.disastersReceivedThisTurn >= 1) { dmg -= city.abilityValue; ld(`${city.name}：連続被弾軽減`, -city.abilityValue); }
-      if (city.abilityType === 'quake_regen' && atk.id === 'earthquake') e.quakeHitThisTurn = true;
-      if (city.abilityType === 'flood_budget' && (atk.id === 'flood' || atk.id === 'tsunami')) { CO.nextBudgetBonus = (CO.nextBudgetBonus || 0) + city.abilityValue; ld(`${city.name}：次ターン予算+${city.abilityValue}`, null); }
-      if (city.abilityType === 'flood_draw' && (atk.id === 'flood' || atk.id === 'tsunami')) { coopDraw(city.abilityValue); ld(`${city.name}：被災後の学習で${city.abilityValue}枚ドロー`, null); }
-      if (city.abilityType === 'quake_draw' && atk.id === 'earthquake') { coopDraw(city.abilityValue); ld(`${city.name}：被災後の学習で${city.abilityValue}枚ドロー`, null); }
+      if (city.abilityType === 'quake_regen' && ronAbilityTargetMatch(city, 'quake_regen', atk.id)) e.quakeHitThisTurn = true;
+      if (city.abilityType === 'flood_budget' && ronAbilityTargetMatch(city, 'flood_budget', atk.id)) { CO.nextBudgetBonus = (CO.nextBudgetBonus || 0) + city.abilityValue; ld(`${city.name}：次ターン予算+${city.abilityValue}`, null); }
+      if (city.abilityType === 'flood_draw' && ronAbilityTargetMatch(city, 'flood_draw', atk.id)) { coopDraw(city.abilityValue); ld(`${city.name}：被災後の学習で${city.abilityValue}枚ドロー`, null); }
+      if (city.abilityType === 'quake_draw' && ronAbilityTargetMatch(city, 'quake_draw', atk.id)) { coopDraw(city.abilityValue); ld(`${city.name}：被災後の学習で${city.abilityValue}枚ドロー`, null); }
       e.disastersReceivedThisTurn++;
       if (e.damageReduceHits > 0) { dmg -= 15; e.damageReduceHits--; ld(`防災庁設置：全ダメージ軽減（残${e.damageReduceHits}）`, -15); }
       if (e.shieldQuakeFire && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; e.shieldQuakeFire = false; ld('耐震補強（シールド）発動・消費', -30); }
@@ -15891,6 +15990,19 @@
     const CW_CUSTOM_REGEN_VALUES = [5, 10, 15]; // ターン終了時HP回復量
     const CW_CUSTOM_BUDGET_ID = 'custom_budget';
     const CW_CUSTOM_BUDGET_VALUES = [1, 2]; // 毎ターン予算+N
+    // ══════════════════════════════════════════════════════════════════
+    // 都市能力の作り直し（2026-08-15）：カテゴリB「特殊効果」の残り2種。
+    // ・カスタムドロー：istanbul（quake_draw）／nagoya（flood_draw）を一般化し、自然災害7種すべてから
+    //   トリガーを選べるようにする。値は1固定（既存2都市の前例に合わせる）。データは{trigger}のみ。
+    // ・カスタム連撃体制：kumamoto（second_hit_reduce）は元々abilityValueのみで完全汎用だったため、
+    //   値の選択UIを追加するだけでよい。軽減値レンジはカスタム軽減と同じCW_CUSTOM_RESIST_VALUESを再利用する。
+    // カスタム回復・カスタム予算（CW_CUSTOM_REGEN_ID/CW_CUSTOM_BUDGET_ID）は既存のIDのまま、データを
+    // {value, mode:'turn'|'event', trigger?}に拡張する（下のcwNormalizeCustomRegen/Budget参照）。
+    // ══════════════════════════════════════════════════════════════════
+    const CW_CUSTOM_DRAW_ID = 'custom_draw';
+    const CW_CUSTOM_COUNTER_ID = 'custom_counter';
+    // カテゴリB「特殊効果」4種のabilityId一覧（カテゴリ判定・エディタのラジオ表示に使う）
+    const CW_ABILITY_CATEGORY_B_IDS = [CW_CUSTOM_DRAW_ID, CW_CUSTOM_BUDGET_ID, CW_CUSTOM_REGEN_ID, CW_CUSTOM_COUNTER_ID];
     // カード保存データからカスタム軽減の設定を安全に取り出す（欠損・壊れたデータは空選択として扱う。後方互換の要。
     // 旧共有コード（targets⊂自然5種・value∈{10,15,20}）はどちらも新しい範囲の部分集合のため、そのまま正常に読める）
     function cwNormalizeCustomResist(cr) {
@@ -15898,13 +16010,31 @@
       const value = (cr && CW_CUSTOM_RESIST_VALUES.includes(cr.value)) ? cr.value : CW_CUSTOM_RESIST_VALUES[1];
       return { targets, value };
     }
-    // カスタム回復・カスタム予算の設定を安全に取り出す（欠損・壊れたデータは既定値として扱う）
+    // カスタム回復・カスタム予算の設定を安全に取り出す（欠損・壊れたデータは既定値として扱う）。
+    // 2026-08-15拡張：{value}のみだった旧保存データにmode('turn'|'event')・trigger（event時のみ）を追加した。
+    // mode未指定（旧データ）は'turn'として扱う＝旧カード（毎ターン発動）の挙動を完全に維持する後方互換の要。
     function cwNormalizeCustomRegen(cr) {
       const value = (cr && CW_CUSTOM_REGEN_VALUES.includes(cr.value)) ? cr.value : CW_CUSTOM_REGEN_VALUES[0];
-      return { value };
+      const mode = (cr && cr.mode === 'event') ? 'event' : 'turn';
+      const out = { value, mode };
+      if (mode === 'event') out.trigger = (cr && CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(cr.trigger)) ? cr.trigger : CW_CUSTOM_RESIST_NATURAL_TARGETS[0];
+      return out;
     }
     function cwNormalizeCustomBudget(cb) {
       const value = (cb && CW_CUSTOM_BUDGET_VALUES.includes(cb.value)) ? cb.value : CW_CUSTOM_BUDGET_VALUES[0];
+      const mode = (cb && cb.mode === 'event') ? 'event' : 'turn';
+      const out = { value, mode };
+      if (mode === 'event') out.trigger = (cb && CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(cb.trigger)) ? cb.trigger : CW_CUSTOM_RESIST_NATURAL_TARGETS[0];
+      return out;
+    }
+    // カスタムドロー（新設）：条件となる災害（自然7種から1つ）のみを持つ。値は1固定（istanbul/nagoyaの前例）。
+    function cwNormalizeCustomDraw(cd) {
+      const trigger = (cd && CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(cd.trigger)) ? cd.trigger : CW_CUSTOM_RESIST_NATURAL_TARGETS[0];
+      return { trigger };
+    }
+    // カスタム連撃体制（新設）：同ターン2枚目の災害への軽減値のみ。レンジはカスタム軽減と同じ値集合を再利用する。
+    function cwNormalizeCustomCounter(cc) {
+      const value = (cc && CW_CUSTOM_RESIST_VALUES.includes(cc.value)) ? cc.value : CW_CUSTOM_RESIST_VALUES[2]; // 既定20（kumamotoの実値に合わせる）
       return { value };
     }
     // ── preset/custom_resist/custom_regen/custom_budgetを吸収する共通ヘルパー。表示系はこの関数の返り値だけを参照すればよい ──
@@ -15936,6 +16066,15 @@
       if (c.abilityId === CW_CUSTOM_REGEN_ID) {
         const cr = cwNormalizeCustomRegen(c.customRegen);
         const label = 'カスタム回復';
+        // event mode：niigata（quake_regen）を一般化した挙動。「特定の災害を受けたターン終了時に回復」。
+        // abilityTargets:[trigger]を持たせることで、G/CO側のronAbilityTargetMatch経由の判定に乗る。
+        if (cr.mode === 'event') {
+          const trigLabel = cwCustomResistTargetLabel(cr.trigger);
+          const desc = `${trigLabel}被弾ターン終了時 HP +${cr.value}`;
+          const cardText = `${trigLabel}を受けたターンの終了時にHPが${cr.value}回復する。`;
+          return { label, desc, cardText, abilityType: 'quake_regen', abilityValue: cr.value, abilityTargets: [cr.trigger], sourceName: '' };
+        }
+        // turn mode：従来通り毎ターン発動（osakaのregenと同じ完全汎用abilityType。データ形式は不変）。
         const desc = `ターン終了時 HP +${cr.value}`;
         const cardText = `自分のターン終了時にHPが${cr.value}回復する。`;
         return { label, desc, cardText, abilityType: 'regen', abilityValue: cr.value, abilityTargets: null, sourceName: '' };
@@ -15943,9 +16082,34 @@
       if (c.abilityId === CW_CUSTOM_BUDGET_ID) {
         const cb = cwNormalizeCustomBudget(c.customBudget);
         const label = 'カスタム予算';
+        // event mode：rotterdam（flood_budget）を一般化した挙動。「特定の災害を受けた時、次ターン予算+N」。
+        if (cb.mode === 'event') {
+          const trigLabel = cwCustomResistTargetLabel(cb.trigger);
+          const desc = `${trigLabel}被弾時 次ターン予算+${cb.value}`;
+          const cardText = `${trigLabel}を受けた時、次ターンの予算が+${cb.value}される。`;
+          return { label, desc, cardText, abilityType: 'flood_budget', abilityValue: cb.value, abilityTargets: [cb.trigger], sourceName: '' };
+        }
+        // turn mode：従来通り毎ターン発動（kobeのextra_budgetと同じ完全汎用abilityType。データ形式は不変）。
         const desc = `毎ターンの予算が+${cb.value}（計${3 + cb.value}pt）`;
         const cardText = `毎ターンの予算が+${cb.value}（計${3 + cb.value}pt）。`;
         return { label, desc, cardText, abilityType: 'extra_budget', abilityValue: cb.value, abilityTargets: null, sourceName: '' };
+      }
+      // カスタムドロー（新設）：istanbul（quake_draw）を一般化した挙動。値は1固定。
+      if (c.abilityId === CW_CUSTOM_DRAW_ID) {
+        const cd = cwNormalizeCustomDraw(c.customDraw);
+        const trigLabel = cwCustomResistTargetLabel(cd.trigger);
+        const label = 'カスタムドロー';
+        const desc = `${trigLabel}被弾時 1枚ドロー`;
+        const cardText = `${trigLabel}を受けた時、山札から1枚カードを引くことができる。`;
+        return { label, desc, cardText, abilityType: 'quake_draw', abilityValue: 1, abilityTargets: [cd.trigger], sourceName: '' };
+      }
+      // カスタム連撃体制（新設）：kumamoto（second_hit_reduce）は元々完全汎用のため値だけ選ばせる。
+      if (c.abilityId === CW_CUSTOM_COUNTER_ID) {
+        const cc = cwNormalizeCustomCounter(c.customCounter);
+        const label = 'カスタム連撃体制';
+        const desc = `同ターン2枚目の災害 −${cc.value}`;
+        const cardText = `同じターンに2枚目の災害を受ける時、ダメージを${cc.value}軽減する。`;
+        return { label, desc, cardText, abilityType: 'second_hit_reduce', abilityValue: cc.value, abilityTargets: null, sourceName: '' };
       }
       const preset = cwPresetById(c.abilityId);
       if (preset) return { label: preset.label, desc: preset.desc, cardText: preset.cardText, abilityType: preset.abilityType, abilityValue: preset.abilityValue, abilityTargets: null, sourceName: preset.sourceName };
@@ -16043,7 +16207,7 @@
       const r = CW.wizard.result;
       _cwPreviewLastDataUrl = null; // エディタを開き直すため前カードのプレビューキャッシュを破棄
       CW.view = 'editor'; CW.name = ''; CW.terrain = r.terrain; CW.abilityId = r.abilityId; CW.flavor = '';
-      CW.art = { type: 'gen' }; CW.artPanel = 'gen'; CW.error = ''; CW.wizard = null;
+      CW.art = cwDefaultArt(r.terrain); CW.artPanel = 'preset'; CW.error = ''; CW.wizard = null;
       render();
     }
     // 「自分で選び直す」：診断結果を使わず、通常の新規作成（既定値の空エディタ）へ進む
@@ -16149,10 +16313,23 @@
         const cr = obj.customRegen;
         if (!cr || typeof cr !== 'object' || Array.isArray(cr)) return 'カスタム回復の設定が不正です';
         if (!CW_CUSTOM_REGEN_VALUES.includes(cr.value)) return `カスタム回復の回復量が不正です（${CW_CUSTOM_REGEN_VALUES.join('・')}のいずれかにしてください）`;
+        // mode未指定は後方互換のため許容（'turn'として扱う）。指定がある場合のみ値を検証する。
+        if (cr.mode != null && cr.mode !== 'turn' && cr.mode !== 'event') return 'カスタム回復の発動条件が不正です';
+        if (cr.mode === 'event' && !CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(cr.trigger)) return 'カスタム回復のトリガー災害が不正です';
       } else if (obj.abilityId === CW_CUSTOM_BUDGET_ID) {
         const cb = obj.customBudget;
         if (!cb || typeof cb !== 'object' || Array.isArray(cb)) return 'カスタム予算の設定が不正です';
         if (!CW_CUSTOM_BUDGET_VALUES.includes(cb.value)) return `カスタム予算の増加量が不正です（${CW_CUSTOM_BUDGET_VALUES.join('・')}のいずれかにしてください）`;
+        if (cb.mode != null && cb.mode !== 'turn' && cb.mode !== 'event') return 'カスタム予算の発動条件が不正です';
+        if (cb.mode === 'event' && !CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(cb.trigger)) return 'カスタム予算のトリガー災害が不正です';
+      } else if (obj.abilityId === CW_CUSTOM_DRAW_ID) {
+        const cd = obj.customDraw;
+        if (!cd || typeof cd !== 'object' || Array.isArray(cd)) return 'カスタムドローの設定が不正です';
+        if (!CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(cd.trigger)) return 'カスタムドローのトリガー災害が不正です';
+      } else if (obj.abilityId === CW_CUSTOM_COUNTER_ID) {
+        const cc = obj.customCounter;
+        if (!cc || typeof cc !== 'object' || Array.isArray(cc)) return 'カスタム連撃体制の設定が不正です';
+        if (!CW_CUSTOM_RESIST_VALUES.includes(cc.value)) return `カスタム連撃体制の軽減値が不正です（${CW_CUSTOM_RESIST_VALUES.join('・')}のいずれかにしてください）`;
       } else if (!CW_PRESET_DEFS.some(p => p.srcId === obj.abilityId)) {
         return '都市能力の値が不正です';
       }
@@ -16165,10 +16342,29 @@
       return null; // 検証OK
     }
 
+    // ── アート選択肢を「ストック／写真」の2つに絞った（2026-08-15、自動生成タブを撤去）ことに伴う既定値。
+    // 新規カードの初期artは地形に合ったストックアートの先頭候補にする（従来のgenのままだと、UIから
+    // 選べなくなったタブが暗黙に選択された状態で始まってしまうため）。cwGenFace自体・art.type==='gen'の
+    // 内部フォールバック処理は削除していない（旧保存データ・合成失敗時のフォールバックとして無改修で残す）。
+    function cwDefaultArt(terrainKey) {
+      const arts = cwPresetArtsForTerrain(terrainKey);
+      return arts.length ? { type: 'preset', presetId: arts[0].id } : { type: 'gen' };
+    }
     // ── エディタ・一覧の画面遷移 ──
-    function cwOpen() { _cwPreviewLastDataUrl = null; CW = { view: 'list', name: '', terrain: 'inland', abilityId: 'tokyo', flavor: '', art: { type: 'gen' }, artPanel: 'gen', error: '', importCode: '', importError: '', deleteIdx: null, exportIdx: null, wizard: null, flipped: {} }; render(); }
+    // ⚠️ 新規作成の既定能力。借用プリセット（'tokyo'等）を既定にしてはいけない。
+    //    2026-08-15の改修でプリセットのタイルをUIから外したため、能力欄に触らず保存すると
+    //    画面のどこにも現れない借用プリセットが暗黙に付いてしまう。カテゴリA（災害ダメージ
+    //    軽減）が選ばれた状態から始め、選択内容が必ず画面に見えるようにする。
+    const CW_DEFAULT_ABILITY = { abilityId: CW_CUSTOM_RESIST_ID,
+      customResist: { targets: ['earthquake'], value: 20 } };
+    function cwOpen() { _cwPreviewLastDataUrl = null; CW = { view: 'list', name: '', terrain: 'inland', abilityId: CW_DEFAULT_ABILITY.abilityId,
+      customResist: { targets: CW_DEFAULT_ABILITY.customResist.targets.slice(), value: CW_DEFAULT_ABILITY.customResist.value },
+      flavor: '', art: cwDefaultArt('inland'), artPanel: 'preset', error: '', importCode: '', importError: '', deleteIdx: null, exportIdx: null, wizard: null, flipped: {} }; render(); }
     function cwClose() { CW = null; lobbyState.mode = 'select'; lobbyState.error = ''; render(); }
-    function cwNewCard() { if (!CW) return; _cwPreviewLastDataUrl = null; CW.view = 'editor'; CW.name = ''; CW.terrain = 'inland'; CW.abilityId = 'tokyo'; CW.flavor = ''; CW.art = { type: 'gen' }; CW.artPanel = 'gen'; CW.error = ''; render(); }
+    function cwNewCard() { if (!CW) return; _cwPreviewLastDataUrl = null; CW.view = 'editor'; CW.name = ''; CW.terrain = 'inland';
+      CW.abilityId = CW_DEFAULT_ABILITY.abilityId;
+      CW.customResist = { targets: CW_DEFAULT_ABILITY.customResist.targets.slice(), value: CW_DEFAULT_ABILITY.customResist.value };
+      CW.flavor = ''; CW.art = cwDefaultArt('inland'); CW.artPanel = 'preset'; CW.error = ''; render(); }
     function cwBackToList() { if (!CW) return; CW.view = 'list'; CW.error = ''; CW.importError = ''; render(); }
     function cwSetTerrain(key) { if (!CW) return; CW.terrain = key; render(); }
     function cwSetAbility(id) {
@@ -16176,26 +16372,58 @@
       CW.abilityId = id;
       // カスタムの各能力へ切り替えた初回は既定値を用意する。既に選んだことがある場合はその設定を保持する。
       if (id === CW_CUSTOM_RESIST_ID && (!CW.customResist || typeof CW.customResist !== 'object')) {
-        CW.customResist = { targets: [], value: 15 };
+        CW.customResist = { targets: [], value: 15, maxCount: 1 };
       }
       if (id === CW_CUSTOM_REGEN_ID && (!CW.customRegen || typeof CW.customRegen !== 'object')) {
-        CW.customRegen = { value: CW_CUSTOM_REGEN_VALUES[0] };
+        CW.customRegen = { value: CW_CUSTOM_REGEN_VALUES[0], mode: 'turn', trigger: CW_CUSTOM_RESIST_NATURAL_TARGETS[0] };
       }
       if (id === CW_CUSTOM_BUDGET_ID && (!CW.customBudget || typeof CW.customBudget !== 'object')) {
-        CW.customBudget = { value: CW_CUSTOM_BUDGET_VALUES[0] };
+        CW.customBudget = { value: CW_CUSTOM_BUDGET_VALUES[0], mode: 'turn', trigger: CW_CUSTOM_RESIST_NATURAL_TARGETS[0] };
+      }
+      if (id === CW_CUSTOM_DRAW_ID && (!CW.customDraw || typeof CW.customDraw !== 'object')) {
+        CW.customDraw = { trigger: CW_CUSTOM_RESIST_NATURAL_TARGETS[0] };
+      }
+      if (id === CW_CUSTOM_COUNTER_ID && (!CW.customCounter || typeof CW.customCounter !== 'object')) {
+        CW.customCounter = { value: CW_CUSTOM_RESIST_VALUES[2] }; // 既定20（kumamotoの実値）
       }
       render();
     }
-    // カスタム軽減：災害チップのトグル（最大2つ。3つ目タップ時は最も古い選択を外して新しい選択を追加する）
+    // カテゴリA/Bのタイル選択。Aは常にcustom_resistへ切り替える。Bは「まだカテゴリB内の4種のいずれかを
+    // 選んでいない場合のみ」既定でカスタムドローへ切り替える（既にB内の別の能力を選択中なら維持する）。
+    function cwSelectAbilityCategory(cat) {
+      if (!CW) return;
+      if (cat === 'A') { cwSetAbility(CW_CUSTOM_RESIST_ID); return; }
+      if (cat === 'B') {
+        if (!CW_ABILITY_CATEGORY_B_IDS.includes(CW.abilityId)) cwSetAbility(CW_CUSTOM_DRAW_ID);
+        else render();
+      }
+    }
+    // カスタム軽減：対象の数（1 or 2）のラジオボタン。既に選ばれている対象がこの数を超える場合は
+    // 先頭から残して超過分を切り捨てる（UI上の矛盾防止。データ側の保存形式cr.targets:1〜2要素は無変更）。
+    function cwSetCustomResistCount(n) {
+      if (!CW) return;
+      const count = (n === 2) ? 2 : 1;
+      if (!CW.customResist || typeof CW.customResist !== 'object') { CW.customResist = { targets: [], value: 15, maxCount: count }; render(); return; }
+      CW.customResist.maxCount = count;
+      if (Array.isArray(CW.customResist.targets) && CW.customResist.targets.length > count) {
+        CW.customResist.targets = CW.customResist.targets.slice(0, count);
+      }
+      render();
+    }
+    // カスタム軽減：災害チップのトグル。maxCount===1（既定）のときはラジオ的挙動（新しい選択が古い選択を
+    // 置き換える）。maxCount===2のときは従来通り最大2つまで自由に追加/解除でき、3つ目タップ時は
+    // 最も古い選択を外して新しい選択を追加する（従来の挙動を維持）。
     function cwToggleCustomResistTarget(id) {
       if (!CW || !CW_CUSTOM_RESIST_TARGETS.includes(id)) return;
-      if (!CW.customResist || typeof CW.customResist !== 'object') CW.customResist = { targets: [], value: 15 };
+      if (!CW.customResist || typeof CW.customResist !== 'object') CW.customResist = { targets: [], value: 15, maxCount: 1 };
       if (!Array.isArray(CW.customResist.targets)) CW.customResist.targets = [];
+      const maxCount = (CW.customResist.maxCount === 2) ? 2 : 1;
       const targets = CW.customResist.targets;
       const idx = targets.indexOf(id);
       if (idx >= 0) { targets.splice(idx, 1); }
       else {
-        if (targets.length >= CW_CUSTOM_RESIST_MAX_TARGETS) targets.shift(); // 最も古い選択を外す
+        if (maxCount === 1) targets.length = 0; // ラジオ的挙動：1件のときは新しい選択で置き換える
+        else if (targets.length >= maxCount) targets.shift(); // 最も古い選択を外す
         targets.push(id);
       }
       render();
@@ -16236,9 +16464,107 @@
       if (label) label.textContent = '+' + val;
       cwUpdatePreviewDom();
     }
+    // カスタム連撃体制：軽減値スライダー（10〜40・step5。カスタム軽減と同じレンジを再利用）。
+    function cwSetCustomCounterValue(v) {
+      if (!CW) return;
+      const val = parseInt(v, 10);
+      if (!CW_CUSTOM_RESIST_VALUES.includes(val)) return;
+      if (!CW.customCounter || typeof CW.customCounter !== 'object') CW.customCounter = { value: val };
+      else CW.customCounter.value = val;
+      const label = document.getElementById('cw-counter-val-label');
+      if (label) label.textContent = '−' + val;
+      cwUpdatePreviewDom();
+    }
+    // ── カテゴリB：発動タイミング（毎ターン／特定の災害を受けた時）・トリガー災害の共通ラジオUI ──
+    // クリック操作はスライダーのドラッグと異なりチラつきの心配がないため、既存のcwToggleCustomResistTarget等と
+    // 同様にフルrender()で更新する（cwSetCustomResistValue系の部分更新パターンはドラッグ専用）。
+    function cwModeRadioHtml(mode, fnName) {
+      const opts = [{ v: 'turn', label: '毎ターン' }, { v: 'event', label: '特定の災害を受けた時' }];
+      return opts.map(o => {
+        const sel = mode === o.v;
+        return `<button type="button" onclick="${fnName}('${o.v}')" style="padding:6px 12px;border-radius:16px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.16)' : 'transparent'};color:var(--t0);font-size:.74rem;cursor:pointer;margin:0 6px 6px 0">${_escHtml(o.label)}</button>`;
+      }).join('');
+    }
+    function cwTriggerRadioHtml(selected, fnName) {
+      return `<div style="display:flex;flex-wrap:wrap">${CW_CUSTOM_RESIST_NATURAL_TARGETS.map(id => {
+        const sel = selected === id;
+        return `<button type="button" onclick="${fnName}('${id}')" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:16px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.16)' : 'transparent'};color:var(--t0);font-size:.74rem;cursor:pointer;margin:0 6px 6px 0">${cardIconSvg(id, 13, sel ? '#3fb950' : 'var(--t0)')}${_escHtml(cwCustomResistTargetLabel(id))}</button>`;
+      }).join('')}</div>`;
+    }
+    // ── アコーディオン（発動タイミング→トリガー災害の詳細設定）開閉の慣性モーション共通ヘルパー ──
+    // このUIはフルrender()のたびにDOMノードを丸ごと作り直す設計（cwUpdatePreviewDom系の部分更新パターンとは別系統）。
+    // 「開く」：新規に挿入されるノードへCSSキーフレーム（.cw-accordion-panel、下記<style>）でオーバーシュートしながら
+    // 登場するアニメーションを常時適用するだけでよい（挿入=常に「登場」として扱って問題ない）。
+    // 「閉じる」：フルrender()は即座にHTMLからノードを消してしまいアニメーションの余地が無いため、実際の状態変更と
+    // render()呼び出しをCW_ACCORDION_CLOSE_MSぶんだけ遅らせ、その間だけ既存ノードに「滑らかに消える」クラスを
+    // 付与する。prefers-reduced-motionでは遅延を挟まず即座に反映する（情報の欠落を避ける。design_system.md準拠）。
+    const CW_ACCORDION_CLOSE_MS = 200;
+    function _cwPrefersReducedMotion() {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+    function cwAnimateCloseThenRender(applyFn) {
+      const row = document.getElementById('cw-trigger-row');
+      if (!row || _cwPrefersReducedMotion()) { applyFn(); render(); return; }
+      // 開くアニメーション（animation:cw-accordion-in）とtransitionが同一プロパティ（opacity/transform）を
+      // 取り合うと、animationの方が優先されtransitionが発火しない/一瞬で終わるブラウザ実装差がある。
+      // それを避けるため、①現在の描画済みの見た目をインラインstyleへ固定してanimationを止め、リフローを
+      // 強制してから、②次フレームでtransition付きのcw-accordion-closingクラスへ切り替える（定番の二段階パターン）。
+      const cs = getComputedStyle(row);
+      row.style.opacity = cs.opacity;
+      row.style.transform = cs.transform;
+      row.style.animation = 'none';
+      void row.offsetHeight; // 強制リフロー：↑のインラインstyleを確定させる
+      requestAnimationFrame(() => {
+        row.classList.add('cw-accordion-closing');
+        row.style.opacity = '';
+        row.style.transform = '';
+        row.style.animation = '';
+      });
+      setTimeout(() => { applyFn(); render(); }, CW_ACCORDION_CLOSE_MS);
+    }
+    function cwSetCustomRegenMode(mode) {
+      if (!CW || (mode !== 'turn' && mode !== 'event')) return;
+      const wasEvent = CW.customRegen && CW.customRegen.mode === 'event';
+      const apply = () => {
+        if (!CW.customRegen || typeof CW.customRegen !== 'object') CW.customRegen = { value: CW_CUSTOM_REGEN_VALUES[0] };
+        CW.customRegen.mode = mode;
+        if (mode === 'event' && !CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(CW.customRegen.trigger)) CW.customRegen.trigger = CW_CUSTOM_RESIST_NATURAL_TARGETS[0];
+      };
+      if (wasEvent && mode === 'turn') cwAnimateCloseThenRender(apply);
+      else { apply(); render(); }
+    }
+    function cwSetCustomRegenTrigger(id) {
+      if (!CW || !CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(id)) return;
+      if (!CW.customRegen || typeof CW.customRegen !== 'object') CW.customRegen = { value: CW_CUSTOM_REGEN_VALUES[0], mode: 'event' };
+      CW.customRegen.trigger = id;
+      render();
+    }
+    function cwSetCustomBudgetMode(mode) {
+      if (!CW || (mode !== 'turn' && mode !== 'event')) return;
+      const wasEvent = CW.customBudget && CW.customBudget.mode === 'event';
+      const apply = () => {
+        if (!CW.customBudget || typeof CW.customBudget !== 'object') CW.customBudget = { value: CW_CUSTOM_BUDGET_VALUES[0] };
+        CW.customBudget.mode = mode;
+        if (mode === 'event' && !CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(CW.customBudget.trigger)) CW.customBudget.trigger = CW_CUSTOM_RESIST_NATURAL_TARGETS[0];
+      };
+      if (wasEvent && mode === 'turn') cwAnimateCloseThenRender(apply);
+      else { apply(); render(); }
+    }
+    function cwSetCustomBudgetTrigger(id) {
+      if (!CW || !CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(id)) return;
+      if (!CW.customBudget || typeof CW.customBudget !== 'object') CW.customBudget = { value: CW_CUSTOM_BUDGET_VALUES[0], mode: 'event' };
+      CW.customBudget.trigger = id;
+      render();
+    }
+    function cwSetCustomDrawTrigger(id) {
+      if (!CW || !CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(id)) return;
+      if (!CW.customDraw || typeof CW.customDraw !== 'object') CW.customDraw = { trigger: id };
+      else CW.customDraw.trigger = id;
+      render();
+    }
 
     // ── 入力中のドラフト（保存前）を1つのオブジェクトにまとめる ──
-    function cwCurrentDraftCard() { return CW ? { name: CW.name, terrain: CW.terrain, abilityId: CW.abilityId, flavor: CW.flavor, art: CW.art, customResist: CW.customResist, customRegen: CW.customRegen, customBudget: CW.customBudget } : {}; }
+    function cwCurrentDraftCard() { return CW ? { name: CW.name, terrain: CW.terrain, abilityId: CW.abilityId, flavor: CW.flavor, art: CW.art, customResist: CW.customResist, customRegen: CW.customRegen, customBudget: CW.customBudget, customDraw: CW.customDraw, customCounter: CW.customCounter } : {}; }
 
     // ══════════════════════════════════════════════════════════════════
     // エディタのライブプレビューをv2合成（cwComposeCardCanvas）に切り替え（TASKS.md該当タスク②）。
@@ -16334,12 +16660,16 @@
       if (CW.abilityId === CW_CUSTOM_RESIST_ID) draft.customResist = CW.customResist;
       if (CW.abilityId === CW_CUSTOM_REGEN_ID) draft.customRegen = CW.customRegen;
       if (CW.abilityId === CW_CUSTOM_BUDGET_ID) draft.customBudget = CW.customBudget;
+      if (CW.abilityId === CW_CUSTOM_DRAW_ID) draft.customDraw = CW.customDraw;
+      if (CW.abilityId === CW_CUSTOM_COUNTER_ID) draft.customCounter = CW.customCounter;
       const err = cwValidateCard(draft);
       if (err) { CW.error = err; render(); return; }
       draft.art = cwNormalizeArt(draft.art);
       if (draft.abilityId === CW_CUSTOM_RESIST_ID) draft.customResist = cwNormalizeCustomResist(draft.customResist);
       if (draft.abilityId === CW_CUSTOM_REGEN_ID) draft.customRegen = cwNormalizeCustomRegen(draft.customRegen);
       if (draft.abilityId === CW_CUSTOM_BUDGET_ID) draft.customBudget = cwNormalizeCustomBudget(draft.customBudget);
+      if (draft.abilityId === CW_CUSTOM_DRAW_ID) draft.customDraw = cwNormalizeCustomDraw(draft.customDraw);
+      if (draft.abilityId === CW_CUSTOM_COUNTER_ID) draft.customCounter = cwNormalizeCustomCounter(draft.customCounter);
       const arr = cwLoadAll();
       if (arr.length >= CW_MAX_CARDS) { CW.error = `保存できるカードは最大${CW_MAX_CARDS}枚です。一覧から削除してから保存してください。`; render(); return; }
       arr.push(draft); cwSaveAll(arr);
@@ -16477,6 +16807,8 @@
         if (card.abilityId === CW_CUSTOM_RESIST_ID) payload.customResist = cwNormalizeCustomResist(card.customResist);
         if (card.abilityId === CW_CUSTOM_REGEN_ID) payload.customRegen = cwNormalizeCustomRegen(card.customRegen);
         if (card.abilityId === CW_CUSTOM_BUDGET_ID) payload.customBudget = cwNormalizeCustomBudget(card.customBudget);
+        if (card.abilityId === CW_CUSTOM_DRAW_ID) payload.customDraw = cwNormalizeCustomDraw(card.customDraw);
+        if (card.abilityId === CW_CUSTOM_COUNTER_ID) payload.customCounter = cwNormalizeCustomCounter(card.customCounter);
         return btoa(encodeURIComponent(JSON.stringify(payload)));
       } catch (e) { return ''; }
     }
@@ -16521,6 +16853,8 @@
         customResist: obj.customResist,
         customRegen: obj.customRegen,
         customBudget: obj.customBudget,
+        customDraw: obj.customDraw,
+        customCounter: obj.customCounter,
       };
       const err = cwValidateCard(draft);
       if (err) { CW.importError = err; render(); return; }
@@ -16531,6 +16865,10 @@
       else delete draft.customRegen;
       if (draft.abilityId === CW_CUSTOM_BUDGET_ID) draft.customBudget = cwNormalizeCustomBudget(draft.customBudget);
       else delete draft.customBudget;
+      if (draft.abilityId === CW_CUSTOM_DRAW_ID) draft.customDraw = cwNormalizeCustomDraw(draft.customDraw);
+      else delete draft.customDraw;
+      if (draft.abilityId === CW_CUSTOM_COUNTER_ID) draft.customCounter = cwNormalizeCustomCounter(draft.customCounter);
+      else delete draft.customCounter;
       const arr = cwLoadAll();
       if (arr.length >= CW_MAX_CARDS) { CW.importError = `保存できるカードは最大${CW_MAX_CARDS}枚です。一覧から削除してから読み込んでください。`; render(); return; }
       arr.push(draft); cwSaveAll(arr);
@@ -17171,8 +17509,11 @@
         abilityId: card.abilityId, custom: true, flavor: card.flavor || '',
         concept: card.flavor || '', learn: '', art: cwNormalizeArt(card.art),
       };
-      // カスタム軽減：エンジン側の判定は city.abilityTargets.includes(atkCard.id) で行うため配列を持たせる
-      if (card.abilityId === CW_CUSTOM_RESIST_ID) cityObj.abilityTargets = info.abilityTargets;
+      // エンジン側の判定は city.abilityTargets.includes(atkCard.id)（ronAbilityTargetMatch経由）で行うため、
+      // cwAbilityInfoがabilityTargetsを返す全ての能力（カスタム軽減／カテゴリBのevent mode回復・予算・
+      // カスタムドロー）で配列を持たせる。turn modeの回復・予算やカスタム連撃体制はabilityTargetsがnullの
+      // ままで問題ない（対象災害を問わず完全汎用のabilityTypeのため）。
+      if (Array.isArray(info.abilityTargets)) cityObj.abilityTargets = info.abilityTargets;
       return cityObj;
     }
     // 協力ウィザードのソロ経路（coopRenderSetup）専用の「マイ都市を使う」セクション。
@@ -17201,6 +17542,65 @@
       renderCoop();
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // 対戦モードのCPU戦での使用：保存済みカスタムカード → 対戦エンジン(G)が読める都市オブジェクトへ変換。
+    // 上のcwBuildCityObjectをそのまま再利用する（協力と全く同じ変換・同じ検証済みの値域）。
+    // 対象は「対戦のCPU戦・プレイヤー0（人間）の都市のみ」。CPU（プレイヤー1）の都市選択・オンライン対戦・
+    // 2人対戦・オンライン協力には一切影響しない（呼び出し元のisCpuMode判定で構造的に到達しない）。
+    // 都市ガチャ2枚を引き終えた直後（selectCityOrderのplayerIdx===0分岐）に割り込む任意の差し替え画面。
+    // ══════════════════════════════════════════════════════════════════
+    // スロットslotIdxを保存済みカードcustomIdへ差し替える。customId未指定（空文字）なら引いた元の都市へ戻す。
+    function cwMatchSwapPick(slotIdx, customId) {
+      if (!isCpuMode || G.screen !== 'cwMatchSwap' || !G._cwMatchOriginal || !G._cwMatchOriginal[slotIdx]) return;
+      const p = G.players[0]; if (!p || !p.cities[slotIdx]) return;
+      if (!G._cwMatchPicks) G._cwMatchPicks = [null, null];
+      if (!customId) {
+        p.cities[slotIdx] = G._cwMatchOriginal[slotIdx];
+        p.cityHps[slotIdx] = p.cities[slotIdx].hp;
+        G._cwMatchPicks[slotIdx] = null;
+        render(); return;
+      }
+      const card = cwLoadAll().find(c => c.id === customId); if (!card) return;
+      const cityObj = cwBuildCityObject(card);
+      p.cities[slotIdx] = cityObj;
+      p.cityHps[slotIdx] = cityObj.hp;
+      G._cwMatchPicks[slotIdx] = customId;
+      render();
+    }
+    // 差し替え画面を確定し、元のガチャフロー（プレイヤー1の都市ガチャ）へ復帰する
+    function cwMatchSwapContinue() {
+      G._cwMatchOriginal = null; G._cwMatchPicks = null;
+      G.gachaCurrent = { playerIdx: 1, pickNum: 0, revealed: null }; G.screen = 'gacha';
+      pushState(); render();
+    }
+    function renderCwMatchSwap() {
+      const p = G.players[0];
+      const saved = cwLoadAll();
+      const picks = G._cwMatchPicks || [null, null];
+      const rows = [0, 1].map(i => {
+        const c = p.cities[i]; if (!c) return '';
+        const otherPickId = picks[1 - i]; // 両スロットで同じマイ都市を重複選択させない
+        const opts = saved.filter(sc => sc.id !== otherPickId)
+          .map(sc => `<option value="${sc.id}"${picks[i] === sc.id ? ' selected' : ''}>${_escHtml(sc.name)}</option>`).join('');
+        const abilityLine = c.custom ? `<div style="font-size:.68rem;color:var(--t2);margin-top:2px;margin-left:64px">${_escHtml(c.abilityDesc || '')}</div>` : '';
+        return `<div style="margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:.72rem;color:var(--t2,#8b949e);width:56px;flex-shrink:0">都市${i + 1}</span>
+            <select onchange="cwMatchSwapPick(${i}, this.value)" style="flex:1;background:var(--bg2,#161b22);color:var(--t0);border:1px solid var(--bg3,#30363d);border-radius:8px;padding:6px 8px;font-size:.78rem">
+              <option value="">${_escHtml(c.name)}（引いた都市のまま）</option>${opts}
+            </select>
+          </div>
+          ${abilityLine}
+        </div>`;
+      }).join('');
+      return `<div class="screen active">
+        <div class="section-title" style="margin-bottom:0"><img src="images/icons/icon_city.webp" alt="" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px;margin-right:2px"> マイ都市に差し替える<span style="font-size:.7rem;font-weight:400;color:var(--t2)">（任意）</span></div>
+        <div style="text-align:center;color:var(--t2,#8b949e);font-size:.78rem;margin:6px 16px 14px">カード工房で作った都市を、引いた都市の代わりに使えます。差し替えなくてもそのまま進められます（あなたの都市のみが対象で、CPU側には影響しません）。</div>
+        <div style="margin:0 16px 16px;padding:10px 12px;border:1px dashed rgba(255,255,255,.2);border-radius:10px">${rows}</div>
+        <div style="display:flex;justify-content:center;padding:6px 0"><button class="btn-ho" onclick="cwMatchSwapContinue()" style="padding:13px 44px;font-size:1rem">${uiIcoSwords(16)} 続ける</button></div>
+      </div>`;
+    }
+
     // ── アート選択UI（エディタ内タブ：自動生成／プリセット／写真） ──
     function cwSetArtPanel(key) {
       if (!CW) return;
@@ -17219,7 +17619,9 @@
         const sel = panel === key;
         return `<button onclick="cwSetArtPanel('${key}')" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid ${sel ? '#9ecbff' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(158,203,255,.16)' : 'transparent'};color:var(--t0);font-size:.72rem;font-weight:700;cursor:pointer">${label}</button>`;
       };
-      const tabs = `<div style="display:flex;gap:6px;margin-bottom:8px">${tabBtn('gen', '自動生成')}${tabBtn('preset', 'プリセット')}${tabBtn('photo', '写真')}</div>`;
+      // 2026-08-15：「自動生成」タブを撤去し「ストック／写真」の2択にした（art.type='preset'の内部値・
+      // cwGenFace本体・gen分岐の内部フォールバック処理は無改修。旧保存データ・合成失敗時のフォールバックとして残す）。
+      const tabs = `<div style="display:flex;gap:6px;margin-bottom:8px">${tabBtn('preset', 'ストック')}${tabBtn('photo', '写真')}</div>`;
       let body;
       if (panel === 'preset') {
         // 画像が未配置のスロットはonerrorでタイルごと非表示にする＝配置された分だけ選択肢が増える（コード変更不要）
@@ -17232,8 +17634,8 @@
             </button>
           </div>`;
         }).join('');
-        body = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">${tiles}</div>
-          <div style="text-align:center;font-size:.64rem;color:var(--t3,#8b949e);margin-bottom:8px">画像が表示されない枠は準備中です（配置され次第選べるようになります）</div>`;
+        body = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px">${tiles}</div>`;   // ストックアート9枚は images/cities/custom/ に配置済み。
+                //    以前あった「準備中です」の注記は、画像が1枚も無かった頃の名残なので外した。
       } else if (panel === 'photo') {
         const hasPhoto = CW.art && CW.art.type === 'photo';
         body = `<div style="text-align:center;margin-bottom:8px">
@@ -17391,7 +17793,7 @@
             <div style="flex:1;min-width:0">
               <div class="ws-no-tag">NO.${String(i + 1).padStart(2, '0')}</div>
               <div style="font-weight:800;color:var(--t0);font-size:.9rem">${_escHtml(c.name)}</div>
-              <div style="font-size:.7rem;color:var(--t2,#8b949e);margin-top:2px">${t.label}・${_escHtml(info.label)}${[CW_CUSTOM_RESIST_ID, CW_CUSTOM_REGEN_ID, CW_CUSTOM_BUDGET_ID].includes(c.abilityId) ? `（${_escHtml(info.desc)}）` : ''}</div>
+              <div style="font-size:.7rem;color:var(--t2,#8b949e);margin-top:2px">${t.label}・${_escHtml(info.label)}${[CW_CUSTOM_RESIST_ID, CW_CUSTOM_REGEN_ID, CW_CUSTOM_BUDGET_ID, CW_CUSTOM_DRAW_ID, CW_CUSTOM_COUNTER_ID].includes(c.abilityId) ? `（${_escHtml(info.desc)}）` : ''}</div>
               ${c.flavor ? `<div style="font-size:.68rem;color:var(--t3,#8b949e);margin-top:2px;font-style:italic">${_escHtml(c.flavor)}</div>` : ''}
               ${artNote}
               ${recNote}
@@ -17423,37 +17825,47 @@
         ${delOverlay}
       </div>`;
     }
-    // カスタム軽減：災害チップ（自然7種＋人為3種の計10種から最大2つ）＋軽減値7択のUI。CW.abilityId==='custom_resist'の時だけcwRenderEditorから呼ばれる。
-    // 自然災害チップは軽減値ぶんダメージを軽減、人為災害チップは軽減値を使わず「効果を無効化する」（軽減値スライダーは自然災害選択時のみ意味を持つ）。
+    // カテゴリA「災害ダメージ軽減」：①対象の数（1/2・ラジオ）②対象の災害（自然7種を2列＋区切り線＋人為3種、
+    // タップで選択/解除。数を1にすると新しい選択が古い選択を置き換えるラジオ的挙動になる）③軽減値スライダー。
+    // 自然災害チップは軽減値ぶんダメージを軽減、人為災害チップは軽減値を使わず「効果を無効化する」。
+    // 2026-08-15：都市能力の作り直しに伴い、このセクション内の文字色は指示によりグレー（var(--t2)/var(--t3)）を
+    // 一切使わずvar(--t0)に統一した（スライダー目盛りラベルを含む）。データ形式（cr.targets:1〜2要素の配列・
+    // cr.value）・cwValidateCard・共有コードの検証は無変更。
     function cwRenderCustomResistSection() {
       const cr = cwNormalizeCustomResist(CW.customResist);
+      const maxCount = (CW.customResist && CW.customResist.maxCount === 2) ? 2 : 1;
+      const countRow = [1, 2].map(n => {
+        const sel = maxCount === n;
+        return `<button type="button" onclick="cwSetCustomResistCount(${n})" style="flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid ${sel ? '#388bfd' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(56,139,253,.18)' : 'transparent'};color:var(--t0);font-size:.78rem;font-weight:700;cursor:pointer">${n}つ</button>`;
+      }).join('');
       const mkChip = id => {
         const sel = cr.targets.includes(id);
         const label = cwCustomResistTargetLabel(id);
-        return `<button type="button" onclick="cwToggleCustomResistTarget('${id}')" style="padding:6px 12px;border-radius:16px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.16)' : 'transparent'};color:var(--t0);font-size:.74rem;cursor:pointer;margin:0 6px 6px 0">${_escHtml(label)}</button>`;
+        return `<button type="button" onclick="cwToggleCustomResistTarget('${id}')" style="display:flex;align-items:center;gap:5px;padding:7px 8px;border-radius:10px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.16)' : 'transparent'};color:var(--t0);font-size:.76rem;cursor:pointer">${cardIconSvg(id, 15, sel ? '#3fb950' : 'var(--t0)')}${_escHtml(label)}</button>`;
       };
-      const naturalChips = CW_CUSTOM_RESIST_NATURAL_TARGETS.map(mkChip).join('');
-      const jinzaiChips = CW_CUSTOM_RESIST_JINZAI_TARGETS.map(mkChip).join('');
-      // 軽減値：協力モードの都市HPスライダー（coopRenderMPLobby内）と同一の意匠（アイコン行＋値ラベル＋range＋目盛り）を流用。
-      // min10/max40/step5＝選べる値は10/15/20/25/30/35/40の7値（ユーザー指示によりガードレール撤廃で拡大）。
-      // （cwValidateCard・共有コードの検証は無変更。cwSetCustomResistValue側でもCW_CUSTOM_RESIST_VALUES.includesで再検証する）。
-      const sliderTicks = CW_CUSTOM_RESIST_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
-      const targetErr = `<div style="font-size:.66rem;color:#d29922;margin:2px 0 6px;visibility:${cr.targets.length === 0 ? 'visible' : 'hidden'}">軽減・無効化する災害を1〜2つ選んでください</div>`;
+      const naturalGrid = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${CW_CUSTOM_RESIST_NATURAL_TARGETS.map(mkChip).join('')}</div>`;
+      // 2026-08-15：人為災害（公害・テロ・デマ拡散）は「無効化」出来なくてOKという指示により、新規作成の選択肢
+      // から外した（自然災害7種のみ選択可）。CW_CUSTOM_RESIST_JINZAI_TARGETS・CW_CUSTOM_RESIST_TARGETS（結合版）・
+      // cwNormalizeCustomResist・cwValidateCard・cwAbilityInfoのラベル解決は無改修のまま残し、既に人為災害を
+      // 対象に保存された既存カード（このゲームにはカード編集フローが無いため、保存済み・共有コード読込のみが
+      // 対象）は従来どおり正しく読める・表示できる・ゲームで使える。
+      // 軽減値：min10/max40/step5＝選べる値は10/15/20/25/30/35/40の7値（ユーザー指示によりガードレール撤廃で拡大）。
+      const sliderTicks = CW_CUSTOM_RESIST_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t0)">${v}</span></div>`).join('');
+      const targetErr = `<div style="font-size:.66rem;color:#d29922;margin:8px 0 0;visibility:${cr.targets.length === 0 ? 'visible' : 'hidden'}">対象の災害を${maxCount}つ選んでください</div>`;
       const hasNatural = cr.targets.some(t => CW_CUSTOM_RESIST_NATURAL_TARGETS.includes(t));
-      // 2026-07-18脱AI感刷新②：仕様書の項目行（worldview.md §10.2・§3.3・§3.4）。全周dashed枠の縦積みをやめ、
-      // 左辺2pxアクセント＋下辺1px罫線の.ws-spec-rowへ。計算ロジック（cwSetCustomResistValue等）は無変更
       return `<div class="ws-spec-block">
         <div class="ws-spec-row" style="border-left-color:var(--blue)">
-          <div class="ws-spec-label">対象（最大2つ・タップで選択/解除）</div>
-          <div style="font-size:.66rem;color:var(--t3,#8b949e);margin:6px 0 4px">自然災害（ダメージを軽減）</div>
-          <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${naturalChips}</div>
-          <div style="font-size:.66rem;color:var(--t3,#8b949e);margin-bottom:4px">人為災害（効果を無効化）</div>
-          <div style="display:flex;flex-wrap:wrap">${jinzaiChips}</div>
+          <div class="ws-spec-label" style="color:var(--t0)">対象の数</div>
+          <div style="display:flex;gap:8px;margin-top:6px">${countRow}</div>
+        </div>
+        <div class="ws-spec-row" style="border-left-color:var(--blue)">
+          <div class="ws-spec-label" style="color:var(--t0)">対象の災害（タップで選択/解除）</div>
+          ${naturalGrid}
           ${targetErr}
         </div>
         <div class="ws-spec-row" style="border-left-color:var(--blue)">
           <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
-            <span class="ws-spec-label">軽減値${hasNatural ? '' : '（自然災害を選ぶと適用）'}</span>
+            <span class="ws-spec-label" style="color:var(--t0)">軽減値${hasNatural ? '' : '（自然災害を選ぶと適用）'}</span>
             <span id="cw-resist-val-label" style="color:#388bfd;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">−${cr.value}</span>
           </div>
           <input type="range" min="10" max="40" step="5" value="${cr.value}" style="width:100%;accent-color:#388bfd" oninput="cwSetCustomResistValue(this.value)">
@@ -17461,71 +17873,139 @@
         </div>
       </div>`;
     }
-    // カスタム回復：ターン終了時HP回復量スライダー（5/10/15の3値）のUI。CW.abilityId==='custom_regen'の時だけcwRenderEditorから呼ばれる。
+    // カテゴリB「特殊効果」内の1つ：回復。発動タイミング（毎ターン／特定の災害を受けた時）＋
+    // event modeのみ条件災害（自然7種・ラジオ）＋回復量スライダー（5/10/15の3値）。
+    // CW.abilityId==='custom_regen'の時だけcwRenderAbilityCategoryB経由で呼ばれる。
     function cwRenderCustomRegenSection() {
       const cr = cwNormalizeCustomRegen(CW.customRegen);
       const sliderTicks = CW_CUSTOM_REGEN_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
+      const triggerRow = cr.mode === 'event' ? `<div id="cw-trigger-row" class="cw-accordion-panel" style="margin-top:8px">${cwTriggerRadioHtml(cr.trigger, 'cwSetCustomRegenTrigger')}</div>` : '';
       // 2026-07-18脱AI感刷新②：仕様書の項目行（worldview.md §10.2）。全周dashed枠→.ws-spec-row（左辺2pxアクセント）
-      return `<div class="ws-spec-block"><div class="ws-spec-row" style="border-left-color:var(--green)">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
-          <span class="ws-spec-label">ターン終了時のHP回復量</span>
-          <span id="cw-regen-val-label" style="color:#3fb950;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">+${cr.value}</span>
+      return `<div class="ws-spec-block">
+        <div class="ws-spec-row" style="border-left-color:var(--green)">
+          <div class="ws-spec-label">発動タイミング</div>
+          <div style="margin-top:6px">${cwModeRadioHtml(cr.mode, 'cwSetCustomRegenMode')}</div>
+          ${triggerRow}
         </div>
-        <input type="range" min="5" max="15" step="5" value="${cr.value}" style="width:100%;accent-color:#3fb950" oninput="cwSetCustomRegenValue(this.value)">
-        <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
-      </div></div>`;
+        <div class="ws-spec-row" style="border-left-color:var(--green)">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+            <span class="ws-spec-label">${cr.mode === 'event' ? '被弾ターン終了時の回復量' : 'ターン終了時のHP回復量'}</span>
+            <span id="cw-regen-val-label" style="color:#3fb950;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">+${cr.value}</span>
+          </div>
+          <input type="range" min="5" max="15" step="5" value="${cr.value}" style="width:100%;accent-color:#3fb950" oninput="cwSetCustomRegenValue(this.value)">
+          <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
+        </div>
+      </div>`;
     }
-    // カスタム予算：毎ターン予算増加量スライダー（1/2の2値）のUI。CW.abilityId==='custom_budget'の時だけcwRenderEditorから呼ばれる。
+    // カテゴリB内の1つ：予算増加。回復と同じ構造（発動タイミング→[条件災害]→増加量スライダー）。
+    // CW.abilityId==='custom_budget'の時だけcwRenderAbilityCategoryB経由で呼ばれる。
     function cwRenderCustomBudgetSection() {
       const cb = cwNormalizeCustomBudget(CW.customBudget);
       const sliderTicks = CW_CUSTOM_BUDGET_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
+      const triggerRow = cb.mode === 'event' ? `<div id="cw-trigger-row" class="cw-accordion-panel" style="margin-top:8px">${cwTriggerRadioHtml(cb.trigger, 'cwSetCustomBudgetTrigger')}</div>` : '';
       // 2026-07-18脱AI感刷新②：仕様書の項目行（worldview.md §10.2）。全周dashed枠→.ws-spec-row（左辺2pxアクセント）
-      return `<div class="ws-spec-block"><div class="ws-spec-row" style="border-left-color:var(--yellow)">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
-          <span class="ws-spec-label">毎ターンの予算増加量</span>
-          <span id="cw-budget-val-label" style="color:#d29922;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">+${cb.value}</span>
+      return `<div class="ws-spec-block">
+        <div class="ws-spec-row" style="border-left-color:var(--yellow)">
+          <div class="ws-spec-label">発動タイミング</div>
+          <div style="margin-top:6px">${cwModeRadioHtml(cb.mode, 'cwSetCustomBudgetMode')}</div>
+          ${triggerRow}
         </div>
-        <input type="range" min="1" max="2" step="1" value="${cb.value}" style="width:100%;accent-color:#d29922" oninput="cwSetCustomBudgetValue(this.value)">
+        <div class="ws-spec-row" style="border-left-color:var(--yellow)">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+            <span class="ws-spec-label">${cb.mode === 'event' ? '被弾時 次ターンの予算増加量' : '毎ターンの予算増加量'}</span>
+            <span id="cw-budget-val-label" style="color:#d29922;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">+${cb.value}</span>
+          </div>
+          <input type="range" min="1" max="2" step="1" value="${cb.value}" style="width:100%;accent-color:#d29922" oninput="cwSetCustomBudgetValue(this.value)">
+          <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
+        </div>
+      </div>`;
+    }
+    // カテゴリB内の1つ：1枚ドロー。条件となる災害（自然7種・ラジオ）のみを持つ（値は1固定）。
+    // CW.abilityId==='custom_draw'の時だけcwRenderAbilityCategoryB経由で呼ばれる。
+    function cwRenderCustomDrawSection() {
+      const cd = cwNormalizeCustomDraw(CW.customDraw);
+      return `<div class="ws-spec-block"><div class="ws-spec-row" style="border-left-color:var(--purple)">
+        <div class="ws-spec-label">条件となる災害</div>
+        <div style="margin-top:6px">${cwTriggerRadioHtml(cd.trigger, 'cwSetCustomDrawTrigger')}</div>
+      </div></div>`;
+    }
+    // カテゴリB内の1つ：連撃体制。kumamoto（second_hit_reduce）は元々完全汎用のため軽減値スライダーのみ。
+    // レンジはカスタム軽減と同じCW_CUSTOM_RESIST_VALUES（10〜40・step5）を再利用する。
+    // CW.abilityId==='custom_counter'の時だけcwRenderAbilityCategoryB経由で呼ばれる。
+    function cwRenderCustomCounterSection() {
+      const cc = cwNormalizeCustomCounter(CW.customCounter);
+      const sliderTicks = CW_CUSTOM_RESIST_VALUES.map(v => `<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('');
+      return `<div class="ws-spec-block"><div class="ws-spec-row" style="border-left-color:var(--purple)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+          <span class="ws-spec-label">同ターン2枚目の災害の軽減値</span>
+          <span id="cw-counter-val-label" style="color:#a371f7;font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums">−${cc.value}</span>
+        </div>
+        <input type="range" min="10" max="40" step="5" value="${cc.value}" style="width:100%;accent-color:#a371f7" oninput="cwSetCustomCounterValue(this.value)">
         <div style="display:flex;justify-content:space-between;margin-top:3px">${sliderTicks}</div>
       </div></div>`;
     }
+    // カテゴリB「特殊効果」：4択ラジオ（1枚ドロー／予算増加／回復／連撃体制）＋選択中の能力のサブUI。
+    function cwRenderAbilityCategoryB() {
+      const items = [
+        { id: CW_CUSTOM_DRAW_ID, label: '1枚ドロー', desc: '指定した災害を受けた時、山札から1枚引く' },
+        { id: CW_CUSTOM_BUDGET_ID, label: '予算増加', desc: '毎ターン、または特定の災害を受けた時に予算が増える' },
+        { id: CW_CUSTOM_REGEN_ID, label: '回復', desc: '毎ターン、または特定の災害を受けた時にHPが回復する' },
+        { id: CW_CUSTOM_COUNTER_ID, label: '連撃体制', desc: '同じターンに2枚目の災害を受けた時のダメージを軽減する' },
+      ];
+      const rows = items.map(it => {
+        const sel = CW.abilityId === it.id;
+        return `<button onclick="cwSetAbility('${it.id}')" style="width:100%;text-align:left;display:block;padding:8px 10px;border-radius:8px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.14)' : 'transparent'};color:var(--t0);margin-bottom:6px;cursor:pointer"><div style="font-weight:700;font-size:.82rem">${_escHtml(it.label)}</div><div style="font-size:.68rem;color:var(--t2,#8b949e);margin-top:2px">${_escHtml(it.desc)}</div></button>`;
+      }).join('');
+      let sub = '';
+      if (CW.abilityId === CW_CUSTOM_DRAW_ID) sub = cwRenderCustomDrawSection();
+      else if (CW.abilityId === CW_CUSTOM_BUDGET_ID) sub = cwRenderCustomBudgetSection();
+      else if (CW.abilityId === CW_CUSTOM_REGEN_ID) sub = cwRenderCustomRegenSection();
+      else if (CW.abilityId === CW_CUSTOM_COUNTER_ID) sub = cwRenderCustomCounterSection();
+      return `<div style="margin-bottom:8px">${rows}</div>${sub}`;
+    }
     function cwRenderEditor() {
       const atCap = cwLoadAll().length >= CW_MAX_CARDS;
-      const presets = cwPresets();
+      // 地形ボタンに既存のcardIconSvg('city_inland'/'city_coastal'/'city_mountain')を転用する
+      // （CW_TERRAINS.keyがそのまま'city_'+keyのアイコンIDと一致するため文字列連結だけで足りる）。
       const terrainBtns = CW_TERRAINS.map(t => {
         const sel = CW.terrain === t.key;
-        return `<button onclick="cwSetTerrain('${t.key}')" style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid ${sel ? '#388bfd' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(56,139,253,.18)' : 'transparent'};color:var(--t0);font-size:.78rem;font-weight:700;cursor:pointer">${t.label}</button>`;
+        const ico = cardIconSvg('city_' + t.key, 16, sel ? '#388bfd' : 'var(--t2,#8b949e)');
+        return `<button onclick="cwSetTerrain('${t.key}')" style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid ${sel ? '#388bfd' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(56,139,253,.18)' : 'transparent'};color:var(--t0);font-size:.78rem;font-weight:700;cursor:pointer"><span style="display:inline-flex;align-items:center;justify-content:center;gap:5px">${ico}${t.label}</span></button>`;
       }).join('');
-      const abilityBtns = presets.map(p => {
-        const sel = CW.abilityId === p.id;
-        return `<button onclick="cwSetAbility('${p.id}')" style="width:100%;text-align:left;display:block;padding:8px 10px;border-radius:8px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.14)' : 'transparent'};color:var(--t0);margin-bottom:6px;cursor:pointer"><div style="font-weight:700;font-size:.82rem">${_escHtml(p.label)}</div><div style="font-size:.68rem;color:var(--t2,#8b949e);margin-top:2px">${_escHtml(p.desc || '')}（${_escHtml(p.sourceName || '')}の能力を借用）</div></button>`;
-      }).join('') + (() => {
-        const mkCustomTile = (id, label, desc) => {
-          const sel = CW.abilityId === id;
-          return `<button onclick="cwSetAbility('${id}')" style="width:100%;text-align:left;display:block;padding:8px 10px;border-radius:8px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.14)' : 'transparent'};color:var(--t0);margin-bottom:6px;cursor:pointer"><div style="font-weight:700;font-size:.82rem">${_escHtml(label)}</div><div style="font-size:.68rem;color:var(--t2,#8b949e);margin-top:2px">${_escHtml(desc)}</div></button>`;
-        };
-        return mkCustomTile(CW_CUSTOM_RESIST_ID, 'カスタム軽減', '軽減・無効化する災害と軽減値を自分で選べます')
-          + mkCustomTile(CW_CUSTOM_REGEN_ID, 'カスタム回復', 'ターン終了時のHP回復量を自分で選べます（大阪の能力を借用）')
-          + mkCustomTile(CW_CUSTOM_BUDGET_ID, 'カスタム予算', '毎ターンの予算増加量を自分で選べます（神戸の能力を借用）');
-      })();
+      // 2026-08-15：都市能力の作り直し。プリセット8種＋カスタム軽減／回復／予算というバラバラな選択肢を
+      // 「①災害ダメージ軽減」「②特殊効果」の2カテゴリタイルへ統合した（「〜の能力を借用」の文言は全廃）。
+      // 実在都市プリセット8種は新規作成時のタイルからは外れる（旧abilityId（tokyo等）を持つ既存保存カードは
+      // cwAbilityInfoが従来通りpresetを解決するため表示・ゲーム内使用ともに壊れない）。
+      // 街診断（cwWizardApply）はプリセットabilityIdをそのまま提案する既存仕様を維持しているため、診断結果を
+      // 適用した直後はどちらのタイルも未選択のまま入る。その場合は下に「現在の設定」を一行だけ表示し、
+      // タイルを選べば上書きできることを示す（design_system.md §10.3：説明文でなく構造で状態を伝える）。
+      const catASel = CW.abilityId === CW_CUSTOM_RESIST_ID;
+      const catBSel = CW_ABILITY_CATEGORY_B_IDS.includes(CW.abilityId);
+      const legacyPreset = (!catASel && !catBSel) ? cwPresetById(CW.abilityId) : null;
+      const catTile = (key, label, desc, sel) => `<button onclick="cwSelectAbilityCategory('${key}')" style="width:100%;text-align:left;display:block;padding:10px 12px;border-radius:10px;border:1.5px solid ${sel ? '#3fb950' : 'var(--bg3,#30363d)'};background:${sel ? 'rgba(63,185,80,.14)' : 'transparent'};color:var(--t0);margin-bottom:8px;cursor:pointer"><div style="font-weight:800;font-size:.86rem">${_escHtml(label)}</div><div style="font-size:.7rem;color:var(--t2,#8b949e);margin-top:2px">${_escHtml(desc)}</div></button>`;
+      const categoryTiles = catTile('A', '① 災害ダメージ軽減', '特定の災害へのダメージを軽減・無効化する', catASel)
+        + catTile('B', '② 特殊効果', 'ドロー・予算増加・回復・連撃体制から1つ選ぶ', catBSel);
+      const legacyNote = legacyPreset ? `<div style="font-size:.7rem;color:var(--t2,#8b949e);margin-bottom:8px">現在の設定：${_escHtml(legacyPreset.label)}（${_escHtml(legacyPreset.desc || '')}）。下のタイルを選ぶと変更できます。</div>` : '';
       const capMsg = atCap ? `<div style="text-align:center;color:#d29922;font-size:.72rem;margin:6px 0">保存済みカードが上限（${CW_MAX_CARDS}枚）に達しています。一覧から削除してから保存してください。</div>` : '';
       const errMsg = CW.error ? `<div style="text-align:center;color:#f85149;font-size:.76rem;margin:6px 0;font-weight:700">${_escHtml(CW.error)}</div>` : '';
       // 2026-07-18脱AI感刷新②：設計室（worldview.md §10.2）。方眼紙背景（.ws-editor-screen）はエディタ画面限定
       return `<div class="screen active ws-editor-screen" style="padding:18px;max-width:520px;margin:0 auto">
         <button class="gallery-btn-back" style="margin-bottom:10px" onclick="cwBackToList()">＜</button>
         <h2 style="text-align:center;color:var(--t0);margin:4px 0 14px">ご当地カードメーカー</h2>
-        <div id="cw-live-mount" style="width:288px;max-width:100%;aspect-ratio:288/450;margin:0 auto 8px;display:flex;justify-content:center;align-items:center">${_cwPreviewLastDataUrl ? _cwPreviewImgHtml(_cwPreviewLastDataUrl) : cwRenderCardVisual(cwCurrentDraftCard())}</div>
+        <div class="cw-sticky-preview">
+          <div id="cw-live-mount" style="width:clamp(118px,34vw,190px);max-width:100%;aspect-ratio:288/450;display:flex;justify-content:center;align-items:center">${_cwPreviewLastDataUrl ? _cwPreviewImgHtml(_cwPreviewLastDataUrl) : cwRenderCardVisual(cwCurrentDraftCard())}</div>
+        </div>
         <button onclick="cwDownloadCardPng('editor')" style="width:100%;margin-bottom:16px;padding:8px;border-radius:8px;background:transparent;border:1px solid var(--bg3,#30363d);color:var(--t0);font-size:.76rem;cursor:pointer">画像として保存（PNG）</button>
         ${cwRenderArtSection()}
-        <label class="lobby-label" style="margin-top:12px">都市名（最大8文字・必須）</label>
+        <label class="lobby-label" style="margin-top:12px">都市名<span style="color:var(--red)">*</span>（最大8文字）</label>
         <input type="text" class="lobby-input" maxlength="8" value="${_escHtml(CW.name)}" placeholder="例: ○○市" oninput="CW.name=this.value.slice(0,8);cwUpdatePreviewDom()">
         <label class="lobby-label" style="margin-top:12px">地形</label>
         <div style="display:flex;gap:8px;margin-bottom:12px">${terrainBtns}</div>
-        <label class="lobby-label">都市能力（プリセットまたはカスタムから1つ選択）</label>
-        <div style="margin-bottom:8px">${abilityBtns}</div>
-        ${CW.abilityId === CW_CUSTOM_RESIST_ID ? cwRenderCustomResistSection() : ''}
-        ${CW.abilityId === CW_CUSTOM_REGEN_ID ? cwRenderCustomRegenSection() : ''}
-        ${CW.abilityId === CW_CUSTOM_BUDGET_ID ? cwRenderCustomBudgetSection() : ''}
+        <label class="lobby-label">都市能力</label>
+        ${legacyNote}
+        <div style="margin-bottom:8px">${categoryTiles}</div>
+        ${catASel ? cwRenderCustomResistSection() : ''}
+        ${catBSel ? cwRenderAbilityCategoryB() : ''}
         <label class="lobby-label">防災コンセプト（フレーバー・最大40文字・任意）</label>
         <textarea maxlength="40" rows="2" class="lobby-input" style="resize:none" placeholder="例: 水と共に生きるまち" oninput="CW.flavor=this.value.slice(0,40);cwUpdatePreviewDom()">${_escHtml(CW.flavor)}</textarea>
         ${errMsg}${capMsg}
