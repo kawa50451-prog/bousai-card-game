@@ -1816,6 +1816,9 @@
     /* ④実機フィードバック：ドラッグ中に受け入れ可能な行を行全体でハイライトする（Notionのブロック移動に近い
        「持ち上げ→移動先が視覚化→離して確定」の体験にするため）。.dd-slot-cellの点線ハイライトと併用する */
     .dd-prep-row.dd-prep-row-hint { border-color:var(--blue); background:rgba(56,139,253,.10); }
+    /* 2026-08-15追加：ドラッグ中にちょうど既存カードの上へ重なった場合の「入れ替え」ヒント。
+       空きスペースへの「追加」（青の.dd-prep-row-hint/.dd-slot-hint）とは意味を分けるため注意色の黄を使う。 */
+    .dd-mini-slot-col.dd-swap-hint { outline:2px solid var(--yellow); outline-offset:2px; border-radius:8px; }
     /* 割当済み政策ミニカード：上部にpadding-topを確保し「－」ボタンをその中に置く＝画像との重なりを最小化する */
     .dd-mini-slot-col { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; width:56px; min-width:0; position:relative; padding-top:18px; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
     .dd-mini-slot-col .dd-mini-imgbox { border-color:var(--blue); }
@@ -2018,8 +2021,14 @@
        （カードが画面の半分を占めると設定操作の妨げになるため）。背景は.ws-editor-screenの方眼紙と同系の
        単色で不透明にし、下の設定項目がスクロールで裏を通り抜けて透けないようにする。 */
     .cw-sticky-preview {
+      /* ⚠️ 上端に地を敷くこと。sticky で貼り付いた板の上を、後ろの内容が
+         通り過ぎて透けて見える（スマホでは時計や電波の帯の下に混ざって
+         見苦しくなる）。負の外余白と内余白で上を覆い、地を塗る。 */
+      background: var(--bg1);
+      margin-top: -8px;
+      padding-top: 8px;
       position: sticky;
-      top: 8px;
+      top: 0;
       z-index: 5;
       display: flex;
       justify-content: center;
@@ -2855,6 +2864,21 @@
       }
     }
 
+    /* 2026-08-15追加：デイリー防災「決定」ボタン用の赤バリアント（.confirm-btns .btn-ok.dangerと同じ意味色の流用）。
+       シミュレーション＝緑（安全に試せる）・決定＝赤（確定・後戻り不可）という意味色の対比を付ける。 */
+    .btn-ho.danger {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    @media (hover:hover) {
+      .btn-ho.danger:hover {
+        background: var(--red);
+        border-color: var(--red);
+        color: #fff
+      }
+    }
+
     /* TURN SUMMARY */
     @keyframes ts-fade-in { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
     .turn-summary-box {
@@ -3028,7 +3052,7 @@
     }
 
     /* ── カードギャラリー ── */
-    .lobby-btn-gallery { width:100%; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; padding:11px; color:var(--t2); font-size:.88rem; cursor:pointer; transition:.2s; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:6px }
+    .lobby-btn-gallery { width:100%; background:var(--bg2); border:1.5px solid var(--bg3); border-radius:10px; padding:11px; color:var(--t0); font-size:.88rem; font-weight:700; cursor:pointer; transition:.2s; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:6px }
     @media (hover:hover) {
       .lobby-btn-gallery:hover { background:rgba(var(--accent-rgb),.1); border-color:var(--accent); color:var(--accent) }
     }
@@ -5042,7 +5066,13 @@
     // ハザードマップ整備・ローリングストック・緊急支援ドロー・備蓄等、発生源を問わず「自分の手札の直前描画との
     // uid差分」で一律に検出する（特定のドロー処理へのフックだと発生源ごとに漏れるため）。仲間タブ閲覧中は
     // 更新しない（coopHandPartsの!viewingAlly分岐でのみ比較・更新）。nullは「未初期化＝次回描画はマークしない」を表す。
+    // ⚠️ スナップショットは「誰の手札か」とセットで持つこと。CO.hand は共有の
+    //    スクラッチで、coopLoadMyActor() が載せ替えるたびに中身が入れ替わる。
+    //    所有者を見ずに差分だけを取ると、仲間タブから自分へ戻ったときや他人の
+    //    ターンで再描画が走ったときに「新しく引いた」と誤認し、自分が操作して
+    //    いないのにドロー演出が出る（実機で報告された不具合）。
     let _coHandSeenUids = null;
+    let _coHandSeenOwner = null;
     // ── 協力オンライン：観戦（読み取り専用の追加ロール。CO.mySide==='spectator'） ──
     // 観戦者はCO.cities/playersに一切登録されず、coopRooms/{code}/spectators/{sid} にpresenceのみ持つ。
     // 進行ロジック（intent検証・ready/ack/respゲート）には一切触れない、純粋な追加の読み取り経路。
@@ -8530,12 +8560,12 @@
         body = `${err}
     ${_lobbyDashboardCard()}
     <div class="lobby-mode-btns">
-      <button class="lobby-btn" onclick="lobbyEnterVsMode()" aria-label="対戦する：1対1でぶつかり合う">${_svgGame}<strong>対戦する</strong><span style="font-size:.72rem;color:var(--t2)">1対1でぶつかり合う</span></button>
-      <button class="lobby-btn" onclick="lobbyEnterCoopMode()" aria-label="協力する：力を合わせて街を守る（ベータ版）"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力する</strong><span style="font-size:.72rem;color:var(--t2)">力を合わせて街を守る（ベータ版）</span></button>
+      <button class="lobby-btn" onclick="lobbyEnterVsMode()" aria-label="対戦する：1vs1の本格バトル">${_svgGame}<strong>対戦する</strong><span style="font-size:.72rem;color:var(--t2)">1vs1の本格バトル</span></button>
+      <button class="lobby-btn" onclick="lobbyEnterCoopMode()" aria-label="協力する：力を合わせて街を守る"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力する</strong><span style="font-size:.72rem;color:var(--t2)">力を合わせて街を守る</span></button>
     </div>
     <div style="display:flex;gap:8px;margin-top:2px">
-      <button class="lobby-btn-tut" onclick="startTutorial()" aria-label="対戦チュートリアル">${_svgGame}対戦チュートリアル</button>
-      <button class="lobby-btn-tut" onclick="startCoopTutorial()" aria-label="協力チュートリアル"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>協力チュートリアル</button>
+      <button class="lobby-btn-tut" onclick="startTutorial()" aria-label="対戦チュートリアル">${_svgGame}<span style="text-align:center;line-height:1.3">対戦<br>チュートリアル</span></button>
+      <button class="lobby-btn-tut" onclick="startCoopTutorial()" aria-label="協力チュートリアル"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span style="text-align:center;line-height:1.3">協力<br>チュートリアル</span></button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin:4px 0 0">
       <div style="flex:1;height:1px;background:var(--bg3)"></div>
@@ -8543,8 +8573,8 @@
       <div style="flex:1;height:1px;background:var(--bg3)"></div>
     </div>
     <button class="lobby-btn-gallery" onclick="dailyStart()"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M12 12.2 15.6 13.6V16c0 1.9-1.5 3.4-3.6 4.2-2.1-.8-3.6-2.3-3.6-4.2v-2.4z"/></svg> デイリー防災${_ddTodayCleared() ? `<span style="font-size:.62rem;color:#3fb950;margin-left:6px;font-weight:700;display:inline-flex;align-items:center;gap:3px">${coopIcoCheckCircle(13,'#3fb950')}今日の分クリア済み</span>` : ''}</button>
-    <button class="lobby-btn-gallery" onclick="cwOpen()"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M4 20v-9l3.5 3.5V11L11 14.5V11l3.5 3.5V7l3.5 4v9"/></svg> カード工房<span style="font-size:.62rem;color:var(--t3);margin-left:6px;font-weight:700">マイ都市 ${cwLoadAll().length}/${CW_MAX_CARDS}</span></button>
-    <button class="lobby-btn-gallery" onclick="pzOpenWorkshop()">${_pzIcoPencil(18, 'currentColor')} 問題工房<span style="font-size:.62rem;color:var(--t3);margin-left:6px;font-weight:700">保存 ${pzLoadAll().length}/${PZ_MAX_PUZZLES}</span></button>
+    <button class="lobby-btn-gallery" onclick="cwOpen()"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M4 20v-9l3.5 3.5V11L11 14.5V11l3.5 3.5V7l3.5 4v9"/></svg> カード工房</button>
+    <button class="lobby-btn-gallery" onclick="pzOpenWorkshop()">${_pzIcoPencil(18, 'currentColor')} 問題工房</button>
     <button class="lobby-btn-gallery" onclick="lobbyState.mode='gallery';lobbyState.galleryTab=null;lobbyState.galleryZoom=null;render()">${_svgBook} カードを見る</button>`;
       } else if (lobbyState.mode === 'select' && lobbyState.playMode === 'vs') {
         // ── Layer2（対戦）：接続方法選択。協力coopStepウィザードのbigCard()を共通利用し主ラベルを統一（design_system.md §8.3） ──
@@ -11670,7 +11700,7 @@
             CO.revive.expiresAt = Date.now() + COOP_REVIVE_TIMEOUT_MS; // 投票フェーズにも同じ猶予を与える
             _coLog(`🙋 復興：${donorSlot.city.name}が${amount}ptの提供に立候補`);
             // 承認者が0人（提供元しか生存都市がいない＝2都市構成）のときは提供元の意思のみで即成立（§13.3）
-            const neededVoters = CO.cities.filter((cs, i) => cs.hp > 0 && i !== donorIdx).length;
+            const neededVoters = coopReviveVoterIdxs(CO.revive).length;
             if (neededVoters === 0) coopReviveApplyMP(CO.revive);
             break;
           }
@@ -11678,7 +11708,7 @@
             if (!CO.revive || CO.revive.donorIdx == null) break; // 提供元決定後のみ投票可
             const voterSlot = slotOf(pid); if (!voterSlot) break;
             const voterIdx = CO.cities.indexOf(voterSlot);
-            if (voterIdx === CO.revive.donorIdx || voterSlot.hp <= 0) break; // 提供元本人・壊滅都市は投票不可
+            if (!coopReviveVoterIdxs(CO.revive).includes(voterIdx)) break; // 提供元本人・復活対象は投票不可（壊滅都市は投票可）
             if (CO.revive.votes[voterIdx] !== undefined) break; // 二重投票は無視（最初の1票のみ有効）
             CO.revive.votes[voterIdx] = !!p.approve;
             if (!p.approve) {
@@ -11687,7 +11717,7 @@
               _coLog(`🚫 復興提案は否決されました（${t ? t.city.name : ''}）`);
               CO.revive = null;
             } else {
-              const approvedAll = CO.cities.every((cs, i) => cs.hp <= 0 || i === CO.revive.donorIdx || CO.revive.votes[i] === true);
+              const approvedAll = coopReviveVoterIdxs(CO.revive).every(i => CO.revive.votes[i] === true);
               if (approvedAll) coopReviveApplyMP(CO.revive);
             }
             break;
@@ -12077,7 +12107,7 @@
       CO.budgetCarriedIn = carriedIn;
       CO.budget = b; CO.budgetUsed = 0;
     }
-    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; _coHandSeenUids = null; coopStartCityTurn(true); }
+    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; _coHandSeenUids = null; _coHandSeenOwner = null; coopStartCityTurn(true); }
     // 都市ターン開始（humanSide によって人間操作／CPU防衛に分岐）
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
@@ -13237,6 +13267,19 @@
       return `<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:var(--t1)">${coopIcoHeart(13, '#e2b6ff')}復興（残り${remain}回）<span style="margin-left:auto;font-size:.66rem;color:var(--t2)">${label || ''}</span></div>`;
     }
     // ホストのみ「この提案を締める」を表示（coopRequestForceAdvanceと同じ思想。ゲストには一切見えない）
+    // ══ 復興の投票者（2026-08-15 修正）══
+    // ⚠️ 以前は「HPが残っている都市」を投票者にしていたため、壊滅した都市は投票から
+    //    外れていた。壊滅都市が2つあって片方を復活させる場合、もう片方に発言権が無く、
+    //    さらに承認が0人と判定されて即成立してしまう経路があった。
+    //    新しい規則：提供元と復活対象を除く「すべての都市」が投票者（HPを問わない）。
+    // 🚫 この関数を経由せずに投票者を数え直さないこと。以前は同じ規則が4箇所に
+    //    散っていて（必要数・投票の受付・全員承認の判定・画面表示）、片方だけ直すと
+    //    食い違う作りだった。
+    function coopReviveVoterIdxs(rv) {
+      if (!rv || rv.donorIdx == null) return [];
+      return (CO.cities || []).map((cs, i) => i)
+        .filter(i => i !== rv.donorIdx && i !== rv.targetIdx);
+    }
     function coopReviveHostCloseBtn() {
       return CO.host ? `<button type="button" onclick="coopRequestReviveForceClose()" style="margin-top:6px;padding:5px 10px;border-radius:8px;background:transparent;border:1px solid rgba(var(--t0-rgb),.3);color:rgba(var(--t0-rgb),.75);font-size:.68rem;font-weight:700;cursor:pointer">この提案を締める</button>` : '';
     }
@@ -13279,14 +13322,23 @@
       }
       // 投票フェーズ（提供元が確定済み）
       const donor = CO.cities[rv.donorIdx];
-      const survivorVoterIdx = CO.cities.map((cs, i) => i).filter(i => CO.cities[i].hp > 0 && i !== rv.donorIdx);
+      const survivorVoterIdx = coopReviveVoterIdxs(rv);
       const approvedCnt = survivorVoterIdx.filter(i => rv.votes && rv.votes[i] === true).length;
       const isDonor = myIdx === rv.donorIdx;
       const isVoter = survivorVoterIdx.includes(myIdx);
       const voted = isVoter && rv.votes && rv.votes[myIdx] !== undefined;
       let body = `<div style="font-size:.74rem;color:var(--t0);margin-top:3px">${_escHtml(donor.city.name)}が${rv.amount}ptを提供 → ${_escHtml(targetName)}を復活</div>
         <div style="font-size:.68rem;color:var(--t2);margin-top:2px">承認 ${approvedCnt}/${survivorVoterIdx.length}</div>`;
+      /* ⚠️ どの立場でも必ず状況が分かるようにする。
+         以前は投票権の無い立場（自然側・観戦者・復活対象の本人）がどの分岐にも
+         入らず、本文が空のまま「この提案を締める」だけが残った。主催者は自然側を
+         選べるため、主催者の画面が空になり機能不全に見えていた（実際の報告）。
+         🚫 分岐を足すときは、必ずどれか1つに落ちることを確かめること。 */
+      const remain = survivorVoterIdx.filter(i => !(rv.votes && rv.votes[i] !== undefined)).length;
+      const waitMsg = `<div style="font-size:.7rem;color:var(--t2);margin-top:4px">投票を待っています…（残り${remain}人）</div>`;
       if (isDonor) body += `<div style="font-size:.7rem;color:var(--t2);margin-top:4px">承認を待っています…</div>`;
+      else if (myIdx === rv.targetIdx) body += `<div style="font-size:.7rem;color:var(--t2);margin-top:4px">あなたの復活について投票中です…</div>`;
+      else if (myIdx < 0) body += waitMsg;                       /* 自然側・観戦者 */
       else if (isVoter && !voted) {
         body += `<div style="display:flex;gap:6px;margin-top:6px">
           <button type="button" onclick="coopReviveVote(true)" style="flex:1;padding:7px;border-radius:8px;background:rgba(63,185,80,.18);border:1px solid rgba(63,185,80,.5);color:#9ff0a8;font-weight:700;font-size:.74rem;cursor:pointer">承認</button>
@@ -13294,7 +13346,7 @@
         </div>`;
       } else if (isVoter && voted) {
         body += `<div style="font-size:.7rem;color:var(--t2);margin-top:4px">投票済み：結果を待っています…</div>`;
-      }
+      } else body += waitMsg;                                    /* 上のどれにも当てはまらない場合の受け皿 */
       body += coopReviveHostCloseBtn();
       return coopReviveBracket(`${coopReviveHeader('投票中')}${body}`);
     }
@@ -13391,12 +13443,23 @@
         // 仲間タブ閲覧中（上のviewingAlly分岐）はここを通らないため比較・スナップショット更新の対象外になる。
         // _coHandSeenUidsがnull（初回描画）のときはマークせずスナップショットの初期化のみ行う（初期手札の一斉パルス防止）。
         const _curHandUids = CO.hand.map(c => c.uid);
-        const _newUids = _coHandSeenUids ? new Set(_curHandUids.filter(u => !_coHandSeenUids.has(u))) : new Set();
+        /* 所有者（自分のスロット）が前回描画時と違うなら、それは「引いた」のでは
+           なく「載せ替わった」だけである。差分を取らずスナップショットだけ更新する。 */
+        const _curOwner = (CO.mp && typeof coopMySlot === 'function')
+          ? ((coopMySlot() || {}).ownerId || null) : 'solo';
+        const _ownerSame = (_coHandSeenOwner === _curOwner);
+        const _newUids = (_coHandSeenUids && _ownerSame)
+          ? new Set(_curHandUids.filter(u => !_coHandSeenUids.has(u))) : new Set();
         _coHandSeenUids = new Set(_curHandUids);
+        _coHandSeenOwner = _curOwner;
         // 2026-07-29：パルスだけでは「どのカードが増えたか」が分かりにくいという指摘を受け、引いたカードを
         // 一度大きく見せるドロー演出を追加する。演出は「引いた本人のクライアントでローカルに再生する」だけで、
         // CO の状態にもホストの配信にも一切触れないため、他プレイヤーの進行を1ミリ秒も止めない。
-        if (_newUids.size) _coScheduleDrawReveal(CO.hand.filter(c => _newUids.has(c.uid)));
+        /* ⚠️ 演出を出すのは自分のターン（かつ手札が操作できる状態）のときだけに
+           限る。差分の有無だけを条件にすると、他人の操作で再描画が走った拍子に
+           自分の画面で演出が出てしまう。readOnly は自分のターンが終わっている
+           ／自分の番でない状態を表す。 */
+        if (_newUids.size && !readOnly) _coScheduleDrawReveal(CO.hand.filter(c => _newUids.has(c.uid)));
         const cards = CO.hand.map(c => coopMkCard(c, 'city', support, readOnly ? 'ended' : false, _newUids.has(c.uid))).join('');
         cardsHtml = cards || '<span style="color:var(--t0)">手札なし</span>';
       }
@@ -14948,6 +15011,7 @@
       DD.cardAssign = new Array(DD.hand.length).fill(-1);
       DD.pickerSlot = null;
       DD.runConfirmPending = false;
+      DD.simPreview = null;
       render();
     }
     function _ddBudgetUsed() {
@@ -14995,14 +15059,59 @@
       DD.cardAssign[idx] = -1;
       render();
     }
-    // 「シミュレーション実行」ボタンは確認ポップを挟む（実機フィードバック⑪）。
+    // 2026-08-15追加：「シミュレーション」ボタン（緑・確認ポップなし・回数無制限・公式記録に一切影響しない）。
+    // 対応表の割当（DD.cardAssign）をdailyRunSimulationと全く同じ順序・同じ効果適用switch文で仮に解決するが、
+    // dailyComputeOptimal（14471行付近）と同じ「グローバルDDを一時的に差し替えて計算後に必ず元へ戻す」手法を使い、
+    // 本番のDD.hp/DD.results/DD.phase等（決定ボタン＝dailyRunSimulationが使う本物の状態）には一切触れない。
+    // 結果はDD.simPreviewという別枠に保存し、専用のsimresultフェーズで表示する。「戻る」（dailySimBack）で
+    // DD.cardAssignはそのまま備えフェーズへ戻るため、手札を組み替えて何度でも試せる。
+    function dailyRunSimPreview() {
+      if (!DD || DD.phase !== 'prep') return;
+      const savedDD = DD;
+      const disasters = savedDD.disasters, nSlots = disasters.length;
+      const hand = savedDD.hand, cardAssign = savedDD.cardAssign;
+      const results = []; const used = [];
+      try {
+        DD = { city: savedDD.city, hp: DAILY_CFG.hp, shieldQuakeFire: false, shieldFlood: false, reduceHits: 0, negateSpecial: false };
+        for (let s = 0; s < nSlots; s++) {
+          hand.forEach((card, i) => {
+            if (cardAssign[i] !== s) return;
+            used.push(card);
+            if (card.effectType === 'heal') DD.hp = Math.min(DAILY_CFG.hp, DD.hp + card.value);
+            else if (card.effectType === 'shield_quake_fire') DD.shieldQuakeFire = true;
+            else if (card.effectType === 'shield_flood') DD.shieldFlood = true;
+            else if (card.effectType === 'damage_reduce_2t') DD.reduceHits += 2;
+            else if (card.effectType === 'negate_special') DD.negateSpecial = true;
+          });
+          const res = dailyResolveAttack(disasters[s], s);
+          results.push(res); DD.hp = res.hpAfter;
+          if (DD.hp <= 0) break;
+        }
+        const hp = DD.hp;
+        const totalDamage = Math.max(0, DAILY_CFG.hp - hp);
+        const ev = dailyEvalLabel(hp, totalDamage);
+        savedDD.simPreview = { results, used, hp, totalDamage, evalLabel: ev.label, evalColor: ev.color };
+      } finally {
+        DD = savedDD; // 本番の状態へ必ず復元（dailyComputeOptimalと同じ安全策）
+      }
+      DD.phase = 'simresult';
+      render();
+    }
+    // シミュレーション結果画面から備えフェーズへ戻る。DD.cardAssign等は一切変更していないため手札構成はそのまま。
+    function dailySimBack() {
+      if (!DD) return;
+      DD.phase = 'prep';
+      render();
+    }
+    // 「決定」ボタンは確認ポップを挟む（実機フィードバック⑪。2026-08-15修正：旧「シミュレーション実行」を
+    // 「決定」に改名し、公式記録に反映する側の操作として確認ポップはこちらにのみ残す）。
     function dailyRequestRunSimulation() {
       if (!DD || DD.phase !== 'prep') return;
       DD.runConfirmPending = true;
       render();
     }
     function dailyCancelRunSimulation() { if (!DD) return; DD.runConfirmPending = false; render(); }
-    // 「シミュレーション実行」：対応表の割当（DD.cardAssign）に従い、スロット0→最後まで一括で解決する。
+    // 「決定」：対応表の割当（DD.cardAssign）に従い、スロット0→最後まで一括で解決する。
     // dailyComputeOptimal（12052行付近）の内側ループと同じ順序（スロットのカード適用→dailyResolveAttack）で、
     // 同じ効果適用switch文をそのまま踏襲する（理論値計算と実プレイの乖離を防ぐため）。
     // 未割当の災害（対応するカードが無い）はそのまま素通しダメージになる＝現行仕様どおり。
@@ -15215,6 +15324,7 @@
       let html;
       if (DD.phase === 'forecast') html = dailyRenderForecast();
       else if (DD.phase === 'prep') html = dailyRenderPrep();
+      else if (DD.phase === 'simresult') html = dailyRenderSimResult();
       else if (DD.phase === 'calendar') html = dailyRenderCalendar();
       else html = dailyRenderResult();
       html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：デイリー防災は表示対象
@@ -15344,16 +15454,26 @@
     // ④ヒットテストは行（.dd-prep-row）の矩形で行う。.dd-slot-cellがコンパクト幅化された後も
     // 「災害カード・▶・番号バッジを含む行のどこに指を置いても対応する行へドロップできる」ようにするため。
     // rowも一緒に返し、Notionのブロック移動に近い体験にするため行全体をハイライトする（下記_ddDragClearHint参照）。
+    // 2026-08-15修正：空き枠へ落とした場合（2枚目として追加）と、既存カードへ重ねて落とした場合（入れ替え）を
+    // 区別するため、行のヒット判定に加えて「ちょうど指の下にある割当済みカード（.dd-mini-slot-col）」を
+    // document.elementFromPointで判定する。ドラッグ中のチップ自身はpointer-events:noneのため自分自身は拾わない。
     function _ddDragFindTarget(x, y, st) {
       for (const el of st.rowEls) {
         const r = el.getBoundingClientRect();
-        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return { type: 'slot', slot: +el.dataset.slot, row: el, el: el.querySelector('.dd-slot-cell') };
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+          const cellEl = el.querySelector('.dd-slot-cell');
+          const hitEl = document.elementFromPoint(x, y);
+          const hitCard = hitEl && hitEl.closest ? hitEl.closest('.dd-mini-slot-col') : null;
+          const overUid = (hitCard && cellEl && cellEl.contains(hitCard) && hitCard.dataset.uid !== st.uid) ? hitCard.dataset.uid : null;
+          return { type: 'slot', slot: +el.dataset.slot, row: el, el: cellEl, overCardEl: overUid ? hitCard : null, overUid };
+        }
       }
       return null;
     }
     function _ddDragClearHint() {
       document.querySelectorAll('.dd-prep-row.dd-prep-row-hint').forEach(el => el.classList.remove('dd-prep-row-hint'));
       document.querySelectorAll('.dd-slot-cell.dd-slot-hint').forEach(el => el.classList.remove('dd-slot-hint'));
+      document.querySelectorAll('.dd-mini-slot-col.dd-swap-hint').forEach(el => el.classList.remove('dd-swap-hint'));
     }
     function ddDragPointerMove(e) {
       const st = _ddDrag; if (!st || e.pointerId !== st.pointerId) return;
@@ -15367,7 +15487,10 @@
       st.chip.style.top = (st.origTop + dy) + 'px';
       const target = _ddDragFindTarget(e.clientX, e.clientY, st);
       _ddDragClearHint();
-      if (target) { if (target.row) target.row.classList.add('dd-prep-row-hint'); if (target.el) target.el.classList.add('dd-slot-hint'); }
+      if (target) {
+        if (target.overCardEl) target.overCardEl.classList.add('dd-swap-hint'); // 既存カードへ重ねている＝入れ替え予告
+        else { if (target.row) target.row.classList.add('dd-prep-row-hint'); if (target.el) target.el.classList.add('dd-slot-hint'); } // 空きスペース＝追加予告
+      }
       st.dropTarget = target;
     }
     function ddDragPointerUp(e) {
@@ -15379,8 +15502,11 @@
       _ddDragClearHint();
       const target = st.dropTarget;
       if (target && target.slot !== st.fromSlot) {
-        const occupants = _ddSlotCardUids(target.slot).filter(u => u !== st.uid);
-        if (occupants.length === 1) _ddSetAssign(occupants[0], st.fromSlot); // AとBのスワップ
+        if (target.overUid) {
+          // 既存カード自体へ重ねて落とした＝そのカードとの入れ替え（そのカードだけをfromSlotへ、他の同枠カードは動かさない）
+          _ddSetAssign(target.overUid, st.fromSlot);
+        }
+        // 空きスペースへ落とした場合はここに来る＝何も動かさず、ドラッグ中のカードをそのままtarget.slotへ追加する
         _ddSetAssign(st.uid, target.slot);
       }
       render(); // 確定時のみrender()（ドラッグ中は一切呼んでいない）
@@ -15403,14 +15529,20 @@
       const rulesLine = `<div style="text-align:center;color:var(--t2);font-size:.74rem;margin-bottom:10px;line-height:1.5">来襲する災害に手持ちの政策カードを割り当てて、被害を最小限に抑えよう。</div>`;
       // 改修2：正解（理論値）の数値そのものは開始前に見せ、手順は見せない＝「パズルである」ことを予告する
       // 2026-07-18脱AI感刷新②：「本部の模範解答」の格として§3.1コーナーブラケット（.dd-formal-frame）に統一
-      const optimalBox = (typeof DD.optimal === 'number') ? `<div class="dd-formal-frame" style="text-align:center;margin:12px 0;font-size:.78rem;color:#e3c34d;display:flex;align-items:center;justify-content:center;gap:6px">${_ddIcoGoldCheck(15, '#e3c34d')}<span>理論値：被害 <strong style="font-size:.95rem">${DD.optimal}</strong> が存在する（正解を探すパズルです）</span></div>` : '';
+      // 2026-08-15修正：「〜が存在する（正解を探すパズルです）」の説明的な言い回しを削り「理論値：最小被害 ○○」の
+      // 簡潔な表記に変更。代わりに1災害あたりの割当枚数ルール（最大2枚・予算内）を注記として直下に添えた。
+      const optimalBox = (typeof DD.optimal === 'number') ? `<div class="dd-formal-frame" style="text-align:center;margin:12px 0 4px;font-size:.78rem;color:#e3c34d;display:flex;align-items:center;justify-content:center;gap:6px">${_ddIcoGoldCheck(15, '#e3c34d')}<span>理論値：最小被害 <strong style="font-size:.95rem">${DD.optimal}</strong></span></div>` : '';
+      const assignNote = `<div style="text-align:center;color:var(--t2);font-size:.68rem;margin-bottom:12px">1つの災害につき、最大2枚まで手札を使うことができる。ただし予算の範囲内に限る</div>`;
       // 2026-07-18脱AI感刷新②：日課訓練室（worldview.md §10.1）の「日付を主役に」。問題工房プレイ（dateKeyが
       // puzzle_始まり）では_ddDateHeroHtmlが空文字を返すため自動的に非表示になる
       const dateHero = _ddDateHeroHtml(DD.dateKey);
       // C4：盤面の都市表示はカスタム都市ならカード工房の合成カード（cwRenderArt）を使う
+      // 2026-08-15修正：56x56の正方形にobject-fit:coverで詰めると都市写真の縦長比率(288:450)が
+      // 上下で見切れていたため、写真の実比率に合わせた縦長の枠（幅48px・aspect-ratio:288/450）に変更した。
+      // 枠が正方形でなくなった分、横幅はやや小さくなる（56→48px）。
       const cityThumb = c.custom
-        ? `<div style="width:56px;height:56px;border-radius:8px;overflow:hidden;position:relative;flex-shrink:0">${cwRenderArt(c)}</div>`
-        : `<img src="images/cities/${c.id}.webp" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px" onerror="this.style.display='none'">`;
+        ? `<div style="width:48px;aspect-ratio:288/450;border-radius:8px;overflow:hidden;position:relative;flex-shrink:0">${cwRenderArt(c)}</div>`
+        : `<img src="images/cities/${c.id}.webp" alt="" style="width:44px;aspect-ratio:288/450;object-fit:contain;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">`;
       // C4：予報フェーズ限定・マイ都市がある場合のみ「マイ都市で挑戦」、既にマイ都市プレイ中なら「公式の都市に戻す」を出す（柱4：問題工房プレイ中は対象外）
       const myCityControl = (DD.isArchive || DD.isPuzzle) ? '' : DD.isCustomCity
         ? `<button onclick="dailyStart()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #388bfd;color:#388bfd;font-size:.78rem;font-weight:700;cursor:pointer">公式の都市に戻す</button>`
@@ -15429,17 +15561,17 @@
         ${puzzleBadge}
         <div style="display:flex;align-items:center;gap:12px;background:var(--bg2,#161b22);border:1.5px solid #388bfd;border-radius:12px;padding:14px;margin-bottom:14px">
           ${cityThumb}
-          <div><div style="font-weight:900;color:var(--t0);font-size:1.05rem">${_escHtml(c.name)} ${terrainImg(c, 18)}</div><div style="font-size:.72rem;color:var(--t2);margin-top:2px">${_escHtml(c.abilityDesc)}</div></div>
+          <div><div style="display:flex;align-items:center;gap:6px;font-weight:900;color:var(--t0);font-size:1.05rem">${terrainImg(c, 20)}<span>${_escHtml(c.name)}</span></div><div style="font-size:.72rem;color:var(--t2);margin-top:2px">${_escHtml(c.abilityDesc)}</div></div>
         </div>
         <div style="color:var(--t0);font-weight:700;font-size:.85rem;margin-bottom:6px">来襲する災害（順番通り・全公開）</div>
         <div class="dd-card-row hand-cards-area">${disasterCards}</div>
         ${optimalBox}
+        ${assignNote}
         <div style="color:var(--t0);font-weight:700;font-size:.85rem;margin:12px 0 6px">手札${DD.hand.length}枚・総予算${DD.budget}</div>
         <div class="dd-card-row hand-cards-area">${handCards}</div>
         <button class="btn-ho" style="margin-top:14px" onclick="dailyBeginPlay()">開始</button>
         ${myCityControl}
         <button onclick="dailyOpenCalendar()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #388bfd;color:#388bfd;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">${_ddIcoCalShield(14, '#388bfd')}記録を見る</button>
-        <button onclick="pzOpenWorkshop()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #d29922;color:#d29922;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">${_pzIcoPencil(14, '#d29922')}問題工房</button>
         <button onclick="dailyQuit()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.5);font-size:.78rem;cursor:pointer">ロビーに戻る（中断）</button>
       </div>`;
     }
@@ -15493,9 +15625,11 @@
         <span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${DD.budget}</span></span>
       </div>`;
       const pickerOverlay = dailyRenderPicker();
+      // 2026-08-15修正：実行ボタンを「シミュレーション」（緑・確認なし・仮出力・回数無制限）と
+      // 「決定」（赤・確認ポップあり・公式記録に反映）の2つに分割した。確認ポップは決定側にのみ残す。
       const runConfirmOverlay = DD.runConfirmPending ? `<div class="confirm-overlay" onclick="dailyCancelRunSimulation()"><div class="confirm-box" onclick="event.stopPropagation()">
-        <p>シミュレーションを実行しますか？<br>対応していない災害はそのままダメージを受けます。</p>
-        <div class="confirm-btns"><button class="btn-ok" onclick="dailyRunSimulation()">実行</button><button class="btn-cancel" onclick="dailyCancelRunSimulation()">キャンセル</button></div>
+        <p>本当にこれで実行しますか？<br>対応していない災害はそのままダメージを受けます。</p>
+        <div class="confirm-btns"><button class="btn-ok danger" onclick="dailyRunSimulation()">決定</button><button class="btn-cancel" onclick="dailyCancelRunSimulation()">キャンセル</button></div>
       </div></div>` : '';
       return `<div class="screen active" style="padding:20px 20px 96px;max-width:520px;margin:0 auto;width:100%">
         <div style="text-align:center;color:var(--t0);font-weight:900;font-size:1.05rem;margin-bottom:10px">備えフェーズ・${nSlots}件の災害に対応する</div>
@@ -15508,7 +15642,15 @@
         <div>${rows}</div>
         <button onclick="dailyQuit()" style="width:100%;margin-top:12px;padding:8px;border-radius:8px;background:transparent;border:1px solid #30363d;color:rgba(var(--t0-rgb),.5);font-size:.78rem;cursor:pointer">ロビーに戻る（中断）</button>
       </div>
-      <div class="dd-run-bar"><button class="btn-ho" onclick="dailyRequestRunSimulation()">シミュレーション実行</button></div>
+      <div class="dd-run-bar">
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+            <button class="btn-ho" style="width:100%;padding:12px 8px" onclick="dailyRunSimPreview()" aria-label="シミュレーション：確認なしで被害を仮出力する。記録には反映されない">シミュレーション</button>
+            <span style="font-size:.62rem;color:var(--t3)">仮決定</span>
+          </div>
+          <button class="btn-ho danger" style="flex:1;padding:12px 8px;align-self:flex-start" onclick="dailyRequestRunSimulation()" aria-label="決定：確認のうえ本番として実行する">決定</button>
+        </div>
+      </div>
       ${pickerOverlay}
       ${runConfirmOverlay}`;
     }
@@ -17611,6 +17753,13 @@
     function cwSetArtPreset(id) {
       if (!CW || !cwPresetArtById(id)) return;
       CW.art = { type: 'preset', presetId: id };
+      /* 地形の選択UIは非表示にした（2026-08-15）。代わりに、選んだストックの絵が
+         持つ地形をそのまま都市の地形にする。CW_PRESET_ARTS の各要素は terrain を
+         持っており（港町＝coastal・ビル街＝inland・渓谷の街＝mountain など）、
+         絵と地形が食い違わないという点でも選ばせるより正しい。
+         ⚠️ 写真を選んだ場合は導出できないため、そのときの値を保つ。 */
+      const pa = cwPresetArtById(id);
+      if (pa && pa.terrain) CW.terrain = pa.terrain;
       cwUpdatePreviewDom(); render();
     }
     function cwRenderArtSection() {
@@ -17999,8 +18148,11 @@
         ${cwRenderArtSection()}
         <label class="lobby-label" style="margin-top:12px">都市名<span style="color:var(--red)">*</span>（最大8文字）</label>
         <input type="text" class="lobby-input" maxlength="8" value="${_escHtml(CW.name)}" placeholder="例: ○○市" oninput="CW.name=this.value.slice(0,8);cwUpdatePreviewDom()">
-        <label class="lobby-label" style="margin-top:12px">地形</label>
-        <div style="display:flex;gap:8px;margin-bottom:12px">${terrainBtns}</div>
+        <!-- 地形の選択はユーザー指示で非表示にした（2026-08-15）。
+             ⚠️ 値そのものは消していない。CW.terrain はカードの見た目・能力の
+             地形ボーナスに使われるため、ストックの絵を選んだ時点でその絵が持つ
+             地形（CW_PRESET_ARTS の terrain）から自動で決める。
+             terrainBtns の生成は残してあるので、戻すときはこの1行を復活させればよい。 -->
         <label class="lobby-label">都市能力</label>
         ${legacyNote}
         <div style="margin-bottom:8px">${categoryTiles}</div>
