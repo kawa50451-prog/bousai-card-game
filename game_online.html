@@ -34,18 +34,25 @@
         // そのまま従う現行動作を維持。オンはOSがreduceでもアニメを強制表示、オフはOSの設定に関わらず常に停止する。
         if (s.motion === 'on') document.documentElement.classList.add('ron-motion-force');
         else if (s.motion === 'off') document.documentElement.classList.add('ron-motion-off');
-        if (s.font === 'digital') {
+        /* 2026-08-16：見やすさ（font）と書体（typeface）は別軸。両方を同時に適用する。
+           ⚠️ 旧設定（font に digital/8bit が入っている）もここで移行して読む。
+              本体の ronGetSettings と同じ移行を書かないと、初回表示だけ書体が外れる
+              （早期適用と実行時適用の両方に入れること＝HANDOVER.md の教訓）。 */
+        var _font = s.font, _tf = s.typeface;
+        if (_font === 'digital' || _font === '8bit') { _tf = _font; _font = 'default'; }
+        if (_font === 'large' || _font === 'contrast') {
+          // 視認性の系統。外部フォントを取らないため取得待ちが無くFOUCも起きない。
+          document.documentElement.classList.add('ron-font-' + _font);
+        }
+        if (_tf === 'digital') {
           document.documentElement.classList.add('ron-font-digital');
           // 早期にフォントの取得を開始する（本体scriptの読込を待たない。オフライン時はlink失敗＝フォールバック続行）
           var link = document.createElement('link');
           link.id = 'ron-font-orbitron'; link.rel = 'stylesheet';
           link.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap';
           document.head.appendChild(link);
-        } else if (s.font === 'large' || s.font === 'contrast') {
-          // 2026-08-15追加：視認性の系統。外部フォントを取らないため取得待ちが無くFOUCも起きない。
-          document.documentElement.classList.add('ron-font-' + s.font);
-        } else if (s.font === '8bit') {
-          // 2026-07-17ユーザーレビュー修正：8bitフォント（日本語対応のDotGothic16）。Orbitronと同じ早期取得パターン。
+        } else if (_tf === '8bit') {
+          // 8bitフォント（日本語対応のDotGothic16）。Orbitronと同じ早期取得パターン。
           document.documentElement.classList.add('ron-font-8bit');
           var link8 = document.createElement('link');
           link8.id = 'ron-font-dotgothic16'; link8.rel = 'stylesheet';
@@ -3539,6 +3546,32 @@
 
     /* ── 1.3.1・1.3.2：設定パネル本体のスタイル（旧settings-btn歯車ボタンは2026-07-17にタブバー「設定」タブへ統合し廃止。§10.4） ── */
     .settings-theme-row { display:flex; gap:8px; flex-wrap:wrap }
+    /* ══ テーマカラーの開閉（2026-08-16） ══
+       ＋／－は「黒く塗りつぶした円の中に白の符号」。＋→－は縦棒を畳んで全体を
+       90°回すことで、別アイコンへ差し替えずに滑らかに繋ぐ。
+       ⚠️ 開閉のイージングは戻り値を強めに取った overshoot 付きのものを使う
+          （指定：慣性を意識・戻り値強め・滑らかでスタイリッシュ）。
+       🚫 新しい :hover ルールは足さない（モバイル主体）。 */
+    .settings-theme-toggle { width:26px; height:26px; border-radius:50%; border:none; padding:0;
+      background:#000; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;
+      flex-shrink:0; box-shadow:0 1px 4px rgba(0,0,0,.45);
+      transition:transform .42s cubic-bezier(.34,1.56,.64,1); }
+    .settings-theme-toggle.is-open { transform:rotate(90deg); }
+    .settings-theme-toggle .stt-sign { position:relative; width:13px; height:13px; display:block; }
+    .settings-theme-toggle .stt-bar { position:absolute; background:#fff; border-radius:1px; }
+    .settings-theme-toggle .stt-h { left:0; right:0; top:50%; height:1.8px; transform:translateY(-50%); }
+    /* 縦棒だけを畳む。回転と合わせて ＋ → － に見える */
+    .settings-theme-toggle .stt-v { top:0; bottom:0; left:50%; width:1.8px; transform:translateX(-50%) scaleY(1);
+      transform-origin:center; transition:transform .42s cubic-bezier(.34,1.56,.64,1); }
+    .settings-theme-toggle.is-open .stt-v { transform:translateX(-50%) scaleY(0); }
+    /* 開くときは行そのものにも慣性を持たせる。閉時は1枚だけなので詰まって見えない */
+    .settings-theme-row { transition:gap .42s cubic-bezier(.34,1.56,.64,1); }
+    .settings-theme-row.is-open > .settings-theme-chip { animation:ronThemeChipIn .38s cubic-bezier(.34,1.56,.64,1) both; }
+    @keyframes ronThemeChipIn { from { opacity:0; transform:translateY(-6px) scale(.94) } to { opacity:1; transform:none } }
+    html.ron-motion-off .settings-theme-toggle,
+    html.ron-motion-off .settings-theme-toggle .stt-v,
+    html.ron-motion-off .settings-theme-row,
+    html.ron-motion-off .settings-theme-row.is-open > .settings-theme-chip { transition:none !important; animation:none !important; }
     .settings-theme-chip { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--bg3); background:var(--bg2); cursor:pointer; flex:1; min-width:82px; transition:.15s; }
     .settings-theme-chip.active { border-color:var(--accent); background:rgba(var(--accent-rgb),.12); }
     .settings-theme-swatch { width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.18); flex-shrink:0; position:relative; }
@@ -5792,13 +5825,25 @@
     ];
     // 2026-08-15追加：対戦CPU戦でカード工房のマイ都市を使うかの設定（既定OFF）。既存プレイヤーの保存済み設定は
     // ronGetSettings()のスプレッド展開で自動的にfalse補完されるため後方互換は保たれる。
-    const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', glow: true, motion: 'on', cwCpu: false };
+    /* 2026-08-16：書体（typeface）を「見やすさ（font）」から切り離した。
+       旧実装は font が 標準/大きめ/高コントラスト/デジタル/8bit の5択1本で、
+       性質の違うものが排他になっており「大きめの8bit」が選べなかった。
+       font  … 見やすさ（default / large / contrast）
+       typeface … 書体（default / digital / 8bit）
+       ⚠️ 旧設定の移行は ronGetSettings が担う（font に digital/8bit が入っていたら
+          typeface へ移す）。localStorage を直接読む <head> の早期適用にも同じ移行が要る。 */
+    const RON_SETTINGS_DEFAULT = { theme: 'cyber-red', font: 'default', typeface: 'default', glow: true, motion: 'on', cwCpu: false };
     function ronGetSettings() {
       try {
         const raw = localStorage.getItem(RON_SETTINGS_KEY);
         const s = raw ? JSON.parse(raw) : null;
         if (!s || typeof s !== 'object') return { ...RON_SETTINGS_DEFAULT };
-        return { ...RON_SETTINGS_DEFAULT, ...s };
+        const out = { ...RON_SETTINGS_DEFAULT, ...s };
+        // 旧設定の移行：font に書体が入っていたら typeface へ移し、見やすさは標準に戻す
+        if (out.font === 'digital' || out.font === '8bit') { out.typeface = out.font; out.font = 'default'; }
+        if (!['default', 'digital', '8bit'].includes(out.typeface)) out.typeface = 'default';
+        if (!['default', 'large', 'contrast'].includes(out.font)) out.font = 'default';
+        return out;
       } catch (e) { return { ...RON_SETTINGS_DEFAULT }; }
     }
     let _ronFontOrbitronPromise = null;
@@ -5849,14 +5894,16 @@
       // （既定値・現行動作と完全一致）。オンはOSがreduceでもアニメを表示、オフはOSの設定に関わらず常に停止する。
       html.classList.toggle('ron-motion-force', s.motion === 'on');
       html.classList.toggle('ron-motion-off', s.motion === 'off');
-      html.classList.toggle('ron-font-digital', s.font === 'digital');
+      // 書体は typeface（旧設定は ronGetSettings が移行済み）。見やすさとは独立に効く。
+      const _tf = s.typeface || 'default';
+      html.classList.toggle('ron-font-digital', _tf === 'digital');
       // 2026-08-15：視認性の系統。⚠️ ここへの追加を忘れると、<head>の早期適用だけが
       //   効いて初回表示では変わるのに、設定画面で切り替えても何も起きない状態になる（実際にそうなった）。
       html.classList.toggle('ron-font-large', s.font === 'large');
       html.classList.toggle('ron-font-contrast', s.font === 'contrast');
-      html.classList.toggle('ron-font-8bit', s.font === '8bit');
-      if (s.font === 'digital') _ronEnsureDigitalFont();
-      else if (s.font === '8bit') _ronEnsure8bitFont();
+      html.classList.toggle('ron-font-8bit', _tf === '8bit');
+      if (_tf === 'digital') _ronEnsureDigitalFont();
+      else if (_tf === '8bit') _ronEnsure8bitFont();
       const meta = document.getElementById('ron-theme-color-meta');
       if (meta) { const t = RON_THEMES.find(t => t.id === s.theme) || RON_THEMES[0]; meta.setAttribute('content', t.swatchBg); }
     }
@@ -5885,12 +5932,15 @@
     function _ronAfterSettingChange() { if (!_ronPatchSettingsOverlay()) render(); }
     function ronSetTheme(themeId) { const s = ronGetSettings(); s.theme = themeId; ronSaveSettings(s); _ronAfterSettingChange(); }
     function ronSetFont(font)     { const s = ronGetSettings(); s.font = font;    ronSaveSettings(s); _ronAfterSettingChange(); }
+    function ronSetTypeface(tf)   { const s = ronGetSettings(); s.typeface = tf; ronSaveSettings(s); _ronAfterSettingChange(); }
     function ronSetGlow(on)       { const s = ronGetSettings(); s.glow = !!on;    ronSaveSettings(s); _ronAfterSettingChange(); }
     function ronSetMotion(mode)   { const s = ronGetSettings(); s.motion = mode;  ronSaveSettings(s); _ronAfterSettingChange(); }
     /* ⚠️ cwCpu だけは下地の画面（対戦ロビーの「マイ都市を使う」表示）にも影響しうるため、
        オーバーレイを差し替えたうえで下地も従来どおり作り直す。 */
     function ronSetCwCpu(on)      { const s = ronGetSettings(); s.cwCpu = !!on;   ronSaveSettings(s); render(); }
 
+    let _ronThemeOpen = false;   // テーマ一覧の開閉（この画面だけのローカルUI状態）
+    function ronToggleThemeList() { _ronThemeOpen = !_ronThemeOpen; _ronAfterSettingChange(); }
     let _settingsOpen = false;
     /* 開閉も全置換をやめる。オーバーレイを足す／外すのと、タブバーの選択表示を
        付け替えるだけで足りる。 */
@@ -5910,12 +5960,25 @@
     function renderSettingsOverlay() {
       const s = ronGetSettings();
       // 2026-07-18モーション強化：選択中テーマのスウォッチ右上にチェックマークをポップ表示する（coopIcoCheckCircle流用）
-      const themeChips = RON_THEMES.map(t => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}">${s.theme === t.id ? `<span class="settings-theme-check">${coopIcoCheckCircle(11,'#fff')}</span>` : ''}</span><span class="settings-theme-label">${t.label}</span></button>`).join('');
+      /* 2026-08-16：テーマが増えて画面を圧迫するため開閉式にした。
+         閉じているときは選択中の1つだけを出し、＋を押すと全部が開く。
+         ＋／－は黒く塗りつぶした円に白の符号で、押すと滑らかに入れ替わる（回転で繋ぐ）。 */
+      const themeOpen = !!_ronThemeOpen;
+      const themeList = themeOpen ? RON_THEMES : RON_THEMES.filter(t => t.id === s.theme);
+      const themeChips = themeList.map(t => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}">${s.theme === t.id ? `<span class="settings-theme-check">${coopIcoCheckCircle(11,'#fff')}</span>` : ''}</span><span class="settings-theme-label">${t.label}</span></button>`).join('');
+      const themeToggle = `<button type="button" class="settings-theme-toggle${themeOpen ? ' is-open' : ''}" onclick="ronToggleThemeList()" aria-expanded="${themeOpen}" aria-label="テーマカラーの一覧を${themeOpen ? '閉じる' : '開く'}"><span class="stt-sign" aria-hidden="true"><i class="stt-bar stt-h"></i><i class="stt-bar stt-v"></i></span></button>`;
       // 2026-07-17ユーザーレビュー修正：8bit（DotGothic16）を追加し3択に拡張
       /* 2026-08-15：フォントの選択肢を「見た目の趣味」から「視認性の系統」へ組み替えた
       （ユーザーと合意）。カスタマイズであると同時にアクセシビリティの改善になり、
       審査でも説明しやすい。既存の digital / 8bit は保存済み設定のために残す。 */
     const fontSeg = [['default', '標準'], ['large', '大きめ'], ['contrast', '高コントラスト']].map(([f, label]) => `<button class="settings-seg-btn${s.font === f ? ' active' : ''}" onclick="ronSetFont('${f}')">${label}</button>`).join('');
+      /* 2026-08-16：デジタル・8bitを選択肢へ戻した。見やすさとは別の軸なので行を分ける
+         （5つを1列に混ぜると「大きめの8bit」が選べない）。 */
+      const _tfVal = s.typeface || 'default';
+      const typefaceSeg = [['default', '標準'], ['digital', 'デジタル'], ['8bit', '8bit']].map(([f, label]) => `<button class="settings-seg-btn${_tfVal === f ? ' active' : ''}" onclick="ronSetTypeface('${f}')">${label}</button>`).join('');
+      const typefaceDesc = _tfVal === '8bit' ? 'ピクセル書体（日本語も含めて変わります）'
+        : _tfVal === 'digital' ? '角ばったデジタル書体（英数字が中心に変わります）'
+        : '書体の雰囲気を選べます';
       const glowClass = s.glow !== false ? 'ios-switch on' : 'ios-switch';
       // 2026-07-28追加：モーション設定（自動/オン/オフの3択。design_system.md §10・今回タスク指示）。
       // 自動＝OSのprefers-reduced-motionにそのまま従う既定値。オン＝OSがreduceでも演出を表示。オフ＝OSの設定に関わらず常に停止。
@@ -5934,9 +5997,10 @@
         : `<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label" style="color:var(--t3)">対戦CPU戦でマイ都市を使う</span><span class="settings-row-desc">カード工房でマイ都市を1枚以上作成すると使えるようになります</span></div><div class="ios-switch" style="flex-shrink:0;opacity:.4;pointer-events:none"><div class="track"><div class="knob"></div></div></div></div>`;
       return `<div class="hint-overlay" id="ron-settings-overlay" onclick="toggleSettings()"><div class="hint-box" onclick="event.stopPropagation()">
         <div class="hint-box-header"><span class="hint-title">${uiIcoGear(15)} 設定</span><button class="hint-close" onclick="toggleSettings()">✕</button></div>
-        <div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:8px">テーマカラー</div><div class="settings-theme-row">${themeChips}</div></div>
+        <div class="hint-section"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-weight:700;color:var(--t1)">テーマカラー</span><span style="font-size:.7rem;color:var(--t3)">${themeOpen ? '' : RON_THEMES.length + '色から選べます'}</span><span style="margin-left:auto">${themeToggle}</span></div><div class="settings-theme-row${themeOpen ? ' is-open' : ''}">${themeChips}</div></div>
         <hr class="hint-divider">
-        <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">文字の見やすさ</span><span class="settings-row-desc">${s.font === '8bit' ? 'ピクセル書体（日本語も含めて変わります）' : '読みやすさを選べます（字の大きさ・文字と背景の差）'}</span></div><div class="settings-seg">${fontSeg}</div></div>
+        <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">文字の見やすさ</span><span class="settings-row-desc">読みやすさを選べます（字の大きさ・文字と背景の差）</span></div><div class="settings-seg">${fontSeg}</div></div>
+        <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">書体</span><span class="settings-row-desc">${typefaceDesc}</span></div><div class="settings-seg">${typefaceSeg}</div></div>
         <hr class="hint-divider">
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">グロー効果</span><span class="settings-row-desc">発光演出を抑えて動作を軽くします</span></div><div class="${glowClass}" onclick="ronSetGlow(!this.classList.contains('on'))" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>
         <hr class="hint-divider">
@@ -8800,9 +8864,9 @@
           // STEP 2（ホスト）：自然側は誰が？（自分のサイドもここで決まる）
           wiz = `${backBtn(1, "lobbyState.coopNet=null;")}${crumb}${stepHead('自然側は誰がやる？')}
     ${bigCard("lobbyGoTo(()=>{lobbyState.coopHostNature='cpu';lobbyState.coopStep=3},'forward')", icoCpu('#3fb950'), 'CPU にまかせる', 'あなたを含め全員で街を守る（都市側）', '#3fb950')}
-    ${bigCard("lobbyGoTo(()=>{lobbyState.coopHostNature='random';lobbyState.coopStep=3},'forward')", icoDice('#d29922'), '参加者からランダムで決める', '開始時に1人が自然役へ抽選。残りは都市', '#d29922')}
-    ${bigCard("lobbyGoTo(()=>{lobbyState.coopHostNature='humanJoin';lobbyState.coopStep=3},'forward')", icoUser('#388bfd'), '参加者の誰かが攻撃役', 'あなたは都市側。1人が自然側で参加', '#388bfd')}
-    ${bigCard("lobbyGoTo(()=>{lobbyState.coopHostNature='self';lobbyState.coopStep=3},'forward')", icoZap('#f85149'), '自分が攻撃役になる', 'あなたが自然側。参加者が都市を守る', '#f85149')}`;
+    ${bigCard("lobbyGoTo(()=>{lobbyState.coopHostNature='random';lobbyState.coopStep=3},'forward')", icoDice('#d29922'), 'ランダムで決める', '開始時に1人が自然役へ抽選。残りは都市', '#d29922')}
+    ${bigCard("lobbyGoTo(()=>{lobbyState.coopHostNature='humanJoin';lobbyState.coopStep=3},'forward')", icoUser('#388bfd'), '指名する', 'あなたは都市側。1人が自然側で参加', '#388bfd')}
+    ${bigCard("lobbyGoTo(()=>{lobbyState.coopHostNature='self';lobbyState.coopStep=3},'forward')", icoZap('#f85149'), '自分が自然側になる', 'あなたが自然側。参加者が都市を守る', '#f85149')}`;
         } else if (step === 2 && net === 'join') {
           // STEP 2（参加）：コード入力 → ルーム状態に応じて選べるサイドを出し分け → 参加
           const jc = lobbyState.coopJoinInput || '';
@@ -8835,8 +8899,29 @@
     <div style="font-size:.68rem;color:${statusColor};margin-bottom:10px;line-height:1.5">${statusLine}</div>
     <button class="lobby-btn-single" onclick="coopMPJoinRoom('','${jSide}')">参加する</button>
     ${spectateBtn}`;
+        } else if (step === 3 && net === 'host') {
+          /* STEP 3（ホスト・2026-08-16 追加）：合計何人で遊ぶか。
+             ⚠️ これは定員ではなく**目安**である（ユーザー確定）。待機ロビーでは従来どおり
+                入った人数で開始でき、人数が違えばプリセットの数値は開始時に再計算される。
+                ここで先に決めるのは、次の画面で「実際にどのくらいの難易度になるか」を
+                具体的な数値で見せられるようにするためである。
+             内訳は**人間の人数**で数える。自然をCPUに任せた場合は全員が都市側になる。 */
+          const hnCur = lobbyState.coopHostNature || 'cpu';
+          const natureIsHuman = hnCur !== 'cpu';
+          const cntBtns = [2, 3, 4, 5].map(n => {
+            const cityN = natureIsHuman ? n - 1 : n;
+            const breakdown = natureIsHuman ? `自然1人・都市${cityN}人` : `自然はCPU・都市${n}人`;
+            const sel = (lobbyState.coopPlayerCount || 3) === n;
+            return `<button type="button" onclick="lobbyGoTo(()=>{lobbyState.coopPlayerCount=${n};lobbyState.coopStep=4},'forward')" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 8px;border-radius:10px;background:${sel ? 'rgba(56,139,253,.18)' : 'var(--bg2,#161b22)'};border:1.5px solid ${sel ? '#388bfd' : 'var(--bg3,#30363d)'};color:var(--t0);cursor:pointer;transition:.15s">
+      <span style="font-weight:800;font-size:1.05rem">${n}人</span>
+      <span style="font-size:.66rem;color:var(--t3);line-height:1.4;text-align:center">${breakdown}</span>
+    </button>`;
+          }).join('');
+          wiz = `${backBtn(2)}${crumb}${stepHead('合計何人で遊ぶ？')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cntBtns}</div>
+    <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:12px">目安として使います。実際に入った人数が違っても始められます（そのときは難易度の数値が自動で調整されます）。</div>`;
         } else {
-          // STEP 3：難易度（ソロ＝開始／ホスト＝部屋を作る）
+          // STEP 3（ソロ）＝難易度／STEP 4（ホスト）＝ゲーム設定
           const sideForDesc = net === 'solo' ? (lobbyState.coopSide || 'city') : (hn === 'self' ? 'nature' : 'city');
           const assign = hn === 'random' ? 'random' : 'fixed';
           const hostSide = hn === 'self' ? 'nature' : 'city'; // ランダム時は暫定city（開始時に再割当）
@@ -8850,20 +8935,27 @@
             // プリセットはEASY/NORMAL/HARDのラベルだけを選ばせ、実際の数値は開始時の都市人数（coopMPStartHost）で
             // 2人用／3人以上用のどちらかを自動選択する（coopPresetResolve）。ここでは両方を併記して隠さない。
             const svClass = _svOn ? 'ios-switch on' : 'ios-switch';
+            /* 2026-08-16：人数を先に選ぶようにしたので、プリセットの数値を具体値で出せる。
+               プリセットを押すと下の「いまの設定」に値が入るだけで、部屋はまだ作らない。
+               「変更しなくてもどのくらいの難易度になるか」を見てから決められるようにするため。 */
+            const _pcTotal = lobbyState.coopPlayerCount || 3;
+            const _pcCity = Math.max(1, (hn === 'cpu') ? _pcTotal : _pcTotal - 1);
+            const _pickedKey = lobbyState.coopPresetKey || null;
+            const _mix = (hn === 'cpu') ? ('自然はCPU・都市' + _pcCity + '人') : ('自然1人・都市' + _pcCity + '人');
             const note = assign === 'random'
-              ? '設定を決めて開始すると待機ロビーが開きます。参加者が揃ったら開始時に自然役を抽選します（最大5人）。'
-              : '設定を決めて開始すると待機ロビーが開きます（参加人数は入った人数で自動。最大 都市4＋自然1）。';
+              ? `${_pcTotal}人（${_mix}）の想定で数値を出しています。参加者が揃ったら開始時に自然役を抽選します。`
+              : `${_pcTotal}人（${_mix}）の想定で数値を出しています。実際の人数が違っても始められ、そのときは数値が自動で調整されます。`;
             const presetBtns = ['easy', 'normal', 'hard'].map(k => {
               const dd = COOP_DIFF[k];
-              const p2 = COOP_PRESETS[2][k], p3 = COOP_PRESETS[3][k];
-              const desc2 = `都市2人なら HP${p2.hp}・復興${p2.reviveMax}回・${coopPresetEventsLabel(p2.events)}`;
-              const desc3 = `3人以上なら HP${p3.hp}・復興${p3.reviveMax}回・${coopPresetEventsLabel(p3.events)}`;
-              return `<button type="button" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',true,${p3.hp},${p3.reviveMax},'${k}')" style="text-align:left;width:100%;padding:12px 14px;border-radius:10px;background:rgba(${dd.rgb},.1);border:1.5px solid ${dd.color};cursor:pointer;margin-bottom:8px;transition:.15s" onmouseover="this.style.background='rgba(${dd.rgb},.2)'" onmouseout="this.style.background='rgba(${dd.rgb},.1)'">
-      <div style="font-weight:800;font-size:.92rem;color:${dd.color}">${dd.label}</div>
-      <div style="font-size:.68rem;color:var(--t1);margin-top:4px;line-height:1.6">${desc2}<br>${desc3}</div>
+              const pr = coopPresetResolve(k, _pcCity) || COOP_PRESETS[3][k];
+              const on = _pickedKey === k;
+              const evLabel = (pr.events || []).length === 0 ? 'イベントなし' : (coopPresetEventsLabel(pr.events) + ((pr.eventControl === 'nature') ? '（自然側がタイミングを決める）' : '（固定ターン）'));
+              const badge = on ? `<span style="font-size:.64rem;font-weight:700;color:${dd.color};border:1px solid ${dd.color};border-radius:10px;padding:1px 7px">選択中</span>` : '';
+              return `<button type="button" onclick="coopPickPreset('${k}')" style="text-align:left;width:100%;padding:12px 14px;border-radius:10px;background:rgba(${dd.rgb},${on ? '.24' : '.1'});border:${on ? '2px' : '1.5px'} solid ${dd.color};cursor:pointer;margin-bottom:8px;transition:.15s">
+      <div style="display:flex;align-items:center;gap:6px"><span style="font-weight:800;font-size:.92rem;color:${dd.color}">${dd.label}</span>${badge}</div>
+      <div style="font-size:.68rem;color:var(--t1);margin-top:4px;line-height:1.6">都市${_pcCity}人なら HP${pr.hp}・復興${pr.reviveMax}回<br>${evLabel}</div>
     </button>`;
             }).join('');
-            const customOpen = !!lobbyState.coopCustomOpen;
             const customBlock = `<div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
         <img src="images/icons/neon_city.webp" alt="" style="width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(56,139,253,.7))">
@@ -8873,7 +8965,7 @@
       <div style="display:flex;align-items:center;gap:6px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="#388bfd" style="filter:drop-shadow(0 0 4px rgba(56,139,253,.6));flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
         <div style="flex:1;display:flex;flex-direction:column">
-          <input type="range" min="80" max="120" step="5" value="${_cityHp}" style="width:100%;accent-color:#388bfd" oninput="lobbyState.coopCityHp=+this.value;document.getElementById('coop-hp-label').textContent=this.value">
+          <input type="range" min="80" max="120" step="5" value="${_cityHp}" style="width:100%;accent-color:#388bfd" oninput="lobbyState.coopCityHp=+this.value;lobbyState.coopPresetKey=null;document.getElementById('coop-hp-label').textContent=this.value">
           <div style="display:flex;justify-content:space-between;margin-top:3px">
             ${['80','90','100','110','120'].map(v=>`<div style="display:flex;flex-direction:column;align-items:center;gap:1px"><div style="width:1px;height:5px;background:rgba(var(--t0-rgb),.4)"></div><span style="font-size:.6rem;color:var(--t3)">${v}</span></div>`).join('')}
           </div>
@@ -8893,7 +8985,7 @@
         </div>
         <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">デマ拡散・公害・テロが固定ターンで発動</div>
       </div>
-      <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');this.classList.toggle('on')" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
+      <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');lobbyState.coopPresetKey=null;this.classList.toggle('on')" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;margin-bottom:12px">
       <div>
@@ -8904,26 +8996,24 @@
         <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">壊滅した都市を仲間のHPを分けて復活させられる回数（部屋全体・0で復興なし）</div>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;margin-left:12px">
-        ${[0, 1, 2, 3].map(n => `<button type="button" onclick="lobbyState.coopReviveMax=${n};render()" style="width:28px;height:28px;border-radius:8px;border:1.5px solid #a371f7;background:${_reviveMax === n ? '#a371f7' : 'transparent'};color:${_reviveMax === n ? '#0d1117' : 'var(--t0)'};font-weight:700;font-size:.78rem;cursor:pointer">${n}</button>`).join('')}
+        ${[0, 1, 2, 3].map(n => `<button type="button" onclick="lobbyState.coopReviveMax=${n};lobbyState.coopPresetKey=null;render()" style="width:28px;height:28px;border-radius:8px;border:1.5px solid #a371f7;background:${_reviveMax === n ? '#a371f7' : 'transparent'};color:${_reviveMax === n ? '#0d1117' : 'var(--t0)'};font-weight:700;font-size:.78rem;cursor:pointer">${n}</button>`).join('')}
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=COOP_CITY_HP_DEFAULT;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=COOP_REVIVE_MAX_DEFAULT;render()">デフォルト設定に戻す</button>
+      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=COOP_CITY_HP_DEFAULT;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=COOP_REVIVE_MAX_DEFAULT;lobbyState.coopPresetKey=null;render()">デフォルト設定に戻す</button>
     </div>
-    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1,'custom')">この設定で部屋を作る</button>`;
-            const customToggle = `<button type="button" onclick="lobbyState.coopCustomOpen=${!customOpen};render()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:var(--t1);font-size:.8rem;font-weight:700;cursor:pointer;margin-bottom:${customOpen ? '10px' : '0'}">
-      <span>カスタム設定（HP・復興回数・社会的脆弱性を個別に調整）</span>
-      <span style="transition:transform .2s;transform:rotate(${customOpen ? '180deg' : '0deg'});display:inline-block">▾</span>
-    </button>`;
-            wiz = `${backBtn(2)}${crumb}${nameField}${stepHead('ゲーム設定')}
+    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1,lobbyState.coopPresetKey||'custom')">この設定で部屋を作る</button>`;
+            const _curHint = _pickedKey ? 'プリセットの値です。触れば自由に変えられます' : '触れば自由に変えられます';
+            wiz = `${backBtn(3)}${crumb}${nameField}${stepHead('ゲーム設定')}
     <div style="margin-bottom:16px">
       <div style="font-size:.84rem;color:var(--t0);font-weight:700;margin-bottom:8px">プリセットを選ぶ</div>
       ${presetBtns}
     </div>
-    <div style="margin-bottom:14px">
-      ${customToggle}
-      ${customOpen ? customBlock : ''}
+    <div style="margin-bottom:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+      <span style="font-size:.84rem;color:var(--t0);font-weight:700">いまの設定</span>
+      <span style="font-size:.68rem;color:var(--t3)">${_curHint}</span>
     </div>
+    <div style="margin-bottom:14px">${customBlock}</div>
     <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">${note}</div>`;
           } else {
             // ソロ：難易度3ボタン（変更なし）
@@ -8934,7 +9024,7 @@
           }
         }
         body = `${err}
-    <div style="text-align:center;color:var(--t1);font-size:.86rem;margin:2px 0 10px;font-weight:700"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-2px"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg> 協力モード（ベータ版）</div>
+    <div style="text-align:center;color:var(--t1);font-size:.86rem;margin:2px 0 10px;font-weight:700"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-2px"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg> 協力モード</div>
     ${wiz}`;
       } else {
         body = `${nameField}
@@ -12053,6 +12143,21 @@
     // presetKey：'easy'|'normal'|'hard'（design/coop_balance.md §D）のときはcoopPresetResolveが実際の
     // HP・復興回数・イベントを都市人数から決めるため、socialVuln/cityHp/reviveMaxはロビー表示・後方互換用の
     // 参考値として保持するだけになる（カスタムモード時はこれらの値がそのまま使われる従来どおりの経路）。
+    /* プリセットを押す＝下の「いまの設定」へ値を流し込むだけ。部屋はまだ作らない。
+       これで「変更しなくてもどのくらいの難易度か」を見てから決められる（ユーザー確定）。
+       ⚠️ スライダー等を触ったら coopPresetKey を null に落とす。落とさないと
+          「EASY 選択中」と表示したまま中身が別物、という食い違いが起きる。 */
+    function coopPickPreset(key) {
+      const total = lobbyState.coopPlayerCount || 3;
+      const cityN = Math.max(1, (lobbyState.coopHostNature === 'cpu') ? total : total - 1);
+      const pr = coopPresetResolve(key, cityN);
+      if (!pr) return;
+      lobbyState.coopPresetKey = key;
+      lobbyState.coopCityHp = pr.hp;
+      lobbyState.coopReviveMax = pr.reviveMax;
+      lobbyState.coopSocialVuln = (pr.events || []).length > 0;
+      render();
+    }
     function coopMPCreateRoom(diffKey, hostSide, natureMode, assign, socialVuln, cityHp, reviveMax, presetKey) {
       const name = (lobbyState.nameInput || '').trim();
       if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
@@ -18437,6 +18542,41 @@
     }
 
     // ── 描画（対戦・協力・デイリーのneonトーンに合わせる） ──
+    /* ══ 画面を作り直しても画像は使い回す（2026-08-16・ちらつきの本命修正） ══
+       カード工房は操作のたびに app.innerHTML を丸ごと入れ替える。実測すると
+       能力カテゴリの切替・アートタブ・ストック絵の選択のいずれでも
+       **10枚の画像が10枚とも別要素に作り直されて**いた（生存 0/10）。
+       新しい <img> は中身が空の状態で一度描かれ、デコードが終わるまで空白になるため、
+       操作のたびに画面全体がチカチカし、高さも動いて上下に揺れる。
+
+       対策：入れ替える直前に既存の <img> を src ごとに手元へ取っておき、
+       入れ替えた直後、同じ src の新しい <img> を「既にデコード済みの古い要素」で
+       置き換える。差し替えは次の描画より前に終わるので、空の画像は一度も描かれない。
+       ⚠️ src 以外の属性（class/style/alt/onerror）は新しい側が正なので必ず移し替えること。
+          古い要素をそのまま残すと、レイアウトが前の状態のままになる。
+       ⚠️ innerHTML を捨てた時点で古い要素は文書から外れるが、デコード済みの絵は
+          保持される。だから戻すと即座に描ける（これが効き目の理由）。 */
+    function _swapHtmlKeepImages(container, html) {
+      if (!container) return;
+      const keep = new Map();
+      container.querySelectorAll('img').forEach(im => {
+        const k = im.getAttribute('src'); if (!k) return;
+        if (!keep.has(k)) keep.set(k, []);
+        keep.get(k).push(im);
+      });
+      container.innerHTML = html;
+      if (!keep.size) return;
+      container.querySelectorAll('img').forEach(im => {
+        const k = im.getAttribute('src'); if (!k) return;
+        const pool = keep.get(k); if (!pool || !pool.length) return;
+        const reuse = pool.shift();
+        for (const at of Array.from(im.attributes)) {
+          if (at.name === 'src') continue;
+          try { reuse.setAttribute(at.name, at.value); } catch (e) {}
+        }
+        try { im.replaceWith(reuse); } catch (e) {}
+      });
+    }
     function renderCardWorkshop() {
       const app = document.getElementById('app'); if (!app) return;
       // スクロールジャンプ修正：Puppeteerで実測した結果、地形・能力・災害チップ等のタップ後にウィンドウが
@@ -18456,7 +18596,7 @@
       // 2026-07-17ユーザーレビュー修正：タブバー「設定」タブをこの画面からも開けるようにする（render()経由だと
       // CW設定時にこの関数で早期returnするため、renderDaily/renderPuzzleWorkshopと同様に個別描画が必要）。
       if (_settingsOpen) html += renderSettingsOverlay();
-      app.innerHTML = html;
+      _swapHtmlKeepImages(app, html);
       window.scrollTo(0, _cwScrollY);
       // エディタ画面はテキスト入力以外（地形・能力・アートタブ切替）もrender()を経由するフルDOM差し替えのため、
       // これらの操作でも同じデバウンス付きv2合成に統一するためここでも1回スケジュールする（初回マウントも含む）。
