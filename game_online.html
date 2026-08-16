@@ -3626,7 +3626,10 @@
     html.ron-motion-off .settings-theme-toggle .stt-bar,
     html.ron-motion-off .settings-theme-wrap,
     html.ron-motion-off .settings-theme-wrap.is-open > .settings-theme-row > .settings-theme-chip { transition:none !important; animation:none !important; }
-    .settings-theme-chip { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--bg3); background:var(--bg2); cursor:pointer; flex:0 0 calc(33.333% - 4px); min-width:0; transition:border-color .2s var(--ronEaseOut), background-color .2s var(--ronEaseOut); }
+    /* ⚠️ 3列の幅は gap を差し引いてから割ること。33.333%-4px にすると
+       3×(33.333%-4px)+2×8px = 100%+4px で4pxだけ溢れ、スマホで2行に折り返す
+       （実機で発生）。gap 8px×2 を先に引いてから3等分する。 */
+    .settings-theme-chip { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--bg3); background:var(--bg2); cursor:pointer; flex:0 0 calc((100% - 16px) / 3); min-width:0; transition:border-color .2s var(--ronEaseOut), background-color .2s var(--ronEaseOut); }
     .settings-theme-chip.active { border-color:var(--accent); background:rgba(var(--accent-rgb),.12); }
     .settings-theme-swatch { width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.18); flex-shrink:0; position:relative; }
     /* 2026-07-18モーション強化：選択チップにチェックマークをポップ表示する（既存coopIcoCheckCircleを流用）。
