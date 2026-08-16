@@ -5183,18 +5183,30 @@
     // 部屋のpresetKeyが'custom'／未指定のときは従来どおりcityHp/socialVuln/reviveMaxの個別値を使う。
     // HP80を下限にしているのは、それ以下だと自然側の1回の攻撃で追い詰めるとそのまま壊滅まで持っていける
     // ため（§D注意事項）。数値は実機プレイの感触で調整する前提の暫定値。
+    /* 2026-08-16（ユーザー確定）：NORMAL と HARD の差分を「イベントの数」ではなく
+       「発生タイミングを誰が握るか」に置いた。
+         NORMAL … 3イベント全部・**固定ターン**（従来どおり。読めるから立ち回れる）
+         HARD   … 3イベント全部・**自然側が発生ターンを自分で決める**
+       狙い：自然側が負けるパターンは、都市側がシールドを固めて耐久戦に持ち込み、
+       それを剥がすのに手一杯でHPが削れない詰み盤面である。発生タイミングを自然側が
+       握れると、固められた瞬間に公害でシールドを剥がす・テロで対応を封じる、といった
+       逆転の一手が成立する。イベントの内容も総数も変えていないので、
+       EASY/NORMAL からの積み上がりは壊れない。 */
     const COOP_PRESETS = {
       2: { // 都市2人用
-        easy:   { hp: 110, reviveMax: 2, events: [] },
-        normal: { hp: 95,  reviveMax: 1, events: [{ t: 3, id: 'rumor' }] },
-        hard:   { hp: 85,  reviveMax: 0, events: _COOP_EVENTS_ALL },
+        easy:   { hp: 110, reviveMax: 2, events: [],                eventControl: 'fixed'  },
+        normal: { hp: 95,  reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'fixed'  },
+        hard:   { hp: 85,  reviveMax: 0, events: _COOP_EVENTS_ALL,  eventControl: 'nature' },
       },
       3: { // 都市3人以上用
-        easy:   { hp: 120, reviveMax: 2, events: [] },
-        normal: { hp: 100, reviveMax: 1, events: [{ t: 3, id: 'rumor' }] },
-        hard:   { hp: 90,  reviveMax: 1, events: _COOP_EVENTS_ALL },
+        easy:   { hp: 120, reviveMax: 2, events: [],                eventControl: 'fixed'  },
+        normal: { hp: 100, reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'fixed'  },
+        hard:   { hp: 90,  reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'nature' },
       },
     };
+    /* 自然側がタイミングを握るときに、まだ使っていないイベントの一覧。
+       HARD の開始時に _COOP_EVENTS_ALL の id を並べて CO.eventPool に入れる。 */
+    const COOP_EVENT_IDS_ALL = _COOP_EVENTS_ALL.map(e => e.id);
     // 都市人数からプリセットのバケットキー（2 or 3＝3人以上）を解決する
     function coopPresetBucket(cityCount) { return (cityCount >= 3) ? 3 : 2; }
     // presetKeyと都市人数から実際の数値パッケージを解決する（存在しなければnull＝カスタム扱い）。
@@ -5343,7 +5355,7 @@
       ];
       const btns = TABS.map(t => {
         const isActive = t.key === 'settings' ? _settingsOpen : t.key === active;
-        return `<button class="ui-tab-btn${isActive ? ' active' : ''}" onclick="${t.onclick}" aria-label="${t.label}" aria-current="${isActive ? 'page' : 'false'}"><span class="ui-tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:21px;height:21px">${t.icon}</svg></span><span class="ui-tab-label">${t.label}</span></button>`;
+        return `<button class="ui-tab-btn${isActive ? ' active' : ''}" data-uitab="${t.key}" onclick="${t.onclick}" aria-label="${t.label}" aria-current="${isActive ? 'page' : 'false'}"><span class="ui-tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:21px;height:21px">${t.icon}</svg></span><span class="ui-tab-label">${t.label}</span></button>`;
       }).join('');
       return `<nav class="ui-tabbar" role="navigation" aria-label="メインナビゲーション">${btns}</nav>`;
     }
@@ -5596,6 +5608,10 @@
       // 後方支援予算（§B・2026-08-16追加）後方互換：supportGranted未定義の旧state（機能追加前のセーブ・
       // 部屋状態）は「未付与」としてfalseに読み替える。falsyなら再判定不要だが、明示的にbooleanへ揃える。
       if (Array.isArray(co.cities)) co.cities.forEach(cs => { if (cs && cs.reviveGuard == null) cs.reviveGuard = 0; if (cs && cs.supportGranted == null) cs.supportGranted = false; });
+      // §E 後方互換：eventControl未定義の旧stateは従来どおり固定ターン扱いにする
+      if (co.eventControl == null) co.eventControl = 'fixed';
+      if (!Array.isArray(co.eventPool)) co.eventPool = [];
+      if (co.eventFiredTurn == null) co.eventFiredTurn = 0;
     }
     // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
     const COOP_EVENT_INFO = {
@@ -5848,14 +5864,49 @@
       try { localStorage.setItem(RON_SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
       ronApplySettings(s);
     }
-    function ronSetTheme(themeId) { const s = ronGetSettings(); s.theme = themeId; ronSaveSettings(s); render(); }
-    function ronSetFont(font)     { const s = ronGetSettings(); s.font = font;    ronSaveSettings(s); render(); }
-    function ronSetGlow(on)       { const s = ronGetSettings(); s.glow = !!on;    ronSaveSettings(s); render(); }
-    function ronSetMotion(mode)   { const s = ronGetSettings(); s.motion = mode;  ronSaveSettings(s); render(); }
+    /* ══ 設定の変更で画面を作り直さない（2026-08-16・ユーザー報告「設定のボタンを押していると
+       よくチカチカする。画面が上下に揺れる」の修正） ══
+       原因：どのセッターも全画面共通の render() を呼んでいた。カード工房・デイリー・問題工房は
+       render() が `app.innerHTML = html` の全置換なので、設定を1つ押すたびに画面中の <img>
+       （カードのアート・地形アイコン・作例サムネイル）が破棄・再生成され、再デコードのちらつきと
+       高さ変動による上下の揺れが出る。協力モードで同じ原因を差分renderで解いたのと同じ構図
+       （trouble_full_render_flicker）。
+       設定値そのものは ronSaveSettings→ronApplySettings が <html> の属性とクラスだけで適用する
+       ため、下地の画面を作り直す必要は元々ない。更新が要るのは「どれが選択中か」を示す
+       オーバーレイ自身だけなので、そこだけを差し替える。
+       ⚠️ 見つからないときは必ず render() へ落とす（分岐に受け皿を必ず置く）。 */
+    function _ronPatchSettingsOverlay() {
+      if (typeof document === 'undefined') return false;
+      const el = document.getElementById('ron-settings-overlay');
+      if (!el) return false;
+      el.outerHTML = renderSettingsOverlay();
+      return true;
+    }
+    function _ronAfterSettingChange() { if (!_ronPatchSettingsOverlay()) render(); }
+    function ronSetTheme(themeId) { const s = ronGetSettings(); s.theme = themeId; ronSaveSettings(s); _ronAfterSettingChange(); }
+    function ronSetFont(font)     { const s = ronGetSettings(); s.font = font;    ronSaveSettings(s); _ronAfterSettingChange(); }
+    function ronSetGlow(on)       { const s = ronGetSettings(); s.glow = !!on;    ronSaveSettings(s); _ronAfterSettingChange(); }
+    function ronSetMotion(mode)   { const s = ronGetSettings(); s.motion = mode;  ronSaveSettings(s); _ronAfterSettingChange(); }
+    /* ⚠️ cwCpu だけは下地の画面（対戦ロビーの「マイ都市を使う」表示）にも影響しうるため、
+       オーバーレイを差し替えたうえで下地も従来どおり作り直す。 */
     function ronSetCwCpu(on)      { const s = ronGetSettings(); s.cwCpu = !!on;   ronSaveSettings(s); render(); }
 
     let _settingsOpen = false;
-    function toggleSettings() { _settingsOpen = !_settingsOpen; render(); }
+    /* 開閉も全置換をやめる。オーバーレイを足す／外すのと、タブバーの選択表示を
+       付け替えるだけで足りる。 */
+    function toggleSettings() {
+      _settingsOpen = !_settingsOpen;
+      const app = (typeof document !== 'undefined') && document.getElementById('app');
+      if (!app) { render(); return; }
+      if (_settingsOpen) {
+        if (!document.getElementById('ron-settings-overlay')) app.insertAdjacentHTML('beforeend', renderSettingsOverlay());
+      } else {
+        const el = document.getElementById('ron-settings-overlay');
+        if (el) el.remove(); else { render(); return; }
+      }
+      const tab = document.querySelector('.ui-tab-btn[data-uitab="settings"]');
+      if (tab) { tab.classList.toggle('active', _settingsOpen); tab.setAttribute('aria-current', _settingsOpen ? 'page' : 'false'); }
+    }
     function renderSettingsOverlay() {
       const s = ronGetSettings();
       // 2026-07-18モーション強化：選択中テーマのスウォッチ右上にチェックマークをポップ表示する（coopIcoCheckCircle流用）
@@ -5881,7 +5932,7 @@
       const cwCpuRow = cwCardCount > 0
         ? `<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">対戦CPU戦でマイ都市を使う</span><span class="settings-row-desc">オンにすると、都市ガチャの後にカード工房のマイ都市へ差し替えられます（あなたの都市のみ・CPUには影響しません）</span></div><div class="${cwCpuSwitchClass}" onclick="ronSetCwCpu(!this.classList.contains('on'))" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>`
         : `<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label" style="color:var(--t3)">対戦CPU戦でマイ都市を使う</span><span class="settings-row-desc">カード工房でマイ都市を1枚以上作成すると使えるようになります</span></div><div class="ios-switch" style="flex-shrink:0;opacity:.4;pointer-events:none"><div class="track"><div class="knob"></div></div></div></div>`;
-      return `<div class="hint-overlay" onclick="toggleSettings()"><div class="hint-box" onclick="event.stopPropagation()">
+      return `<div class="hint-overlay" id="ron-settings-overlay" onclick="toggleSettings()"><div class="hint-box" onclick="event.stopPropagation()">
         <div class="hint-box-header"><span class="hint-title">${uiIcoGear(15)} 設定</span><button class="hint-close" onclick="toggleSettings()">✕</button></div>
         <div class="hint-section"><div style="font-weight:700;color:var(--t1);margin-bottom:8px">テーマカラー</div><div class="settings-theme-row">${themeChips}</div></div>
         <hr class="hint-divider">
@@ -11489,12 +11540,22 @@
       // presetKey未指定・'custom'のときは従来どおりcityHp/socialVuln個別値を使う。
       const preset = coopPresetResolve(opts.presetKey, cityPlayers.length);
       let reviveMaxResolved;
+      let eventControlResolved = 'fixed';
+      let eventPoolResolved = [];
       if (preset) {
         d.hp = preset.hp;
-        d.events = preset.events;
+        /* HARD（eventControl:'nature'）は自然側が発生ターンを自分で決めるため、
+           スケジュールは空で始める。使えるイベントは CO.eventPool に積み、
+           自然側が撃った時点で {t:現在ターン, id} を d.events へ足す。
+           こうすると下流（バナー・ポップ・予算減・公害・テロ）は一切変更せずに動く。 */
+        eventControlResolved = preset.eventControl || 'fixed';
+        d.events = (eventControlResolved === 'nature') ? [] : preset.events;
+        eventPoolResolved = (eventControlResolved === 'nature')
+          ? (preset.events || []).map(e => e.id) : [];
         reviveMaxResolved = preset.reviveMax;
       } else {
         d.events = (opts.socialVuln === false) ? [] : _COOP_EVENTS_ALL;
+        eventControlResolved = 'fixed'; eventPoolResolved = []; // カスタムは従来どおり固定ターン
         if (opts.cityHp != null) d.hp = Math.max(80, Math.min(120, opts.cityHp));
         reviveMaxResolved = (opts.reviveMax != null) ? opts.reviveMax : COOP_REVIVE_MAX_DEFAULT;
       }
@@ -11523,6 +11584,9 @@
         naturePool: Object.fromEntries(DISASTER_CARDS.map(c => [c.id, c.id === 'compound' ? compoundCount : coopNaturePoolPer(cityPlayers.length, d.draw, d.maxTurns)])), attacksLeft: 0,
         natureDeck: coopBuildNatureDeck(compoundCount), natureDiscard: [],
         incoming: [], responseBlocked: false, blockReason: '',
+        // §E（2026-08-16）：HARDは自然側が社会的脆弱性イベントの発生ターンを決める。
+        // eventControl='nature' のときだけ eventPool に未使用のidが入り、撃つと d.events へ積まれる。
+        eventControl: eventControlResolved, eventPool: eventPoolResolved, eventFiredTurn: 0,
         revive: null, reviveUsed: 0, reviveMax: reviveMaxResolved, // 復興ルール（design/coop_balance.md §13/§13.8）：進行中の提案（非同期）・消費回数カウンタ・部屋設定の上限（既定1。§Dのプリセット使用時はpresetの値）
         // CO スクラッチ（実体は各スロット。描画・既存エンジンが参照）
         budget: 0, budgetUsed: 0, nextBudgetBonus: 0, carryBudget: 0, budgetCarriedIn: 0, hand: [], policyDeck: [], policyDiscard: [],
@@ -11537,8 +11601,16 @@
     }
 
     // 予算（MP）：生存都市ごとに基本3pt＋自分の都市能力。デマは各都市 −1（カスタム軽減でデマ拡散に耐性を持つ都市がチームにいれば無効化）
+    /* ⚠️ 社会的脆弱性イベントが「今ターン発生しているか」の判定は必ずここを通すこと。
+       同じ条件式が9箇所へ散っており、自然側がタイミングを操るHARDを足すと
+       直し漏れが必ず出るため1つに集約した（HANDOVER.md の教訓）。
+       自然側が発火させた場合も CO.diff.events に {t:現在ターン, id} を積むだけなので、
+       下流の判定・バナー・ポップは一切変更せずそのまま動く。 */
+    function coopEventActive(id) {
+      return ((CO && CO.diff && CO.diff.events) || []).some(ev => ev.t === CO.turn && ev.id === id);
+    }
     function coopApplyBudgetMP() {
-      const rumorRaw = CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'rumor');
+      const rumorRaw = coopEventActive('rumor');
       const rumorResisted = rumorRaw && coopCustomResistsEvent('rumor');
       const rumor = rumorRaw && !rumorResisted;
       CO.cities.forEach(cs => {
@@ -11639,8 +11711,8 @@
       _coCancelTimer();
       CO.phase = 'nature'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); } }
+      if (coopEventActive('pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
+      if (coopEventActive('terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); } }
       // 即死防止：同種は1ターン1回／1都市への攻撃は最大 COOP_MAX_HITS 回
       CO.atkUsedTypes = {}; CO.atkCityHits = {};
       const nAtk = coopMPAttackCount();
@@ -11834,6 +11906,34 @@
           case 'attack': {
             if (CO.phase !== 'natureHuman' || pid !== CO.natureId) break;
             CO.confirm = { attackId: p.id, attack: true }; coopConfirmAttack(p.cityIdx);
+            break;
+          }
+          case 'fireEvent': {
+            // §E：自然側だけが撃てる。自分の攻撃ターン中・1ターン1つまで・未使用のものだけ
+            if (CO.phase !== 'natureHuman' || pid !== CO.natureId) break;
+            if (CO.eventControl !== 'nature') break;
+            if (CO.eventFiredTurn === CO.turn) break;
+            const pool = CO.eventPool || [];
+            const at = pool.indexOf(p.id);
+            if (at < 0) break;
+            const info = COOP_EVENT_INFO[p.id]; if (!info) break;
+            pool.splice(at, 1);
+            CO.eventFiredTurn = CO.turn;
+            const fireT = coopEventFireTurn(p.id);
+            CO.diff.events = [...(CO.diff.events || []), { t: fireT, id: p.id }];
+            _coLog(`${coopIcoWarnTriangle(14, '#c084fc')} 自然側が${info.name}を発動（${fireT === CO.turn ? '今ターン' : '次のターン'}）`);
+            // 当ターンに効くものは、この場で適用する（ターン開始の処理は既に終わっているため）
+            if (p.id === 'pollution') {
+              if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化');
+              else coopEventPollution();
+            } else if (p.id === 'terror') {
+              if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化');
+              else {
+                CO.responseBlocked = true;
+                CO.blockReason = `${uiIcoAlertOctagon(14, '#c084fc')} テロ攻撃イベント：都市側は対応不可`;
+                _coLog('テロ攻撃イベント：今回は都市側の対応を封じた');
+              }
+            }
             break;
           }
           case 'finishAttack': {
@@ -12287,7 +12387,7 @@
       // ロッテルダム等の洪水・津波被弾による次ターン予算ボーナス
       if (CO.nextBudgetBonus > 0) { b += CO.nextBudgetBonus; _coLog(`💧 洪水・津波後の復旧ボーナス：予算+${CO.nextBudgetBonus}`); }
       CO.nextBudgetBonus = 0;
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'rumor')) {
+      if (coopEventActive('rumor')) {
         if (coopCustomResistsEvent('rumor')) _coLog('📱 デマ拡散イベント：カスタム都市対策により無効化');
         else { b = Math.max(0, b - 1); _coLog('📱 デマ拡散イベント：今ターンの予算 −1（社会的脆弱性）'); }
       }
@@ -12636,8 +12736,8 @@
       CO.phase = 'nature'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
       coopSplashNature();
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); } }
+      if (coopEventActive('pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
+      if (coopEventActive('terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベントにより対応フェーズはスキップ`; _coLog('テロ攻撃イベント：今回の自然ターンは対応フェーズ不可'); } }
       const cards = []; for (let i = 0; i < CO.diff.draw; i++) { const c = coopDrawNature(); if (c) cards.push(c); }
       CO.incoming = cards.map(card => { const idx = coopPickTarget(card); return { card, idx, est: coopEstimate(card, CO.cities[idx]) }; });
       if (cards.length === 0) { _coLog('自然山札が尽きた。今回の攻撃なし'); coopApplyRegen(null); coopDismissSummary(); return; }
@@ -12770,13 +12870,25 @@
     function coopSkipResponse() { if (CO.mp && !CO._applying) return coopMPCommit('skipResp', {}); CO.confirm = null; coopResolveRound(null, -1); }
 
     // ═══ 人間=自然側（攻撃）のターン。災害プール（各3枚）から選んで攻撃 ═══
+
+    /* ══ §E：自然側が社会的脆弱性イベントの発生ターンを決める（HARD専用・2026-08-16） ══
+       ⚠️ デマ拡散だけ「次のターンの予算」に効くカードなので、積むターンが1つ後ろになる。
+          公害・テロは自然ターン中に作用するため当ターンへ積み、その場で効果も適用する
+          （coopStartNatureHumanTurn は既に走り終えているため、積むだけでは発火しない）。 */
+    function coopEventFireTurn(id) { return (id === 'rumor') ? CO.turn + 1 : CO.turn; }
+    function coopNatureCanFireEvent() {
+      return !!(CO && CO.mp && CO.eventControl === 'nature' && CO.phase === 'natureHuman'
+                && (CO.eventPool || []).length > 0 && CO.eventFiredTurn !== CO.turn);
+    }
+    // クライアント側の入口（自然側プレイヤーが押す）
+    function coopNatureFireEvent(id) { if (coopNatureCanFireEvent()) coopMPCommit('fireEvent', { id }); }
     function coopStartNatureHumanTurn() {
       _coCancelTimer();
       CO.phase = 'natureHuman'; CO.confirm = null; CO.responseBlocked = false; CO.blockReason = '';
       CO.cities.forEach(cs => cs._turnStartHp = cs.hp);
       // 社会的脆弱性イベント（都市＝CPU側に作用するので、自然側プレイヤーには有利）
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
-      if (CO.diff.events.some(ev => ev.t === CO.turn && ev.id === 'terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベント：都市側は対応不可`; _coLog('テロ攻撃イベント：今回は都市側の対応を封じた'); } }
+      if (coopEventActive('pollution')) { if (coopCustomResistsEvent('pollution')) _coLog('☣️ 公害イベント：カスタム都市対策により無効化'); else coopEventPollution(); }
+      if (coopEventActive('terror')) { if (coopCustomResistsEvent('terror')) _coLog('テロ攻撃イベント：カスタム都市対策により無効化'); else { CO.responseBlocked = true; CO.blockReason = `${uiIcoAlertOctagon(14,'#c084fc')} テロ攻撃イベント：都市側は対応不可`; _coLog('テロ攻撃イベント：今回は都市側の対応を封じた'); } }
       CO.incoming = [];
       if (CO.mp) {
         CO.atkUsedTypes = {}; CO.atkCityHits = {}; // 即死防止：同種1回／都市別上限の集計をリセット
@@ -13980,6 +14092,32 @@
       const cntLabel = usedType ? '今ターン使用済' : `残り ${n}`;
       return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="card ${c.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="disaster" data-atk-id="${c.id}" onclick="${click}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(c.icon,16)}</span><span class="card-cost">${c.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${c.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(c.name, '自然')}</div><div class="card-name card-text-fallback">${c.name}</div><div class="card-desc card-text-fallback">${c.desc}</div>${cardTypeBadgeFallback('自然')}</div><div style="font-size:.74rem;font-weight:800;color:${cntCol}">${cntLabel}</div></div>`;
     }
+    /* §E：自然側が社会的脆弱性イベントを撃つパネル（HARDのみ）。
+       ⚠️ 絵文字は使わない。既存のneon UIトーン（rgbaの枠＋淡い面）に合わせる。
+       都市側がシールドで固めた盤面を崩す逆転の一手なので、攻撃タイルの「前」に置いて
+       攻める順番を組み立てる段階で目に入るようにする。 */
+    function coopRenderNatureEventPanel() {
+      if (!CO || CO.eventControl !== 'nature') return '';
+      const pool = CO.eventPool || [];
+      const firedThisTurn = CO.eventFiredTurn === CO.turn;
+      if (!pool.length && !firedThisTurn) return '';
+      const canFire = coopNatureCanFireEvent();
+      const chips = pool.map(id => {
+        const info = COOP_EVENT_INFO[id]; if (!info) return '';
+        const when = (id === 'rumor') ? '次のターンに効く' : '今すぐ効く';
+        const dis = !canFire;
+        const style = `display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:1;min-width:132px;text-align:left;padding:7px 9px;border-radius:8px;border:1px solid rgba(192,132,252,${dis ? '.24' : '.5'});background:rgba(192,132,252,${dis ? '.05' : '.12'});color:var(--t0);cursor:${dis ? 'not-allowed' : 'pointer'};opacity:${dis ? '.5' : '1'}`;
+        return `<button type="button" ${dis ? 'disabled' : ''} onclick="coopNatureFireEvent('${id}')" style="${style}"><span style="display:flex;align-items:center;gap:5px;font-size:.78rem;font-weight:800">${cardIconSvg(info.icon, 14)}${info.name}</span><span style="font-size:.66rem;opacity:.85;line-height:1.35">${info.effectNature || info.desc}</span><span style="font-size:.62rem;font-weight:700;color:#e2b6ff">${when}</span></button>`;
+      }).join('');
+      const note = firedThisTurn
+        ? 'このターンはもう発動済み（1ターンに1つまで）'
+        : (pool.length ? '固定ターンではなく、あなたが好きなターンに発動できる（1ターンに1つまで）' : '発動できるものは残っていない');
+      return `<div class="coop-city-frame" style="--zone-bracket:#c084fc;background:rgba(192,132,252,.05);border-radius:6px;padding:8px 10px;margin:8px 0">
+        <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;color:#c084fc;margin-bottom:5px">${coopIcoWarnTriangle(13, '#c084fc')}社会的脆弱性イベント<span style="margin-left:auto;font-size:.64rem;font-weight:600;color:var(--t2)">残り${pool.length}</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
+        <div style="font-size:.64rem;color:var(--t2);margin-top:6px;line-height:1.4">${note}</div>
+      </div>`;
+    }
     function coopRenderNaturePool() {
       const total = Object.values(CO.naturePool).reduce((a, b) => a + b, 0);
       const hint = `<div style="text-align:center;color:var(--t0);font-size:.76rem;margin:8px 0">災害カードをタップして攻撃する都市を選ぼう（残り攻撃 <strong style="color:#f85149">${CO.attacksLeft}</strong> 回 ／ 手持ち災害 ${total}枚）</div>`;
@@ -13990,7 +14128,7 @@
         ? 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:#3fb950;border:none;color:#0d1117;font-weight:800;cursor:pointer;box-shadow:0 0 0 3px rgba(63,185,80,.25)'
         : 'width:100%;margin-top:12px;padding:12px;border-radius:10px;background:transparent;border:1.5px solid #388bfd;color:#388bfd;font-weight:700;cursor:pointer';
       const btn = `<button onclick="coopFinishNatureHuman()" style="${_finStyle}">${_finReady ? '攻撃を確定する ▶' : '攻撃せずに終了 ▶'}</button>`;
-      return `${hint}${queued}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${tiles}</div>${btn}`;
+      return `${hint}${coopRenderNatureEventPanel()}${queued}<div class="hand-group-cards" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${tiles}</div>${btn}`;
     }
     // CPU都市が置いた政策カードの確認画面（自然側が戦略を練るため）
     function coopRenderCpuReview() {
@@ -17125,22 +17263,45 @@
     // エディタを開き直すとき（cwNewCard/cwWizardApply/cwOpen）はクリアし、古いカードの絵が一瞬出ることを防ぐ。
     let _cwPreviewLastDataUrl = null;
     function _cwPreviewImgHtml(dataUrl) {
-      return `<img src="${dataUrl}" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:10px;display:block" onerror="this.style.display='none'">`;
+      return `<img class="cw-preview-img" src="${dataUrl}" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:10px;display:block" onerror="this.style.display='none'">`;
+    }
+    /* プレビューの反映（2026-08-16・ちらつき修正）。
+       ⚠️ innerHTML で <img> ごと作り直さないこと。新しい要素は中身が無い状態で一度描かれ、
+          data URL のデコードが終わるまで空白になるため、操作のたびに白く飛んで見える。
+          既存の <img> が居るなら src を差し替えるだけにすると、新しい絵がデコードできるまで
+          前の絵が描かれたままになり、切り替わりが見えない。高さも動かない。 */
+    function _cwPreviewApply(mount, dataUrl) {
+      if (!mount) return;
+      const img = mount.querySelector('img.cw-preview-img');
+      if (img) { img.src = dataUrl; return; }
+      mount.innerHTML = _cwPreviewImgHtml(dataUrl);
     }
     function cwSchedulePreviewV2() {
       if (!CW) return;
       if (_cwPreviewDebounceTimer) clearTimeout(_cwPreviewDebounceTimer);
       _cwPreviewDebounceTimer = setTimeout(() => { _cwPreviewDebounceTimer = null; cwRunPreviewV2(); }, CW_PREVIEW_DEBOUNCE_MS);
     }
+    /* 合成中のスピナー。⚠️ 即座に出さないこと。通常の合成は一瞬で終わるため、
+       毎回出して消すと操作のたびに右上で点滅して見える（ユーザー報告のちらつきの一因）。
+       待たされていると感じ始める手前（CW_PREVIEW_SPINNER_DELAY_MS）を過ぎたときだけ出す。 */
+    const CW_PREVIEW_SPINNER_DELAY_MS = 260;
+    let _cwPreviewSpinnerTimer = null;
     function _cwPreviewShowLoading(el) {
-      if (!el || el.querySelector('.cw-preview-loading')) return;
-      if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
-      const ind = document.createElement('div');
-      ind.className = 'cw-preview-loading co-spinner';
-      ind.style.cssText = 'position:absolute;top:8px;right:8px;color:#9ecbff';
-      el.appendChild(ind);
+      if (!el) return;
+      if (_cwPreviewSpinnerTimer) clearTimeout(_cwPreviewSpinnerTimer);
+      _cwPreviewSpinnerTimer = setTimeout(() => {
+        _cwPreviewSpinnerTimer = null;
+        const mount = document.getElementById('cw-live-mount');
+        if (!mount || mount.querySelector('.cw-preview-loading')) return;
+        if (getComputedStyle(mount).position === 'static') mount.style.position = 'relative';
+        const ind = document.createElement('div');
+        ind.className = 'cw-preview-loading co-spinner';
+        ind.style.cssText = 'position:absolute;top:8px;right:8px;color:#9ecbff';
+        mount.appendChild(ind);
+      }, CW_PREVIEW_SPINNER_DELAY_MS);
     }
     function _cwPreviewHideLoading(el) {
+      if (_cwPreviewSpinnerTimer) { clearTimeout(_cwPreviewSpinnerTimer); _cwPreviewSpinnerTimer = null; }
       if (!el) return;
       const ind = el.querySelector('.cw-preview-loading'); if (ind) ind.remove();
     }
@@ -17163,13 +17324,15 @@
         if (mount && !timedOut) {
           const dataUrl = canvas.toDataURL('image/png');
           _cwPreviewLastDataUrl = dataUrl; // render()経由の次回再描画でもこの画像を初期表示し、DOM簡易カードへの一時退行（高さ変動）を防ぐ
-          mount.innerHTML = _cwPreviewImgHtml(dataUrl);
+          _cwPreviewApply(mount, dataUrl);
         }
       } catch (e) {
         clearTimeout(timeoutId);
         // 合成失敗・タイムアウト：従来のDOM合成プレビューへフォールバック（フォールバック時点の最新ドラフトで再構築する）
         const mount = document.getElementById('cw-live-mount');
-        if (mount) mount.innerHTML = cwRenderCardVisual(cwCurrentDraftCard());
+        /* ⚠️ 合成に失敗したときだけ DOM 版へ落とす。既に絵が出ているならそれを残す方が良い
+           （落とすと見た目が変わるうえ高さも動く）。 */
+        if (mount && !mount.querySelector('img.cw-preview-img')) mount.innerHTML = cwRenderCardVisual(cwCurrentDraftCard());
       } finally {
         _cwPreviewComposing = false;
         const el2 = document.getElementById('cw-live-mount'); _cwPreviewHideLoading(el2);
