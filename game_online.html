@@ -109,6 +109,8 @@
     }
 
     :root {
+      /* 入りは速く、収まりは長い。設定・ロビー・工房の開閉で共通して使う（2026-08-16） */
+      --ronEaseOut: cubic-bezier(.16, 1, .24, 1);
       --bg0: #0d1117;
       --bg0-soft: #111827;
       --bg0-deep: #080d14;
@@ -1996,6 +1998,21 @@
     /* 2026-07-29：理論値のHP推移に回復ステップを明示するための表示（緑＝回復のセマンティクス）。
        2026-08-16：自分の回復ステップにも同じクラスを流用する（依頼A-1）。上限で切り捨てられた場合の注記は
        .dd-sol-heal-noteで弱色にする（依頼A-2：「回復 +30（上限により +20 のみ適用）」）。 */
+    /* デイリーの各災害HPバー（2026-08-16）。バトルのターンサマリーと同じ語彙：
+       奥に赤で被弾前の幅、手前に残りHPを重ね、差がそのまま削られた量に見える。
+       ⚠️ 数値はここに出さない（内訳トグルの中に文字で置く）。 */
+    /* ⚠️ 親（.dd-sol-footrow）が align-items:flex-start の縦flexのため、
+       幅を明示しないと中身の幅（＝ラベルぶん）に縮んでバーが消える（実際に踏んだ）。 */
+    .dd-hpbars { display:flex; flex-direction:column; gap:3px; margin-top:4px; width:100%; }
+    .dd-hpbar-row { display:flex; align-items:center; gap:6px; }
+    .dd-hpbar-label { font-size:.6rem; font-weight:700; width:34px; flex-shrink:0; }
+    .dd-hpbar-track { position:relative; flex:1; min-width:0; height:7px; border-radius:4px;
+      background:#0d1117; overflow:hidden; }
+    .dd-hpbar-lost { position:absolute; left:0; top:0; height:100%; background:rgba(248,81,73,.6); }
+    .dd-hpbar-fill { position:absolute; left:0; top:0; height:100%; border-radius:4px;
+      transition:width .5s var(--ronEaseOut); }
+    /* 内訳トグルの中に入れた数値ブロック */
+    .dd-sol-nums { display:flex; flex-direction:column; gap:2px; margin-bottom:6px; }
     .dd-sol-heal { display:block; font-size:.7rem; font-weight:700; color:var(--green,#3fb950); margin-bottom:2px; }
     .dd-sol-heal-note { color:var(--t2); font-weight:600; margin-left:4px; }
     /* 2026-08-16新設（依頼B）：「ダメージ -20(50-30)」行。基礎ダメージ−軽減合計で確定値を明示する。
@@ -2048,7 +2065,9 @@
        線色は本文の意味色をそのまま流用する（自分=var(--t0)白・理論値=#e3c34d黄）。
        凡例は色をドット側に持たせ、テキストは中立色（var(--t2)）に留める。 */
     .dd-hptrend-title { font-size:.7rem; font-weight:700; color:var(--t2); margin-bottom:4px; }
-    .dd-hptrend-svg { width:100%; height:56px; display:block; }
+    /* ⚠️ 高さを固定しない。viewBoxの縦横比（320×156）に従わせる。
+       固定すると軸ラベル入りのグラフが中央でレターボックス化して極端に小さくなる。 */
+    .dd-hptrend-svg { width:100%; height:auto; aspect-ratio:320/156; display:block; }
     .dd-hptrend-legend { display:flex; gap:14px; margin-top:5px; }
     .dd-hptrend-legend-item { display:inline-flex; align-items:center; gap:4px; font-size:.66rem; color:var(--t2); font-weight:600; }
     .dd-hptrend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
@@ -3546,33 +3565,60 @@
 
     /* ── 1.3.1・1.3.2：設定パネル本体のスタイル（旧settings-btn歯車ボタンは2026-07-17にタブバー「設定」タブへ統合し廃止。§10.4） ── */
     .settings-theme-row { display:flex; gap:8px; flex-wrap:wrap }
-    /* ══ テーマカラーの開閉（2026-08-16） ══
-       ＋／－は「黒く塗りつぶした円の中に白の符号」。＋→－は縦棒を畳んで全体を
-       90°回すことで、別アイコンへ差し替えずに滑らかに繋ぐ。
-       ⚠️ 開閉のイージングは戻り値を強めに取った overshoot 付きのものを使う
-          （指定：慣性を意識・戻り値強め・滑らかでスタイリッシュ）。
-       🚫 新しい :hover ルールは足さない（モバイル主体）。 */
-    .settings-theme-toggle { width:26px; height:26px; border-radius:50%; border:none; padding:0;
+    /* パンくず（2026-08-16）：白色で、押せばそのステップへ戻れる。
+       ⚠️ ボタンなのでUA既定の黒い文字色が効いてしまう。色は必ず明示する
+          （一度この指定が別パッチに巻き込まれて消え、黒く出た）。
+       🚫 新規:hoverは足さない（モバイル主体）。押した感触は :active の沈み込みで出す。 */
+    /* チュートリアルボタンの文字（2026-08-16）。
+       ⚠️ 360px幅で「チュートリア／ル」と1文字だけ次行へ送られていた。
+          見出し・短文は気持ち悪いところで改行しない。<br>で入れた2行を
+          自動折返しで壊さないよう nowrap を掛け、入りきらないときは
+          字を縮める（行が増えるより読みやすい）。 */
+    .tut-btn-label { text-align:center; line-height:1.3; white-space:nowrap;
+      font-size:clamp(.68rem, 3.4vw, .82rem); }
+    .lobby-crumb { background:none; border:none; padding:2px 4px; color:var(--t0); font-size:.72rem;
+      font-weight:600; cursor:pointer; border-radius:6px; text-decoration:underline;
+      text-underline-offset:3px; text-decoration-thickness:1px;
+      transition:opacity .18s var(--ronEaseOut), transform .18s var(--ronEaseOut); }
+    .lobby-crumb:active { opacity:.6; transform:translateY(1px); }
+    /* ══ テーマカラーの開閉（2026-08-16・モーション作り直し） ══
+       ⚠️ 旧実装はボタン全体を90°回して開閉と記号変化を兼ねていた。そのため
+          閉じた状態の「−」が縦向きに見えるという破綻が出た（実機指摘）。
+          1つの動きに1つの意味だけを持たせる：
+            ・記号の変化 … 2本の線の「傾きと長さ」だけで ＋ → − を作る
+                            （公式サイトのハンバーガー→× と同じ考え方）
+            ・開閉の状態 … 線の色や枠ではなく、下のリストの高さが担う
+          ボタン自体は回さない。回すと符号の向きが意味を持ってしまう。
+       入りは速く収まりは長い曲線（--ronEaseOut）で、静かなのに残る動きにする。 */
+    .settings-theme-toggle { width:28px; height:28px; border-radius:50%; border:none; padding:0;
       background:#000; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;
       flex-shrink:0; box-shadow:0 1px 4px rgba(0,0,0,.45);
-      transition:transform .42s cubic-bezier(.34,1.56,.64,1); }
-    .settings-theme-toggle.is-open { transform:rotate(90deg); }
-    .settings-theme-toggle .stt-sign { position:relative; width:13px; height:13px; display:block; }
-    .settings-theme-toggle .stt-bar { position:absolute; background:#fff; border-radius:1px; }
-    .settings-theme-toggle .stt-h { left:0; right:0; top:50%; height:1.8px; transform:translateY(-50%); }
-    /* 縦棒だけを畳む。回転と合わせて ＋ → － に見える */
-    .settings-theme-toggle .stt-v { top:0; bottom:0; left:50%; width:1.8px; transform:translateX(-50%) scaleY(1);
-      transform-origin:center; transition:transform .42s cubic-bezier(.34,1.56,.64,1); }
-    .settings-theme-toggle.is-open .stt-v { transform:translateX(-50%) scaleY(0); }
-    /* 開くときは行そのものにも慣性を持たせる。閉時は1枚だけなので詰まって見えない */
-    .settings-theme-row { transition:gap .42s cubic-bezier(.34,1.56,.64,1); }
-    .settings-theme-row.is-open > .settings-theme-chip { animation:ronThemeChipIn .38s cubic-bezier(.34,1.56,.64,1) both; }
-    @keyframes ronThemeChipIn { from { opacity:0; transform:translateY(-6px) scale(.94) } to { opacity:1; transform:none } }
+      transition:transform .18s var(--ronEaseOut); }
+    .settings-theme-toggle:active { transform:scale(.9); }
+    .settings-theme-toggle .stt-sign { position:relative; width:14px; height:14px; display:block; }
+    .settings-theme-toggle .stt-bar { position:absolute; left:0; right:0; top:50%; height:2px;
+      background:#fff; border-radius:1px; margin-top:-1px; transform-origin:center;
+      transition:transform .34s var(--ronEaseOut); }
+    /* 閉：横棒はそのまま／縦棒は90°回して ＋ を作る
+       開：縦棒を0°へ戻して横棒に重ね、1本の − に見せる */
+    .settings-theme-toggle .stt-h { transform:rotate(0deg); }
+    .settings-theme-toggle .stt-v { transform:rotate(90deg); }
+    .settings-theme-toggle.is-open .stt-v { transform:rotate(0deg); }
+    /* 開閉の高さは 0fr→1fr で送る。中身の高さを測らずに滑らかに開ける
+       （固定高さやdisplay切替のような飛びが出ない）。 */
+    .settings-theme-wrap { display:grid; grid-template-rows:0fr; transition:grid-template-rows .38s var(--ronEaseOut); }
+    .settings-theme-wrap.is-open { grid-template-rows:1fr; }
+    .settings-theme-wrap > .settings-theme-row { overflow:hidden; min-height:0; }
+    /* 追加で現れる色は同時に出さず、少しずつ段差をつけて立ち上げる（カードギャラリーと同じ作法） */
+    .settings-theme-wrap.is-open > .settings-theme-row > .settings-theme-chip {
+      animation:ronThemeChipIn .34s var(--ronEaseOut) both;
+      animation-delay:calc(var(--ci, 0) * 28ms); }
+    @keyframes ronThemeChipIn { from { opacity:0; transform:translateY(-7px) } to { opacity:1; transform:none } }
     html.ron-motion-off .settings-theme-toggle,
-    html.ron-motion-off .settings-theme-toggle .stt-v,
-    html.ron-motion-off .settings-theme-row,
-    html.ron-motion-off .settings-theme-row.is-open > .settings-theme-chip { transition:none !important; animation:none !important; }
-    .settings-theme-chip { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--bg3); background:var(--bg2); cursor:pointer; flex:1; min-width:82px; transition:.15s; }
+    html.ron-motion-off .settings-theme-toggle .stt-bar,
+    html.ron-motion-off .settings-theme-wrap,
+    html.ron-motion-off .settings-theme-wrap.is-open > .settings-theme-row > .settings-theme-chip { transition:none !important; animation:none !important; }
+    .settings-theme-chip { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--bg3); background:var(--bg2); cursor:pointer; flex:0 0 calc(33.333% - 4px); min-width:0; transition:border-color .2s var(--ronEaseOut), background-color .2s var(--ronEaseOut); }
     .settings-theme-chip.active { border-color:var(--accent); background:rgba(var(--accent-rgb),.12); }
     .settings-theme-swatch { width:32px; height:32px; border-radius:50%; border:2px solid rgba(255,255,255,.18); flex-shrink:0; position:relative; }
     /* 2026-07-18モーション強化：選択チップにチェックマークをポップ表示する（既存coopIcoCheckCircleを流用）。
@@ -5377,7 +5423,7 @@
           icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>' },
         { key: 'daily', label: 'デイリー', onclick: '_uiTabGoDaily()',
           icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M12 12.2 15.6 13.6V16c0 1.9-1.5 3.4-3.6 4.2-2.1-.8-3.6-2.3-3.6-4.2v-2.4z"/>' },
-        { key: 'create', label: 'つくる', onclick: '_uiTabGoCreate()',
+        { key: 'create', label: 'つくる', aria: 'クリエイトラボ（つくる）', onclick: '_uiTabGoCreate()',
           icon: '<path d="M2 20h20"/><path d="M4 20v-9l3.5 3.5V11L11 14.5V11l3.5 3.5V7l3.5 4v9"/>' },
         { key: 'gallery', label: '図鑑', onclick: '_uiTabGoGallery()',
           icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' },
@@ -5388,7 +5434,7 @@
       ];
       const btns = TABS.map(t => {
         const isActive = t.key === 'settings' ? _settingsOpen : t.key === active;
-        return `<button class="ui-tab-btn${isActive ? ' active' : ''}" data-uitab="${t.key}" onclick="${t.onclick}" aria-label="${t.label}" aria-current="${isActive ? 'page' : 'false'}"><span class="ui-tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:21px;height:21px">${t.icon}</svg></span><span class="ui-tab-label">${t.label}</span></button>`;
+        return `<button class="ui-tab-btn${isActive ? ' active' : ''}" data-uitab="${t.key}" onclick="${t.onclick}" aria-label="${t.aria || t.label}" aria-current="${isActive ? 'page' : 'false'}"><span class="ui-tab-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:21px;height:21px">${t.icon}</svg></span><span class="ui-tab-label">${t.label}</span></button>`;
       }).join('');
       return `<nav class="ui-tabbar" role="navigation" aria-label="メインナビゲーション">${btns}</nav>`;
     }
@@ -5964,8 +6010,14 @@
          閉じているときは選択中の1つだけを出し、＋を押すと全部が開く。
          ＋／－は黒く塗りつぶした円に白の符号で、押すと滑らかに入れ替わる（回転で繋ぐ）。 */
       const themeOpen = !!_ronThemeOpen;
-      const themeList = themeOpen ? RON_THEMES : RON_THEMES.filter(t => t.id === s.theme);
-      const themeChips = themeList.map(t => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}">${s.theme === t.id ? `<span class="settings-theme-check">${coopIcoCheckCircle(11,'#fff')}</span>` : ''}</span><span class="settings-theme-label">${t.label}</span></button>`).join('');
+      /* 閉じているときも3つ出す（1つだけではボタンに対して情報が少なすぎるという指摘）。
+         先頭は選択中の色、残りは定義順（サイバーレッド…）から選択中を除いた上位2つ。
+         こうすると選択中がどこにあっても常に3色ぶんの幅で、開閉で大きさが変わらない。 */
+      const themeList = themeOpen ? RON_THEMES : (() => {
+        const cur = RON_THEMES.find(t => t.id === s.theme) || RON_THEMES[0];
+        return [cur, ...RON_THEMES.filter(t => t.id !== cur.id).slice(0, 2)];
+      })();
+      const themeChips = themeList.map((t, ci) => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" style="--ci:${ci}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}">${s.theme === t.id ? `<span class="settings-theme-check">${coopIcoCheckCircle(11,'#fff')}</span>` : ''}</span><span class="settings-theme-label">${t.label}</span></button>`).join('');
       const themeToggle = `<button type="button" class="settings-theme-toggle${themeOpen ? ' is-open' : ''}" onclick="ronToggleThemeList()" aria-expanded="${themeOpen}" aria-label="テーマカラーの一覧を${themeOpen ? '閉じる' : '開く'}"><span class="stt-sign" aria-hidden="true"><i class="stt-bar stt-h"></i><i class="stt-bar stt-v"></i></span></button>`;
       // 2026-07-17ユーザーレビュー修正：8bit（DotGothic16）を追加し3択に拡張
       /* 2026-08-15：フォントの選択肢を「見た目の趣味」から「視認性の系統」へ組み替えた
@@ -5997,7 +6049,7 @@
         : `<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label" style="color:var(--t3)">対戦CPU戦でマイ都市を使う</span><span class="settings-row-desc">カード工房でマイ都市を1枚以上作成すると使えるようになります</span></div><div class="ios-switch" style="flex-shrink:0;opacity:.4;pointer-events:none"><div class="track"><div class="knob"></div></div></div></div>`;
       return `<div class="hint-overlay" id="ron-settings-overlay" onclick="toggleSettings()"><div class="hint-box" onclick="event.stopPropagation()">
         <div class="hint-box-header"><span class="hint-title">${uiIcoGear(15)} 設定</span><button class="hint-close" onclick="toggleSettings()">✕</button></div>
-        <div class="hint-section"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-weight:700;color:var(--t1)">テーマカラー</span><span style="font-size:.7rem;color:var(--t3)">${themeOpen ? '' : RON_THEMES.length + '色から選べます'}</span><span style="margin-left:auto">${themeToggle}</span></div><div class="settings-theme-row${themeOpen ? ' is-open' : ''}">${themeChips}</div></div>
+        <div class="hint-section"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-weight:700;color:var(--t1)">テーマカラー</span><span style="font-size:.7rem;color:var(--t3)">${themeOpen ? '' : RON_THEMES.length + '色から選べます'}</span><span style="margin-left:auto">${themeToggle}</span></div><div class="settings-theme-wrap${themeOpen ? ' is-open' : ''}"><div class="settings-theme-row">${themeChips}</div></div></div>
         <hr class="hint-divider">
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">文字の見やすさ</span><span class="settings-row-desc">読みやすさを選べます（字の大きさ・文字と背景の差）</span></div><div class="settings-seg">${fontSeg}</div></div>
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">書体</span><span class="settings-row-desc">${typefaceDesc}</span></div><div class="settings-seg">${typefaceSeg}</div></div>
@@ -8793,16 +8845,20 @@
         body = `${err}
     ${_lobbyDashboardCard()}
     <div class="lobby-mode-btns">
-      <button class="lobby-btn" onclick="lobbyEnterVsMode()" aria-label="対戦する：1vs1の本格バトル">${_svgGame}<strong>対戦する</strong><span style="font-size:.72rem;color:var(--t2)">1vs1の本格バトル</span></button>
-      <button class="lobby-btn" onclick="lobbyEnterCoopMode()" aria-label="協力する：力を合わせて街を守る"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力する</strong><span style="font-size:.72rem;color:var(--t2)">力を合わせて街を守る</span></button>
+      <button class="lobby-btn" onclick="lobbyEnterVsMode()" aria-label="対戦モード：1vs1の本格バトル">${_svgGame}<strong>対戦モード</strong><span style="font-size:.72rem;color:var(--t2)">1vs1の本格バトル</span></button>
+      <button class="lobby-btn" onclick="lobbyEnterCoopMode()" aria-label="協力モード：力を合わせて街を守る"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><strong>協力モード</strong><span style="font-size:.72rem;color:var(--t2)">力を合わせて街を守る</span></button>
     </div>
     <div style="display:flex;gap:8px;margin-top:2px">
-      <button class="lobby-btn-tut" onclick="startTutorial()" aria-label="対戦チュートリアル">${_svgGame}<span style="text-align:center;line-height:1.3">対戦<br>チュートリアル</span></button>
-      <button class="lobby-btn-tut" onclick="startCoopTutorial()" aria-label="協力チュートリアル"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span style="text-align:center;line-height:1.3">協力<br>チュートリアル</span></button>
+      <button class="lobby-btn-tut" onclick="startTutorial()" aria-label="対戦チュートリアル">${_svgGame}<span class="tut-btn-label">対戦<br>チュートリアル</span></button>
+      <button class="lobby-btn-tut" onclick="startCoopTutorial()" aria-label="協力チュートリアル"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span class="tut-btn-label">協力<br>チュートリアル</span></button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin:4px 0 0">
       <div style="flex:1;height:1px;background:var(--bg3)"></div>
-      <span style="font-size:.68rem;color:var(--t3);white-space:nowrap;letter-spacing:.04em">その他の機能</span>
+      <!-- 2026-08-16：カード工房・問題工房・デイリー防災の総称を「クリエイトラボ」に決めた（ユーザー確定）。
+           対戦／協力は「モード」、こちらは「ラボ」と語を変えて主従の差を名前で示す。
+           サークル名 Ready or Lab と響き合い、ラボ＝安全に失敗できる場という含みが
+           タグライン「失敗できる災害はここだけ」ともつながる。英字表記は CREATE。 -->
+      <span style="font-size:.68rem;color:var(--t3);white-space:nowrap;letter-spacing:.04em">クリエイトラボ</span>
       <div style="flex:1;height:1px;background:var(--bg3)"></div>
     </div>
     <button class="lobby-btn-gallery" onclick="dailyStart()"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M12 12.2 15.6 13.6V16c0 1.9-1.5 3.4-3.6 4.2-2.1-.8-3.6-2.3-3.6-4.2v-2.4z"/></svg> デイリー防災${_ddTodayCleared() ? `<span style="font-size:.62rem;color:#3fb950;margin-left:6px;font-weight:700;display:inline-flex;align-items:center;gap:3px">${coopIcoCheckCircle(13,'#3fb950')}今日の分クリア済み</span>` : ''}</button>
@@ -8836,15 +8892,22 @@
         const backBtn = (toStep, extra) => `<button class="gallery-btn-back" style="margin-bottom:10px" onclick="lobbyGoTo(()=>{${extra || ''}lobbyState.coopStep=${toStep};lobbyState.error=''},'back')">＜</button>`;
         // 選択中の内容（パンくず）：どのモードを選んでいるか常に分かるように
         const hn = lobbyState.coopHostNature || 'cpu';
+        /* パンくず（2026-08-16）：白色にして、押せばそのステップへ戻れるようにした。
+           ⚠️ 現在地は押せない（押しても何も起きないボタンを置かない）。
+              戻り先のステップ番号を持たせ、lobbyGoTo の 'back' で遷移する。 */
         const crumbParts = [];
-        if (net === 'solo') crumbParts.push('ソロ');
-        else if (net === 'host') crumbParts.push('部屋を作る');
-        else if (net === 'join') crumbParts.push('参加');
+        if (net === 'solo') crumbParts.push({ t: 'ソロ', to: 1 });
+        else if (net === 'host') crumbParts.push({ t: '部屋を作る', to: 1 });
+        else if (net === 'join') crumbParts.push({ t: '参加', to: 1 });
         if (step >= 3) {
-          if (net === 'solo') crumbParts.push(lobbyState.coopSide === 'nature' ? '自然側' : '都市側');
-          else if (net === 'host') crumbParts.push(hn === 'cpu' ? '自然=CPU' : hn === 'self' ? '自分が自然' : hn === 'random' ? '自然=ランダム抽選' : '自然=人間が参加');
+          if (net === 'solo') crumbParts.push({ t: lobbyState.coopSide === 'nature' ? '自然側' : '都市側', to: 2 });
+          else if (net === 'host') crumbParts.push({ t: hn === 'cpu' ? '自然=CPU' : hn === 'self' ? '自分が自然' : hn === 'random' ? '自然=ランダム抽選' : '自然=人間が参加', to: 2 });
         }
-        const crumb = crumbParts.length ? `<div style="text-align:center;color:var(--t3);font-size:.72rem;margin-bottom:10px">${crumbParts.join(' › ')}</div>` : '';
+        if (step >= 4 && net === 'host') crumbParts.push({ t: (lobbyState.coopPlayerCount || 3) + '人', to: 3 });
+        const crumb = crumbParts.length ? `<div style="text-align:center;font-size:.72rem;margin-bottom:10px;display:flex;justify-content:center;align-items:center;gap:4px;flex-wrap:wrap">${crumbParts.map((c, i) => {
+          const sep = i ? '<span style="color:var(--t3)">›</span>' : '';
+          return `${sep}<button type="button" class="lobby-crumb" onclick="lobbyGoTo(()=>{lobbyState.coopStep=${c.to};lobbyState.error=''},'back')">${c.t}</button>`;
+        }).join('')}</div>` : '';
 
         let wiz;
         if (step === 1 || !net) {
@@ -8908,13 +8971,18 @@
              内訳は**人間の人数**で数える。自然をCPUに任せた場合は全員が都市側になる。 */
           const hnCur = lobbyState.coopHostNature || 'cpu';
           const natureIsHuman = hnCur !== 'cpu';
+          /* 内訳は人のアイコンで見せる（自然＝赤・都市＝青）。数字より先に色で伝わる。
+             ⚠️ 絵文字は使わない。既存のneon UIトーンに合わせたSVGで描く。 */
+          const _pIcon = (col, dashed) => `<svg viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"${dashed ? ' stroke-dasharray="3 2.4"' : ''} style="width:15px;height:15px;flex-shrink:0"><circle cx="12" cy="7.5" r="3.6"/><path d="M4.5 20.5c0-3.9 3.4-6.4 7.5-6.4s7.5 2.5 7.5 6.4"/></svg>`;
           const cntBtns = [2, 3, 4, 5].map(n => {
             const cityN = natureIsHuman ? n - 1 : n;
-            const breakdown = natureIsHuman ? `自然1人・都市${cityN}人` : `自然はCPU・都市${n}人`;
+            const natIcons = natureIsHuman ? _pIcon('#f85149', false) : _pIcon('#f85149', true);
+            const cityIcons = Array.from({ length: cityN }, () => _pIcon('#388bfd', false)).join('');
+            const breakdown = `<span style="display:flex;align-items:center;justify-content:center;gap:2px;flex-wrap:wrap">${natIcons}<span style="color:var(--t3);font-size:.6rem;margin:0 2px">/</span>${cityIcons}</span><span style="font-size:.6rem;color:var(--t3);line-height:1.4">${natureIsHuman ? '自然1人・都市' + cityN + '人' : '自然はCPU・都市' + n + '人'}</span>`;
             const sel = (lobbyState.coopPlayerCount || 3) === n;
             return `<button type="button" onclick="lobbyGoTo(()=>{lobbyState.coopPlayerCount=${n};lobbyState.coopStep=4},'forward')" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 8px;border-radius:10px;background:${sel ? 'rgba(56,139,253,.18)' : 'var(--bg2,#161b22)'};border:1.5px solid ${sel ? '#388bfd' : 'var(--bg3,#30363d)'};color:var(--t0);cursor:pointer;transition:.15s">
       <span style="font-weight:800;font-size:1.05rem">${n}人</span>
-      <span style="font-size:.66rem;color:var(--t3);line-height:1.4;text-align:center">${breakdown}</span>
+      ${breakdown}
     </button>`;
           }).join('');
           wiz = `${backBtn(2)}${crumb}${stepHead('合計何人で遊ぶ？')}
@@ -8935,6 +9003,7 @@
             // プリセットはEASY/NORMAL/HARDのラベルだけを選ばせ、実際の数値は開始時の都市人数（coopMPStartHost）で
             // 2人用／3人以上用のどちらかを自動選択する（coopPresetResolve）。ここでは両方を併記して隠さない。
             const svClass = _svOn ? 'ios-switch on' : 'ios-switch';
+            const _ecOn = lobbyState.coopEventControl === 'nature';
             /* 2026-08-16：人数を先に選ぶようにしたので、プリセットの数値を具体値で出せる。
                プリセットを押すと下の「いまの設定」に値が入るだけで、部屋はまだ作らない。
                「変更しなくてもどのくらいの難易度になるか」を見てから決められるようにするため。 */
@@ -8949,9 +9018,12 @@
               const dd = COOP_DIFF[k];
               const pr = coopPresetResolve(k, _pcCity) || COOP_PRESETS[3][k];
               const on = _pickedKey === k;
+              // 選択中以外はグレーへ落とす。⚠️ 別の色にせず彩度と不透明度だけ落として
+              //    「選ばれていない」ことだけを伝える（色の意味を壊さない）
+              const dim = (_pickedKey && !on);
               const evLabel = (pr.events || []).length === 0 ? 'イベントなし' : (coopPresetEventsLabel(pr.events) + ((pr.eventControl === 'nature') ? '（自然側がタイミングを決める）' : '（固定ターン）'));
               const badge = on ? `<span style="font-size:.64rem;font-weight:700;color:${dd.color};border:1px solid ${dd.color};border-radius:10px;padding:1px 7px">選択中</span>` : '';
-              return `<button type="button" onclick="coopPickPreset('${k}')" style="text-align:left;width:100%;padding:12px 14px;border-radius:10px;background:rgba(${dd.rgb},${on ? '.24' : '.1'});border:${on ? '2px' : '1.5px'} solid ${dd.color};cursor:pointer;margin-bottom:8px;transition:.15s">
+              return `<button type="button" onclick="coopPickPreset('${k}')" style="text-align:left;width:100%;padding:12px 14px;border-radius:10px;background:rgba(${dd.rgb},${on ? '.24' : '.1'});border:${on ? '2px' : '1.5px'} solid ${dd.color};cursor:pointer;margin-bottom:8px;filter:${dim ? 'grayscale(.85)' : 'none'};opacity:${dim ? '.45' : '1'};transition:filter .28s var(--ronEaseOut),opacity .28s var(--ronEaseOut),background-color .28s var(--ronEaseOut)">
       <div style="display:flex;align-items:center;gap:6px"><span style="font-weight:800;font-size:.92rem;color:${dd.color}">${dd.label}</span>${badge}</div>
       <div style="font-size:.68rem;color:var(--t1);margin-top:4px;line-height:1.6">都市${_pcCity}人なら HP${pr.hp}・復興${pr.reviveMax}回<br>${evLabel}</div>
     </button>`;
@@ -8983,10 +9055,17 @@
           <img src="images/icons/neon_jinzai.webp" alt="" style="width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(168,85,247,.7))">
           <span style="font-size:.84rem;color:var(--t0);font-weight:700">社会的脆弱性イベント</span>
         </div>
-        <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">デマ拡散・公害・テロが固定ターンで発動</div>
+        <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">デマ拡散・公害・テロの3つが発生する</div>
       </div>
-      <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');lobbyState.coopPresetKey=null;this.classList.toggle('on')" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
+      <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');lobbyState.coopPresetKey=null;render()" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
     </div>
+    ${_svOn ? `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px 10px 26px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-left:2px solid #c084fc;border-radius:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:.8rem;color:var(--t0);font-weight:700">自然側がタイミングを決める</div>
+        <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">オフなら固定ターン（T2デマ・T5公害・T7テロ）。オンなら自然側が好きなターンに発動できる（1ターン1つまで）</div>
+      </div>
+      <div class="${_ecOn ? 'ios-switch on' : 'ios-switch'}" onclick="lobbyState.coopEventControl=this.classList.contains('on')?'fixed':'nature';lobbyState.coopPresetKey=null;render()" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
+    </div>` : ''}
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;margin-bottom:12px">
       <div>
         <div style="display:flex;align-items:center;gap:6px">
@@ -9002,8 +9081,8 @@
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
       <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=COOP_CITY_HP_DEFAULT;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=COOP_REVIVE_MAX_DEFAULT;lobbyState.coopPresetKey=null;render()">デフォルト設定に戻す</button>
     </div>
-    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1,lobbyState.coopPresetKey||'custom')">この設定で部屋を作る</button>`;
-            const _curHint = _pickedKey ? 'プリセットの値です。触れば自由に変えられます' : '触れば自由に変えられます';
+    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1,lobbyState.coopPresetKey||'custom',lobbyState.coopEventControl||'fixed')">この設定で部屋を作る</button>`;
+            const _curHint = _pickedKey ? 'プリセットの値です。ここから自由に変えられます' : 'ここから自由に変えられます';
             wiz = `${backBtn(3)}${crumb}${nameField}${stepHead('ゲーム設定')}
     <div style="margin-bottom:16px">
       <div style="font-size:.84rem;color:var(--t0);font-weight:700;margin-bottom:8px">プリセットを選ぶ</div>
@@ -9011,7 +9090,7 @@
     </div>
     <div style="margin-bottom:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
       <span style="font-size:.84rem;color:var(--t0);font-weight:700">いまの設定</span>
-      <span style="font-size:.68rem;color:var(--t3)">${_curHint}</span>
+      <span style="font-size:.68rem;color:var(--t0)">${_curHint}</span>
     </div>
     <div style="margin-bottom:14px">${customBlock}</div>
     <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">${note}</div>`;
@@ -11638,14 +11717,20 @@
            スケジュールは空で始める。使えるイベントは CO.eventPool に積み、
            自然側が撃った時点で {t:現在ターン, id} を d.events へ足す。
            こうすると下流（バナー・ポップ・予算減・公害・テロ）は一切変更せずに動く。 */
-        eventControlResolved = preset.eventControl || 'fixed';
+        /* 設定で明示された主導権があればそれを優先する（プリセットは初期値）。 */
+        eventControlResolved = (opts.eventControl === 'nature' || opts.eventControl === 'fixed')
+          ? opts.eventControl : (preset.eventControl || 'fixed');
         d.events = (eventControlResolved === 'nature') ? [] : preset.events;
         eventPoolResolved = (eventControlResolved === 'nature')
           ? (preset.events || []).map(e => e.id) : [];
         reviveMaxResolved = preset.reviveMax;
       } else {
-        d.events = (opts.socialVuln === false) ? [] : _COOP_EVENTS_ALL;
-        eventControlResolved = 'fixed'; eventPoolResolved = []; // カスタムは従来どおり固定ターン
+        /* カスタムでも「タイミングを誰が握るか」を設定できる（§E・2026-08-16）。
+           社会的脆弱性がオフならタイミングの概念自体が無いので必ず fixed に倒す。 */
+        const _svCustom = opts.socialVuln !== false;
+        eventControlResolved = (_svCustom && opts.eventControl === 'nature') ? 'nature' : 'fixed';
+        d.events = (!_svCustom || eventControlResolved === 'nature') ? [] : _COOP_EVENTS_ALL;
+        eventPoolResolved = (eventControlResolved === 'nature') ? _COOP_EVENTS_ALL.map(e => e.id) : [];
         if (opts.cityHp != null) d.hp = Math.max(80, Math.min(120, opts.cityHp));
         reviveMaxResolved = (opts.reviveMax != null) ? opts.reviveMax : COOP_REVIVE_MAX_DEFAULT;
       }
@@ -12148,6 +12233,9 @@
        ⚠️ スライダー等を触ったら coopPresetKey を null に落とす。落とさないと
           「EASY 選択中」と表示したまま中身が別物、という食い違いが起きる。 */
     function coopPickPreset(key) {
+      /* ⚠️ render() はロビー画面で window.scrollTo(0,0) を呼ぶため、そのままだと
+         プリセットを押すたびに画面が一番上へ飛ぶ（実機指摘）。位置を保存して戻す。 */
+      const _y = (typeof window !== 'undefined') ? window.scrollY : 0;
       const total = lobbyState.coopPlayerCount || 3;
       const cityN = Math.max(1, (lobbyState.coopHostNature === 'cpu') ? total : total - 1);
       const pr = coopPresetResolve(key, cityN);
@@ -12156,9 +12244,12 @@
       lobbyState.coopCityHp = pr.hp;
       lobbyState.coopReviveMax = pr.reviveMax;
       lobbyState.coopSocialVuln = (pr.events || []).length > 0;
+      // §E：プリセットが持つ「タイミングの主導権」も一緒に入れる（HARDだけ nature）
+      lobbyState.coopEventControl = (pr.eventControl === 'nature') ? 'nature' : 'fixed';
       render();
+      if (typeof window !== 'undefined') window.scrollTo(0, _y);
     }
-    function coopMPCreateRoom(diffKey, hostSide, natureMode, assign, socialVuln, cityHp, reviveMax, presetKey) {
+    function coopMPCreateRoom(diffKey, hostSide, natureMode, assign, socialVuln, cityHp, reviveMax, presetKey, eventControl) {
       const name = (lobbyState.nameInput || '').trim();
       if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
       if (!db) { lobbyState.error = 'オンライン機能が利用できません'; render(); return; }
@@ -12167,6 +12258,8 @@
       const sv = socialVuln !== false;
       const hp = (cityHp != null) ? Math.max(80, Math.min(120, cityHp)) : 120; // 4.2.1決定（2026-07-17）：推奨初期値120（旧95）。スライダー可動域80〜120は不変
       const rm = (reviveMax != null) ? Math.max(0, Math.min(3, Math.round(reviveMax))) : COOP_REVIVE_MAX_DEFAULT; // §13.8（2026-08-10）：復興回数（部屋全体・0〜3・既定1）
+      // §E：社会的脆弱性のタイミングを誰が握るか。プリセットHARDだけでなく設定でも切り替えられる
+      const ec = (eventControl === 'nature' && sv) ? 'nature' : 'fixed';
       const code = generateRoomCode();
       const hostId = _coNewPid();
       const natMode = (assign === 'random') ? 'human' : (hostSide === 'nature' ? 'human' : (natureMode || 'cpu'));
@@ -12175,12 +12268,12 @@
       CO = {
         mp: true, online: true, host: true, phase: 'lobby',
         roomId: code, myId: hostId, mySide: mySideStored, humanSide: mySideStored,
-        name, diff: COOP_DIFF[diffKey], diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm, presetKey: pk,
+        name, diff: COOP_DIFF[diffKey], diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm, presetKey: pk, eventControl: ec,
         lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
       };
       renderCoop();
       db.ref(`coopRooms/${code}`).set({
-        hostId, hostName: name, diff: diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm, preset: pk, started: false,
+        hostId, hostName: name, diff: diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm, preset: pk, eventControl: ec, started: false,
         players, createdAt: Date.now(), lastActiveAt: Date.now(),
       }).then(() => { coopMPListenRoom(); coopMPSetupPresence(); _coSaveSession(); renderCoop(); })
         .catch(e => { lobbyState.error = 'ルーム作成に失敗: ' + (e && e.message); CO = null; render(); });
@@ -12237,7 +12330,7 @@
           roomId: code, myId, mySide: side, humanSide: side,
           name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign,
           socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
-          presetKey: room.preset || 'custom', // §D：ロビー画面の表示をホストと一致させるため
+          presetKey: room.preset || 'custom', eventControl: room.eventControl || 'fixed', // §D/§E：ロビー画面の表示をホストと一致させるため
           lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
         };
         renderCoop();
@@ -12266,7 +12359,7 @@
           mp: true, online: true, host: false, phase: room.started ? 'resolving' : 'lobby',
           roomId: code, myId: sid, mySide: 'spectator', humanSide: 'spectator', turn: 1,
           name: '観戦者', diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
-          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT, presetKey: room.preset || 'custom',
+          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT, presetKey: room.preset || 'custom', eventControl: room.eventControl || 'fixed',
           lobby: { players: room.players || {}, presence: {} }, oppPresent: true,
           cities: [], hand: [], policyDeck: [], policyDiscard: [], natureDeck: [], naturePool: {}, incoming: [],
           budget: 0, budgetUsed: 0, log: [], gameLog: [], cpuPlayedLog: [], confirm: null, eventPopup: null,
@@ -12363,7 +12456,7 @@
       const natureIsCpu = !natureHuman; // 自然プレイヤーがいなければ CPU
       if (CO.natureMode === 'human' && CO.assign !== 'random' && !natureHuman) { CO.lobbyMsg = '自然側の参加を待っています（または CPU で開始してください）'; renderCoop(); return; }
       const code = CO.roomId, hostId = CO.myId, hostName = CO.name, diffKey = CO.diffKey;
-      coopBuildMPState({ diffKey, players: arr, natureIsCpu, myId: hostId, socialVuln: CO.socialVuln, cityHp: CO.cityHp, reviveMax: CO.reviveMax, presetKey: CO.presetKey });
+      coopBuildMPState({ diffKey, players: arr, natureIsCpu, myId: hostId, socialVuln: CO.socialVuln, cityHp: CO.cityHp, reviveMax: CO.reviveMax, presetKey: CO.presetKey, eventControl: CO.eventControl });
       CO.host = true; CO.roomId = code; CO.name = hostName; CO.myId = hostId;
       CO.mySide = (CO.myId === CO.natureId) ? 'nature' : 'city'; CO.humanSide = CO.mySide;
       CO.lobby = { players: playersObj, presence: (CO.lobby && CO.lobby.presence) || {} };
@@ -12444,7 +12537,7 @@
             mp: true, online: true, host: isHost, phase: 'lobby',
             roomId: code, myId, mySide: side, humanSide: side,
             name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
-            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT, presetKey: room.preset || 'custom',
+            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT, presetKey: room.preset || 'custom', eventControl: room.eventControl || 'fixed',
             lobby: { players: room.players || {}, presence: room.presence || {} }, oppPresent: true, cities: [], log: [],
           };
           _coRoleShown = true; // ロビーでは配役未発表でよい
@@ -12985,7 +13078,15 @@
       return !!(CO && CO.mp && CO.eventControl === 'nature' && CO.phase === 'natureHuman'
                 && (CO.eventPool || []).length > 0 && CO.eventFiredTurn !== CO.turn);
     }
-    // クライアント側の入口（自然側プレイヤーが押す）
+    /* クライアント側の入口（自然側プレイヤーが押す）。
+       ⚠️ 押したら即発動、にしないこと。1ゲームに3回しかない資源で、しかも
+          「いつ撃つか」が価値のすべてなので、誤爆すると取り返しがつかない。
+          既存の CO.confirm 機構（攻撃・ターン終了・復興と同じ）で必ず一度確認を挟む。 */
+    function coopRequestFireEvent(id) {
+      if (!coopNatureCanFireEvent()) return;
+      if (!COOP_EVENT_INFO[id]) return;
+      CO.confirm = { fireEvent: id }; renderCoop();
+    }
     function coopNatureFireEvent(id) { if (coopNatureCanFireEvent()) coopMPCommit('fireEvent', { id }); }
     function coopStartNatureHumanTurn() {
       _coCancelTimer();
@@ -13457,6 +13558,15 @@
       const cancelBtn = 'background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:var(--t0);font-size:.9rem;cursor:pointer;padding:10px;margin-top:5px;width:100%';
       if (CO.confirm.quit) {
         return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div style="text-align:center;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div class="confirm-card-preview" style="color:var(--t0)"><strong>ゲームを中断します</strong></div><p style="color:var(--t0)">ロビーに戻りますか？<br><span style="font-size:.78rem;color:rgba(var(--t0-rgb),.7)">現在の進行状況は保存されません</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopQuit()">中断して戻る</button><button class="btn-cancel" onclick="coopCancelConfirm()">続ける</button></div></div></div>`;
+      }
+      if (CO.confirm.fireEvent) {
+        const _fe = COOP_EVENT_INFO[CO.confirm.fireEvent];
+        if (!_fe) return '';
+        const _feWhen = (CO.confirm.fireEvent === 'rumor')
+          ? '次のターンに効きます（相手の予算が下がる）'
+          : 'このターンにすぐ効きます';
+        const _feLeft = Math.max(0, ((CO.eventPool || []).length) - 1);
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()" style="border:1px solid rgba(192,132,252,.5)"><img class="confirm-card-img" src="images/cards/${_fe.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${cardIconSvg(_fe.icon, 18)}<span>${_fe.name}</span></div><p style="margin:6px 0;color:var(--t0);font-size:.82rem;line-height:1.6">${_fe.effectNature || _fe.desc}<br><span style="color:#e2b6ff;font-weight:700">${_feWhen}</span><br><span style="font-size:.74rem;color:rgba(var(--t0-rgb),.7)">発動すると戻せません。残りは${_feLeft}つになります</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopNatureFireEvent('${CO.confirm.fireEvent}')">発動する</button><button class="btn-cancel" onclick="coopCancelConfirm()">やめる</button></div></div></div>`;
       }
       if (CO.confirm.forceAdvance) {
         // 2026-07-27（P0修正・仕様(e)）：ホストの強制進行。未操作の都市を自動でready/ack/skip扱いにして進めるため、
@@ -14212,7 +14322,7 @@
         const when = (id === 'rumor') ? '次のターンに効く' : '今すぐ効く';
         const dis = !canFire;
         const style = `display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:1;min-width:132px;text-align:left;padding:7px 9px;border-radius:8px;border:1px solid rgba(192,132,252,${dis ? '.24' : '.5'});background:rgba(192,132,252,${dis ? '.05' : '.12'});color:var(--t0);cursor:${dis ? 'not-allowed' : 'pointer'};opacity:${dis ? '.5' : '1'}`;
-        return `<button type="button" ${dis ? 'disabled' : ''} onclick="coopNatureFireEvent('${id}')" style="${style}"><span style="display:flex;align-items:center;gap:5px;font-size:.78rem;font-weight:800">${cardIconSvg(info.icon, 14)}${info.name}</span><span style="font-size:.66rem;opacity:.85;line-height:1.35">${info.effectNature || info.desc}</span><span style="font-size:.62rem;font-weight:700;color:#e2b6ff">${when}</span></button>`;
+        return `<button type="button" ${dis ? 'disabled' : ''} onclick="coopRequestFireEvent('${id}')" style="${style}"><span style="display:flex;align-items:center;gap:5px;font-size:.78rem;font-weight:800">${cardIconSvg(info.icon, 14)}${info.name}</span><span style="font-size:.66rem;opacity:.85;line-height:1.35">${info.effectNature || info.desc}</span><span style="font-size:.62rem;font-weight:700;color:#e2b6ff">${when}</span></button>`;
       }).join('');
       const note = firedThisTurn
         ? 'このターンはもう発動済み（1ターンに1つまで）'
@@ -16225,9 +16335,11 @@
         _selfHp = r.hpAfter;
         return html;
       }).join('');
-      const trendHtml = _ddRenderHpTrendChart(); // 依頼B：結果一覧の下に自分・理論値のHP推移グラフを置く
+      /* グラフは理論値を見たときだけ残す（2026-08-16ユーザー確定）。通常の結果画面では
+         各災害のHPバーの方が知りたい情報なので、下のグラフは出さない。 */
+      const trendHtml = DD.viewedSolution ? _ddRenderHpTrendChart() : '';
       if (!DD.viewedSolution) {
-        return `<div class="dd-sol-list" style="text-align:left;margin-bottom:14px">${rowsHtml}</div>${trendHtml}`;
+        return `<div class="dd-sol-list" style="text-align:left;margin-bottom:14px">${rowsHtml}</div>`;
       }
       const total = DD.solutionSteps ? DD.solutionSteps.total : DD.optimal;
       // 2026-07-18脱AI感刷新②：「本部の模範解答」の格として§3.1コーナーブラケット（.dd-formal-frame）に統一
@@ -16238,61 +16350,16 @@
         <div style="font-size:.66rem;color:var(--t2);margin-top:8px">※ この画面を見たため、本日の理論値達成・完全読み切り称号は対象外です</div>
       </div>${trendHtml}`;
     }
-    // 依頼B（2026-08-16）：自分・理論値のHP推移グラフ。dataviz原則の「時系列の変化＝折れ線」に沿い、
-    // 色は本文の意味色をそのまま流用する（自分=var(--t0)白・理論値=#e3c34d黄。design_system.mdが固定する
-    // 意味色の新規発明を避ける）。凡例は色をドット側に持たせ、ラベル文字は中立色（var(--t2)）に留める。
-    // 数値ラベルは行一覧・footrowと重複するためグラフ側には出さない（グラフのみ、の指示どおり）。
-    function _ddHpTrendLine(series, nSlots, maxHp, w, h, pad) {
-      if (!series || series.length < 2) return { path: '', dot: null };
-      const usableW = w - pad * 2, usableH = h - pad * 2;
-      const pts = series.map((hp, i) => {
-        const x = pad + (nSlots === 0 ? 0 : (i / nSlots) * usableW);
-        const y = pad + usableH - (Math.max(0, Math.min(maxHp, hp)) / maxHp) * usableH;
-        return [x, y];
-      });
-      const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-      return { path, dot: pts[pts.length - 1] };
-    }
-    function _ddRenderHpTrendChart() {
-      if (!DD.results || !DD.results.length) return '';
-      const nSlots = DD.disasters.length, maxHp = DAILY_CFG.hp;
-      const W = 280, H = 68, PAD = 8;
-      const selfSeries = [maxHp, ...DD.results.map(r => r.hpAfter)];
-      const self = _ddHpTrendLine(selfSeries, nSlots, maxHp, W, H, PAD);
-      let theoryLineHtml = '', theoryDotHtml = '', legendTheoryHtml = '';
-      // 理論値の線は解説を閲覧した後（DD.viewedSolution）だけ重ねる。既存の理論値開示ゲート（dailyConfirmSolution等）
-      // と同じ条件のため、未閲覧時にグラフからだけ理論値が漏れて見える、という不整合は起きない。
-      if (DD.viewedSolution && DD.solutionSteps && DD.solutionSteps.steps.length) {
-        const bySlot = {};
-        _ddBuildSolutionGroups(DD.solutionSteps.steps).forEach(g => { bySlot[g.slot] = g; });
-        const theorySeries = [maxHp];
-        for (let s = 0; s < nSlots; s++) {
-          const g = bySlot[s];
-          if (!g || !g.resolve || !g.resolve.result) break;
-          theorySeries.push(g.resolve.result.hpAfter);
-        }
-        if (theorySeries.length > 1) {
-          const theory = _ddHpTrendLine(theorySeries, nSlots, maxHp, W, H, PAD);
-          theoryLineHtml = `<path d="${theory.path}" fill="none" stroke="#e3c34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-          theoryDotHtml = theory.dot ? `<circle cx="${theory.dot[0].toFixed(1)}" cy="${theory.dot[1].toFixed(1)}" r="3" fill="#e3c34d"/>` : '';
-          legendTheoryHtml = `<span class="dd-hptrend-legend-item"><span class="dd-hptrend-dot" style="background:#e3c34d"></span>理論値</span>`;
-        }
-      }
-      const selfLineHtml = `<path d="${self.path}" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-      const selfDotHtml = self.dot ? `<circle cx="${self.dot[0].toFixed(1)}" cy="${self.dot[1].toFixed(1)}" r="3" fill="var(--t0)"/>` : '';
-      return `<div class="dd-hptrend" style="margin:12px 0">
-        <div class="dd-hptrend-title">HP推移</div>
-        <svg viewBox="0 0 ${W} ${H}" class="dd-hptrend-svg" preserveAspectRatio="none" role="img" aria-label="HP推移グラフ">
-          <line x1="${PAD}" y1="${PAD}" x2="${W - PAD}" y2="${PAD}" stroke="var(--bg3)" stroke-width="1"/>
-          <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="var(--bg3)" stroke-width="1"/>
-          ${theoryLineHtml}${selfLineHtml}${theoryDotHtml}${selfDotHtml}
-        </svg>
-        <div class="dd-hptrend-legend">
-          <span class="dd-hptrend-legend-item"><span class="dd-hptrend-dot" style="background:var(--t0)"></span>自分</span>
-          ${legendTheoryHtml}
-        </div>
-      </div>`;
-    }
+    /* HP推移グラフ（2026-08-16 作り直し）。理論値を見たときだけ出す。
+       ⚠️ 旧実装は軸も目盛りも無く「数字も何もないから意味不明」という指摘を受けた。
+          縦軸にHPの数、横軸に災害名を必ず入れる。
+       色は本文の意味色をそのまま流用する（自分=白／理論値=#e3c34d）。
+       preserveAspectRatio は使わない（文字が歪むため）。viewBox の座標系そのままで描く。 */
+    /* 各災害ごとのHPバー（2026-08-16・ユーザー指摘）。
+       「どの災害でどれだけ減ったか」が一番見たい情報なので、行ごとにバトルの
+       ターンサマリーと同じ語彙のバーを置く。奥に赤で被弾前の幅、手前に残りHPを重ね、
+       差分がそのまま「削られた量」に見える。
+       ⚠️ 数値はここに出さない。ダメージ・自分HP・理論値HPの文字は解説トグルの中へ移した。 */
     // steps（_ddBuildSolutionStepsが計算済みの生ステップ列。play/resolve/unused）を「攻撃スロット単位」の
     // 組にまとめ直す純粋な変換関数。計算結果には一切触れず並び替え・グルーピングのみ行う（無変更で流用）。
     function _ddBuildSolutionGroups(steps) {
@@ -16319,25 +16386,72 @@
       const bu = b.map(c => c.uid).slice().sort();
       return au.every((u, idx) => u === bu[idx]);
     }
-    // 1行＝1攻撃の描画（2026-07-30再改修・実装1、2026-08-16再改修・依頼A-1/B）。左＝情報ブロック
-    // （見出し・被害内訳・回復/ダメージ確定/自分HP/理論値HP・解説トグル）／右＝使用政策カード画像（拡大）の
-    // 2カラムに組み替えた（旧・災害名/トグル/カード画像の3カラムでは、右カラム＝カード画像の実高さに対し
-    // 左カラムが災害名1行しか持たず空白が生じていた）。
-    // (a) 自分の実プレイ結果（r・DD.results[i]）は解説閲覧前のみ主役として表示する。解説閲覧後
-    //    （group引数がnon-null）は、理論値と完全一致した行だけ見出し行に「理論値と同じ」バッジを添える
-    //    形に圧縮し、不一致の行は自分の内訳（使用カード・被害数・内訳チップ）を一切出さず理論値のみを
-    //    表示する（ユーザー指摘：自分の結果と理論値を両方並べる二重表示の解消）。合計被害・スコア・称号
-    //    など行単位ではない情報はdailyRenderResult/_ddRenderResultList側でこれまで通り表示する。
-    // (b) 被害数値・基礎ダメージ内訳チップは常時表示（design_system.md §10.1デッドスペースは罪＝
-    //    右カラムの拡大に伴い増えた行の高さを、隠すのではなく埋めるための情報として使う）。トグル
-    //    （.dd-sol-toggle）には理論値解説時の理由文（reason・reducedOptimal）だけを残し、理由文が無い行
-    //    （解説閲覧前・理論値側で対応なしの攻撃）はトグル自体を描画しない。右のカード画像は備えフェーズの
-    //    .dd-mini-imgbox系より一回り大きい72px幅にする（_ddSolCardThumb・旧56px）。
-    // (c) 2026-08-16（依頼A-1・B）：footrowを「回復／ダメージ確定／自分HP／理論値HP」の4種の行を縦積みする
-    //    構成に作り直した。自分の回復ステップ・ダメージの確定内訳（基礎−軽減合計）を必ず表示するのが目的で、
-    //    自分HP・理論値HPは解説閲覧後は一致・不一致を問わず常に両方出す（旧：不一致の行だけ対比表示）。
-    //    ⚠️ ここは表示の並び替え・追加のみであり、r.hpBefore/r.hpAfter等の計算値そのものは一切変更していない
-    //    （HANDOVER.md「回復は表示の順序だけ先に出す。エンジンの計算順は変えない」を踏襲）。
+    function _ddHpBar(hpBefore, hpAfter, label, col, isTheory) {
+      const maxHp = DAILY_CFG.hp;
+      const pctBefore = Math.max(0, Math.min(100, Math.round(hpBefore / maxHp * 100)));
+      const pctAfter = Math.max(0, Math.min(100, Math.round(hpAfter / maxHp * 100)));
+      const lost = pctBefore > pctAfter;
+      return `<div class="dd-hpbar-row">
+        <span class="dd-hpbar-label" style="color:${isTheory ? '#e3c34d' : 'var(--t2)'}">${label}</span>
+        <div class="dd-hpbar-track">
+          ${lost ? `<div class="dd-hpbar-lost" style="width:${pctBefore}%"></div>` : ''}
+          <div class="dd-hpbar-fill" style="width:${pctAfter}%;background:${col}"></div>
+        </div>
+      </div>`;
+    }
+    function _ddRenderHpTrendChart() {
+      if (!DD.results || !DD.results.length) return '';
+      const nSlots = DD.disasters.length, maxHp = DAILY_CFG.hp;
+      const W = 320, H = 156;
+      const PADL = 30, PADR = 10, PADT = 10, PADB = 40;   // 左＝HP目盛り／下＝災害名
+      const plotW = W - PADL - PADR, plotH = H - PADT - PADB;
+      const xAt = i => PADL + (nSlots === 0 ? 0 : (i / nSlots) * plotW);
+      const yAt = hp => PADT + plotH - (Math.max(0, Math.min(maxHp, hp)) / maxHp) * plotH;
+      const line = series => series.map((hp, i) => `${i === 0 ? 'M' : 'L'}${xAt(i).toFixed(1)},${yAt(hp).toFixed(1)}`).join(' ');
+
+      // 縦軸：0 / 半分 / 上限 の3目盛り
+      const ticks = [0, Math.round(maxHp / 2), maxHp];
+      const yAxis = ticks.map(v => `
+        <line x1="${PADL}" y1="${yAt(v).toFixed(1)}" x2="${W - PADR}" y2="${yAt(v).toFixed(1)}" stroke="var(--bg3)" stroke-width="1" stroke-dasharray="${v === 0 ? '0' : '2 3'}"/>
+        <text x="${PADL - 5}" y="${(yAt(v) + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--t2)">${v}</text>`).join('');
+      // 横軸：各災害名（起点0は「開始」）
+      const xLabels = [{ i: 0, name: '開始' }, ...DD.disasters.map((d, i) => ({ i: i + 1, name: d.name }))]
+        .map(o => `<text x="${xAt(o.i).toFixed(1)}" y="${H - PADB + 14}" text-anchor="middle" font-size="8.5" fill="var(--t2)">${_escHtml(o.name)}</text>`).join('');
+
+      const selfSeries = [maxHp, ...DD.results.map(r => r.hpAfter)];
+      const selfPath = `<path d="${line(selfSeries)}" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const selfDots = selfSeries.map((hp, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(hp).toFixed(1)}" r="2.6" fill="var(--t0)"/>`).join('');
+
+      let theoryPath = '', theoryDots = '', legendTheory = '';
+      if (DD.viewedSolution && DD.solutionSteps && DD.solutionSteps.steps.length) {
+        const bySlot = {};
+        _ddBuildSolutionGroups(DD.solutionSteps.steps).forEach(g => { bySlot[g.slot] = g; });
+        const theorySeries = [maxHp];
+        for (let i = 0; i < nSlots; i++) {
+          const g = bySlot[i];
+          if (!g || !g.resolve || !g.resolve.result) break;
+          theorySeries.push(g.resolve.result.hpAfter);
+        }
+        if (theorySeries.length > 1) {
+          theoryPath = `<path d="${line(theorySeries)}" fill="none" stroke="#e3c34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+          theoryDots = theorySeries.map((hp, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(hp).toFixed(1)}" r="2.6" fill="#e3c34d"/>`).join('');
+          legendTheory = `<span class="dd-hptrend-legend-item"><span class="dd-hptrend-dot" style="background:#e3c34d"></span>理論値</span>`;
+        }
+      }
+      return `<div class="dd-hptrend" style="margin:12px 0">
+        <div class="dd-hptrend-title">HP推移（縦軸：HP ／ 横軸：受けた災害）</div>
+        <svg viewBox="0 0 ${W} ${H}" class="dd-hptrend-svg" role="img" aria-label="HP推移グラフ。縦軸がHP、横軸が受けた災害">
+          ${yAxis}
+          <line x1="${PADL}" y1="${PADT}" x2="${PADL}" y2="${H - PADB}" stroke="var(--bg3)" stroke-width="1"/>
+          ${theoryPath}${selfPath}${theoryDots}${selfDots}
+          ${xLabels}
+        </svg>
+        <div class="dd-hptrend-legend">
+          <span class="dd-hptrend-legend-item"><span class="dd-hptrend-dot" style="background:var(--t0)"></span>自分</span>
+          ${legendTheory}
+        </div>
+      </div>`;
+    }
     function _ddRenderResultRow(r, i, group, prevTheoryHp, prevSelfHp) {
       const ownCards = DD.hand.filter((c, hi) => DD.cardAssign[hi] === i);
       let cardsForCol = ownCards;      // 右列に出すカード（既定は自分の実プレイ）
@@ -16373,10 +16487,9 @@
         : `<span class="dd-sol-used-chip dd-sol-used-none">対応なし</span>`;
       // 実装3(a)：解説ボタンをHP推移の行の下・丸いゴーストボタン（.gallery-nav-arrow/.card-zoom-btnと同系統）へ変更。
       // 理由文がある行だけ描画する（無い行にボタンだけあって開いても何も出ない状態を避ける）
-      const toggleHtml = reasonHtml
-        ? `<button type="button" class="dd-sol-explain-btn" aria-label="解説を見る" onclick="dailyToggleSolutionRow(this)"><span class="dd-sol-explain-circle">${_ddIcoArrowRight(13)}</span><span class="dd-sol-explain-label">解説</span></button>`
-        : '';
-      const detailHtml = reasonHtml ? `<div class="dd-sol-detail" hidden>${reasonHtml}</div>` : '';
+      /* トグルは常に出す。数値の内訳（回復・ダメージ・自分HP・理論値HP）がこの中に入るため、
+         理由文が無い行でも開く意味がある。⚠️ 以前は理由文がある行だけ出していた。 */
+      const toggleHtml = `<button type="button" class="dd-sol-explain-btn" aria-label="内訳を見る" onclick="dailyToggleSolutionRow(this)"><span class="dd-sol-explain-circle">${_ddIcoArrowRight(13)}</span><span class="dd-sol-explain-label">内訳</span></button>`;
 
       // ① 回復（自分）：依頼A-1。ownCardsのうちheal型カードの合計値（rawHealRequested）と、
       //    前の行の実HP（prevSelfHp）からr.hpBefore（今回の回復適用後・攻撃解決前のHP）への実差分
@@ -16410,7 +16523,15 @@
             <div class="dd-sol-hpcmp-row theory"><span class="dd-sol-hpcmp-label">理論値</span><span class="dd-sol-hpcmp-num">HP${_thRes.hpBefore}→${_thRes.hpAfter}</span></div>
           </div>`
         : `<span class="dd-sol-hp">HP${r.hpBefore}→${r.hpAfter}</span>`;
-      const footHtml = `${healSelfHtml}${healTheoryHtml}${dmgLine}${hpLinesHtml}`;
+      /* バーは常に出す。理論値を見た後は自分と理論値の2本を並べる（指摘どおり）。
+         自分＝白、理論値＝理論値カラー（#e3c34d）で、行一覧の他の表示と色の意味を揃える。 */
+      const barsHtml = `<div class="dd-hpbars">
+        ${_ddHpBar(r.hpBefore, r.hpAfter, '自分', 'var(--t0)', false)}
+        ${_thRes ? _ddHpBar(_thRes.hpBefore, _thRes.hpAfter, '理論値', '#e3c34d', true) : ''}
+      </div>`;
+      // 文字での内訳（回復・ダメージ確定・自分HP・理論値HP）は解説トグルの中へ移した
+      const numsHtml = `<div class="dd-sol-nums">${healSelfHtml}${healTheoryHtml}${dmgLine}${hpLinesHtml}</div>`;
+      const footHtml = barsHtml;
       return `<div class="dd-sol-row">
         <div class="dd-sol-grid">
           <div class="dd-sol-info">
@@ -16422,10 +16543,10 @@
             ${_ddRenderSolutionRowBreakdown(dmgSource)}
             <div class="dd-sol-footrow">${footHtml}</div>
             ${toggleHtml}
+            <div class="dd-sol-detail" hidden>${numsHtml}${reasonHtml}</div>
           </div>
           <div class="dd-sol-col-r">${cardsHtml}</div>
         </div>
-        ${detailHtml}
       </div>`;
     }
     // 使用した政策カードのサムネイル（実プレイ・理論値の両方で共用）。既存のカード描画資産
