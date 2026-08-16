@@ -44,8 +44,9 @@ window.RonSite = (function(){
       return;
     }
 
-    var ACT2_END_MS = 3850;   /* 幕1(0.75s)+幕2(動画2.10s) */
-    var TOTAL_MS = 8400;      /* ローディング4幕（.loadOverlayが3.95〜4.40秒で消える）に、
+    var ACT2_END_MS = 4350;   /* 幕1(0.75s)+幕2(動画2.10s)。2026-08-16に幕0（0→100のゲージ）を
+                                 前へ挿したぶん、CSSの遅延と揃えて +500ms している */
+    var TOTAL_MS = 8300;      /* ローディング4幕（.loadOverlayが3.95〜4.40秒で消える）に、
                                  00i ファーストビュー（v5-proto.html の .fvIntro。
                                  4.40秒起点で幕1[0.4s]+幕2[1.6s]+幕3[2.0s]＝4.0秒）を
                                  直列でつないだ合計（4.40+4.00=8.40秒）。
@@ -58,7 +59,7 @@ window.RonSite = (function(){
                                  （自動連動ではない）。
                                  スクロール固定自体は CSS の introUnlockPrimary が4.4秒で
                                  解除するので、ここを伸ばしても操作の開始は待たせない。 */
-    var INK_START_MS = 1750;   /* 幕1が明けた瞬間。CSSの .loadInkVid の遅延と同じ値 */
+    var INK_START_MS = 2250;   /* 幕1が明けた瞬間。CSSの .loadInkVid の遅延と同じ値 */
     var done = false;
 
     /* 検証用（?introfreeze=1）：CSS側は animation-play-state:paused で止まるが、
@@ -66,6 +67,82 @@ window.RonSite = (function(){
        DOMから消えて観察できなくなる。停止指定のときは後片付けもしない。
        本番の挙動には影響しない。 */
     var frozen = document.documentElement.hasAttribute('data-introfreeze');
+
+    /* ── 幕0：0→100 のダイヤル（2026-08-16 追加） ──
+       進捗の出どころは CSS の --n ただ1つ。ここはその値を読んで桁を組み替える
+       だけの装飾であり、進行そのものは持たない。JSが動かなければ
+       site.css の counter() フォールバックがそのまま出る。
+       ⚠️ 序盤は1桁が13msごとに変わる（1.30秒で100段）。1回ずつ律儀に
+          260msのアニメーションを掛けると要素が数十枚積み上がって破綻する。
+          直前のロールから90ms未満なら文字を差し替えるだけにし、間隔が
+          空いたときだけ「上から降りてくる」動きを出す。--n の緩急
+          （cubic-bezier(.16,.84,.30,1)）で終盤ほど間隔が空くため、
+          結果として最後の数字だけがダイヤルらしく落ちてくる。 */
+    try {
+      var gauge = overlay.querySelector('.loadGauge');
+      var numEl = overlay.querySelector('.loadNum');
+      var probe = gauge ? parseInt(getComputedStyle(gauge).getPropertyValue('--n'), 10) : NaN;
+      if (gauge && numEl && !isNaN(probe)) {
+        html.classList.add('has-loaddial');
+        var DIAL_EASE = 'cubic-bezier(.22,1,.28,1)';
+        var DIAL_MS = 260;
+        var slots = [];
+        for (var si = 0; si < 3; si++) {
+          var d = document.createElement('span');
+          d.className = 'loadDigit';
+          var it0 = document.createElement('i');
+          d.appendChild(it0);
+          numEl.appendChild(d);
+          /* ⚠️ 生きている数字は node に持つ。firstChild を当てにしないこと。
+             退場アニメーション中の古いノードが先頭に残っている瞬間があり、
+             そこへ書き込むと「消える側」を更新してしまって桁が化ける
+             （実測で 100 のはずが 1059 と出た）。 */
+          slots.push({ el: d, node: it0, cur: null, at: 0 });
+        }
+        var rollDigit = function(slot, ch, now){
+          slot.cur = ch;
+          if (now - slot.at < 90 || !slot.node.animate) {   /* 速すぎる区間は差し替えのみ */
+            slot.node.textContent = ch; slot.at = now; return;
+          }
+          slot.at = now;
+          var old = slot.node;
+          var next = document.createElement('i');
+          next.textContent = ch;
+          slot.el.appendChild(next);
+          slot.node = next;
+          try {
+            next.animate([{ transform:'translateY(-108%)', opacity:0 },
+                          { transform:'translateY(0)',     opacity:1 }],
+                         { duration:DIAL_MS, easing:DIAL_EASE, fill:'both' });
+            var a = old.animate([{ transform:'translateY(0)',    opacity:1 },
+                                 { transform:'translateY(108%)', opacity:0 }],
+                                { duration:DIAL_MS, easing:DIAL_EASE, fill:'both' });
+            var drop = function(){ if (old.parentNode) old.parentNode.removeChild(old); };
+            a.onfinish = drop;
+            /* ⚠️ onfinish だけに頼らない。タブが隠れる・アニメーションが止まる等で
+               発火しないと、送り出した数字が桁の箱に積み上がったまま残る
+               （実測中に6枚積み上がるのを確認した）。時間でも必ず片付ける。 */
+            setTimeout(drop, DIAL_MS + 120);
+          } catch (e) { if (old.parentNode) old.parentNode.removeChild(old); }
+        };
+        var dialDeadline = performance.now() + 6000;   /* 保険：読めない値で回り続けさせない */
+        (function tickDial(now){
+          if (frozen) return;
+          now = now || performance.now();
+          var v = parseInt(getComputedStyle(gauge).getPropertyValue('--n'), 10);
+          if (isNaN(v)) v = 0;
+          v = Math.max(0, Math.min(100, v));
+          var txt = String(v);
+          while (txt.length < 3) txt = ' ' + txt;       /* 3桁ぶんの箱に右詰め */
+          for (var i = 0; i < 3; i++) {
+            var ch = txt.charAt(i) === ' ' ? '' : txt.charAt(i);
+            if (slots[i].cur !== ch) rollDigit(slots[i], ch, now);
+          }
+          if (v >= 100 || now > dialDeadline) return;   /* 100に着いたら止める */
+          requestAnimationFrame(tickDial);
+        })(performance.now());
+      }
+    } catch (e) { /* ダイヤルが組めなくても counter() の表示と進行は生きている */ }
 
     /* 幕2のインク動画を、幕1が明けるのと同時に頭から1回だけ流す。
        ⚠️ 緩急は素材そのものに焼き込んである（site.css の .loadInkVid 参照）。
@@ -186,10 +263,20 @@ window.RonSite = (function(){
       reticle.style.translate = rtX.toFixed(1) + 'px ' + rtY.toFixed(1) + 'px';
     }
 
+    /* 2026-08-16：区画によってカーソルの見た目が変わるという指摘への対処。
+       ポインタが一度でも動いたら常時表示にする（.is-live）。初回だけは
+       lerp の初期位置（-100,-100）から画面内へ飛ぶ軌跡が見えないよう、
+       表示を有効にする前に現在位置へワープさせる。 */
+    var reticleLive = false;
     window.addEventListener('pointermove', function(e){
       tgX = e.clientX; tgY = e.clientY;
+      if (!reticleLive) { reticleLive = true; rtX = tgX; rtY = tgY; paintReticle(); reticle.classList.add('is-live'); }
       if (reduce) { rtX = tgX; rtY = tgY; paintReticle(); }
     }, { passive:true });
+    /* ウィンドウの外へ出たら消す（画面の隅に取り残さない）。戻れば次の
+       pointermove で再表示される。 */
+    document.addEventListener('pointerleave', function(){ reticle.classList.remove('is-live'); });
+    window.addEventListener('blur', function(){ reticle.classList.remove('is-live'); });
 
     document.addEventListener('pointerover', function(e){
       if (e.target.closest && e.target.closest(RETICLE_SEL)) {

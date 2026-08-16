@@ -495,8 +495,8 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
    同期スクリプトが判定する）。 */
 .loadOverlay{position:fixed;inset:0;z-index:200;
   overflow:hidden;background:#fff;
-  animation:loadOverlayOut .45s var(--e) 3.95s both,
-            loadOverlayHide 0s 4.7s forwards,
+  animation:loadOverlayOut .45s var(--e) 4.45s both,
+            loadOverlayHide 0s 5.2s forwards,
             introHideForce 0s 8s forwards}
 @keyframes loadOverlayOut{ from{opacity:1} to{opacity:0;pointer-events:none} }
 @keyframes loadOverlayHide{ to{ display:none } }
@@ -505,7 +505,7 @@ html.intro-skip .loadOverlay{display:none}
 @keyframes introHideForce{ to{ display:none } }
 
 html.intro-lock{overflow:hidden;
-  animation:introUnlockPrimary 0s 4.4s forwards, introUnlockForce 0s 8s forwards}
+  animation:introUnlockPrimary 0s 4.9s forwards, introUnlockForce 0s 8s forwards}
 @keyframes introUnlockPrimary{ to{ overflow:visible } }
 @keyframes introUnlockForce{ to{ overflow:visible } }
 
@@ -513,7 +513,7 @@ html.intro-lock{overflow:hidden;
 .loadCredit{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
   opacity:0;transform:translateY(var(--s1));
-  animation:loadCreditIn .70s var(--e) 1.05s both}
+  animation:loadCreditIn .70s var(--e) 1.55s both}
 @keyframes loadCreditIn{
   0%{opacity:0;transform:translateY(var(--s1))}
   100%{opacity:1;transform:translateY(0)}
@@ -522,7 +522,7 @@ html.intro-lock{overflow:hidden;
   color:#0b1420;text-align:center;line-height:1.7}
 .loadCreditRule{display:block;width:2.5rem;height:1px;background:#0b1420;
   margin-top:var(--s1);transform-origin:center;transform:scaleX(0);
-  animation:loadCreditRuleIn .52s var(--e) 1.23s both}
+  animation:loadCreditRuleIn .52s var(--e) 1.73s both}
 @keyframes loadCreditRuleIn{ to{ transform:scaleX(1) } }
 
 /* ── 幕2（0.5–1.3s）：黒いインクの染み ──
@@ -542,7 +542,7 @@ html.intro-lock{overflow:hidden;
      .loadOverlay の白地とクレジットを相手に合成される。 */
   mix-blend-mode:multiply;
   /* 幕2が終わったら描画から外す。JSが止まっていても効くCSS側の保険。 */
-  animation:loadInkHide 0s 4.00s forwards}
+  animation:loadInkHide 0s 4.50s forwards}
 @keyframes loadInkHide{ to{ display:none } }
 
 /* 幕2（0.75〜2.65秒）：実写のインク動画。
@@ -569,7 +569,7 @@ html.intro-lock{overflow:hidden;
      呑み込む流れになる。scale は translate で空く端を埋めるためのもので、
      画面の1.18倍までしか広げない（巨大レイヤーを作らないこと）。 */
   transform:translateY(-9%) scale(1.18);
-  opacity:0;animation:loadVidShow 0s linear 1.75s both}
+  opacity:0;animation:loadVidShow 0s linear 2.25s both}
 @keyframes loadVidShow{ from{opacity:0} to{opacity:1} }
 
 /* 安全網：SVGフィルタやtransformの解釈差があっても、幕2の終わりには必ず
@@ -577,7 +577,7 @@ html.intro-lock{overflow:hidden;
    幕3のあいだ黒を維持し、幕4はオーバーレイ本体（loadOverlayOut）と
    歩調を合わせてロゴごと消える。 */
 .loadBlackout{position:absolute;inset:0;z-index:3;background:#04070c;
-  opacity:0;animation:loadBlackoutSeq .60s linear 3.40s both}
+  opacity:0;animation:loadBlackoutSeq .60s linear 3.90s both}
 @keyframes loadBlackoutSeq{
   0%{opacity:0}
   35%{opacity:0}
@@ -602,31 +602,76 @@ html.intro-lock{overflow:hidden;
    ⚠️ カウンタが出ない環境（@property非対応など）でも破綻しないよう、
    counter-reset に var(--n, 0) のフォールバックを渡してある。その場合は
    「0%」で静止するだけで、要素が消えたり空白のまま浮いたりはしない。 */
-@property --n{ syntax:'<integer>'; inherits:false; initial-value:0 }
-.loadCount{position:absolute;z-index:1;right:var(--s3);bottom:var(--s3);
-  font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:#0b1420;
-  opacity:0;pointer-events:none;
-  counter-reset:n var(--n, 0);
-  /* ⚠️ カウントとクレジットとインクを重ねないこと。同時に進むとインクの
-     見せ場が他の要素に食われる（実機で「染みが飛ぶ」と指摘された）。
-     カウント(0〜1.05秒) → クレジット(1.05〜1.75秒) → インク(1.75〜3.85秒)
-     の順に、重ならないよう直列で並べる。 */
-  animation-name:loadCountFade,loadCountUp,loadCountOut;
-  animation-duration:.3s,1.05s,.25s;
-  animation-timing-function:var(--e),linear,var(--e);
-  animation-delay:0s,0s,1.05s;
+/* ⚠️ inherits:true にしてある（2026-08-16）。円弧の stroke-dashoffset と
+   数字の両方が同じ --n を読むため、進捗の出どころが1つに保たれる。
+   inherits:false のままだと子孫が値を読めず、円弧と数字が別々に動く。 */
+@property --n{ syntax:'<integer>'; inherits:true; initial-value:0 }
+
+/* 幕0（2026-08-16 作り直し）：画面中心の周回リング＋LOAD＋0→100 のダイヤル。
+   ⚠️ 順序を守ること。ローディングの目的は produced by 以降のモーションが
+      カクついたり飛んだりしないための時間稼ぎであり、0→100 が終わってから
+      produced by を始める（過去に一度この順序を崩して指摘を受けている）。
+      カウント(0.10〜1.40秒) → クレジット(1.55〜2.25秒) → インク(2.25〜4.35秒)。 */
+.loadGauge{position:absolute;z-index:1;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:var(--s3);
+  pointer-events:none;opacity:0;
+  /* 進捗の唯一の出どころ。ここで --n を動かし、子孫が読む。
+     緩急は「勢いよく出て終盤で締まる」形にする（実際の読み込みの体感に近い）。 */
+  animation-name:loadGaugeIn,loadCountUp,loadGaugeOut;
+  animation-duration:.30s,1.30s,.18s;
+  /* ⚠️ 前寄せを強くしすぎない。cubic-bezier(.16,.84,.30,1) では200msで35%・
+     700msで93%まで飛び、残り600msが93→100でほぼ止まって「固まった」ように
+     見えた（実測して差し替え）。下の曲線は終盤を緩めつつ停滞させない。 */
+  animation-timing-function:var(--e),cubic-bezier(.33,.62,.42,1),var(--e);
+  animation-delay:.05s,.10s,1.40s;
   animation-fill-mode:both,both,forwards}
-.loadCount::before{content:counter(n) '%'}
-@keyframes loadCountFade{ to{opacity:.55} }
-@keyframes loadCountOut{ to{opacity:0} }
+@keyframes loadGaugeIn{ to{opacity:1} }
+@keyframes loadGaugeOut{ to{opacity:0} }
 @keyframes loadCountUp{ from{--n:0} to{--n:100} }
+
+.loadRing{position:relative;width:clamp(104px,26vmin,168px);aspect-ratio:1;
+  display:grid;place-items:center}
+/* 円は常に回り続ける。進捗は円弧の長さが担い、回転は「読み込み中である」
+   という信号だけを担う（2つの意味を1つの動きに混ぜない）。 */
+.loadRingSvg{position:absolute;inset:0;width:100%;height:100%;
+  transform:rotate(-90deg);animation:loadRingSpin 2.6s linear infinite}
+@keyframes loadRingSpin{ to{ transform:rotate(270deg) } }
+.loadRingTrack{fill:none;stroke:#0b1420;stroke-width:1.5;opacity:.14}
+/* 2πr = 2 × π × 54 ≒ 339.29。--n が増えるほど offset が減って弧が伸びる。 */
+.loadRingArc{fill:none;stroke:#0b1420;stroke-width:1.5;stroke-linecap:round;
+  stroke-dasharray:339.29;
+  stroke-dashoffset:calc(339.29 * (100 - var(--n, 0)) / 100)}
+.loadRingWord{position:relative;font-size:var(--fs-xs);letter-spacing:var(--tr-label);
+  color:#0b1420;opacity:.75}
+
+.loadCount{display:flex;align-items:baseline;
+  font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:#0b1420;opacity:.55;
+  font-variant-numeric:tabular-nums}
+/* フォールバック：JSが動かない環境ではCSSの counter() がそのまま出る。
+   JSが桁を組んだら html.has-loaddial 側でこちらを黙らせる。 */
+.loadNum{counter-reset:n var(--n, 0)}
+.loadNum::before{content:counter(n)}
+html.has-loaddial .loadNum::before{content:none}
+/* ダイヤル：桁が変わるときだけ、上から緩急をつけて新しい数字が降りてくる。
+   ⚠️ 桁の箱に overflow:hidden を掛け、はみ出した旧数字を隠す。1emの箱に
+      2枚重ねて片方を送り出す方式にしてあり、レイアウトは動かない。 */
+.loadDigit{position:relative;display:inline-block;width:.62em;height:1.15em;
+  overflow:hidden;vertical-align:baseline}
+.loadDigit > i{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-style:normal;line-height:1}
 
 /* ── 幕3は廃止した（2026-08-12）──
    ローディングの最後にロゴを出すのをやめ、タイトルはファーストビューだけで
    見せる。同じ字を2度続けて出す必要がないため。暗転したままオーバーレイごと
    退場し、ファーストビューへ引き渡す。 */
 /* ══════ カスタムカーソル：照準レティクル（§10.8.3-7・§20.3で拡大／色変化を追加） ══════
-   地の部分では出さない。押せる要素にホバーしたときだけ現れて拡大する。
+   2026-08-16（ユーザー指摘「2モードの説明ら辺でしかカーソルが変わらない。
+   どこでも一貫してその形にする」）：旧仕様は「地の部分では出さない。押せる
+   要素にホバーしたときだけ現れる」だったため、レティクルが出るのは
+   a / button / .orbitNode / .modeShotWrap の上だけで、区画によって
+   カーソルの見た目が変わっていた。ポインタが動いた時点から常時表示に改める
+   （.is-live）。押せる要素での拡大（.is-active）と押下の色変化（.is-pressed）は
+   従来どおり残し、「常にこの形／押せる所で大きくなる」の2段構えにする。
    PC（hover:hoverとpointer:fineの両方）に限定する。
    🚫 cursor:none にしない。ネイティブカーソルは残したまま重ねる。
    ホバー＝拡大（.is-active）、押下＝色変化（.is-pressed）の2つの信号を分ける。
@@ -642,6 +687,11 @@ html.intro-lock{overflow:hidden;
     transition:background-color .15s var(--e)}
   .cursorReticle::before{left:50%;top:-6px;bottom:-6px;width:1px;transform:translateX(-50%)}
   .cursorReticle::after{top:50%;left:-6px;right:-6px;height:1px;transform:translateY(-50%)}
+  /* 常時表示（2026-08-16）：ポインタが一度でも動いたら地の上でも出す。
+     控えめな不透明度に留め、押せる要素での拡大（.is-active）を主役にする。
+     ⚠️ この行は .is-active より前に置くこと。詳細度が同じ(0,2,0)なので
+        後に書いたほうが勝つ。逆順にすると拡大時の opacity:1 が打ち消される。 */
+  .cursorReticle.is-live{opacity:.45}
   /* ホバー：2.5rem→約4.5rem相当（scale 1.8）まで明確に広がる。 */
   .cursorReticle.is-active{opacity:1;scale:1.8}
   /* 押下：goldへ。§20.5のテキストのタップ反応と同じ規則。 */
@@ -665,13 +715,29 @@ body > footer{position:relative;z-index:1}
 /* ══════ スマホ改行の出し分け（今回3箇所で共通使用） ══════
    新しいブレークポイントは増やさず、既存の @media(max-width:899px) を使う。
    .mobileBr：PCでは無い扱い（改行しない）、スマホでだけ改行する <br> に使う。
-   .pcOnly：スマホでだけ非表示にする（区切り記号などPC版限定の表示に使う）。 */
+   .pcBr  ：その逆。PCでだけ改行し、スマホでは改行しない <br> に使う。
+   .pcOnly：スマホでだけ非表示にする（区切り記号などPC版限定の表示に使う）。
+   ⚠️ 打ち消しは必ずこの @media ブロックの中に入れること。@media は詳細度を
+      上げないため、定義より前に書くと後勝ちで無効になる（.closeKV で実際に踏んだ）。 */
 .mobileBr{display:none}
+.pcBr{display:block}
 .pcOnly{display:inline}
 @media(max-width:899px){
   .mobileBr{display:block}
+  .pcBr{display:none}
   .pcOnly{display:none}
 }
+
+/* ══════ 02の見出し「現実とリンクした世界観」の組版（2026-08-16） ══════
+   ⚠️ 見出し・短文は気持ち悪いところで改行しない。1〜2文字だけを次行へ送らない。
+   修正前の実測（ヘッドレスChromeで各幅を計測）：
+     390px  → 「現実とリンクし／た／世界観」（8文字で303px、使える幅294pxに9px足りない）
+     900px  → 「現実とリン／クした世界／観」（mobileBrが切れて自動折返しに落ちる）
+     1180px → 「現実とリンク／した世界観」
+   対策は2つ。①仮名を .74em に落としてジャンプ率を付け、行の実幅を 6.44em まで縮める
+   （2em＋6×.74em）。②改行を <br> で明示し、スマホ2行・PC3行に固定して自動折返しに
+   委ねない。字の大小と改行位置は文の意味に属する組版であり、幅で偶然決まってはいけない。 */
+.wvTitle .wvKana{font-size:.74em}
 
 /* ══════ ロゴ：画面左上に固定（§20.4） ══════
    2026-08-12 第6次：アイコンを下部バーから外し、ここへ独立させた。役割は

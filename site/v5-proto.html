@@ -427,18 +427,47 @@ html.ink-gl .inkLayer{display:none}
                    前半・後半はこの半分ずつの長さになる）
    --fvStrobeBright … 白フラッシュの「明るさ」（0〜1）
    既定は 16回 × .1s＝1.6s で、幕2の長さ（0.4〜2.0s＝1.6s）にちょうど収まる。
-   ⚠️ この2つを変えて幕2の長さ（--fvAct2Dur）を変えた場合、幕3の開始が
-      連動してずれる（マーカー等の delay は var(--fvAct2Dur) から自動計算して
-      いるため見た目は破綻しないが）、site.js の TOTAL_MS はこのファイルの
-      合計尺に合わせて手動で計算し直すこと（自動連動ではない）。
+   ⚠️ 幕の長さを変えると後続の幕の開始が連動してずれる（--fvT1〜--fvEnd が
+      自動計算されるため見た目は破綻しない）が、site.js の TOTAL_MS だけは
+      自動連動しない。合計尺に合わせて手動で計算し直すこと。
    ⚠️ steps()+animation-direction:alternate は使わない。1区間の steps()は
       順再生・逆再生を問わず常に終端値を返すため、alternateと組み合わせると
       「最初の1回しか切り替わらない」事故になる（実機検証で発見。詳細は
       直下の .fvStrobe 定義コメント）。 */
+/* ══════ 2026-08-16：幕の構成を組み替え、時刻を全部この1か所から導く ══════
+   旧構成は「カード突入 → 地の点滅と文字の点滅が完全同期」だった。実機で
+   ①カードが横から一瞬で通り過ぎてカードだと分からない ②明滅が強すぎる
+   ③文字の点滅が地と同調していて単調、と指摘を受けたため次の4幕に組み替えた。
+     幕1  カードが奥から手前へ来て、表が画面と平行になって刺さる
+     幕2a 白黒の点滅だけを数回（文字はまだ出さない）
+     幕2b 行ごと・文字ごとにタイポグラフィが出現。文字の輪郭⇄塗りの点滅は
+          地の点滅と**わざと非同期**にする（周期も位相も揃えない）
+     幕3  3行が生き残る1行へ集約し、下線が伸びて光る
+   ⚠️ 幕2bで地の点滅は止めてある。地が白い瞬間に白い文字が埋もれて読めない
+      という過去の不具合を、同期させずに避けるための構成である。
+      幕2bで地を点滅させ直す場合は文字色の反転を必ず戻すこと。 */
+.fvIntro{ --fvT0:4.90s }          /* ローディング直後。ここだけで起点を動かせる */
+html.intro-skip .fvIntro{ --fvT0:0s }  /* 2回目以降はローディングが無いので即開始 */
 .fvStage{
-  --fvFlipCount:16; --fvFlipMs:.1s; --fvStrobeBright:1;
-  --fvAct2Dur:calc(var(--fvFlipCount) * var(--fvFlipMs));
-  position:absolute;inset:0;perspective:900px;
+  /* 点滅の強さ（幕2a）。実機で「強すぎる」と指摘を受け 16回/.1s/明るさ1 から落とした。 */
+  --fvFlipCount:5; --fvFlipMs:.11s; --fvStrobeBright:.72;
+  /* 文字だけの点滅（幕2b）。地とは周期を変える（同調させない）。 */
+  --fvRowFlickMs:.19s;
+  --fvCardDur:.90s;                                        /* 幕1 */
+  --fvAct2aDur:calc(var(--fvFlipCount) * var(--fvFlipMs)); /* 幕2a＝.55s */
+  --fvAct2bDur:1.10s;                                      /* 幕2b */
+  --fvAct3Dur:.60s;                                        /* 幕3 */
+  --fvT1:var(--fvCardDur);                                             /* 幕2a開始 */
+  --fvT2:calc(var(--fvCardDur) + var(--fvAct2aDur));                   /* 幕2b開始 */
+  --fvT3:calc(var(--fvT2) + var(--fvAct2bDur));                        /* 幕3開始 */
+  --fvEnd:calc(var(--fvT3) + var(--fvAct3Dur));                        /* 演出終了 */
+  /* 集約と下線で共有するイージング。指定どおり両者を同じ曲線で揃える。 */
+  --fvEase:cubic-bezier(.16,1,.24,1);
+  /* 行の送り幅。.fvRows（親）と .fvRow（子）でフォントサイズが違うため、
+     em ではなくこの変数で揃える。1.05 は .fvRow の line-height。 */
+  --fvFS:clamp(2rem,9.2vw,6.6rem);
+  --fvStep:calc(var(--fvFS) * 1.05 + var(--s1));
+  position:absolute;inset:0;perspective:1100px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   transform:translate(0,0)}
 
@@ -451,10 +480,20 @@ html.ink-gl .inkLayer{display:none}
   border-radius:6px;object-fit:cover;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 18px 48px rgba(0,0,0,.55);
   opacity:0}
+/* 2026-08-16：横から一瞬で通り過ぎる動きをやめ、奥から手前へ近づける。
+   ⚠️ 「カードであること」が読み取れる時間を作るのが目的なので、表が画面と
+      平行になった状態（rotate が全部0）を 62%〜88% の約0.25秒ぶん保持する。
+      ここを詰めると元の「速すぎて分からない」に戻る。
+   奥行きは translateZ で出す（親の perspective:1100px が効く）。
+   🚫 巨大な scale で寄せないこと。画面の数倍のレイヤーになり、iPhone
+      （画素密度3）でテクスチャ上限を超えて描画ごと消える（過去に踏んだ）。 */
 @keyframes fvCardIn{
-  0%  {opacity:1;transform:translateX(150vw) rotateY(112deg) rotateZ(-16deg) scale(.68)}
-  62% {opacity:1;transform:translateX(0) rotateY(-6deg) rotateZ(1deg) scale(1.05)}
-  100%{opacity:0;transform:translateX(0) rotateY(0deg) rotateZ(0deg) scale(1)}
+  0%  {opacity:0;transform:translateZ(-1500px) rotateY(-42deg) rotateX(16deg) rotateZ(-9deg)}
+  14% {opacity:1}
+  46% {opacity:1;transform:translateZ(-320px) rotateY(-14deg) rotateX(5deg) rotateZ(-3deg)}
+  62% {opacity:1;transform:translateZ(90px) rotateY(0deg) rotateX(0deg) rotateZ(0deg)}
+  88% {opacity:1;transform:translateZ(90px) rotateY(0deg) rotateX(0deg) rotateZ(0deg)}
+  100%{opacity:0;transform:translateZ(150px) rotateY(0deg) rotateX(0deg) rotateZ(0deg)}
 }
 /* カメラシェイク：突入の衝撃で画面全体（.fvStage）が揺れる。 */
 @keyframes fvShake{
@@ -509,8 +548,18 @@ html.ink-gl .inkLayer{display:none}
    display:flex かつ justify-content:center のため、消えた行の分だけ
    自動的に再センタリングされ、残る1行が「完全に中央」になる（transformで
    個別に動かす必要がない）。 */
+/* 4行のうち生き残るのは3行目。素のままだと4行の中心（1行目と2行目の間）が
+   画面中心になり、集約後の1行が中心からずれる。幕3で半段ぶん持ち上げて、
+   残る1行が画面の真ん中に来るようにする。 */
 .fvRows{position:relative;z-index:3;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:var(--s1)}
+@keyframes fvRowsRecenter{ to{ transform:translateY(calc(var(--fvStep) * -.5)) } }
+/* 1文字ずつの出現（幕2b）。行（--ri）と文字（--ci）で遅延をずらす。
+   ⚠️ 行そのものの opacity とは別軸。掛け合わさるだけなので競合しない。 */
+.fvRow > i{display:inline-block;font-style:normal;opacity:0;
+  transform:translateY(.14em)}
+.fvRow > i.fvSp{width:.34em}
+@keyframes fvCharIn{ to{ opacity:1;transform:translateY(0) } }
 .fvRow{position:relative;display:inline-block;margin:0;white-space:nowrap;
   font-family:'Outfit','Archivo',sans-serif;font-weight:900;letter-spacing:-.02em;
   font-size:clamp(2rem,9.2vw,6.6rem);line-height:1.05;text-transform:uppercase;
@@ -539,30 +588,34 @@ html.ink-gl .inkLayer{display:none}
    輪郭だけの行が混在する」見た目を保つ（実装記録：地の色と関係なく形だけを
    固定した行を混ぜることで、常読める塗り／輪郭を保ったまま雑然とした
    グリッチ感を残せる）。 */
-/* ⚠️ fvStrobeFlip と同じ理由・同じ作法（steps()×alternateを使わない）。
+/* ⚠️ 2026-08-16：全ての相を「白」にした。旧実装は白地フェーズ用に黒い文字相を
+   持っていたが、幕2bでは地の点滅が既に終わって黒地に固定されるため、黒相に
+   入った瞬間に文字が黒地へ溶けて消える（実測で生き残る行が丸ごと消えた）。
+   地と同期させない（7-2c）以上、文字は常に白で読める側に倒すのが正しい。
+   ⚠️ fvStrobeFlip と同じ理由・同じ作法（steps()×alternateを使わない）。
    1回の反復の中に「前半＝黒地フェーズの色（49.9%まで）→後半＝白地
    フェーズの色（50%から）」を直接埋め込み、animation-direction は
    normal。.fvStrobe と全く同じ delay/duration/iteration-count/direction
    で駆動するため、地の色の切り替わりと1フレームもずれない。 */
 @keyframes fvRowFlip{
-  0%,49.9%  { color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(0,0,0,0) }
-  50%,100%  { color:#000;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #000 }
+  0%,49.9%  { color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0) }
+  50%,100%  { color:#fff;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #fff }
 }
-.fvRow--outline{--rowShapeAnim:fvRowFlipOutline}
+/* 輪郭のまま線の太さだけ揺れる行。 */
+.fvRow--outline{--rowShapeAnim:fvRowFlipOutline;--fvRowFlickMs:.23s}
 @keyframes fvRowFlipOutline{
   0%,49.9%  { color:#fff;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #fff }
-  50%,100%  { color:#000;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #000 }
+  50%,100%  { color:#fff;-webkit-text-fill-color:transparent;-webkit-text-stroke:.10em #fff }
 }
-.fvRow--solid{--rowShapeAnim:fvRowFlipSolid}
+/* 塗りのまま濃さだけ揺れる行。 */
+.fvRow--solid{--rowShapeAnim:fvRowFlipSolid;--fvRowFlickMs:.29s}
 @keyframes fvRowFlipSolid{
-  0%,49.9%  { color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(0,0,0,0) }
-  50%,100%  { color:#000;-webkit-text-fill-color:#000;-webkit-text-stroke:0 rgba(255,255,255,0) }
+  0%,49.9%  { color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0) }
+  50%,100%  { color:rgba(255,255,255,.5);-webkit-text-fill-color:rgba(255,255,255,.5);-webkit-text-stroke:0 rgba(255,255,255,0) }
 }
-/* fvStrobeSettle と同じ理由・同じ作法。fvRowFlip系の最終停止（塗りか輪郭か・
-   白か黒か）は --fvFlipCount の偶奇に賭けない。幕2が終わる瞬間、地が黒へ
-   強制固定される（fvStrobeSettle）のと同じタイミングで、文字も白塗りへ
-   強制固定する。var(--rowShapeAnim) より後ろに列挙し、fill-mode は
-   forwards のみ。 */
+/* 生き残る行は最も速い周期。4行それぞれ .19 / .23 / .17 / .29 秒と割り切れない比に
+   してあり、幕2bのあいだ一度も位相が揃わない＝機械的な同調に見えない（7-2c）。 */
+.fvRow--keep{--fvRowFlickMs:.17s}
 @keyframes fvRowSettle{ to{ color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0) } }
 /* 0秒アニメーション＝指定した瞬間に値を切り替えるだけのトリガー
    （.loadInkHide などサイト内の既存の作法と同じ）。
@@ -577,83 +630,145 @@ html.ink-gl .inkLayer{display:none}
    （Web Animationsのコンポジット順）。enter用とvanish用を分けたところ、
    3本目（vanish）のfrom=opacity:1が2本目（enter）のfrom=opacity:0を
    上書きし、消える3行が幕1の間から見えてしまう事故を実際に踏んだ。
-   duration を幕2の長さ（--fvAct2Dur）そのものにして、登場から消滅までを
-   1本のキーフレームで完結させる。 */
+   duration を幕2bの長さ（--fvAct2bDur）そのものにして、登場を1本の
+   キーフレームで完結させる（消滅＝集約は幕3の fvRowConverge が担う）。 */
+/* 幕2b：3行は出たまま。opacity は行の在／不在だけを担う（1本で完結させる）。 */
 @keyframes fvRowFadeLifecycle{
-  0%  {opacity:0;line-height:0}
-  3%  {opacity:1;line-height:1.05}
-  97% {opacity:1;line-height:1.05}
-  100%{opacity:0;line-height:0}
+  0%  {opacity:0}
+  8%  {opacity:1}
+  100%{opacity:1}
+}
+/* 幕3（7-3a）：3行が「生き残る1行」の位置へ寄って集約する。
+   --conv は行ごとの段数（マークアップ側で指定）。下から上・上から下の
+   両方向へ寄るため符号を持たせてある。
+   ⚠️ 旧実装は line-height を0へ畳んで再センタリングしていた。畳むと
+      「消える」だけで「集まる」に見えないため、位置を動かす方式へ変えた。
+      再センタリングは .fvRows 側の fvRowsRecenter が担う。 */
+@keyframes fvRowConverge{
+  0%  {opacity:1;transform:translateY(0) scale(1)}
+  70% {opacity:.45}
+  100%{opacity:0;transform:translateY(calc(var(--fvStep) * var(--conv) * 1)) scale(.92)}
 }
 
 /* ── マーカー：生き残った行の下に、キーカラーの赤が慣性を伴って伸びる ── */
-.fvMark{position:absolute;left:0;right:0;top:calc(100% + var(--s1) * .6);
-  height:clamp(3px,.55vw,6px);border-radius:2px;background:var(--accent);
+/* 2026-08-16（7-3b・7-3c）：下線を太くし、文字の下2〜3割に重ねて背景側へ回す。
+   ⚠️ top/height は em で書く。em は .fvRow から継承したフォントサイズに
+      解決されるので、clamp で可変になる見出しにそのまま追随する。
+   ⚠️ z-index:-1 で文字の後ろへ。.fvRow は filter:drop-shadow を持つため
+      それ自体が合成グループになっており、負のz-indexでも行の外へは抜けない。 */
+.fvMark{position:absolute;left:-.04em;right:-.04em;top:.62em;z-index:-1;
+  height:.26em;border-radius:1px;background:var(--accent);
   transform-origin:left center;transform:scaleX(1)}
 @keyframes fvMarkDraw{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
+/* 最後に光る。伸び切ってから追いかけて発光させる（伸びと同時に光らせない）。 */
+@keyframes fvMarkGlow{
+  0%  {box-shadow:0 0 0 rgba(250,42,78,0)}
+  55% {box-shadow:0 0 26px 4px rgba(250,42,78,.72)}
+  100%{box-shadow:0 0 12px 1px rgba(250,42,78,.34)}
+}
+
+/* ══════ スクロール誘導（7-4）。演出が終わってから右下に出す ══════ */
+.fvScroll{position:absolute;right:var(--s4);bottom:var(--s4);z-index:5;
+  display:flex;flex-direction:column;align-items:center;gap:var(--s1);
+  color:rgba(255,255,255,.72);pointer-events:none;opacity:0}
+.fvScrollLabel{font-size:var(--fs-xs);letter-spacing:var(--tr-label)}
+.fvScrollArrow{width:12px;height:30px}
+@keyframes fvScrollIn{ to{opacity:1} }
+/* 出たあとは静かに上下する。振れ幅は小さく（YOASOBIの「動きが静かなのに強い」）。 */
+@keyframes fvScrollBob{
+  0%,100%{transform:translateY(0)}
+  50%    {transform:translateY(5px)}
+}
 
 /* ══════ タイミング（intro-lock：ローディング直後＝4.40秒起点） ══════
-   .loadOverlay は 3.95〜4.40秒で消える（site.css）。ファーストビューは
-   その直後、4.40秒から始める。
+   .loadOverlay は 4.45〜4.90秒で消える（site.css。2026-08-16に幕0＝0→100のゲージを
+   前へ挿したぶん、全工程を +0.50秒ずらした）。ファーストビューはその直後、4.90秒から始める。
+   ⚠️ ローディング側の遅延を動かしたら、この intro-lock 配下の遅延も同じだけ動かすこと。
+      片方だけ動かすと、オーバーレイが消えきる前にファーストビューが走り出して重なる。
    site.js の TOTAL_MS はこの合計尺（既定で 4.40+4.0=8.40秒）の終わりに
    合わせてある。TOTAL_MS+200ms で intro-lock が剥がされ、剥がれた瞬間に
    html.intro-lock 配下の animation は既定値（＝幕3終了後の最終状態）へ飛ぶため、
    8.40秒より前に剥がしてはいけない。 */
-html.intro-lock .fvCard{animation:fvCardIn .4s var(--e) 4.40s both}
-html.intro-lock .fvStage{animation:fvShake .3s var(--e) 4.62s both}
-html.intro-lock .fvStrobe{
-  animation-name:fvStrobeFlip,fvStrobeSettle;
-  animation-duration:var(--fvFlipMs),0s;
-  animation-timing-function:linear,linear;
-  animation-iteration-count:var(--fvFlipCount),1;
-  animation-direction:normal,normal;
-  animation-delay:4.80s,calc(4.80s + var(--fvAct2Dur));
-  animation-fill-mode:both,forwards}
-html.intro-lock .fvRow{
-  animation-name:fvRowEnter,var(--rowShapeAnim),fvRowSettle;
-  animation-duration:0s,var(--fvFlipMs),0s;
-  animation-timing-function:linear,linear,linear;
-  animation-iteration-count:1,var(--fvFlipCount),1;
-  animation-direction:normal,normal,normal;
-  animation-delay:4.80s,4.80s,calc(4.80s + var(--fvAct2Dur));
-  animation-fill-mode:both,both,forwards}
-html.intro-lock .fvRow--fade{
-  animation-name:fvRowFadeLifecycle,var(--rowShapeAnim);
-  animation-duration:var(--fvAct2Dur),var(--fvFlipMs);
-  animation-timing-function:linear,linear;
-  animation-iteration-count:1,var(--fvFlipCount);
-  animation-direction:normal,normal;
-  animation-delay:4.80s,4.80s;animation-fill-mode:both,both}
-html.intro-lock .fvMark{animation:fvMarkDraw .6s var(--e) calc(4.95s + var(--fvAct2Dur)) both}
+/* ══════ タイミング表（2026-08-16に1本化） ══════
+   起点は .fvIntro の --fvT0 だけ。ローディングありは 4.90s、2回目以降
+   （html.intro-skip）は 0s を入れてある。以前は intro-lock 用と intro-skip 用に
+   同じ表を2つ持っていて、片方だけ直して食い違う事故が起きやすかった。
+   ⚠️ ローディング側の遅延を動かしたら .fvIntro の --fvT0 を同じだけ動かすこと。
+      片方だけだとオーバーレイが消えきる前にファーストビューが走り出して重なる。 */
 
-/* 同一セッションの2回目以降はローディングを出さないので、待たずに始める
-   （起点0秒。各delayから4.40sを引いた値）。 */
-html.intro-skip .fvCard{animation:fvCardIn .4s var(--e) both}
-html.intro-skip .fvStage{animation:fvShake .3s var(--e) .22s both}
+/* ── 幕1：カードが奥から手前へ来て刺さる ── */
+html.intro-lock .fvCard,
+html.intro-skip .fvCard{animation:fvCardIn var(--fvCardDur) var(--e) var(--fvT0) both}
+/* 突き刺さった瞬間の衝撃。カードが正対する 62% の時点に合わせる。 */
+html.intro-lock .fvStage,
+html.intro-skip .fvStage{animation:fvShake .3s var(--e)
+  calc(var(--fvT0) + var(--fvCardDur) * .62) both}
+
+/* ── 幕2a：白黒の点滅だけ（文字はまだ出さない） ── */
+html.intro-lock .fvStrobe,
 html.intro-skip .fvStrobe{
   animation-name:fvStrobeFlip,fvStrobeSettle;
   animation-duration:var(--fvFlipMs),0s;
   animation-timing-function:linear,linear;
   animation-iteration-count:var(--fvFlipCount),1;
   animation-direction:normal,normal;
-  animation-delay:.4s,calc(.4s + var(--fvAct2Dur));
+  animation-delay:calc(var(--fvT0) + var(--fvT1)),calc(var(--fvT0) + var(--fvT2));
   animation-fill-mode:both,forwards}
+
+/* ── 幕2b：行が出る。文字の輪郭⇄塗りの点滅は地とは別の周期で回す（7-2c） ──
+   ⚠️ --fvRowFlickMs は --fvFlipMs（地）と揃えない。揃えると同調して
+      単調になるうえ、過去に「白地で白い文字が読めない」事故を起こした
+      組み合わせに戻ってしまう。幕2bでは地の点滅自体が止まっている。 */
+html.intro-lock .fvRow,
 html.intro-skip .fvRow{
   animation-name:fvRowEnter,var(--rowShapeAnim),fvRowSettle;
-  animation-duration:0s,var(--fvFlipMs),0s;
+  animation-duration:0s,var(--fvRowFlickMs),0s;
   animation-timing-function:linear,linear,linear;
-  animation-iteration-count:1,var(--fvFlipCount),1;
+  animation-iteration-count:1,infinite,1;
   animation-direction:normal,normal,normal;
-  animation-delay:.4s,.4s,calc(.4s + var(--fvAct2Dur));
+  animation-delay:calc(var(--fvT0) + var(--fvT2)),
+                  calc(var(--fvT0) + var(--fvT2) + var(--ri) * .06s),
+                  calc(var(--fvT0) + var(--fvT3));
   animation-fill-mode:both,both,forwards}
+/* 1文字ずつの出現。行（--ri）と文字（--ci）でずらす。 */
+html.intro-lock .fvRow > i,
+html.intro-skip .fvRow > i{
+  animation:fvCharIn .34s var(--fvEase)
+    calc(var(--fvT0) + var(--fvT2) + var(--ri) * .09s + var(--ci) * .026s) both}
+/* 3行は出たまま維持し、幕3で集約する。 */
+html.intro-lock .fvRow--fade,
 html.intro-skip .fvRow--fade{
-  animation-name:fvRowFadeLifecycle,var(--rowShapeAnim);
-  animation-duration:var(--fvAct2Dur),var(--fvFlipMs);
-  animation-timing-function:linear,linear;
-  animation-iteration-count:1,var(--fvFlipCount);
-  animation-direction:normal,normal;
-  animation-delay:.4s,.4s;animation-fill-mode:both,both}
-html.intro-skip .fvMark{animation:fvMarkDraw .6s var(--e) calc(.55s + var(--fvAct2Dur)) both}
+  animation-name:fvRowFadeLifecycle,var(--rowShapeAnim),fvRowConverge;
+  animation-duration:var(--fvAct2bDur),var(--fvRowFlickMs),var(--fvAct3Dur);
+  animation-timing-function:linear,linear,var(--fvEase);
+  animation-iteration-count:1,infinite,1;
+  animation-direction:normal,normal,normal;
+  animation-delay:calc(var(--fvT0) + var(--fvT2)),
+                  calc(var(--fvT0) + var(--fvT2) + var(--ri) * .06s),
+                  calc(var(--fvT0) + var(--fvT3));
+  animation-fill-mode:both,both,forwards}
+
+/* ── 幕3：集約の受け皿（残る1行を画面中心へ）と、下線 ── */
+html.intro-lock .fvRows,
+html.intro-skip .fvRows{animation:fvRowsRecenter var(--fvAct3Dur) var(--fvEase)
+  calc(var(--fvT0) + var(--fvT3)) both}
+/* 下線は集約と同じイージングで伸ばし、伸び切ってから追いかけて光らせる。 */
+html.intro-lock .fvMark,
+html.intro-skip .fvMark{
+  animation-name:fvMarkDraw,fvMarkGlow;
+  animation-duration:var(--fvAct3Dur),.7s;
+  animation-timing-function:var(--fvEase),var(--e);
+  animation-delay:calc(var(--fvT0) + var(--fvT3)),
+                  calc(var(--fvT0) + var(--fvT3) + var(--fvAct3Dur) * .8);
+  animation-fill-mode:both,forwards}
+
+/* ── スクロール誘導：一連の演出が終わってから出す ── */
+html.intro-lock .fvScroll,
+html.intro-skip .fvScroll{
+  animation:fvScrollIn .5s var(--e) calc(var(--fvT0) + var(--fvEnd) + .1s) both}
+html.intro-lock .fvScrollArrow,
+html.intro-skip .fvScrollArrow{
+  animation:fvScrollBob 2.2s ease-in-out calc(var(--fvT0) + var(--fvEnd) + .6s) infinite}
 
 /* ⚠️ 点滅は体調に影響しうるため、reduced-motion では完全に止める。
    全アニメーションを無効化し、幕3終了後の最終状態（黒地＋1行＋マーカー）を
@@ -662,14 +777,24 @@ html.intro-skip .fvMark{animation:fvMarkDraw .6s var(--e) calc(.55s + var(--fvAc
   html:not([data-motion="on"]) .fvCard,
   html:not([data-motion="on"]) .fvStage,
   html:not([data-motion="on"]) .fvStrobe,
+  html:not([data-motion="on"]) .fvRows,
   html:not([data-motion="on"]) .fvRow,
-  html:not([data-motion="on"]) .fvMark{animation:none!important}
+  html:not([data-motion="on"]) .fvRow > i,
+  html:not([data-motion="on"]) .fvMark,
+  html:not([data-motion="on"]) .fvScroll,
+  html:not([data-motion="on"]) .fvScrollArrow{animation:none!important}
   html:not([data-motion="on"]) .fvCard{opacity:0!important}
   html:not([data-motion="on"]) .fvStage{transform:translate(0,0)!important}
   html:not([data-motion="on"]) .fvStrobe{opacity:0!important}
   html:not([data-motion="on"]) .fvRow{opacity:0!important}
   html:not([data-motion="on"]) .fvRow--keep{opacity:1!important}
+  /* 1文字ずつの出現も止め、最終状態（全部見えている）で固定する。
+     ⚠️ ここを書き忘れると文字が opacity:0 のまま残り、生き残る行が空になる。 */
+  html:not([data-motion="on"]) .fvRow > i{opacity:1!important;transform:none!important}
+  /* 集約後の位置（残る1行が画面中心）で固定する。 */
+  html:not([data-motion="on"]) .fvRows{transform:translateY(calc(var(--fvStep) * -.5))!important}
   html:not([data-motion="on"]) .fvMark{transform:scaleX(1)!important}
+  html:not([data-motion="on"]) .fvScroll{opacity:1!important}
 }
 
 @media(max-width:899px){
@@ -964,7 +1089,14 @@ html.intro-skip .fvMark{animation:fvMarkDraw .6s var(--e) calc(.55s + var(--fvAc
    268px→300pxへ拡大した（§修正2「カード自体をもう少し大きくしてよい」）。
    下限（184px）は320px幅の狭い画面（.orbitR の左右padding var(--s5) が効く
    コンテナクエリ配下）でこれ以上増やすと横方向が窮屈になるため据え置く。 */
+/* 2026-08-16（ユーザー指摘「大判カードが中心から少しズレている」）：
+   .cardBlock は flex-direction:column なので、幅を固定したこのカードは
+   交差軸の先頭＝左端に寄る。1440px幅の実測で .cardBlock の中心が962px、
+   カードの中心が854pxと108pxずれていた。align-self:center で中心を揃える。
+   ⚠️ .cardBlock 側に align-items:center を掛けないこと。下のテキスト
+      （CITY／都市名／リード文）まで中央揃えになり、読みの流れが崩れる。 */
 .cardArtWrap{width:clamp(184px,20vw,300px);aspect-ratio:288/450;border-radius:6px;
+  align-self:center;
   flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
 /* object-fit は contain にする。.cardArtWrap が常に 288:450 を保つよう上で
    直したため cover と contain は本来同じ見え方になるが、将来の環境差や
@@ -1157,6 +1289,13 @@ html.intro-skip .fvMark{animation:fvMarkDraw .6s var(--e) calc(.55s + var(--fvAc
    画面幅で変えるべきものではない。 */
 .closeTag .tagKana{font-size:.66em}
 .closeTag .tagBr{display:block}
+/* 2026-08-16：実機で「失敗できる／災害はここだ／け」と3行に割れた報告への対処。
+   ヘッドレスChromeの実測では 390〜1440px の全幅で2行に収まっており、原因は
+   本文フォントの読み込み前に代替フォント（字幅が広い）で組まれて溢れる FOUT である。
+   <br> があっても自動折返しは止まらないため、行を跨がせない指定を足して構造で封じる。
+   最長行「災害はここだけ」は 2em＋5×.66em＝5.3em で、900px時に使える幅の78%。
+   代替フォントが1割広くても収まるため、はみ出しは起きない。 */
+.closeTag{white-space:nowrap}
 /* 斜め塗りホバー（項目9。.ctaMain と同じ仕組み）。 */
 .closeCta{position:relative;isolation:isolate;margin-top:var(--s5);display:inline-flex;align-items:center;
   padding:var(--s3) var(--s6);background:var(--accent);color:#fff;font-weight:700;
@@ -1205,7 +1344,25 @@ html.intro-skip .fvMark{animation:fvMarkDraw .6s var(--e) calc(.55s + var(--fvAc
     <span class="loadCreditLine enBase">by Ready or Lab</span>
     <span class="loadCreditRule" aria-hidden="true"></span>
   </div>
-  <span class="loadCount" aria-hidden="true"></span>
+  <!-- 幕0（0.10〜1.40秒）：素材の読み込みを見せるゲージ（2026-08-16作り直し）。
+       ⚠️ このローディングの目的は「produced by 以降のモーションがカクついたり
+          飛んだりしないための時間稼ぎ」である。見た目のためだけの尺ではない。
+       画面中心に円が回り、LOAD の下で 0→100 が進む。数字はダイヤルのように
+       上から降りてくる（緩急つき）。0→100 が終わってから produced by が始まる。
+       進捗の唯一の出どころは CSS の --n（@propertyで登録した整数）。円弧の
+       stroke-dashoffset も数字も同じ --n を読むため、両者がずれることがない。
+       JSはその --n を読んで桁を組み替えるだけの装飾で、止まっても
+       counter() のフォールバックが出る（オーバーレイの退場は完全にCSS側）。 -->
+  <div class="loadGauge" aria-hidden="true">
+    <div class="loadRing">
+      <svg class="loadRingSvg" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="loadRingTrack" cx="60" cy="60" r="54"></circle>
+        <circle class="loadRingArc" cx="60" cy="60" r="54"></circle>
+      </svg>
+      <span class="loadRingWord enBase">LOAD</span>
+    </div>
+    <span class="loadCount" aria-hidden="true"><span class="loadNum"></span><span class="loadPct">%</span></span>
+  </div>
   <div class="loadInk" aria-hidden="true">
       <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
            重ね、白を透過させて黒だけを残す（§20.1改）。
@@ -1306,13 +1463,26 @@ html.intro-skip .fvMark{animation:fvMarkDraw .6s var(--e) calc(.55s + var(--fvAc
   <div class="fvStage">
     <div class="fvStrobe"></div>
     <img class="fvCard" src="assets/cards/earthquake.webp" alt="" aria-hidden="true" width="288" height="450">
+    <!-- 1文字ずつ <i> に割る（2026-08-16）。行の出現（--ri）と文字の出現（--ci）を
+         別々にずらすため。--conv は幕3で「生き残る1行」へ寄せる段数
+         （+が下から上へ、−が上から下へ）。 -->
     <div class="fvRows">
-      <span class="fvRow fvRow--fade">READY OR NOT</span>
-      <span class="fvRow fvRow--fade fvRow--outline">READY OR NOT</span>
-      <span class="fvRow fvRow--keep">READY OR NOT<span class="fvMark" aria-hidden="true"></span></span>
-      <span class="fvRow fvRow--fade fvRow--solid">READY OR NOT</span>
+      <span class="fvRow fvRow--fade" style="--ri:0;--conv:2"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i></span>
+      <span class="fvRow fvRow--fade fvRow--outline" style="--ri:1;--conv:1"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i></span>
+      <span class="fvRow fvRow--keep" style="--ri:2;--conv:0"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i><span class="fvMark" aria-hidden="true"></span></span>
+      <span class="fvRow fvRow--fade fvRow--solid" style="--ri:3;--conv:-1"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i></span>
     </div>
     <div class="fvGrain"></div>
+    <!-- スクロール誘導（7-4）。演出が終わってから右下に出す。矢印は先端の
+         線分が片側だけのもの（対戦の勝敗画面で使っているものと同じ性格）。 -->
+    <div class="fvScroll" aria-hidden="true">
+      <span class="fvScrollLabel enBase">SCROLL</span>
+      <svg class="fvScrollArrow" viewBox="0 0 14 34" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round">
+        <path d="M7 1 V31"></path>
+        <path d="M7 31 L1 24"></path>
+      </svg>
+    </div>
   </div>
 </section>
 </div>
@@ -1413,7 +1583,13 @@ html.intro-skip .fvMark{animation:fvMarkDraw .6s var(--e) calc(.55s + var(--fvAc
     <span class="secNo en">02</span>
     <div class="orbitGrid">
       <div class="orbitL">
-        <h2 class="secTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">現実とリンクした<br class="mobileBr">世界観</span></span></h2>
+        <!-- 見出しの改行位置（2026-08-16 ユーザー指摘・実測して修正）
+     ⚠️ 折返し任せにしない。意味の塊で切り、1〜2文字だけ次行へ送らないこと。
+     修正前の実測：390pxで「現実とリンクし／た／世界観」（9px足りずに1文字あふれる）、
+     900〜1024pxで「現実とリン／クした世界／観」、1180px以上で「現実とリンク／した世界観」。
+     対策は2つ。①仮名を .74em に落としてジャンプ率を付け、行の実幅を6.44emまで縮める。
+     ②改行を <br> で明示し、スマホ2行・PC3行に固定する（自動折返しに委ねない）。 -->
+        <h2 class="secTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText wvTitle">現実<span class="wvKana">と</span><br class="pcBr"><span class="wvKana">リンクした</span><br>世界観</span></span></h2>
         <div class="orbitStage reveal" data-d="2">
           <div class="orbitPath" aria-hidden="true"></div>
           <div class="orbitTrack" role="group" aria-label="カードの5色を選ぶ" aria-describedby="orbitHintTxt"></div>

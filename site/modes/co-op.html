@@ -42,7 +42,25 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
     <span class="loadCreditLine enBase">by Ready or Lab</span>
     <span class="loadCreditRule" aria-hidden="true"></span>
   </div>
-  <span class="loadCount" aria-hidden="true"></span>
+  <!-- 幕0（0.10〜1.40秒）：素材の読み込みを見せるゲージ（2026-08-16作り直し）。
+       ⚠️ このローディングの目的は「produced by 以降のモーションがカクついたり
+          飛んだりしないための時間稼ぎ」である。見た目のためだけの尺ではない。
+       画面中心に円が回り、LOAD の下で 0→100 が進む。数字はダイヤルのように
+       上から降りてくる（緩急つき）。0→100 が終わってから produced by が始まる。
+       進捗の唯一の出どころは CSS の --n（@propertyで登録した整数）。円弧の
+       stroke-dashoffset も数字も同じ --n を読むため、両者がずれることがない。
+       JSはその --n を読んで桁を組み替えるだけの装飾で、止まっても
+       counter() のフォールバックが出る（オーバーレイの退場は完全にCSS側）。 -->
+  <div class="loadGauge" aria-hidden="true">
+    <div class="loadRing">
+      <svg class="loadRingSvg" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="loadRingTrack" cx="60" cy="60" r="54"></circle>
+        <circle class="loadRingArc" cx="60" cy="60" r="54"></circle>
+      </svg>
+      <span class="loadRingWord enBase">LOAD</span>
+    </div>
+    <span class="loadCount" aria-hidden="true"><span class="loadNum"></span><span class="loadPct">%</span></span>
+  </div>
   <div class="loadInk" aria-hidden="true">
       <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
            重ね、白を透過させて黒だけを残す（§20.1改）。
