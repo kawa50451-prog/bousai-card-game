@@ -1918,6 +1918,9 @@
     .dd-picker-row-name { font-weight:800; color:var(--t0); font-size:.82rem; }
     .dd-picker-row-desc { font-size:.66rem; color:var(--t2); margin-top:2px; line-height:1.4; }
     .dd-picker-row-cost { flex-shrink:0; font-size:.7rem; font-weight:800; color:var(--blue); }
+    /* 2026-08-16新設（依頼A-2）：回復カードをHP満タンのタイミングに割り当てようとしたときの予告。
+       文言は対戦モードの確認ポップ（coopConfirmPlayAnim周辺・「HP満タン（回復なし）」）に揃える。 */
+    .dd-picker-row-heal-warn { font-size:.62rem; color:#d29922; font-weight:700; margin-top:2px; }
     /* ddMkDisasterCard（予報・解説用）の来襲順バッジ：画像の外（上）に出すためのラッパー */
     .dd-card-order-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
 
@@ -1979,14 +1982,22 @@
     .dd-sol-dmg-label { font-size:.68rem; color:var(--t2); font-weight:600; }
     .dd-sol-chips { display:flex; flex-wrap:wrap; gap:4px; }
     /* HP推移の行。実装3(a)：解説ボタンは以前この行の右側にインラインで同居していたが「位置が悪い」という
-       指摘のため、HP推移の行の下（.dd-sol-explain-btn）へ独立させた。ここはHP推移のみを持つ。 */
-    .dd-sol-footrow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    /* 2026-07-29：理論値のHP推移に回復ステップを明示するための表示（緑＝回復のセマンティクス） */
+       指摘のため、HP推移の行の下（.dd-sol-explain-btn）へ独立させた。
+       2026-08-16再改修（依頼A-1・B）：回復／ダメージ確定／自分HP／理論値HPを1行ずつ縦積みする構成に変更した
+       （旧：横並びchip。回復が自分の行にも出るようになり並べ切れなくなったため）。 */
+    .dd-sol-footrow { display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
+    /* 2026-07-29：理論値のHP推移に回復ステップを明示するための表示（緑＝回復のセマンティクス）。
+       2026-08-16：自分の回復ステップにも同じクラスを流用する（依頼A-1）。上限で切り捨てられた場合の注記は
+       .dd-sol-heal-noteで弱色にする（依頼A-2：「回復 +30（上限により +20 のみ適用）」）。 */
     .dd-sol-heal { display:block; font-size:.7rem; font-weight:700; color:var(--green,#3fb950); margin-bottom:2px; }
+    .dd-sol-heal-note { color:var(--t2); font-weight:600; margin-left:4px; }
+    /* 2026-08-16新設（依頼B）：「ダメージ -20(50-30)」行。基礎ダメージ−軽減合計で確定値を明示する。
+       .dd-sol-healと同じ型で色だけ赤にする（新しい箱・枠線は増やさない）。 */
+    .dd-sol-dmgline { display:block; font-size:.7rem; font-weight:700; color:var(--red,#f85149); margin-bottom:2px; font-variant-numeric:tabular-nums; }
     .dd-sol-hp { font-size:.66rem; color:var(--t2); white-space:nowrap; }
-    /* 実装3(b)：理論値の閲覧時、自分の実プレイと理論値でHPの削られ方がどう違うかを対比表示する。
-       一致した行は従来通り.dd-sol-match-badge1つに圧縮するため出さず、不一致の行だけ「自分」「理論値」の
-       2行を並べる（§3.4計器の文法＝ラベル小・数値大。新しい囲い・背景・枠線は追加しない）。
+    /* 実装3(b)→2026-08-16再改修（依頼B）：理論値の閲覧時は一致・不一致を問わず常に「自分」「理論値」の
+       2行を並べる（旧：不一致の行だけ対比表示。一致行でも比較の実感を残すため常時表示へ変更した）。
+       §3.4計器の文法＝ラベル小・数値大。新しい囲い・背景・枠線は追加しない。
        理論値側は既存の理論値カラー(#e3c34d、.dd-formal-frame/.dd-sol-match-badge等と同色)で区別する。 */
     .dd-sol-hpcmp { display:flex; flex-direction:column; gap:2px; }
     .dd-sol-hpcmp-row { display:flex; align-items:baseline; gap:6px; }
@@ -2025,6 +2036,15 @@
     .dd-sol-redux-label { font-size:.6rem; font-weight:700; letter-spacing:.02em; color:var(--t2); }
     .dd-sol-redux-num { font-size:.82rem; font-weight:800; color:var(--yellow); }
     .dd-sol-redux-diff { font-size:.66rem; color:var(--t2); }
+    /* 2026-08-16新設（依頼B）：自分・理論値のHP推移グラフ（結果一覧の下・グラフのみ）。
+       新しい角丸+枠線の箱は増やさず、見出しラベル＋svg折れ線＋凡例の3段のみで構成する。
+       線色は本文の意味色をそのまま流用する（自分=var(--t0)白・理論値=#e3c34d黄）。
+       凡例は色をドット側に持たせ、テキストは中立色（var(--t2)）に留める。 */
+    .dd-hptrend-title { font-size:.7rem; font-weight:700; color:var(--t2); margin-bottom:4px; }
+    .dd-hptrend-svg { width:100%; height:56px; display:block; }
+    .dd-hptrend-legend { display:flex; gap:14px; margin-top:5px; }
+    .dd-hptrend-legend-item { display:inline-flex; align-items:center; gap:4px; font-size:.66rem; color:var(--t2); font-weight:600; }
+    .dd-hptrend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 
     /* ═══════════════════════════════════════════════════════════════════
        2026-07-18脱AI感刷新②（worldview.md §10）：デイリー防災＝「日課訓練室」・
@@ -5131,11 +5151,13 @@
     // オンライン多人数：1ターンの即死を防ぐ攻撃制限（同種は1ターン1回／1都市への攻撃は最大この回数）
     // ここは既定値。実際の上限は人数別に CO.maxHits へ格納する（都市3人以上で3、それ未満で2）
     const COOP_MAX_HITS = 2;
-    // 壊滅都市（後方支援役）の予算チャージ：毎ターン +GAIN たまり、上限 CAP。使った残りは翌ターンへ持ち越す。
-    // ためれば壊滅前のようにコスト2〜3のシールド・回復を味方へ送れる。平均支出は GAIN/ターンに収まるため
-    // 都市側が過剰に強くならない（GAIN が都市側終盤の強さを決める主要バランスレバー）。
-    const COOP_SUPPORT_GAIN = 1;
-    const COOP_SUPPORT_CAP = 3;
+    // 壊滅都市（後方支援役）の予算：2026-08-16、「毎ターン+1・上限3」から「壊滅時の一括固定」へ変更
+    // （design/coop_balance.md §B・実測で残予算1ptが63%・上限到達0.4%だったため）。壊滅を検知した最初の
+    // 都市ターン開始時に一度だけ次の額を付与し、以降は追加しない（coopApplyBudgetMP参照）。
+    //   付与額 = clamp(maxTurns − 壊滅ターン + 1, COOP_SUPPORT_GRANT_MIN, COOP_SUPPORT_GRANT_MAX)
+    // 現行の総支給量（1pt×残りターン）と一致させる設計のため、下限3・上限8はその総量が取り得る実質範囲。
+    const COOP_SUPPORT_GRANT_MIN = 3;
+    const COOP_SUPPORT_GRANT_MAX = 8;
     const COOP_DIFF = {
       easy: {
         key: 'easy', label: 'EASY', color: '#3fb950', rgb: '63,185,80',
@@ -5153,6 +5175,42 @@
         nature: { hp: 150, maxTurns: 10, draw: 2, events: [], cpuSkip: 0, desc: '都市が頑強・盤石の守り<br>攻略困難' },
       },
     };
+    // プリセット難易度（オンライン協力・都市側専用・design/coop_balance.md §D・2026-08-16追加）。
+    // 部屋を建てる時点では参加人数が確定していないため、ロビーではEASY/NORMAL/HARDのラベルだけを選ばせ、
+    // 実際のHP・復興回数・社会的脆弱性イベントはゲーム開始時（coopMPStartHost）に実際の都市人数で
+    // 2人用／3人以上用のどちらかを自動選択して決める（coopPresetBucket・coopPresetResolve参照）。
+    // カスタムモード（HP・復興回数・社会的脆弱性を個別スライダーで調整する従来経路）とは独立しており、
+    // 部屋のpresetKeyが'custom'／未指定のときは従来どおりcityHp/socialVuln/reviveMaxの個別値を使う。
+    // HP80を下限にしているのは、それ以下だと自然側の1回の攻撃で追い詰めるとそのまま壊滅まで持っていける
+    // ため（§D注意事項）。数値は実機プレイの感触で調整する前提の暫定値。
+    const COOP_PRESETS = {
+      2: { // 都市2人用
+        easy:   { hp: 110, reviveMax: 2, events: [] },
+        normal: { hp: 95,  reviveMax: 1, events: [{ t: 3, id: 'rumor' }] },
+        hard:   { hp: 85,  reviveMax: 0, events: _COOP_EVENTS_ALL },
+      },
+      3: { // 都市3人以上用
+        easy:   { hp: 120, reviveMax: 2, events: [] },
+        normal: { hp: 100, reviveMax: 1, events: [{ t: 3, id: 'rumor' }] },
+        hard:   { hp: 90,  reviveMax: 1, events: _COOP_EVENTS_ALL },
+      },
+    };
+    // 都市人数からプリセットのバケットキー（2 or 3＝3人以上）を解決する
+    function coopPresetBucket(cityCount) { return (cityCount >= 3) ? 3 : 2; }
+    // presetKeyと都市人数から実際の数値パッケージを解決する（存在しなければnull＝カスタム扱い）。
+    // ロビー画面の表示（coopRenderMPLobby）とゲーム開始時の実適用（coopBuildMPState）の両方がこれだけを呼び、
+    // 判定基準を1箇所に集約する（同じ規則を複数箇所に散らさない・HANDOVER.mdの教訓）。
+    function coopPresetResolve(presetKey, cityCount) {
+      if (!presetKey || presetKey === 'custom') return null;
+      const bucket = COOP_PRESETS[coopPresetBucket(cityCount)];
+      return (bucket && bucket[presetKey]) || null;
+    }
+    // プリセットのイベント設定を短い日本語ラベルにする（ロビー画面の説明表示用）
+    function coopPresetEventsLabel(events) {
+      if (!events || !events.length) return 'イベントなし';
+      if (events.length === 1 && events[0].id === 'rumor') return 'T3デマ拡散のみ';
+      return '3イベント全部';
+    }
     // ══ デイリー防災（固定シード1日1局面パズル）状態。対戦(G)・協力(CO)とは完全独立の追加モジュール ══
     let DD = null;
     // 数値設定は1箇所に集約（HP・総予算・攻撃回数・手札枚数）
@@ -5488,7 +5546,7 @@
     // 予算の繰り越し制（協力モード限定・design/coop_balance.md §12）：都市ターン終了時に余った予算を、
     // 備蓄（1枚ドロー）の代わりに翌ターンへ繰り越せる。上限は基本予算からの相対値ではなく、繰り越し量そのものの
     // 固定キャップ（min(この値, leftover)）。備蓄と二者択一のため同時発生しない。壊滅都市（後方支援）は
-    // COOP_SUPPORT_CAPの独自持ち越しと二重適用になるため対象外。
+    // 壊滅時に一度だけ固定額を受け取る独自の予算方式（§B）を持つため対象外。
     const COOP_CARRY_BUDGET_CAP = 2;
     // 復興ルール（協力モード限定・design/coop_balance.md §13・2026-07-29正本／§13.8・2026-08-10追加）：壊滅都市を
     // 部屋で設定した回数（reviveMax・既定1・0〜3）だけ、提供元が差し出したHP（同量）で復活させられる。下限30は
@@ -5535,7 +5593,9 @@
       if (co.reviveMax == null) co.reviveMax = COOP_REVIVE_MAX_DEFAULT;
       // 復興直後の猶予（§13.9）後方互換：reviveGuard未定義の旧state（機能追加前のセーブ・部屋状態）は
       // 「猶予なし」として0に読み替える。
-      if (Array.isArray(co.cities)) co.cities.forEach(cs => { if (cs && cs.reviveGuard == null) cs.reviveGuard = 0; });
+      // 後方支援予算（§B・2026-08-16追加）後方互換：supportGranted未定義の旧state（機能追加前のセーブ・
+      // 部屋状態）は「未付与」としてfalseに読み替える。falsyなら再判定不要だが、明示的にbooleanへ揃える。
+      if (Array.isArray(co.cities)) co.cities.forEach(cs => { if (cs && cs.reviveGuard == null) cs.reviveGuard = 0; if (cs && cs.supportGranted == null) cs.supportGranted = false; });
     }
     // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
     const COOP_EVENT_INFO = {
@@ -8734,13 +8794,26 @@
           const _cityHp = lobbyState.coopCityHp || COOP_CITY_HP_DEFAULT; // §4.2.1（2026-08-11実測で100へ）。スライダーで80〜120の変更は従来どおり可能
           const _reviveMax = (lobbyState.coopReviveMax != null) ? lobbyState.coopReviveMax : COOP_REVIVE_MAX_DEFAULT; // §13.8（2026-08-10）：復興回数（部屋全体・0〜3・既定1）
           if (net === 'host') {
-            // ホスト専用：HPスライダー＋iOSスイッチ＋部屋を作るボタン
+            // ホスト専用：プリセットを選ぶ（既定）＋カスタム（折りたたみ・HPスライダー＋iOSスイッチ＋部屋を作るボタン）
+            // design/coop_balance.md §D（2026-08-16）：部屋を建てる時点では参加人数が未確定のため、
+            // プリセットはEASY/NORMAL/HARDのラベルだけを選ばせ、実際の数値は開始時の都市人数（coopMPStartHost）で
+            // 2人用／3人以上用のどちらかを自動選択する（coopPresetResolve）。ここでは両方を併記して隠さない。
             const svClass = _svOn ? 'ios-switch on' : 'ios-switch';
             const note = assign === 'random'
-              ? '設定を決めて「部屋を作る」を押すと待機ロビーが開きます。参加者が揃ったら開始時に自然役を抽選します（最大5人）。'
-              : '設定を決めて「部屋を作る」を押すと待機ロビーが開きます（参加人数は入った人数で自動。最大 都市4＋自然1）。';
-            wiz = `${backBtn(2)}${crumb}${nameField}${stepHead('ゲーム設定')}
-    <div style="margin-bottom:16px">
+              ? '設定を決めて開始すると待機ロビーが開きます。参加者が揃ったら開始時に自然役を抽選します（最大5人）。'
+              : '設定を決めて開始すると待機ロビーが開きます（参加人数は入った人数で自動。最大 都市4＋自然1）。';
+            const presetBtns = ['easy', 'normal', 'hard'].map(k => {
+              const dd = COOP_DIFF[k];
+              const p2 = COOP_PRESETS[2][k], p3 = COOP_PRESETS[3][k];
+              const desc2 = `都市2人なら HP${p2.hp}・復興${p2.reviveMax}回・${coopPresetEventsLabel(p2.events)}`;
+              const desc3 = `3人以上なら HP${p3.hp}・復興${p3.reviveMax}回・${coopPresetEventsLabel(p3.events)}`;
+              return `<button type="button" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',true,${p3.hp},${p3.reviveMax},'${k}')" style="text-align:left;width:100%;padding:12px 14px;border-radius:10px;background:rgba(${dd.rgb},.1);border:1.5px solid ${dd.color};cursor:pointer;margin-bottom:8px;transition:.15s" onmouseover="this.style.background='rgba(${dd.rgb},.2)'" onmouseout="this.style.background='rgba(${dd.rgb},.1)'">
+      <div style="font-weight:800;font-size:.92rem;color:${dd.color}">${dd.label}</div>
+      <div style="font-size:.68rem;color:var(--t1);margin-top:4px;line-height:1.6">${desc2}<br>${desc3}</div>
+    </button>`;
+            }).join('');
+            const customOpen = !!lobbyState.coopCustomOpen;
+            const customBlock = `<div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
         <img src="images/icons/neon_city.webp" alt="" style="width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(56,139,253,.7))">
         <span style="font-size:.84rem;color:var(--t0);font-weight:700">都市HP</span>
@@ -8786,7 +8859,20 @@
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
       <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=COOP_CITY_HP_DEFAULT;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=COOP_REVIVE_MAX_DEFAULT;render()">デフォルト設定に戻す</button>
     </div>
-    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1)">部屋を作る</button>
+    <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1,'custom')">この設定で部屋を作る</button>`;
+            const customToggle = `<button type="button" onclick="lobbyState.coopCustomOpen=${!customOpen};render()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:transparent;border:1px solid var(--bg3,#30363d);border-radius:10px;color:var(--t1);font-size:.8rem;font-weight:700;cursor:pointer;margin-bottom:${customOpen ? '10px' : '0'}">
+      <span>カスタム設定（HP・復興回数・社会的脆弱性を個別に調整）</span>
+      <span style="transition:transform .2s;transform:rotate(${customOpen ? '180deg' : '0deg'});display:inline-block">▾</span>
+    </button>`;
+            wiz = `${backBtn(2)}${crumb}${nameField}${stepHead('ゲーム設定')}
+    <div style="margin-bottom:16px">
+      <div style="font-size:.84rem;color:var(--t0);font-weight:700;margin-bottom:8px">プリセットを選ぶ</div>
+      ${presetBtns}
+    </div>
+    <div style="margin-bottom:14px">
+      ${customToggle}
+      ${customOpen ? customBlock : ''}
+    </div>
     <div style="text-align:center;color:var(--t3);font-size:.72rem;line-height:1.6;margin-top:10px">${note}</div>`;
           } else {
             // ソロ：難易度3ボタン（変更なし）
@@ -10863,13 +10949,20 @@
     function coopBuildPolicyDeck() { const d = []; for (const c of POLICY_CARDS) for (let i = 0; i < 3; i++) d.push({ ...c, uid: 'cp_' + c.id + '_' + i }); return shuffle(d); }
     // compoundCount を渡すと複合災害だけ枚数を変えられる（MPで人数別に削減。未指定＝従来の各3枚でソロ不変）
     function coopBuildNatureDeck(compoundCount) { const d = []; for (const c of DISASTER_CARDS) { const n = (c.id === 'compound' && compoundCount != null) ? compoundCount : 3; for (let i = 0; i < n; i++) d.push({ ...c, uid: 'cn_' + c.id + '_' + i }); } return shuffle(d); }
+    // 1ターンの攻撃枚数（MP）の共通計算式。coopMPAttackCount（実行時の攻撃枚数）とcoopNaturePoolPer
+    // （事前の供給枚数計算）の両方がこれを呼ぶ（同じ規則を複数箇所に散らさない・HANDOVER.mdの教訓）。
+    // 2026-08-16（design/coop_balance.md §C）：旧式は n<=2 のときdrawそのまま・n>=3でdraw+(n-1)だったため
+    // 「2人だけ+0、3人が+2」という段差があり、bot実測で都市側生存率が2人87%/3人20%と断絶していた。
+    // 2人以下もdraw+1にすることで段差を解消する（実測：87%→27%まで3人の20%に近づく）。
+    function coopMPAttackPerTurn(n, draw) { return n <= 2 ? draw + 1 : draw + (n - 1); }
     // 人間=自然側プールの1種あたり枚数（MP）。CPU自然はデッキ再シャッフルで無限供給だが、人間自然は naturePool が有限で
     // 都市が増えると弾切れする（例：3都市は4枚/ターン×8＝32発に対し従来21枚で約5ターンで枯渇）。
     // ゲーム全体の攻撃回数（coopMPAttackCount×maxTurns）を非複合6種でまかなえる枚数にスケールする。
     // 同種は1ターン1回ゆえ1種が必要になる最大回数は maxTurns なので、それを上限にする（無駄に持たせない）。
+    // 2026-08-16：n<=2を固定3枚とする特別扱いは、攻撃枚数がdraw+1に増えたことで弾切れするため廃止し、
+    // 全人数で同じ式（coopMPAttackPerTurn）から必要供給量を算出する（§C）。
     function coopNaturePoolPer(n, draw, maxTurns) {
-      if (n <= 2) return 3; // 2都市は従来どおり（攻撃2枚×8ターン=16 ≦ 非複合6種×3＋複合）
-      const totalAttacks = (draw + (n - 1)) * maxTurns; // = coopMPAttackCount × ターン数
+      const totalAttacks = coopMPAttackPerTurn(n, draw) * maxTurns; // = coopMPAttackCount × ターン数
       return Math.max(3, Math.min(maxTurns, Math.ceil(totalAttacks / 6) + 1));
     }
     // 協力モード都市パネルのシールドバッジ：現在有効な設置効果の一覧を返す（アイコン・見出し・タップ詳細用の説明文）
@@ -11114,8 +11207,8 @@
           // 通らないため、そのままでは余剰予算が備蓄にも繰り越しにも回らず黙って消える。強制進行は
           // 「本人が固まっている・離席している」状況でホストが押すものであり本人の落ち度ではないため、
           // 中立な選択肢である繰り越しだけを自動適用する。備蓄（1枚ドロー）は本人が明示的に選んだ場合の
-          // 特典として扱い、勝手に与えない。壊滅都市（後方支援）は COOP_SUPPORT_CAP の独自持ち越しを
-          // 持つため対象外（endTurn ハンドラの hp>0 ガードと同じ扱い）。
+          // 特典として扱い、勝手に与えない。壊滅都市（後方支援）は壊滅時に一度だけ固定額を受け取る
+          // 独自の予算方式（§B）を持つため対象外（endTurn ハンドラの hp>0 ガードと同じ扱い）。
           CO.cities.forEach(cs => {
             if (cs.ready) return;
             if (cs.hp > 0) {
@@ -11389,9 +11482,22 @@
       _coCancelTimer();
       const D = COOP_DIFF[opts.diffKey]; const sc = D.city;
       const d = { key: D.key, label: D.label, color: D.color, rgb: D.rgb, hp: sc.hp, maxTurns: sc.maxTurns, draw: sc.draw, events: sc.events, cpuSkip: sc.cpuSkip };
-      d.events = (opts.socialVuln === false) ? [] : _COOP_EVENTS_ALL;
-      if (opts.cityHp != null) d.hp = Math.max(80, Math.min(120, opts.cityHp));
       const cityPlayers = opts.players.filter(p => p.side === 'city');
+      // プリセット難易度（design/coop_balance.md §D）：presetKeyが指定されていれば、実際の都市人数
+      // （2人／3人以上）でHP・復興回数・イベントを自動選択する。coopPresetResolveが唯一の解決経路
+      // （ロビー表示のcoopRenderMPLobbyも同じ関数を呼ぶため、ここでの決定と食い違わない）。
+      // presetKey未指定・'custom'のときは従来どおりcityHp/socialVuln個別値を使う。
+      const preset = coopPresetResolve(opts.presetKey, cityPlayers.length);
+      let reviveMaxResolved;
+      if (preset) {
+        d.hp = preset.hp;
+        d.events = preset.events;
+        reviveMaxResolved = preset.reviveMax;
+      } else {
+        d.events = (opts.socialVuln === false) ? [] : _COOP_EVENTS_ALL;
+        if (opts.cityHp != null) d.hp = Math.max(80, Math.min(120, opts.cityHp));
+        reviveMaxResolved = (opts.reviveMax != null) ? opts.reviveMax : COOP_REVIVE_MAX_DEFAULT;
+      }
       const naturePlayer = opts.players.find(p => p.side === 'nature') || null;
       const pool = shuffle([...CITIES]);
       const cities = cityPlayers.map((p, i) => ({
@@ -11400,12 +11506,14 @@
         budget: 0, budgetUsed: 0, nextBudgetBonus: 0, carryBudget: 0, budgetCarriedIn: 0,
         hand: [], policyDeck: coopBuildPolicyDeck(), policyDiscard: [],
         ready: false, ack: false, resp: undefined,
+        supportGranted: false, // 後方支援予算（§B）：壊滅時に一度だけ付与したかのフラグ。Firebase配信対象
       }));
       // 複合災害は対応スキップが強力なため人数別に枚数を削減（2都市=1枚／3〜4都市=2枚。他災害は各3枚）
       const compoundCount = cityPlayers.length <= 2 ? 1 : 2;
       CO = {
         diff: d, turn: 1, phase: 'setup',
         online: true, mp: true, host: false,
+        presetKey: opts.presetKey || 'custom', // §D：ゲーム開始後の結果画面等で「どの設定で遊んだか」を参照できるよう保持
         // 人数別バランス：都市3人以上で1都市への攻撃上限を3に引き上げる（後方支援による終盤の硬直を相殺）
         maxHits: cityPlayers.length >= 3 ? 3 : 2,
         natureIsCpu: !!opts.natureIsCpu,
@@ -11415,7 +11523,7 @@
         naturePool: Object.fromEntries(DISASTER_CARDS.map(c => [c.id, c.id === 'compound' ? compoundCount : coopNaturePoolPer(cityPlayers.length, d.draw, d.maxTurns)])), attacksLeft: 0,
         natureDeck: coopBuildNatureDeck(compoundCount), natureDiscard: [],
         incoming: [], responseBlocked: false, blockReason: '',
-        revive: null, reviveUsed: 0, reviveMax: (opts.reviveMax != null) ? opts.reviveMax : COOP_REVIVE_MAX_DEFAULT, // 復興ルール（design/coop_balance.md §13/§13.8）：進行中の提案（非同期）・消費回数カウンタ・部屋設定の上限（既定1）
+        revive: null, reviveUsed: 0, reviveMax: reviveMaxResolved, // 復興ルール（design/coop_balance.md §13/§13.8）：進行中の提案（非同期）・消費回数カウンタ・部屋設定の上限（既定1。§Dのプリセット使用時はpresetの値）
         // CO スクラッチ（実体は各スロット。描画・既存エンジンが参照）
         budget: 0, budgetUsed: 0, nextBudgetBonus: 0, carryBudget: 0, budgetCarriedIn: 0, hand: [], policyDeck: [], policyDiscard: [],
         log: [], confirm: null, result: null, drawState: null, eventPopup: null,
@@ -11434,14 +11542,25 @@
       const rumorResisted = rumorRaw && coopCustomResistsEvent('rumor');
       const rumor = rumorRaw && !rumorResisted;
       CO.cities.forEach(cs => {
-        // 壊滅都市は後方支援役：予算は毎ターン +GAIN たまり上限 CAP（使った残りは持ち越す）。デマの影響は受けない。
-        // 神戸など予算ボーナス都市は上限もその分高い（生存時の予算ルールと一貫）
+        // 壊滅都市は後方支援役：予算は「壊滅を検知した最初の都市ターン開始時」に一度だけ固定額を付与する
+        // （design/coop_balance.md §B・2026-08-16）。以降は追加しない。デマの影響は受けない（従来どおり）。
+        // 神戸など予算ボーナス都市は付与額に一度だけ加算する（生存時の予算ルールと一貫）。
         if (cs.hp <= 0) {
-          const cap = COOP_SUPPORT_CAP + (cs.city.abilityType === 'extra_budget' ? cs.city.abilityValue : 0);
-          const leftover = Math.max(0, (cs.budget || 0) - (cs.budgetUsed || 0));
-          cs.budget = Math.min(cap, leftover + COOP_SUPPORT_GAIN);
-          // 壊滅都市は既にCOOP_SUPPORT_CAPの独自持ち越しを持つため、予算繰り越し制（§12）とは二重適用させない
-          cs.budgetUsed = 0; cs.nextBudgetBonus = 0; cs.carryBudget = 0; cs.budgetCarriedIn = 0; return;
+          if (!cs.supportGranted) {
+            // coopStartCityTurnMPはCO.turnをインクリメントしてから呼ばれる。ここへ最初に来るのは必ず
+            // 壊滅の翌ターンのため、壊滅が起きたのは前ターン（CO.turn-1）である。
+            const collapseTurn = CO.turn - 1;
+            const turnsLeft = CO.diff.maxTurns - collapseTurn + 1;
+            const grant = Math.max(COOP_SUPPORT_GRANT_MIN, Math.min(COOP_SUPPORT_GRANT_MAX, turnsLeft));
+            const extra = cs.city.abilityType === 'extra_budget' ? cs.city.abilityValue : 0;
+            cs.budget = grant + extra;
+            cs.budgetUsed = 0;
+            cs.supportGranted = true;
+            _coLog(`🚑 ${cs.city.name}が壊滅：後方支援予算 ${cs.budget}pt を一度だけ受け取った（残り${Math.max(0, turnsLeft)}ターン分相当）`);
+          }
+          // 付与済みなら budget/budgetUsed には一切触れない。使い残しはそのまま翌ターン以降へ持ち越し、
+          // 予算の繰り越し制（§12）のcarryBudget/budgetCarriedInとは二重適用させない。
+          cs.nextBudgetBonus = 0; cs.carryBudget = 0; cs.budgetCarriedIn = 0; return;
         }
         let b = 3;
         if (cs.city.abilityType === 'extra_budget') b += cs.city.abilityValue;
@@ -11511,12 +11630,10 @@
     // 1ターンの攻撃枚数（MP）：基本 diff.draw に「開始時の都市人数−1」を加算する。
     // 生存数ではなく人数基準にすることで、都市が壊滅して後方支援に回っても中盤の攻撃圧が緩まない。
     // 終盤は CO.maxHits（1都市への攻撃上限）が自然に上限を作るため過剰にはならない。
-    // 例外：2都市は構造的に最も自然有利なため draw のみ（=2枚）に緩和し、各都市が概ね対応1回で受けきれる水準にする。
+    // 2026-08-16（design/coop_balance.md §C）：2都市はdraw+1に統一（旧仕様のdrawそのまま＝2人だけ+0の
+    // 段差を解消。実測でbot都市側生存率が2人87%→3人と同水準の27%まで縮まることを確認）。
     // ※ 係数は暫定。実機プレイテストでバランス調整する想定（§7.2）
-    function coopMPAttackCount() {
-      const n = CO.cities.length;
-      return n <= 2 ? CO.diff.draw : CO.diff.draw + (n - 1);
-    }
+    function coopMPAttackCount() { return coopMPAttackPerTurn(CO.cities.length, CO.diff.draw); }
     // 自然ターン（MP・CPU）：HP最低都市を狙って攻撃キューを組み、対応フェーズへ
     function coopNatureTurnMP() {
       _coCancelTimer();
@@ -11648,6 +11765,11 @@
       donor.hp -= amount;
       target.hp = amount; // 手札・policyDeck・ownerId/ownerName・ready/ack/respには一切触れない（§13.2）
       target.reviveGuard = COOP_REVIVE_GUARD_TURNS; // 復興直後の猶予（§13.9）：以降の自然の攻撃を指定ターン分半減
+      // 後方支援予算のフラグ（§B）を下ろす。当該ターンの予算自体はここでは変更しない（§13.2の
+      // 「予算は次のターンから通常どおり」のとおり、次の都市ターンでcoopApplyBudgetMPが通常都市として
+      // 再設定する）。再び壊滅したときは、そのときの残りターンで計算し直して一度だけ再付与される
+      // （coopApplyBudgetMPの!cs.supportGrantedガード参照）。
+      target.supportGranted = false;
       CO.reviveUsed = (CO.reviveUsed || 0) + 1;
       _coLog(`🚑 復興成立：${donor.city.name}が${amount}ptを分け、${target.city.name}が復活した（残り${Math.max(0, coopReviveMaxOf(CO) - CO.reviveUsed)}回）`);
       CO.revive = null;
@@ -11663,13 +11785,20 @@
           case 'confirmPlay': {
             if (CO.phase !== 'city') break;
             const slot = slotOf(pid); if (!slot || slot.ready) break;
-            // 壊滅都市（後方支援）：自己完結カード（ドロー・ローリングストック）と自己対象は不可。生存する別都市への回復・シールドのみ
+            // 壊滅都市（後方支援）：ドロー（ハザードマップ整備）と自己対象は不可。生存する別都市への回復・シールドは可。
+            // ローリングストック（recycle_hand）のみ例外で自己完結カード（design/coop_balance.md §A・2026-08-16解禁）。
+            // 必ず p.i < 0（対象都市なし）で来るため、効果種別で分岐させる。
             if (slot.hp <= 0) {
               const card = slot.hand.find(x => x.uid === p.uid);
-              const selfIdx = CO.cities.indexOf(slot);
-              const tgt = CO.cities[p.i];
-              const SUPPORT_OK = ['heal', 'shield_quake_fire', 'shield_flood', 'negate_special', 'damage_reduce_2t'];
-              if (!card || p.i < 0 || p.i === selfIdx || !tgt || tgt.hp <= 0 || !SUPPORT_OK.includes(card.effectType)) break;
+              if (!card) break;
+              if (card.effectType === 'recycle_hand') {
+                if (p.i >= 0) break; // 自己完結カードのため対象都市指定は不正
+              } else {
+                const selfIdx = CO.cities.indexOf(slot);
+                const tgt = CO.cities[p.i];
+                const SUPPORT_OK = ['heal', 'shield_quake_fire', 'shield_flood', 'negate_special', 'damage_reduce_2t'];
+                if (p.i < 0 || p.i === selfIdx || !tgt || tgt.hp <= 0 || !SUPPORT_OK.includes(card.effectType)) break;
+              }
             }
             coopLoadActor(slot); CO.confirm = { uid: p.uid, recyclePick: p.recyclePick }; coopConfirmPlay(p.i);
             // ハザードマップ整備（draw）はMPでは即時ドロー（グローバルなdrawフェーズを作らない）
@@ -11684,7 +11813,7 @@
             if (CO.phase !== 'city' && CO.phase !== 'draw') break;
             const slot = slotOf(pid); if (!slot || slot.ready) break;
             // 予算の繰り越し制（design/coop_balance.md §12）：備蓄（1枚ドロー）と繰り越しは二者択一。
-            // 壊滅都市（後方支援）はCOOP_SUPPORT_CAPの独自持ち越しを持つため両方とも対象外のまま（slot.hp>0でガード）。
+            // 壊滅都市（後方支援）は壊滅時に一度だけ固定額を受け取る独自の予算方式（§B）を持つため両方とも対象外のまま（slot.hp>0でガード）。
             // p.choiceは常に'stockpile'|'carry'のいずれか（coopEndCityTurnが正規化して送るためundefinedは来ない）。
             const leftover = slot.hp > 0 ? Math.max(0, (slot.budget || 0) - (slot.budgetUsed || 0)) : 0;
             if (slot.hp > 0 && p.choice === 'stockpile' && leftover >= COOP_STOCKPILE_MIN_BUDGET) {
@@ -11821,11 +11950,15 @@
     }
 
     // ホスト：ルーム作成 → 待機ロビーへ。natureMode: 'cpu'|'human'（自分が都市のときのみ意味を持つ）
-    function coopMPCreateRoom(diffKey, hostSide, natureMode, assign, socialVuln, cityHp, reviveMax) {
+    // presetKey：'easy'|'normal'|'hard'（design/coop_balance.md §D）のときはcoopPresetResolveが実際の
+    // HP・復興回数・イベントを都市人数から決めるため、socialVuln/cityHp/reviveMaxはロビー表示・後方互換用の
+    // 参考値として保持するだけになる（カスタムモード時はこれらの値がそのまま使われる従来どおりの経路）。
+    function coopMPCreateRoom(diffKey, hostSide, natureMode, assign, socialVuln, cityHp, reviveMax, presetKey) {
       const name = (lobbyState.nameInput || '').trim();
       if (!name) { lobbyState.error = '名前を入力してください'; render(); return; }
       if (!db) { lobbyState.error = 'オンライン機能が利用できません'; render(); return; }
       assign = assign || 'fixed';
+      const pk = (presetKey === 'easy' || presetKey === 'normal' || presetKey === 'hard') ? presetKey : 'custom';
       const sv = socialVuln !== false;
       const hp = (cityHp != null) ? Math.max(80, Math.min(120, cityHp)) : 120; // 4.2.1決定（2026-07-17）：推奨初期値120（旧95）。スライダー可動域80〜120は不変
       const rm = (reviveMax != null) ? Math.max(0, Math.min(3, Math.round(reviveMax))) : COOP_REVIVE_MAX_DEFAULT; // §13.8（2026-08-10）：復興回数（部屋全体・0〜3・既定1）
@@ -11837,12 +11970,12 @@
       CO = {
         mp: true, online: true, host: true, phase: 'lobby',
         roomId: code, myId: hostId, mySide: mySideStored, humanSide: mySideStored,
-        name, diff: COOP_DIFF[diffKey], diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm,
+        name, diff: COOP_DIFF[diffKey], diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm, presetKey: pk,
         lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
       };
       renderCoop();
       db.ref(`coopRooms/${code}`).set({
-        hostId, hostName: name, diff: diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm, started: false,
+        hostId, hostName: name, diff: diffKey, natureMode: natMode, assign, socialVuln: sv, cityHp: hp, reviveMax: rm, preset: pk, started: false,
         players, createdAt: Date.now(), lastActiveAt: Date.now(),
       }).then(() => { coopMPListenRoom(); coopMPSetupPresence(); _coSaveSession(); renderCoop(); })
         .catch(e => { lobbyState.error = 'ルーム作成に失敗: ' + (e && e.message); CO = null; render(); });
@@ -11899,6 +12032,7 @@
           roomId: code, myId, mySide: side, humanSide: side,
           name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign,
           socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
+          presetKey: room.preset || 'custom', // §D：ロビー画面の表示をホストと一致させるため
           lobby: { players, presence: {} }, oppPresent: true, cities: [], log: [],
         };
         renderCoop();
@@ -11927,7 +12061,7 @@
           mp: true, online: true, host: false, phase: room.started ? 'resolving' : 'lobby',
           roomId: code, myId: sid, mySide: 'spectator', humanSide: 'spectator', turn: 1,
           name: '観戦者', diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
-          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
+          socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT, presetKey: room.preset || 'custom',
           lobby: { players: room.players || {}, presence: {} }, oppPresent: true,
           cities: [], hand: [], policyDeck: [], policyDiscard: [], natureDeck: [], naturePool: {}, incoming: [],
           budget: 0, budgetUsed: 0, log: [], gameLog: [], cpuPlayedLog: [], confirm: null, eventPopup: null,
@@ -12024,7 +12158,7 @@
       const natureIsCpu = !natureHuman; // 自然プレイヤーがいなければ CPU
       if (CO.natureMode === 'human' && CO.assign !== 'random' && !natureHuman) { CO.lobbyMsg = '自然側の参加を待っています（または CPU で開始してください）'; renderCoop(); return; }
       const code = CO.roomId, hostId = CO.myId, hostName = CO.name, diffKey = CO.diffKey;
-      coopBuildMPState({ diffKey, players: arr, natureIsCpu, myId: hostId, socialVuln: CO.socialVuln, cityHp: CO.cityHp, reviveMax: CO.reviveMax });
+      coopBuildMPState({ diffKey, players: arr, natureIsCpu, myId: hostId, socialVuln: CO.socialVuln, cityHp: CO.cityHp, reviveMax: CO.reviveMax, presetKey: CO.presetKey });
       CO.host = true; CO.roomId = code; CO.name = hostName; CO.myId = hostId;
       CO.mySide = (CO.myId === CO.natureId) ? 'nature' : 'city'; CO.humanSide = CO.mySide;
       CO.lobby = { players: playersObj, presence: (CO.lobby && CO.lobby.presence) || {} };
@@ -12105,7 +12239,7 @@
             mp: true, online: true, host: isHost, phase: 'lobby',
             roomId: code, myId, mySide: side, humanSide: side,
             name, diff: COOP_DIFF[room.diff], diffKey: room.diff, natureMode: room.natureMode, assign: room.assign || 'fixed',
-            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT,
+            socialVuln: room.socialVuln !== false, cityHp: room.cityHp || COOP_CITY_HP_DEFAULT, reviveMax: (room.reviveMax != null) ? room.reviveMax : COOP_REVIVE_MAX_DEFAULT, presetKey: room.preset || 'custom',
             lobby: { players: room.players || {}, presence: room.presence || {} }, oppPresent: true, cities: [], log: [],
           };
           _coRoleShown = true; // ロビーでは配役未発表でよい
@@ -12303,7 +12437,7 @@
       if (!coopMyPhaseMP()) return;             // 自分の都市手番でない／既に終了済み
       const slot = coopMySlot(); if (!slot) return;
       const left = (slot.budget || 0) - (slot.budgetUsed || 0);
-      const support = slot.hp <= 0; // 後方支援役は自己完結カード（ドロー）を支援に使えない
+      const support = slot.hp <= 0; // 後方支援役はドロー（ハザードマップ整備）だけ支援に使えない
       // 2026-08-11（ユーザー報告修正・coop_balance.md §11.4の判定を再修正）：ローリングストック
       // （recycle_hand・コスト0）を手札に持っている限り、残予算に関わらず自動終了しない。コスト0なので
       // 残予算0でも常にプレイでき、入れ替えた手札は次のターンへ持ち越されるため「残予算0でも意味のある
@@ -12317,11 +12451,12 @@
       // カードが一切無い）のときは「使用する（交換なし）」しかできず実質何も起きないため、その場合に
       // 限り従来どおり自動終了の対象としてよい。手札にローリングストック以外の1枚でもあれば（あるいは
       // 同じローリングストックがもう1枚あれば）、それを捨てて引き直す意味のある行動が成立するため
-      // 自動終了しない。後方支援役はrecycle_handの使用自体が禁止（coopMkCardのnoTarget）のため常に対象外。
+      // 自動終了しない。2026-08-16：ローリングストックは支援役でも使用可能になったため（coopMkCardの
+      // noTarget参照）、canRecycleUsefullyから!supportを外し支援役にも適用する。
       const others = (slot.hand || []).filter(c => c.effectType !== 'recycle_hand');
       const hasPlayable = others.some(c => c.cost <= left && !(support && c.effectType === 'draw'));
       const rsCard = (slot.hand || []).find(c => c.effectType === 'recycle_hand');
-      const canRecycleUsefully = !support && !!rsCard && (slot.hand || []).some(c => c.uid !== rsCard.uid);
+      const canRecycleUsefully = !!rsCard && (slot.hand || []).some(c => c.uid !== rsCard.uid);
       if (hasPlayable || canRecycleUsefully) return; // まだ意味のある行動が残る＝自動終了しない（手控えは本人の判断）
       if (_coAutoEndedTurn === CO.turn) return; // このターンは既に自動終了を送信済み（エコー待ち）
       _coAutoEndedTurn = CO.turn;
@@ -12882,10 +13017,18 @@
         <div class="coop-tip-row" style="font-size:.76rem;line-height:1.5;margin-top:5px"><span class="coop-tip-num">2</span><span>仲間の状況パネルで手札・予算・行動状況を確認できる</span></div>
         <div class="coop-tip-row" style="font-size:.76rem;line-height:1.5;margin-top:5px"><span class="coop-tip-num">3</span><span>全都市が壊滅すると敗北になる</span></div>
       </div>` : '';
+      // §D：プリセット選択時は実際の都市人数（cityCount）でcoopPresetResolveした値を都度表示する。
+      // 参加者が増減するたびにこのロビー画面が再描画されるため、表示は常に「今joinしている人数」で最新化される。
+      const _presetActive = CO.presetKey && CO.presetKey !== 'custom';
+      const _presetDiff = _presetActive ? COOP_DIFF[CO.presetKey] : null; // CO.diffはMP共通の'normal'固定のため、プリセット名の表示にはCOOP_DIFF[presetKey]を別途参照する
+      const _presetLive = _presetActive ? coopPresetResolve(CO.presetKey, Math.max(1, cityCount)) : null;
+      const settingsSummary = (_presetLive && _presetDiff)
+        ? `<div style="font-size:.75rem;color:var(--t2);margin:2px 0 8px">プリセット：<span style="color:${_presetDiff.color};font-weight:700">${_presetDiff.label}</span>（都市${cityCount}人 → HP${_presetLive.hp}・復興${_presetLive.reviveMax}回・${coopPresetEventsLabel(_presetLive.events)}）</div>`
+        : `<div style="font-size:.75rem;color:var(--t2);margin:2px 0 4px">社会的脆弱性イベント：<span style="color:${_svOn3 ? '#388bfd' : 'var(--t1)'};font-weight:700">${_svOn3 ? 'あり（全イベント）' : 'なし'}</span></div>
+        <div style="font-size:.75rem;color:var(--t2);margin:0 0 8px">都市HP：<span style="color:#388bfd;font-weight:700">${CO.cityHp || COOP_CITY_HP_DEFAULT}</span></div>`;
       return `<div class="screen active" style="padding:20px;max-width:460px;margin:0 auto;text-align:center">
         <h2 style="color:${d.color};margin:4px 0">協力ロビー（${d.label}）</h2>
-        <div style="font-size:.75rem;color:var(--t2);margin:2px 0 4px">社会的脆弱性イベント：<span style="color:${_svOn3 ? '#388bfd' : 'var(--t1)'};font-weight:700">${_svOn3 ? 'あり（全イベント）' : 'なし'}</span></div>
-        <div style="font-size:.75rem;color:var(--t2);margin:0 0 8px">都市HP：<span style="color:#388bfd;font-weight:700">${CO.cityHp || COOP_CITY_HP_DEFAULT}</span></div>
+        ${settingsSummary}
         ${codeBlock}
         <div style="text-align:left;margin:14px 0"><div style="font-size:.78rem;color:var(--t2);margin-bottom:6px">${isRandom ? `参加者 ${arr.length}人（配役は開始時に抽選）・最大5人` : `参加者 ${arr.length}人（都市${cityCount}／自然${natLabel}）・最大 都市4＋自然1`}</div>${roster}</div>
         ${mpTips}
@@ -13060,7 +13203,9 @@
       const isSpec = readOnly === 'spec'; // 観戦者：全プレイヤーの手札をタブで閲覧（card-viewonlyと同じトーン・操作導線なし）
       const anyRO = isAlly || isEnded || isSpec;
       const left = CO.budget - CO.budgetUsed;
-      const noTarget = support && (card.effectType === 'draw' || card.effectType === 'recycle_hand'); // 後方支援は自己完結カード（ドロー・ローリングストック）は使えない
+      // 2026-08-16（design/coop_balance.md §A）：ローリングストック（0pt・recycle_hand）は後方支援でも使用解禁。
+      // ハザードマップ整備（1pt・draw）は予算を食うため据え置きで支援では使用不可のまま。
+      const noTarget = support && card.effectType === 'draw';
       const dis = !anyRO && (mode === 'city') && (card.cost > left || noTarget);
       // 2026-07-27（P0修正・原因①）：readOnly（仲間の手札を閲覧中）は従来 dis が必ずfalseになり
       // 「card-usableの見た目のままonclickだけ空」という無反応カードになっていた。閲覧中は専用の
@@ -13108,7 +13253,7 @@
       if (CO.confirm.endTurn) {
         const left = CO.budget - CO.budgetUsed;
         // 予算の繰り越し制（design/coop_balance.md §12）：既存のターン終了確認ポップに組み込む。壊滅都市（後方支援）は
-        // COOP_SUPPORT_CAPの独自持ち越しと二重適用になるため対象外とし、従来どおりの単一ボタンのままにする。
+        // 壊滅時に一度だけ固定額を受け取る独自の予算方式（§B）と二重適用になるため対象外とし、従来どおりの単一ボタンのままにする。
         // 未使用予算がCOOP_STOCKPILE_MIN_BUDGET未満のときも備蓄が成立しないため選択させず、単一ボタン
         // （内部的には自動で繰り越しを選択）のままにする。
         const mySlot = CO.mp ? coopMySlot() : null;
@@ -13438,7 +13583,11 @@
     function coopHandParts(readOnly) {
       const myslot = CO.mp ? coopMySlot() : null;
       const support = !!(myslot && myslot.hp <= 0); // 壊滅都市は後方支援役
-      const supCap = support ? (COOP_SUPPORT_CAP + (myslot.city.abilityType === 'extra_budget' ? myslot.city.abilityValue : 0)) : 0;
+      // 後方支援の予算は壊滅時に一度だけ付与される固定額（design/coop_balance.md §B）。案内文には
+      // 付与総額（myslot.budget）と残り（budget-budgetUsed）を出す。総額はcoopApplyBudgetMPが
+      // 一度だけ設定した値をそのまま読むだけで、ここでは計算し直さない。
+      const supTotal = support ? (myslot.budget || 0) : 0;
+      const supLeft = support ? Math.max(0, (myslot.budget || 0) - (myslot.budgetUsed || 0)) : 0;
       const _buoy = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="9.17" y1="14.83" x2="4.93" y2="19.07"/></svg>`;
       // 丸チェックSVGアイコン（ターン終了済み見出し用）
       const _svgCheck = `<svg viewBox="0 0 24 24" fill="none" stroke="#9ff0a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>`;
@@ -13485,7 +13634,7 @@
         // 2026-07-17：恒常UIの操作指示文（「政策カードをタップして都市を守ろう」）は削除（design_system.md §10.3）。
         // 後方支援ルールの案内（予算+1・仲間都市に使える旨）は操作指示文ではなく状態説明のため維持する
         head = support
-          ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 0;color:#9ff0a8;font-size:.74rem;line-height:1.35;text-align:center">${_buoy}<span>予算は毎ターン +1（最大${supCap}）。仲間の都市に政策カードを使える</span></div>`
+          ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 0;color:#9ff0a8;font-size:.74rem;line-height:1.35;text-align:center">${_buoy}<span>後方支援予算 ${supTotal}pt を一度だけ受け取り済み（残り${supLeft}pt）。仲間の都市に政策カードを使える</span></div>`
           : '';
       }
 
@@ -15820,16 +15969,22 @@
       if (DD.viewedSolution && DD.solutionSteps && DD.solutionSteps.steps.length) {
         _ddBuildSolutionGroups(DD.solutionSteps.steps).forEach(g => { groupBySlot[g.slot] = g; });
       }
-      // 理論値のHPを行間で引き継ぎ、回復ステップを行レンダラ側で可視化できるようにする（表示専用）
+      // 理論値・自分の両方のHPを行間で引き継ぎ、回復ステップを行レンダラ側で可視化できるようにする（表示専用）。
+      // 2026-08-16（依頼A-1）：自分の回復も同じ作法で引き継ぐ（_selfHp新設）。r.hpBeforeは常に
+      // 「回復適用後・攻撃解決前」の値のため（dailyRunSimulationのカード適用→dailyResolveAttackの順序。
+      // HANDOVER.md確認済み）、前の行の_selfHpとの差分が「表示していなかった自分の回復量」になる。
       let _theoryHp = DAILY_CFG.hp;
+      let _selfHp = DAILY_CFG.hp;
       const rowsHtml = DD.results.map((r, i) => {
         const g = groupBySlot[i] || null;
-        const html = _ddRenderResultRow(r, i, g, _theoryHp);
+        const html = _ddRenderResultRow(r, i, g, _theoryHp, _selfHp);
         if (g && g.resolve && g.resolve.result && typeof g.resolve.result.hpAfter === 'number') _theoryHp = g.resolve.result.hpAfter;
+        _selfHp = r.hpAfter;
         return html;
       }).join('');
+      const trendHtml = _ddRenderHpTrendChart(); // 依頼B：結果一覧の下に自分・理論値のHP推移グラフを置く
       if (!DD.viewedSolution) {
-        return `<div class="dd-sol-list" style="text-align:left;margin-bottom:14px">${rowsHtml}</div>`;
+        return `<div class="dd-sol-list" style="text-align:left;margin-bottom:14px">${rowsHtml}</div>${trendHtml}`;
       }
       const total = DD.solutionSteps ? DD.solutionSteps.total : DD.optimal;
       // 2026-07-18脱AI感刷新②：「本部の模範解答」の格として§3.1コーナーブラケット（.dd-formal-frame）に統一
@@ -15838,6 +15993,61 @@
         <div class="dd-sol-list">${rowsHtml}</div>
         <div style="font-size:.78rem;font-weight:800;color:var(--t0);margin-top:10px;padding-top:8px;border-top:1px solid rgba(227,195,77,.3);text-align:center">${_ddSolutionTotalLine(total)}</div>
         <div style="font-size:.66rem;color:var(--t2);margin-top:8px">※ この画面を見たため、本日の理論値達成・完全読み切り称号は対象外です</div>
+      </div>${trendHtml}`;
+    }
+    // 依頼B（2026-08-16）：自分・理論値のHP推移グラフ。dataviz原則の「時系列の変化＝折れ線」に沿い、
+    // 色は本文の意味色をそのまま流用する（自分=var(--t0)白・理論値=#e3c34d黄。design_system.mdが固定する
+    // 意味色の新規発明を避ける）。凡例は色をドット側に持たせ、ラベル文字は中立色（var(--t2)）に留める。
+    // 数値ラベルは行一覧・footrowと重複するためグラフ側には出さない（グラフのみ、の指示どおり）。
+    function _ddHpTrendLine(series, nSlots, maxHp, w, h, pad) {
+      if (!series || series.length < 2) return { path: '', dot: null };
+      const usableW = w - pad * 2, usableH = h - pad * 2;
+      const pts = series.map((hp, i) => {
+        const x = pad + (nSlots === 0 ? 0 : (i / nSlots) * usableW);
+        const y = pad + usableH - (Math.max(0, Math.min(maxHp, hp)) / maxHp) * usableH;
+        return [x, y];
+      });
+      const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+      return { path, dot: pts[pts.length - 1] };
+    }
+    function _ddRenderHpTrendChart() {
+      if (!DD.results || !DD.results.length) return '';
+      const nSlots = DD.disasters.length, maxHp = DAILY_CFG.hp;
+      const W = 280, H = 68, PAD = 8;
+      const selfSeries = [maxHp, ...DD.results.map(r => r.hpAfter)];
+      const self = _ddHpTrendLine(selfSeries, nSlots, maxHp, W, H, PAD);
+      let theoryLineHtml = '', theoryDotHtml = '', legendTheoryHtml = '';
+      // 理論値の線は解説を閲覧した後（DD.viewedSolution）だけ重ねる。既存の理論値開示ゲート（dailyConfirmSolution等）
+      // と同じ条件のため、未閲覧時にグラフからだけ理論値が漏れて見える、という不整合は起きない。
+      if (DD.viewedSolution && DD.solutionSteps && DD.solutionSteps.steps.length) {
+        const bySlot = {};
+        _ddBuildSolutionGroups(DD.solutionSteps.steps).forEach(g => { bySlot[g.slot] = g; });
+        const theorySeries = [maxHp];
+        for (let s = 0; s < nSlots; s++) {
+          const g = bySlot[s];
+          if (!g || !g.resolve || !g.resolve.result) break;
+          theorySeries.push(g.resolve.result.hpAfter);
+        }
+        if (theorySeries.length > 1) {
+          const theory = _ddHpTrendLine(theorySeries, nSlots, maxHp, W, H, PAD);
+          theoryLineHtml = `<path d="${theory.path}" fill="none" stroke="#e3c34d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+          theoryDotHtml = theory.dot ? `<circle cx="${theory.dot[0].toFixed(1)}" cy="${theory.dot[1].toFixed(1)}" r="3" fill="#e3c34d"/>` : '';
+          legendTheoryHtml = `<span class="dd-hptrend-legend-item"><span class="dd-hptrend-dot" style="background:#e3c34d"></span>理論値</span>`;
+        }
+      }
+      const selfLineHtml = `<path d="${self.path}" fill="none" stroke="var(--t0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const selfDotHtml = self.dot ? `<circle cx="${self.dot[0].toFixed(1)}" cy="${self.dot[1].toFixed(1)}" r="3" fill="var(--t0)"/>` : '';
+      return `<div class="dd-hptrend" style="margin:12px 0">
+        <div class="dd-hptrend-title">HP推移</div>
+        <svg viewBox="0 0 ${W} ${H}" class="dd-hptrend-svg" preserveAspectRatio="none" role="img" aria-label="HP推移グラフ">
+          <line x1="${PAD}" y1="${PAD}" x2="${W - PAD}" y2="${PAD}" stroke="var(--bg3)" stroke-width="1"/>
+          <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="var(--bg3)" stroke-width="1"/>
+          ${theoryLineHtml}${selfLineHtml}${theoryDotHtml}${selfDotHtml}
+        </svg>
+        <div class="dd-hptrend-legend">
+          <span class="dd-hptrend-legend-item"><span class="dd-hptrend-dot" style="background:var(--t0)"></span>自分</span>
+          ${legendTheoryHtml}
+        </div>
       </div>`;
     }
     // steps（_ddBuildSolutionStepsが計算済みの生ステップ列。play/resolve/unused）を「攻撃スロット単位」の
@@ -15866,26 +16076,31 @@
       const bu = b.map(c => c.uid).slice().sort();
       return au.every((u, idx) => u === bu[idx]);
     }
-    // 1行＝1攻撃の描画（2026-07-30再改修・実装1）。左＝情報ブロック（見出し・被害内訳・HP推移＋解説
-    // トグル）／右＝使用政策カード画像（拡大）の2カラムに組み替えた（旧・災害名/トグル/カード画像の
-    // 3カラムでは、右カラム＝カード画像の実高さに対し左カラムが災害名1行しか持たず空白が生じていた）。
+    // 1行＝1攻撃の描画（2026-07-30再改修・実装1、2026-08-16再改修・依頼A-1/B）。左＝情報ブロック
+    // （見出し・被害内訳・回復/ダメージ確定/自分HP/理論値HP・解説トグル）／右＝使用政策カード画像（拡大）の
+    // 2カラムに組み替えた（旧・災害名/トグル/カード画像の3カラムでは、右カラム＝カード画像の実高さに対し
+    // 左カラムが災害名1行しか持たず空白が生じていた）。
     // (a) 自分の実プレイ結果（r・DD.results[i]）は解説閲覧前のみ主役として表示する。解説閲覧後
     //    （group引数がnon-null）は、理論値と完全一致した行だけ見出し行に「理論値と同じ」バッジを添える
     //    形に圧縮し、不一致の行は自分の内訳（使用カード・被害数・内訳チップ）を一切出さず理論値のみを
     //    表示する（ユーザー指摘：自分の結果と理論値を両方並べる二重表示の解消）。合計被害・スコア・称号
     //    など行単位ではない情報はdailyRenderResult/_ddRenderResultList側でこれまで通り表示する。
-    // (b) 被害数値・基礎ダメージ内訳チップ・HP推移は常時表示（design_system.md §10.1デッドスペースは罪＝
+    // (b) 被害数値・基礎ダメージ内訳チップは常時表示（design_system.md §10.1デッドスペースは罪＝
     //    右カラムの拡大に伴い増えた行の高さを、隠すのではなく埋めるための情報として使う）。トグル
     //    （.dd-sol-toggle）には理論値解説時の理由文（reason・reducedOptimal）だけを残し、理由文が無い行
     //    （解説閲覧前・理論値側で対応なしの攻撃）はトグル自体を描画しない。右のカード画像は備えフェーズの
     //    .dd-mini-imgbox系より一回り大きい72px幅にする（_ddSolCardThumb・旧56px）。
-    function _ddRenderResultRow(r, i, group, prevTheoryHp) {
+    // (c) 2026-08-16（依頼A-1・B）：footrowを「回復／ダメージ確定／自分HP／理論値HP」の4種の行を縦積みする
+    //    構成に作り直した。自分の回復ステップ・ダメージの確定内訳（基礎−軽減合計）を必ず表示するのが目的で、
+    //    自分HP・理論値HPは解説閲覧後は一致・不一致を問わず常に両方出す（旧：不一致の行だけ対比表示）。
+    //    ⚠️ ここは表示の並び替え・追加のみであり、r.hpBefore/r.hpAfter等の計算値そのものは一切変更していない
+    //    （HANDOVER.md「回復は表示の順序だけ先に出す。エンジンの計算順は変えない」を踏襲）。
+    function _ddRenderResultRow(r, i, group, prevTheoryHp, prevSelfHp) {
       const ownCards = DD.hand.filter((c, hi) => DD.cardAssign[hi] === i);
       let cardsForCol = ownCards;      // 右列に出すカード（既定は自分の実プレイ）
       let dmgSource = r;               // 被害数・内訳の元データ（既定は自分の実プレイ結果）
       let matchBadgeHtml = '';
       let reasonHtml = '';
-      let hpCompareHtml = '';          // 実装3(b)：不一致行のみ「自分」「理論値」のHP推移を対比表示
       if (group) {
         const theoryDmg = group.resolve ? group.resolve.result.dmg : null;
         const theoryCards = group.plays.map(p => p.card);
@@ -15896,19 +16111,8 @@
           matchBadgeHtml = `<span class="dd-sol-match-badge">${_ddIcoGoldCheck(12, '#e3c34d')}理論値と同じ</span>`;
         } else {
           // 不一致：内訳・使用カードの表示は理論値に置き換える（従来通り。判定・被害計算は無変更）。
-          // HP推移だけは実プレイ（r）と理論値（dmgSource）の両方を対比表示する（実装3(b)）。
           cardsForCol = theoryCards;
           dmgSource = group.resolve ? group.resolve.result : r;
-        }
-        // 2026-07-29：HP推移は一致・不一致に関わらず「自分と理論値で値が違えば両方出す」に統一する。
-        // 一致行（その攻撃の被害・使用カードが同じ）でも、それ以前の分岐で累積HPは違いうる。片方だけ出すと
-        // 理論値のHPの鎖が行間で途切れ、次の行の回復ステップの開始HPがどこから来たのか読めなくなるため。
-        const _theoryRes = group.resolve && group.resolve.result;
-        if (_theoryRes && (_theoryRes.hpBefore !== r.hpBefore || _theoryRes.hpAfter !== r.hpAfter)) {
-          hpCompareHtml = `<div class="dd-sol-hpcmp">
-            <div class="dd-sol-hpcmp-row self"><span class="dd-sol-hpcmp-label">自分</span><span class="dd-sol-hpcmp-num">HP ${r.hpBefore} → ${r.hpAfter}</span></div>
-            <div class="dd-sol-hpcmp-row theory"><span class="dd-sol-hpcmp-label">理論値</span><span class="dd-sol-hpcmp-num">HP ${_theoryRes.hpBefore} → ${_theoryRes.hpAfter}</span></div>
-          </div>`;
         }
         if (group.plays.length) {
           // §3.3片辺アクセント（左罫線のみ・背景/角丸なし）＋§3.5罫線の規律（間の上罫線1本）で区切る
@@ -15930,17 +16134,40 @@
         ? `<button type="button" class="dd-sol-explain-btn" aria-label="解説を見る" onclick="dailyToggleSolutionRow(this)"><span class="dd-sol-explain-circle">${_ddIcoArrowRight(13)}</span><span class="dd-sol-explain-label">解説</span></button>`
         : '';
       const detailHtml = reasonHtml ? `<div class="dd-sol-detail" hidden>${reasonHtml}</div>` : '';
-      // 実装3(b)：不一致行はhpCompareHtml（自分/理論値の2行）、一致行・解説閲覧前は従来通り単独のHP行
-      // 2026-07-29（重要）：理論値のHP推移に回復カードの効果が現れず、行の被害合計とフッターの理論値が
-      // 食い違って見える問題への対処。理論値の被害は「最終的なHP損失」で定義されており、回復カードは
-      // それを打ち消す。しかし回復のステップを描いていなかったため、直前の行の終了HPと次の行の開始HPが
-      // 飛んで見え、数値が誤っているように読めていた。回復が入った行では「回復 +N」を明示して鎖をつなぐ。
-      let healHtml = '';
-      const _thRes = group && group.resolve && group.resolve.result;
-      if (_thRes && typeof prevTheoryHp === 'number' && _thRes.hpBefore > prevTheoryHp) {
-        healHtml = `<span class="dd-sol-heal">回復 +${_thRes.hpBefore - prevTheoryHp}（HP ${prevTheoryHp} → ${_thRes.hpBefore}）</span>`;
+
+      // ① 回復（自分）：依頼A-1。ownCardsのうちheal型カードの合計値（rawHealRequested）と、
+      //    前の行の実HP（prevSelfHp）からr.hpBefore（今回の回復適用後・攻撃解決前のHP）への実差分
+      //    （actualHeal）を比較する。actualHeal<rawHealRequestedならHP上限で切り捨てられた分を
+      //    依頼A-2の文言で明示する（「回復 +30（上限により +20 のみ適用）」）。
+      const healCardsThisSlot = ownCards.filter(c => c.effectType === 'heal');
+      const rawHealRequested = healCardsThisSlot.reduce((a, c) => a + (c.value || 0), 0);
+      let healSelfHtml = '';
+      if (rawHealRequested > 0 && typeof prevSelfHp === 'number') {
+        const actualHeal = Math.max(0, r.hpBefore - prevSelfHp);
+        let note = '';
+        if (actualHeal < rawHealRequested) note = actualHeal > 0 ? `（上限により +${actualHeal} のみ適用）` : '（上限により適用なし）';
+        healSelfHtml = `<div class="dd-sol-heal">回復 +${rawHealRequested}(HP${prevSelfHp}→${r.hpBefore})${note ? `<span class="dd-sol-heal-note">${note}</span>` : ''}</div>`;
       }
-      const footHtml = `${healHtml}${hpCompareHtml || `<span class="dd-sol-hp">HP ${dmgSource.hpBefore} → ${dmgSource.hpAfter}</span>`}`;
+      // ① 回復（理論値）：解説閲覧時のみ。前の行の理論値HP（prevTheoryHp）からの差分を同じ体裁で出す。
+      const _thRes = group && group.resolve && group.resolve.result;
+      let healTheoryHtml = '';
+      if (_thRes && typeof prevTheoryHp === 'number' && _thRes.hpBefore > prevTheoryHp) {
+        healTheoryHtml = `<div class="dd-sol-heal">回復 +${_thRes.hpBefore - prevTheoryHp}(HP${prevTheoryHp}→${_thRes.hpBefore})</div>`;
+      }
+      // ② ダメージ確定：依頼B。dmgSource（一致行は自分＝r、不一致行は理論値）のr.linesから
+      //    「基礎ダメージ（地形ボーナス等の加算込み）－軽減合計」を機械的に組み立てる。r.linesは既存の
+      //    dailyResolveAttackがそのまま積んでいる値のため、新しい計算は一切していない（表示の再構成のみ）。
+      const dmgParts = _ddDamageConfirmParts(dmgSource);
+      const dmgLine = `<div class="dd-sol-dmgline">ダメージ ${dmgSource.dmg > 0 ? '-' + dmgSource.dmg : dmgSource.dmg}(${dmgParts.base}-${dmgParts.reduction})</div>`;
+      // ③④ 自分HP／理論値HP：解説閲覧時は一致・不一致を問わず常に両方出す（旧：不一致行のみ対比表示）。
+      //    未閲覧時は自分HPのみの単独行（.dd-sol-hp）に据え置く。
+      const hpLinesHtml = _thRes
+        ? `<div class="dd-sol-hpcmp">
+            <div class="dd-sol-hpcmp-row self"><span class="dd-sol-hpcmp-label">自分</span><span class="dd-sol-hpcmp-num">HP${r.hpBefore}→${r.hpAfter}</span></div>
+            <div class="dd-sol-hpcmp-row theory"><span class="dd-sol-hpcmp-label">理論値</span><span class="dd-sol-hpcmp-num">HP${_thRes.hpBefore}→${_thRes.hpAfter}</span></div>
+          </div>`
+        : `<span class="dd-sol-hp">HP${r.hpBefore}→${r.hpAfter}</span>`;
+      const footHtml = `${healSelfHtml}${healTheoryHtml}${dmgLine}${hpLinesHtml}`;
       return `<div class="dd-sol-row">
         <div class="dd-sol-grid">
           <div class="dd-sol-info">
@@ -15977,9 +16204,23 @@
         <span class="card-desc" style="display:none">${_escHtml(card.desc)}</span>
       </span>`;
     }
+    // r.lines（dailyResolveAttackが積む{t,d}の内訳）のうち、ダメージ計算そのものには寄与しない
+    // 「ターン終了時回復」等の回復行を見分ける共通述語。_ddRenderSolutionRowBreakdownと
+    // _ddDamageConfirmParts（依頼B新設）の両方から呼ぶ（判定ロジックの複製を避ける）。
+    function _ddIsHealLine(l) { return l.d != null && l.d < 0 && /回復|支援/.test(l.t); }
+    // 依頼B（2026-08-16新設）：「ダメージ -20(50-30)」行の内訳を確定する。r.lines（既存のdailyResolveAttackが
+    // 積んだ値）から回復行を除外し、正の増分（地形ボーナス等）をbaseDamageへ合算した「gross」と、
+    // 負の増分（都市対策・シールド等）の絶対値合計「reduction」を返す。gross-reduction（0未満はクランプ）が
+    // r.dmgと一致する（負値クランプが発生しない限り）。新しい計算は行わず、既存の内訳を並べ替えるだけ。
+    function _ddDamageConfirmParts(r) {
+      const valued = (r.lines || []).filter(l => l.d != null && !_ddIsHealLine(l));
+      const bonus = valued.filter(l => l.d > 0).reduce((a, l) => a + l.d, 0);
+      const reduction = valued.filter(l => l.d < 0).reduce((a, l) => a - l.d, 0);
+      return { base: (r.card.baseDamage || 0) + bonus, reduction };
+    }
     // 被害数値（大きい数字＋ラベル）＋基礎ダメージ・軽減・地形リスク等の内訳チップ。2026-07-30より常時表示
     // 側（.dd-sol-info）から呼ばれる（旧・トグルの中に隠す実装だと右カラム拡大後も空白が残るため常時表示化。
-    // HP推移は_ddRenderResultRow側のfootrowで別途出すためここでは持たない）。
+    // HP推移・回復・ダメージ確定は_ddRenderResultRow側のfootrowで別途出すためここでは持たない）。
     function _ddRenderSolutionRowBreakdown(r) {
       // 実装2：内訳チップを.68rem→.78remへ拡大（padding も2px 7px→3px 8pxへ）
       const cBad = 'display:inline-flex;align-items:center;font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:9px;background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.28);white-space:nowrap';
@@ -15990,11 +16231,10 @@
          ⚠️ これは「表示の順序だけ」の変更である。エンジンの計算順（ダメージ→回復）は変えていない。
             したがってここで途中のHPを書いてはいけない。書くと実際の計算順と食い違って数字が
             合わなくなる。HPは行の下に、実際の前後の値だけを出す。 */
-      const _isHeal = l => l.d != null && l.d < 0 && /回復|支援/.test(l.t);
       const _valued = r.lines.filter(l => l.d != null);
       const _chip = l => `<span style="${l.d > 0 ? cBad : cOk}">${_escHtml(l.t.split(/[：（(]/)[0])} ${l.d > 0 ? '+' : ''}${l.d}</span>`;
-      const healChips = _valued.filter(_isHeal).map(_chip).join('');
-      const lineChips = _valued.filter(l => !_isHeal(l)).map(_chip).join('');
+      const healChips = _valued.filter(_ddIsHealLine).map(_chip).join('');
+      const lineChips = _valued.filter(l => !_ddIsHealLine(l)).map(_chip).join('');
       return `<div class="dd-sol-dmg"><span class="dd-sol-dmg-num" style="color:${r.dmg > 0 ? 'var(--red)' : 'var(--green)'}">${r.dmg}</span><span class="dd-sol-dmg-label">被害</span></div>
       <div class="dd-sol-chips">${healChips}${baseChip}${lineChips}</div>`;
     }
@@ -16030,17 +16270,61 @@
       const s = size || 18; const c = col || 'currentColor';
       return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
     }
+    // 依頼A-2（2026-08-16）：HP満タンのタイミングに回復カードを割り当てようとしたときの予告。
+    // 読み取り専用のドライラン。実際の割当（DD.cardAssign）に対して「このカードをslotへ追加したら」を
+    // 仮に足して、dailyRunSimulation（15221行付近）・dailyComputeOptimal（14608行付近）と全く同じ効果適用
+    // switch文をそのまま踏襲して回す（計算そのものは変更しない・6箇所の実計算には一切触れない）。
+    // グローバルDDは一時的に擬似オブジェクトへ差し替え、finally節で必ず元へ戻す
+    // （dailyComputeOptimal/dailyRunSimPreviewと同じ安全策）。
+    // 戻り値：tempCardが回復カードのとき、その適用直前直後のHP（キャップ適用後）。tempCardのスロットへ
+    // 到達する前にHPが0になった等で判定できない場合はnullを返す（＝警告なしにフォールバック、安全側に倒す）。
+    function _ddPreviewHealOutcome(tempCard, tempSlot) {
+      const savedDD = DD;
+      const hand = savedDD.hand, cardAssign = savedDD.cardAssign, disasters = savedDD.disasters;
+      let outcome = null;
+      try {
+        DD = { city: savedDD.city, hp: DAILY_CFG.hp, shieldQuakeFire: false, shieldFlood: false, reduceHits: 0, negateSpecial: false };
+        for (let s = 0; s < disasters.length; s++) {
+          hand.forEach((card, i) => {
+            if (cardAssign[i] !== s) return;
+            if (card.effectType === 'heal') DD.hp = Math.min(DAILY_CFG.hp, DD.hp + card.value);
+            else if (card.effectType === 'shield_quake_fire') DD.shieldQuakeFire = true;
+            else if (card.effectType === 'shield_flood') DD.shieldFlood = true;
+            else if (card.effectType === 'damage_reduce_2t') DD.reduceHits += 2;
+            else if (card.effectType === 'negate_special') DD.negateSpecial = true;
+          });
+          if (tempSlot === s) {
+            const before = DD.hp;
+            DD.hp = Math.min(DAILY_CFG.hp, DD.hp + tempCard.value);
+            outcome = { hpBefore: before, hpAfter: DD.hp };
+          }
+          const res = dailyResolveAttack(disasters[s], s);
+          DD.hp = res.hpAfter;
+          if (DD.hp <= 0) break;
+        }
+      } finally {
+        DD = savedDD; // 実プレイの状態へ必ず復元（表示専用のドライランで本番状態を汚さない）
+      }
+      return outcome;
+    }
     // 政策カードピッカー（実機フィードバック⑥）の1行。タップでそのカードをスロットへ割当する。
     // 予算不足の場合はdisabled表示（タップしても何も起きない・.dd-picker-row-disabled）。
     function _ddPickerRow(card, slot, affordable) {
       const cls = affordable ? 'dd-picker-row' : 'dd-picker-row dd-picker-row-disabled';
       const click = affordable ? ` onclick="dailyAssignCard('${_escHtml(card.uid)}',${slot})"` : '';
       const reason = affordable ? '' : `<span class="dd-picker-row-cost" style="color:var(--red)">予算不足</span>`;
+      // 依頼A-2：回復カードをこのスロットへ足したら満タンで無駄になる場合の予告（文言は対戦モード13223行と同じ）
+      let healWarn = '';
+      if (affordable && card.effectType === 'heal') {
+        const outcome = _ddPreviewHealOutcome(card, slot);
+        if (outcome && outcome.hpAfter === outcome.hpBefore) healWarn = `<div class="dd-picker-row-heal-warn">HP満タン（回復なし）</div>`;
+      }
       return `<div class="${cls}"${click}>
         <img src="images/cards/${card.id}.webp" alt="" draggable="false" onerror="this.style.display='none'">
         <div style="flex:1;min-width:0">
           <div class="dd-picker-row-name">${_escHtml(card.name)}</div>
           <div class="dd-picker-row-desc">${_escHtml(card.desc)}</div>
+          ${healWarn}
         </div>
         ${reason || `<span class="dd-picker-row-cost">${card.cost}</span>`}
       </div>`;
