@@ -2046,8 +2046,16 @@
     /* 2026-07-29（コーディネーター指摘）：展開部分は3カラムの中央（実測約90px）に押し込むと説明文が
        1行2〜3語で折り返して極端に読みにくくなる。行の高さを抑える目的は「閉じている状態」で達成されるため、
        開いたときは3カラムの外＝行の直下に全幅で出す（2026-07-30も維持）。 */
-    .dd-sol-detail { padding:6px 2px 0; width:100%; }
-    .dd-sol-detail[hidden] { display:none; }
+    /* 内訳の開閉（2026-08-16）。設定・工房と同じ語彙に揃える：
+       高さは 0fr→1fr で送り、中身の高さを測らずに滑らかに開く。
+       ⚠️ hidden 属性の即時切替に戻さないこと（display:none は遷移できない）。
+       入りは速く収まりは長い --ronEaseOut を共通で使う。 */
+    .dd-sol-detail { width:100%; display:grid; grid-template-rows:0fr;
+      transition:grid-template-rows .34s var(--ronEaseOut), opacity .24s var(--ronEaseOut);
+      opacity:0; }
+    .dd-sol-detail > * { overflow:hidden; min-height:0; }
+    .dd-sol-detail.is-open { grid-template-rows:1fr; opacity:1; padding-top:6px; }
+    html.ron-motion-off .dd-sol-detail { transition:none; }
     /* worldview.md §2.1が指す「均一角丸＋1px枠線の箱の羅列」「囲いすぎ」の汎用AI感パターンを解消する。
        §3.3片辺アクセント（左2pxの罫線のみ・背景/角丸を持たない）に置き換え、複数枚の理由コメントが並ぶ
        場合はさらに箱を重ねず§3.5罫線の規律（上1px罫線のみ）で区切る。外側は既にdd-formal-frame（§3.1
@@ -6010,14 +6018,16 @@
          閉じているときは選択中の1つだけを出し、＋を押すと全部が開く。
          ＋／－は黒く塗りつぶした円に白の符号で、押すと滑らかに入れ替わる（回転で繋ぐ）。 */
       const themeOpen = !!_ronThemeOpen;
-      /* 閉じているときも3つ出す（1つだけではボタンに対して情報が少なすぎるという指摘）。
-         先頭は選択中の色、残りは定義順（サイバーレッド…）から選択中を除いた上位2つ。
-         こうすると選択中がどこにあっても常に3色ぶんの幅で、開閉で大きさが変わらない。 */
-      const themeList = themeOpen ? RON_THEMES : (() => {
-        const cur = RON_THEMES.find(t => t.id === s.theme) || RON_THEMES[0];
-        return [cur, ...RON_THEMES.filter(t => t.id !== cur.id).slice(0, 2)];
-      })();
-      const themeChips = themeList.map((t, ci) => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" style="--ci:${ci}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}">${s.theme === t.id ? `<span class="settings-theme-check">${coopIcoCheckCircle(11,'#fff')}</span>` : ''}</span><span class="settings-theme-label">${t.label}</span></button>`).join('');
+      /* ⚠️ 常時見せたい3つを折りたたみ（0fr）の中に入れてはいけない。閉じた瞬間に
+         高さが0になり、選択中の色すら見えなくなる（実際に踏んだ）。
+         先頭3つ（選択中＋未選択を定義順で2つ）は折りたたみの外に固定し、
+         残りだけを開閉する。 */
+      const _themeCur = RON_THEMES.find(t => t.id === s.theme) || RON_THEMES[0];
+      const themeHead = [_themeCur, ...RON_THEMES.filter(t => t.id !== _themeCur.id).slice(0, 2)];
+      const themeRest = RON_THEMES.filter(t => !themeHead.includes(t));
+      const _themeChip = (t, ci) => `<button class="settings-theme-chip${s.theme === t.id ? ' active' : ''}" style="--ci:${ci}" onclick="ronSetTheme('${t.id}')" aria-label="テーマ：${t.label}"><span class="settings-theme-swatch" style="background:${t.swatchBg};box-shadow:inset 0 0 0 3px ${t.swatchAccent}">${s.theme === t.id ? `<span class="settings-theme-check">${coopIcoCheckCircle(11,'#fff')}</span>` : ''}</span><span class="settings-theme-label">${t.label}</span></button>`;
+      const themeChips = themeHead.map(_themeChip).join('');
+      const themeChipsRest = themeRest.map(_themeChip).join('');
       const themeToggle = `<button type="button" class="settings-theme-toggle${themeOpen ? ' is-open' : ''}" onclick="ronToggleThemeList()" aria-expanded="${themeOpen}" aria-label="テーマカラーの一覧を${themeOpen ? '閉じる' : '開く'}"><span class="stt-sign" aria-hidden="true"><i class="stt-bar stt-h"></i><i class="stt-bar stt-v"></i></span></button>`;
       // 2026-07-17ユーザーレビュー修正：8bit（DotGothic16）を追加し3択に拡張
       /* 2026-08-15：フォントの選択肢を「見た目の趣味」から「視認性の系統」へ組み替えた
@@ -6049,7 +6059,7 @@
         : `<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label" style="color:var(--t3)">対戦CPU戦でマイ都市を使う</span><span class="settings-row-desc">カード工房でマイ都市を1枚以上作成すると使えるようになります</span></div><div class="ios-switch" style="flex-shrink:0;opacity:.4;pointer-events:none"><div class="track"><div class="knob"></div></div></div></div>`;
       return `<div class="hint-overlay" id="ron-settings-overlay" onclick="toggleSettings()"><div class="hint-box" onclick="event.stopPropagation()">
         <div class="hint-box-header"><span class="hint-title">${uiIcoGear(15)} 設定</span><button class="hint-close" onclick="toggleSettings()">✕</button></div>
-        <div class="hint-section"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-weight:700;color:var(--t1)">テーマカラー</span><span style="font-size:.7rem;color:var(--t3)">${themeOpen ? '' : RON_THEMES.length + '色から選べます'}</span><span style="margin-left:auto">${themeToggle}</span></div><div class="settings-theme-wrap${themeOpen ? ' is-open' : ''}"><div class="settings-theme-row">${themeChips}</div></div></div>
+        <div class="hint-section"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-weight:700;color:var(--t1)">テーマカラー</span><span style="font-size:.7rem;color:var(--t3)">${themeOpen ? '' : RON_THEMES.length + '色から選べます'}</span><span style="margin-left:auto">${themeToggle}</span></div><div class="settings-theme-row">${themeChips}</div><div class="settings-theme-wrap${themeOpen ? ' is-open' : ''}"><div class="settings-theme-row settings-theme-row--rest">${themeChipsRest}</div></div></div>
         <hr class="hint-divider">
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">文字の見やすさ</span><span class="settings-row-desc">読みやすさを選べます（字の大きさ・文字と背景の差）</span></div><div class="settings-seg">${fontSeg}</div></div>
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">書体</span><span class="settings-row-desc">${typefaceDesc}</span></div><div class="settings-seg">${typefaceSeg}</div></div>
@@ -9055,16 +9065,16 @@
           <img src="images/icons/neon_jinzai.webp" alt="" style="width:20px;height:20px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(168,85,247,.7))">
           <span style="font-size:.84rem;color:var(--t0);font-weight:700">社会的脆弱性イベント</span>
         </div>
-        <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">デマ拡散・公害・テロの3つが発生する</div>
+        <div style="font-size:.65rem;color:var(--t0);line-height:1.5;margin-top:2px">デマ拡散・公害・テロの3つが発生する</div>
       </div>
-      <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');lobbyState.coopPresetKey=null;render()" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
+      <div class="${svClass}" onclick="lobbyState.coopSocialVuln=!this.classList.contains('on');lobbyState.coopPresetKey=null;lobbyRenderKeepScroll()" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
     </div>
-    ${_svOn ? `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px 10px 26px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-left:2px solid #c084fc;border-radius:10px;margin-bottom:12px">
+    ${_svOn ? `<div class="coop-city-frame" style="--zone-bracket:#c084fc;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(192,132,252,.05);border-radius:6px;margin-bottom:12px">
       <div>
         <div style="font-size:.8rem;color:var(--t0);font-weight:700">自然側がタイミングを決める</div>
-        <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">オフなら固定ターン（T2デマ・T5公害・T7テロ）。オンなら自然側が好きなターンに発動できる（1ターン1つまで）</div>
+        <div style="font-size:.65rem;color:var(--t0);line-height:1.5;margin-top:2px">オフなら固定ターン（T2デマ・T5公害・T7テロ）。オンなら自然側が好きなターンに発動できる（1ターン1つまで）</div>
       </div>
-      <div class="${_ecOn ? 'ios-switch on' : 'ios-switch'}" onclick="lobbyState.coopEventControl=this.classList.contains('on')?'fixed':'nature';lobbyState.coopPresetKey=null;render()" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
+      <div class="${_ecOn ? 'ios-switch on' : 'ios-switch'}" onclick="lobbyState.coopEventControl=this.classList.contains('on')?'fixed':'nature';lobbyState.coopPresetKey=null;lobbyRenderKeepScroll()" style="flex-shrink:0;margin-left:12px"><div class="track"><div class="knob"></div></div></div>
     </div>` : ''}
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;margin-bottom:12px">
       <div>
@@ -9072,14 +9082,14 @@
           ${coopIcoHeart(18, '#a371f7')}
           <span style="font-size:.84rem;color:var(--t0);font-weight:700">復興回数</span>
         </div>
-        <div style="font-size:.65rem;color:var(--t3);line-height:1.5;margin-top:2px">壊滅した都市を仲間のHPを分けて復活させられる回数（部屋全体・0で復興なし）</div>
+        <div style="font-size:.65rem;color:var(--t0);line-height:1.5;margin-top:2px">壊滅した都市を仲間のHPを分けて復活させられる回数（部屋全体・0で復興なし）</div>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;margin-left:12px">
-        ${[0, 1, 2, 3].map(n => `<button type="button" onclick="lobbyState.coopReviveMax=${n};lobbyState.coopPresetKey=null;render()" style="width:28px;height:28px;border-radius:8px;border:1.5px solid #a371f7;background:${_reviveMax === n ? '#a371f7' : 'transparent'};color:${_reviveMax === n ? '#0d1117' : 'var(--t0)'};font-weight:700;font-size:.78rem;cursor:pointer">${n}</button>`).join('')}
+        ${[0, 1, 2, 3].map(n => `<button type="button" onclick="lobbyState.coopReviveMax=${n};lobbyState.coopPresetKey=null;lobbyRenderKeepScroll()" style="width:28px;height:28px;border-radius:8px;border:1.5px solid #a371f7;background:${_reviveMax === n ? '#a371f7' : 'transparent'};color:${_reviveMax === n ? '#0d1117' : 'var(--t0)'};font-weight:700;font-size:.78rem;cursor:pointer">${n}</button>`).join('')}
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=COOP_CITY_HP_DEFAULT;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=COOP_REVIVE_MAX_DEFAULT;lobbyState.coopPresetKey=null;render()">デフォルト設定に戻す</button>
+      <button style="padding:8px 14px;font-size:.78rem;background:transparent;border:1.5px solid var(--t0);border-radius:0;color:var(--t0);cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--t0)';this.style.color='var(--t0)'" onclick="lobbyState.coopCityHp=COOP_CITY_HP_DEFAULT;lobbyState.coopSocialVuln=true;lobbyState.coopReviveMax=COOP_REVIVE_MAX_DEFAULT;lobbyState.coopPresetKey=null;lobbyRenderKeepScroll()">デフォルト設定に戻す</button>
     </div>
     <button class="lobby-btn-single" onclick="coopMPCreateRoom('normal','${hostSide}','${natMode}','${assign}',lobbyState.coopSocialVuln!==false,lobbyState.coopCityHp||120,lobbyState.coopReviveMax!=null?lobbyState.coopReviveMax:1,lobbyState.coopPresetKey||'custom',lobbyState.coopEventControl||'fixed')">この設定で部屋を作る</button>`;
             const _curHint = _pickedKey ? 'プリセットの値です。ここから自由に変えられます' : 'ここから自由に変えられます';
@@ -12232,6 +12242,14 @@
        これで「変更しなくてもどのくらいの難易度か」を見てから決められる（ユーザー確定）。
        ⚠️ スライダー等を触ったら coopPresetKey を null に落とす。落とさないと
           「EASY 選択中」と表示したまま中身が別物、という食い違いが起きる。 */
+    /* ロビーの設定を触ったときの再描画。render() は非バトル画面で window.scrollTo(0,0) を
+       呼ぶため、そのままだと設定を1つ変えるたびに画面が一番上へ飛ぶ（実機指摘）。
+       位置を保存して戻す。⚠️ ロビーの設定系 onclick は必ずこれを通すこと。 */
+    function lobbyRenderKeepScroll() {
+      const y = (typeof window !== 'undefined') ? window.scrollY : 0;
+      render();
+      if (typeof window !== 'undefined') window.scrollTo(0, y);
+    }
     function coopPickPreset(key) {
       /* ⚠️ render() はロビー画面で window.scrollTo(0,0) を呼ぶため、そのままだと
          プリセットを押すたびに画面が一番上へ飛ぶ（実機指摘）。位置を保存して戻す。 */
@@ -16543,7 +16561,7 @@
             ${_ddRenderSolutionRowBreakdown(dmgSource)}
             <div class="dd-sol-footrow">${footHtml}</div>
             ${toggleHtml}
-            <div class="dd-sol-detail" hidden>${numsHtml}${reasonHtml}</div>
+            <div class="dd-sol-detail"><div>${numsHtml}${reasonHtml}</div></div>
           </div>
           <div class="dd-sol-col-r">${cardsHtml}</div>
         </div>
@@ -16609,10 +16627,10 @@
     function dailyToggleSolutionRow(btn) {
       const row = btn.closest('.dd-sol-row'); if (!row) return;
       const detail = row.querySelector('.dd-sol-detail'); if (!detail) return;
-      const opening = detail.hasAttribute('hidden');
-      if (opening) detail.removeAttribute('hidden'); else detail.setAttribute('hidden', '');
+      const opening = !detail.classList.contains('is-open');
+      detail.classList.toggle('is-open', opening);
       btn.classList.toggle('open', opening);
-      btn.setAttribute('aria-label', opening ? '解説を閉じる' : '解説を見る');
+      btn.setAttribute('aria-label', opening ? '内訳を閉じる' : '内訳を見る');
     }
     // カレンダー＋盾のラインアイコン（ホームボタンと同一デザインをここでも再利用できるよう関数化）
     function _ddIcoCalShield(size, col) {
