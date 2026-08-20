@@ -211,24 +211,13 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
    指摘2件への対応）。「文字の移動量と幅がまだ速い」「四角が出てくるまでの
    モーションが速くて再現できていない。四角が出る前に細かい小さい円のような
    動きがある」。
-   実測の要点：showdot.jpは黒い小円（2〜11px、matrix(scale)の倍率が
-   1.23〜3.80と円ごとに違う）を1006個DOMに持ち、それが左から順に育って
-   融合し、隙間のない帯になってから中の文字が現れる。1000個の要素を作るのは
-   禁止（厳守事項8）なので、この「点が育って融合する」見え方だけを
-   radial-gradient の繰り返しで再現する（1個の疑似要素で足りる）。
-   前回実装（今朝・§26）は帯を1枚の板として scaleX(0→1) で伸ばすだけで、
-   点を経ずに四角が出るだけだった。今回はこれを次の2段に分けて作り直す。
-     1. 帯：::before に14pxおきの円の列（radial-gradient×repeat-x）を描き、
-        円の半径に相当する停止位置 --dotR を0%→130%まで育てて融合させる。
-        あわせて2枚目のマスク（--dotSweepで動かすlinear-gradient）で列を
-        左から右へ明かし、「まず点が左から右へ並んで現れ、そのあと全体が
-        育って融合する」という順序を作る（1個のプロパティでは点1つ1つに
-        個別の時間差を持たせられないため、sweep＝出現順／dotR＝成長、の
-        2段構えで近似している。うまくいかなかった点は
-        design/official_site_spec.md §を参照）
+   ⚠️ 2026-08-17：この節の元になった「点が育って融合する」表現は廃止した
+   （ユーザー指示。WORKTRACK 12-3）。showdot.jp の小円1006個を
+   radial-gradient の繰り返しで近似していた実装は、次の1段に置き換えてある。
+     1. 帯：::before を scaleX(0→1) で左から右へ伸ばす
      2. 文字：.hText を opacity 0→1 ＋ わずかな translateY（.3em→.12emへ
-        縮小。「移動量がまだ速い」への対応）で、帯（--dotR）の育ちが終わって
-        から現す
+        縮小。「移動量がまだ速い」への対応）で、帯が伸び切ってから現す
+   順序（帯 → 文字）とイージングは変えていない。
    イージングは両方とも --e（cubic-bezier(.16,1,.3,1)＝GSAPのpower4.out
    相当）のまま。跳ねさせない。
    ⚠️ animation-range は entry ではなく cover を使う。この見出し（2行・
@@ -249,10 +238,11 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 /* .hSlide 自身は帯の土台（position:relative）だけを担う。isolation:isolate
    は下の ::before（z-index:-1）が .barPlay/.btnFill と同じ考え方で自分の
    内側だけに留まり、ページ全体のスタッキングへ漏れ出さないようにするため。
-   ::before の transform:scaleX(0) は非対応環境（@supports not）向けの
-   初期値・フォールバック。対応環境では下の @supports ブロックで
-   transform:none に上書きし、育つ動きを background-image 側（--dotR/
-   --dotSweep）に委ねる。 */
+   ::before の transform:scaleX(0) が初期値。対応環境では下の @supports
+   ブロックがスクロール駆動（animation-timeline:view()）で scaleX(1) まで
+   伸ばし、非対応環境では site.js の .is-in による transition で伸ばす。
+   ⚠️ 2026-08-17：対応・非対応で別実装だった状態を解消し、どちらも
+      「帯が左から右へ伸びる」1つの表現に統一した。 */
 .hSlide{display:inline-block;position:relative;isolation:isolate;vertical-align:top}
 .hSlide::before{content:'';position:absolute;inset:0;z-index:-1;
   transform-origin:left;transform:scaleX(0)}
@@ -260,10 +250,9 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 
 /* ⚠️ @property は @supports の外（トップレベル）に置く。中に入れると登録に
    失敗した環境で var() が解決できず、宣言ごと無効になる（厳守事項2）。
-   --dotR：点の半径に相当する radial-gradient の停止位置（百分率）。
-   --dotSweep：点の列を左から右へ明かしていくマスクの境界位置（百分率）。 */
-@property --dotR{ syntax:'<percentage>'; inherits:false; initial-value:0% }
-@property --dotSweep{ syntax:'<percentage>'; inherits:false; initial-value:0% }
+   ⚠️ 2026-08-17：ここにあった --dotR / --dotSweep の @property 登録は削除した。
+   点の列が育って融合する演出そのものを廃止し、帯を左から右へ伸ばすだけに
+   したため（ユーザー指示。WORKTRACK 12-3）。 */
 
 /* ══════ 見出しの四角囲み（§25.2の土台。塗り色と余白） ══════
    参照：showdot.jp。節見出しの文字を --headFill で塗った帯の上に置く。
@@ -272,10 +261,9 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
    color は .hSlide に置いたまま子の .hText へ継承させる（color は継承
    プロパティなので二重定義が要らない）。
    ⚠️ ここは background（ショートハンド）ではなく background-color だけを
-   使う。下の @supports ブロックが .hSlide::before に background-image／
-   mask-image で「点の列」を描いており、同じ詳細度の .hSlide::before に対して
-   ショートハンドの background を書くと background-image を none に
-   リセットしてしまい、点が消えて素の帯だけが残る事故になる（厳守事項3）。
+   使う。ショートハンドの background は他の background-* をまとめて初期値へ
+   リセットしてしまうため、同じ詳細度の別ルールと組み合わせたときに意図しない
+   打ち消しが起きる（厳守事項3。実際に点の列が消える事故を踏んだ）。
    このルールを @supports ブロックより前に置くこと自体は動作上必須ではない
    （同じ詳細度なら @supports 側が後勝ちする）が、読む順を「土台→上書き」に
    揃えるために先に置いている。 */
@@ -295,34 +283,21 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 :is(.catch,.secTitle,.wayHead,.modeSecTitle){padding-bottom:var(--s5)}
 
 @supports (animation-timeline: view()){
-  /* 点の列（帯）。radial-gradient を14pxおきに繰り返して1行ぶんの点を作り
-     （background-size:14px 100%）、円の停止位置 --dotR を0%→130%まで育てる。
-     100%はタイルの対角（farthest-corner）にちょうど届く値、130%はそれを
-     超えて確実に全面を塗りつぶすための余裕（角に塗り残しが出る事故を
-     避けるため）。mask-image は --dotSweep で列を左から右へ明かす2枚目の
-     マスク。--dotSweep は --dotR より短い range（cover 10%→20%。--dotRは
-     10%→34%）で先に終わらせているため、「まず点の列が左から右へ素早く
-     現れ（sweep）、そのあと全体が一斉に育って融合する（dotR）」という
-     順序になる。transform:none で非対応フォールバックのscaleX(0)を
-     打ち消す。 */
+  /* 帯（2026-08-17改訂）。スクロール量に連れて左から右へ伸びるだけにした。
+     ⚠️ 旧実装は「点の列が現れて育ち、融合して帯になる」2段構えだったが、
+        ユーザー指示により廃止した（WORKTRACK 12-3）。文字が出るのは帯が
+        伸び切ってから、という順序は変えていない。 */
   :is(.catch,.secTitle,.wayHead,.modeSecTitle) .hSlide::before{
-    transform:none;
-    background-color:transparent;
-    background-image:radial-gradient(circle, var(--headFill) var(--dotR,0%), transparent var(--dotR,0%));
-    background-size:14px 100%;
-    background-repeat:repeat-x;
-    mask-image:linear-gradient(90deg,#000 0%,#000 var(--dotSweep,0%),transparent calc(var(--dotSweep,0%) + 10%));
-    -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 var(--dotSweep,0%),transparent calc(var(--dotSweep,0%) + 10%));
-    animation-name:hDotGrow,hDotSweep;
-    animation-timing-function:var(--e),var(--e);
-    animation-fill-mode:both,both;
-    animation-timeline:view(),view();
+    animation-name:hBandGrow;
+    animation-timing-function:var(--e);
+    animation-fill-mode:both;
+    animation-timeline:view();
     /* cover 10%を起点にする理由は上の大コメント参照。cover換算でこの見出しの
        entry完了（＝要素が画面に全部入りきる点）はおよそ15%相当なので、10%は
        まだそのentry途中＝旧実装とほぼ同じ体感の始点を保っている。 */
-    animation-range:cover 10% cover 34%, cover 10% cover 20%;
+    animation-range:cover 10% cover 34%;
   }
-  /* 文字は帯（--dotR）の育ちが終わる cover 34% から始め、cover 50% で
+  /* 文字は帯が伸び切る cover 34% から始め、cover 50% で
      完了させる。この見出し・このビューポートでは「画面に全部入りきって
      いる」期間（containに相当）がおよそcover 85%付近まで続くため、文字が
      出そろう時点でも見出しはまだ画面内に留まっている（実測は
@@ -341,23 +316,10 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
   :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hSlide::before{transform:scaleX(1)}
   :is(.catch,.secTitle,.wayHead,.modeSecTitle).is-in .hText{opacity:1;transform:translateY(0)}
 }
-/* ⚠️ hDotGrow は from/to の単純な2点ではなく、途中に停止点を打ってある。
-   --e（power4.out）は「進行の前半で一気に値が動き、後半でゆっくり収束する」
-   カーブのため、from/to だけで0%→130%を animation-timing-function に任せると、
-   実測でスクロール開始からわずか2〜3pxの間に半分近く育ってしまい、「小さい点が
-   並んでいる」瞬間がほぼ見えなかった（headlessで実測して判明。うまくいかな
-   かった点として design/official_site_spec.md §に記録）。対応として、
-   キーフレームの値カーブ自体を後ろ寄りにした（0%〜55%はdotRを8%未満＝隣と
-   触れる直前の小さい点のまま留め、55%以降で一気に130%まで育てて融合させる）。
-   animation-timing-function は --e のまま変えていない。 */
-@keyframes hDotGrow{
-  0%{ --dotR:0% }
-  30%{ --dotR:3% }
-  55%{ --dotR:7% }
-  78%{ --dotR:22% }
-  100%{ --dotR:130% }
-}
-@keyframes hDotSweep{ from{ --dotSweep:0% } to{ --dotSweep:100% } }
+/* 帯の伸長。イージングは共通の --e（power4.out）。
+   ⚠️ 2026-08-17：旧 hDotGrow（点を育てて融合させる多段キーフレーム）を
+      廃止して、この2点の伸長に置き換えた。 */
+@keyframes hBandGrow{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
 @keyframes hTextIn{ from{opacity:0;transform:translateY(.12em)} to{opacity:1;transform:translateY(0)} }
 
 @media (prefers-reduced-motion: reduce){
@@ -405,7 +367,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
 @media (prefers-reduced-motion: reduce){ html:not([data-motion="on"]) .maskReveal{ clip-path:none } }
 
 /* ══════ 背景の粒子と幾何学的な線（今回追加。全ページ共通） ══════
-   参照：showdot.jp。紺の地（--ground）の上に、静かに横流れする奥行きを
+   参照：showdot.jp／yoasobi-music.jp。紺の地（--ground）の上に、静かに横流れする奥行きを
    足す。演出だけを採り、ライブラリは採らない。新しい色は作らず、粒子・
    線とも白（--t1）または既存の罫トークン（--border）の低不透明度で
    表現する。
@@ -437,11 +399,19 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
   background:var(--t1);
   animation-name:bgDotDrift;animation-timing-function:linear;animation-iteration-count:infinite;
   will-change:transform}
-.bgDot--a{width:2px;height:2px;opacity:.16;animation-duration:65s}
-.bgDot--b{width:3px;height:3px;opacity:.28;animation-duration:45s}
-.bgDot--c{width:5px;height:5px;opacity:.42;animation-duration:32s}
-/* ⚠️ 直線移動だと流れが機械的に見える。上下にわずかに揺らして、
-   水中の粒のような不規則さを出す。transformだけなので負荷は変わらない。 */
+.bgDot--a{width:2px;height:2px;opacity:.16;animation-duration:95s}
+.bgDot--b{width:3px;height:3px;opacity:.28;animation-duration:76s}
+.bgDot--c{width:5px;height:5px;opacity:.42;animation-duration:58s}
+/* 横流れ（左→右）。⚠️ 直線移動だと機械的に見えるので、上下にわずかに揺らして
+   水中の粒のような不規則さを出す。transformだけなので負荷は変わらない。
+   ⚠️ 2026-08-17：一度この向きを縦へ変えたが、向きの変更は指示ではなかったため
+      横へ戻した。yoasobi-music.jp の実測から採ったのは**向き以外**の4点である。
+        ・秒数を約1.5倍に遅くした（52〜100秒の領域。旧 65/45/32 → 95/76/58）
+        ・負の animation-delay を各層の秒数いっぱいに散らした
+        ・出発位置（--x）の等間隔をやめて不規則にした
+        ・揺れを残した（YOASOBIは完全な直線だが、硬く見えるため採らなかった）
+   🚫 YOASOBI は top プロパティ自体をアニメーションさせているが採らない。
+      毎フレームのレイアウト再計算が走るため。transform のままにする。 */
 @keyframes bgDotDrift{
   0%   { transform:translate(0, 0) }
   25%  { transform:translate(29vw, -1.4vh) }
@@ -449,13 +419,14 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
   75%  { transform:translate(87vw, -0.7vh) }
   100% { transform:translate(116vw, 0) }
 }
-/* ⚠️ 移動距離は 116vw なので、画面が狭いスマホでは同じ秒数でも
-   絶対的な速さが1/4以下になり、著しく緩慢に見える（実機で指摘された）。
-   狭い画面では秒数を詰めて、体感の速さを揃える。 */
+/* ⚠️ 移動距離は 116vw なので、画面が狭いスマホでは同じ秒数でも絶対的な速さが
+   1/4以下になり、著しく緩慢に見える（実機で指摘された）。狭い画面では秒数を
+   詰めて体感の速さを揃える。⚠️ 2026-08-17に基準秒数を 65/45/32 → 95/76/58 へ
+   遅くしたので、この上書きも同じ比率（約0.4倍）で引き直してある。 */
 @media(max-width:899px){
-  .bgDot--a{animation-duration:26s}
-  .bgDot--b{animation-duration:18s}
-  .bgDot--c{animation-duration:13s}
+  .bgDot--a{animation-duration:38s}
+  .bgDot--b{animation-duration:30s}
+  .bgDot--c{animation-duration:23s}
 }
 
 .bgLine{position:absolute;height:1px;background:var(--t1);opacity:.1;transform-origin:left center}
@@ -465,6 +436,10 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:97;opa
    画面外に留まって1つも見えなくなる（実機で実際にそうなった）。
    縮退時は各粒子の --x（HTML側にインラインで持たせた静止位置）へ置き、
    動かないだけで「見えている」状態にする。 */
+/* ⚠️ 粒子は left:-8%（画面外）から始まり、アニメーションだけが画面内へ運ぶ。
+   そのため縮退で animation が止まると18個すべてが画面外に留まって1つも
+   見えなくなる（実機で実際にそうなった）。縮退時は各粒子の --x（HTML側に
+   インラインで持たせた静止位置）へ置き、動かないだけで「見えている」状態にする。 */
 @media (prefers-reduced-motion: reduce){
   html:not([data-motion="on"]) .bgDot{ left:var(--x, 50%) }
 }
@@ -770,14 +745,18 @@ body > footer{position:relative;z-index:1}
    saturateを重ねて質感を強める（§2-⑤の例外＝固定ヘッダ相当のナビなので許容）。
    JSが失敗した場合やprefers-reduced-motionでは常時フル表示に倒す
    （縮退で情報が欠けないための保険。下の@mediaブロックを参照）。 */
+/* ⚠️ 2026-08-17：PLAYボタンの背後にあった半透明の面（グラスモフィズム）を
+   削除した（ユーザー指示）。ハンバーガーの囲みを外したときと同じ判断で、
+   面を消して要素だけを残す。どんな地の上でもPLAYが見えるように、面の代わりに
+   影で浮かせる（.hamburgerBtn と同じ作法）。 */
 .bottomBar{position:fixed;right:var(--pad);bottom:var(--s3);z-index:80;
-  display:flex;padding:var(--s1);
-  border-radius:20px;overflow:hidden;
+  display:flex;padding:0;
+  border-radius:0;overflow:visible;
   opacity:var(--barP,0);
   transition:opacity .3s var(--e);
-  background:color-mix(in oklch, var(--ground) 62%, transparent);
-  box-shadow:inset 0 0 0 1px var(--border), 0 16px 40px rgba(0,0,0,.35);
-  -webkit-backdrop-filter:blur(20px) saturate(165%);backdrop-filter:blur(20px) saturate(165%)}
+  background:transparent;box-shadow:none;
+  -webkit-backdrop-filter:none;backdrop-filter:none;
+  filter:drop-shadow(0 4px 14px rgba(0,0,0,.55))}
 .bottomBar:hover,.bottomBar:focus-within{opacity:1}
 
 /* ══════ ハンバーガーメニュー（今回新設） ══════

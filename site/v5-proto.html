@@ -556,10 +556,15 @@ html.intro-skip .fvIntro{ --fvT0:0s }  /* 2回目以降はローディングが�
 @keyframes fvRowsRecenter{ to{ transform:translateY(calc(var(--fvStep) * -.5)) } }
 /* 1文字ずつの出現（幕2b）。行（--ri）と文字（--ci）で遅延をずらす。
    ⚠️ 行そのものの opacity とは別軸。掛け合わさるだけなので競合しない。 */
-.fvRow > i{display:inline-block;font-style:normal;opacity:0;
-  transform:translateY(.14em)}
+/* ⚠️ 素の宣言は「見えている」最終形にすること（2026-08-17）。opacity:0 を
+   素にすると、site.js が intro-lock を外した瞬間（TOTAL_MS+200ms＝8.5秒）に
+   html.intro-lock 配下のアニメーションが fill-mode:both ごと外れ、文字が
+   素の不可視へ戻る。一方 .fvMark は素が「見えている」ため残るので、
+   「赤い下線だけが残って READY OR NOT が消える」という実機の不具合になる
+   （実測で再現・確認済み）。.fvRow--keep ＋ fvRowEnter と同じ作法へ揃える。 */
+.fvRow > i{display:inline-block;font-style:normal;opacity:1;transform:none}
 .fvRow > i.fvSp{width:.34em}
-@keyframes fvCharIn{ to{ opacity:1;transform:translateY(0) } }
+@keyframes fvCharIn{ from{ opacity:0;transform:translateY(.14em) } to{ opacity:1;transform:translateY(0) } }
 .fvRow{position:relative;display:inline-block;margin:0;white-space:nowrap;
   font-family:'Outfit','Archivo',sans-serif;font-weight:900;letter-spacing:-.02em;
   font-size:clamp(2rem,9.2vw,6.6rem);line-height:1.05;text-transform:uppercase;
@@ -668,17 +673,33 @@ html.intro-skip .fvIntro{ --fvT0:0s }  /* 2回目以降はローディングが�
 }
 
 /* ══════ スクロール誘導（7-4）。演出が終わってから右下に出す ══════ */
+/* ⚠️ .fvRow > i と全く同じ理由で、素の宣言は「見えている」最終形にする
+   （2026-08-17）。旧実装は opacity:0 が素だったため、8.5秒に intro-lock が
+   外れた時点でスクロール誘導が消えていた（実測で確認）。 */
 .fvScroll{position:absolute;right:var(--s4);bottom:var(--s4);z-index:5;
-  display:flex;flex-direction:column;align-items:center;gap:var(--s1);
-  color:rgba(255,255,255,.72);pointer-events:none;opacity:0}
-.fvScrollLabel{font-size:var(--fs-xs);letter-spacing:var(--tr-label)}
-.fvScrollArrow{width:12px;height:30px}
-@keyframes fvScrollIn{ to{opacity:1} }
-/* 出たあとは静かに上下する。振れ幅は小さく（YOASOBIの「動きが静かなのに強い」）。 */
-@keyframes fvScrollBob{
-  0%,100%{transform:translateY(0)}
-  50%    {transform:translateY(5px)}
-}
+  display:flex;flex-direction:column;align-items:center;gap:var(--s2);
+  color:rgba(255,255,255,.72);pointer-events:none;opacity:1}
+@keyframes fvScrollIn{ from{opacity:0} to{opacity:1} }
+/* 縦組みの英字（2026-08-17）。
+   ⚠️ writing-mode は使わない。1語のまま縦に流すと、面の高さより文字列が
+      長くなったときに端の文字が欠ける（.wayArtWord で実際に踏んだ）。
+      1文字ずつの子要素を縦のflexで積む、サイト内の既存の作法へ揃える。 */
+.fvScrollLabel{display:flex;flex-direction:column;align-items:center;
+  font-size:var(--fs-xs);letter-spacing:0;line-height:1.3}
+/* 各文字を90度・時計回りに回す（2026-08-17 ユーザー指示）。
+   ⚠️ 回転は見た目だけを変える。縦に積む構造（flex）はそのまま。
+      1em四方の枠を与えてから回すことで、回転後も行送りが揃う。 */
+.fvScrollLabel > span{display:grid;place-items:center;
+  width:1em;height:1em;transform:rotate(90deg)}
+/* 丸が上下する区間。⚠️ 2026-08-17：区間を示す線は消した（ユーザー指示）。
+   要素は丸の移動距離を決めるためだけに残す（高さが移動量の基準）。 */
+.fvScrollTrack{position:relative;display:block;width:8px;height:46px}
+.fvScrollDot{position:absolute;left:50%;top:0;width:8px;height:8px;
+  margin-left:-4px;border-radius:50%;background:currentColor}
+/* 46px の区間を、丸の直径8pxぶん引いた38pxだけ動く。
+   ⚠️ イージングは両端で行き過ぎて戻る easeInOutBack を使う（ユーザー指示で
+      戻り値を強めた）。線を消したので、区間の外へ少しはみ出しても破綻しない。 */
+@keyframes fvScrollDotRun{ from{transform:translateY(0)} to{transform:translateY(38px)} }
 
 /* ══════ タイミング（intro-lock：ローディング直後＝4.40秒起点） ══════
    .loadOverlay は 4.45〜4.90秒で消える（site.css。2026-08-16に幕0＝0→100のゲージを
@@ -766,9 +787,12 @@ html.intro-skip .fvMark{
 html.intro-lock .fvScroll,
 html.intro-skip .fvScroll{
   animation:fvScrollIn .5s var(--e) calc(var(--fvT0) + var(--fvEnd) + .1s) both}
-html.intro-lock .fvScrollArrow,
-html.intro-skip .fvScrollArrow{
-  animation:fvScrollBob 2.2s ease-in-out calc(var(--fvT0) + var(--fvEnd) + .6s) infinite}
+/* ⚠️ 丸の往復は intro-lock/intro-skip の配下に置かない。8.5秒でクラスが
+   外れた瞬間に往復が止まるため（12-1と同じ構造の事故）。--fvT0 は .fvIntro、
+   --fvEnd は .fvStage から継承されるので素のセレクタに直接書ける。 */
+.fvScrollDot{
+  animation:fvScrollDotRun 1.9s cubic-bezier(.68,-.55,.27,1.55)
+    calc(var(--fvT0, 0s) + var(--fvEnd, 0s) + .6s) infinite alternate}
 
 /* ⚠️ 点滅は体調に影響しうるため、reduced-motion では完全に止める。
    全アニメーションを無効化し、幕3終了後の最終状態（黒地＋1行＋マーカー）を
@@ -782,7 +806,7 @@ html.intro-skip .fvScrollArrow{
   html:not([data-motion="on"]) .fvRow > i,
   html:not([data-motion="on"]) .fvMark,
   html:not([data-motion="on"]) .fvScroll,
-  html:not([data-motion="on"]) .fvScrollArrow{animation:none!important}
+  html:not([data-motion="on"]) .fvScrollDot{animation:none!important}
   html:not([data-motion="on"]) .fvCard{opacity:0!important}
   html:not([data-motion="on"]) .fvStage{transform:translate(0,0)!important}
   html:not([data-motion="on"]) .fvStrobe{opacity:0!important}
@@ -901,7 +925,22 @@ html.intro-skip .fvScrollArrow{
 .ctaMain:hover i,.ctaMain:focus-visible i,.ctaMain:active i{opacity:1}
 @media(hover:hover){ .ctaMain:hover{transform:translateY(-2px)} }
 .ctaMain:focus-visible{outline:2px solid var(--t1);outline-offset:3px}
-.stores{display:flex;gap:var(--s2);flex-wrap:wrap}
+.stores{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
+/* ⚠️ stretch にすると、バッジ画像の原寸（270x80）が基準になって隣の
+   「App Store 準備中」の枠まで80pxへ引き伸ばされ、枠の中に空白が残った
+   （実測で確認）。バッジ側を枠の高さに近い実寸で指定し、中央で揃える。 */
+.storeLink{display:block;line-height:0}
+.storeLink img{display:block;width:clamp(8rem, 12vw, 9.5rem);height:auto}
+@media(hover:hover){ .storeLink:hover{filter:brightness(1.1)} }
+.storeLink:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+/* 二次元コード。⚠️ 読み取れることが機能そのものなので、白の余白（静穏域）ごと
+   出す。地が濃紺なので白場は四角のまま残し、角丸や枠で飾らない。 */
+.heroQr{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s1)}
+.storeQr{display:flex;flex-direction:column;align-items:center;gap:6px}
+.storeQr img{display:block;width:clamp(3.9rem,6.4vw,4.8rem);height:auto;
+  background:#fff;padding:4px}
+.storeQrCap{font-size:var(--fs-xs);letter-spacing:var(--tr-label);
+  color:var(--t3)}
 .store{font-size:var(--fs-s);color:var(--t3);border:1px solid var(--border);
   padding:var(--s1) var(--s3);line-height:1.5}
 .store em{font-style:normal;display:block;font-size:var(--fs-xs);
@@ -1218,6 +1257,43 @@ html.intro-skip .fvScrollArrow{
 .wayNote{display:block;margin-top:var(--s2);font-size:var(--fs-s);
   color:rgba(255,255,255,.66);line-height:var(--lh-b)}
 
+/* ══════ クリエイトラボ（2026-08-17 新設。WORKTRACK 12-5） ══════
+   対戦・協力の下に、両方の横幅ぶんを使う緑の面を1枚置く。面そのものが
+   features.html への入口リンクで、赤青パネルと同じ作法に揃えてある。
+   ⚠️ 3機能を「均等な3カラム」に並べない（§1.3「3カラムの均等グリッドを
+      使わない」）。左に見出し・右に3項目の縦積みという 5:7 の非対称に
+      することで、要素の大きさに差を付ける規律も同時に満たす。
+   緑は design_system.md §1.4 の意味色（緑＝安全・防御・対策）を踏襲しつつ、
+   赤 #E60B00／紺 #002A6C と同じ「深い面」の階調に落とした #0E6B3A を使う。
+   白文字とのコントラスト比は6.61でAAを満たす（実測）。 */
+.wayFullCreate{position:relative;z-index:1;overflow:hidden;
+  display:grid;grid-template-columns:6fr 7fr;
+  column-gap:clamp(var(--s4), 4vw, var(--s6));align-items:start;
+  /* ⚠️ 縦の余白は赤青パネル（--s7）より一段詰めて --s6 にする。左カラム
+     （見出し）が右カラム（3項目）より短いため、--s7 のままだと下に
+     200px超の空きが残って間延びして見えた（実測742px→614px）。
+     主役は上の2モードなので、面が一段控えめになるのは階層としても正しい。 */
+  padding:var(--s6) var(--s5);
+  padding-right:clamp(var(--s5), 10vw, 10rem);
+  background:#0E6B3A;text-decoration:none;color:var(--t1);
+  transition:filter .25s var(--e)}
+@media(hover:hover){
+  .wayFullCreate:hover{filter:brightness(1.08)}
+  .wayFullCreate:hover .wayMode{color:var(--gold)}
+}
+.wayFullCreate:active .wayMode{color:var(--gold)}
+.wayFullCreate:focus-visible{outline:2px solid var(--gold);outline-offset:-6px}
+/* 縦書きの CREATE は赤青パネルより一段小さくする。右側に3項目が入るため、
+   VERSUS/COOP と同じ 9vw だと本文に覆いかぶさる。 */
+.wayArtWord--create{font-size:clamp(var(--fs-h2),5vw,var(--fs-d1));opacity:.72}
+/* 3機能。カード化せず、細い罫だけで仕切る（DESIGN：意味的に必要ない囲いを作らない）。 */
+.labList{position:relative;z-index:1;display:block}
+.labItem{display:block;padding:var(--s3) 0;border-top:1px solid rgba(255,255,255,.26)}
+.labItem:first-child{border-top:0;padding-top:0}
+.labName{display:block;font-size:var(--fs-h3);line-height:1.25}
+.labText{display:block;margin-top:var(--s1);font-size:var(--fs-s);
+  color:rgba(255,255,255,.86);line-height:var(--lh-b)}
+
 /* 境界の×。線が交差する点が2つの面の境界線にちょうど重なる。
    ⚠️ viewBox の中心(50,50)が交点なので、要素の中心を境界に合わせれば
    交点が境界に乗る。左右分割時は left:50%、上下分割時は top:50%。 */
@@ -1236,6 +1312,11 @@ html.intro-skip .fvScrollArrow{
   .wayArtWord{right:calc(var(--pad) * -.35);opacity:.55;
     font-size:clamp(var(--fs-d2),26vw,var(--fs-d3))}
   .wayInner{max-width:none}
+  /* クリエイトラボは1カラムに畳み、3機能を縦に並べる（指示どおり）。 */
+  .wayFullCreate{grid-template-columns:1fr;row-gap:var(--s5);
+    padding:var(--s6) var(--pad);padding-right:var(--pad)}
+  .wayArtWord--create{right:calc(var(--pad) * -.35);opacity:.5;
+    font-size:clamp(var(--fs-d1),18vw,var(--fs-d3))}
 }
 
 @media (prefers-reduced-motion: reduce){
@@ -1375,7 +1456,11 @@ html.intro-skip .fvScrollArrow{
   <div class="loadBlackout" aria-hidden="true"></div>
 </div>
 
-<!-- 背景の粒子と幾何学的な線（今回追加）。本文より後ろに敷く静的な奥行き演出。
+<!-- 背景の粒子と幾何学的な線。本文より後ろに敷く奥行き演出。
+     ⚠️ 2026-08-17：粒子は縦（下→上）に流れる。--x が横位置、--y は
+        prefers-reduced-motion で静止させるときの縦位置。遅延は各層の
+        秒数（a=95s / b=76s / c=58s）いっぱいに散らして、同じ帯に固まって
+        流れないようにしてある。
      18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
      transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
 <div class="bgField" aria-hidden="true">
@@ -1383,24 +1468,24 @@ html.intro-skip .fvScrollArrow{
   <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
   <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
   <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
-  <span class="bgDot bgDot--a" style="--x:4%;--y:6%;animation-delay:-5s"></span>
-  <span class="bgDot bgDot--a" style="--x:17%;--y:22%;animation-delay:-16s"></span>
-  <span class="bgDot bgDot--a" style="--x:30%;--y:38%;animation-delay:-27s"></span>
-  <span class="bgDot bgDot--a" style="--x:43%;--y:54%;animation-delay:-38s"></span>
-  <span class="bgDot bgDot--a" style="--x:56%;--y:70%;animation-delay:-49s"></span>
-  <span class="bgDot bgDot--a" style="--x:69%;--y:86%;animation-delay:-60s"></span>
-  <span class="bgDot bgDot--b" style="--x:82%;--y:12%;animation-delay:-4s"></span>
-  <span class="bgDot bgDot--b" style="--x:95%;--y:28%;animation-delay:-11s"></span>
-  <span class="bgDot bgDot--b" style="--x:16%;--y:44%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--b" style="--x:29%;--y:60%;animation-delay:-25s"></span>
-  <span class="bgDot bgDot--b" style="--x:42%;--y:76%;animation-delay:-32s"></span>
-  <span class="bgDot bgDot--b" style="--x:55%;--y:92%;animation-delay:-39s"></span>
-  <span class="bgDot bgDot--c" style="--x:68%;--y:18%;animation-delay:-3s"></span>
-  <span class="bgDot bgDot--c" style="--x:81%;--y:34%;animation-delay:-8s"></span>
-  <span class="bgDot bgDot--c" style="--x:94%;--y:50%;animation-delay:-13s"></span>
-  <span class="bgDot bgDot--c" style="--x:15%;--y:66%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--c" style="--x:28%;--y:82%;animation-delay:-23s"></span>
-  <span class="bgDot bgDot--c" style="--x:41%;--y:98%;animation-delay:-28s"></span>
+  <span class="bgDot bgDot--a" style="--x:6%;--y:11%;animation-delay:-9s"></span>
+  <span class="bgDot bgDot--a" style="--x:23%;--y:29%;animation-delay:-27s"></span>
+  <span class="bgDot bgDot--a" style="--x:37%;--y:47%;animation-delay:-44s"></span>
+  <span class="bgDot bgDot--a" style="--x:61%;--y:63%;animation-delay:-58s"></span>
+  <span class="bgDot bgDot--a" style="--x:78%;--y:81%;animation-delay:-73s"></span>
+  <span class="bgDot bgDot--a" style="--x:91%;--y:94%;animation-delay:-87s"></span>
+  <span class="bgDot bgDot--b" style="--x:12%;--y:17%;animation-delay:-7s"></span>
+  <span class="bgDot bgDot--b" style="--x:31%;--y:35%;animation-delay:-21s"></span>
+  <span class="bgDot bgDot--b" style="--x:46%;--y:52%;animation-delay:-34s"></span>
+  <span class="bgDot bgDot--b" style="--x:68%;--y:58%;animation-delay:-47s"></span>
+  <span class="bgDot bgDot--b" style="--x:84%;--y:74%;animation-delay:-59s"></span>
+  <span class="bgDot bgDot--b" style="--x:97%;--y:88%;animation-delay:-71s"></span>
+  <span class="bgDot bgDot--c" style="--x:3%;--y:8%;animation-delay:-4s"></span>
+  <span class="bgDot bgDot--c" style="--x:19%;--y:26%;animation-delay:-14s"></span>
+  <span class="bgDot bgDot--c" style="--x:42%;--y:41%;animation-delay:-24s"></span>
+  <span class="bgDot bgDot--c" style="--x:55%;--y:67%;animation-delay:-33s"></span>
+  <span class="bgDot bgDot--c" style="--x:73%;--y:79%;animation-delay:-42s"></span>
+  <span class="bgDot bgDot--c" style="--x:88%;--y:96%;animation-delay:-53s"></span>
 </div>
 
 <!-- ══════ 下部固定バー（§13.2。2026-08-12：上部固定ヘッダを廃止し、役割を
@@ -1423,7 +1508,7 @@ html.intro-skip .fvScrollArrow{
 </button>
 
 <nav class="bottomBar en" aria-label="PLAYへ">
-  <a class="barPlay" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html"><span class="barPlayText">PLAY</span></a>
+  <a class="barPlay" href="https://toshibousai-cardgame.web.app/"><span class="barPlayText">PLAY</span></a>
 </nav>
 
 <!-- 背後の暗転スクリム。押すと閉じる。 -->
@@ -1473,15 +1558,11 @@ html.intro-skip .fvScrollArrow{
       <span class="fvRow fvRow--fade fvRow--solid" style="--ri:3;--conv:-1"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i></span>
     </div>
     <div class="fvGrain"></div>
-    <!-- スクロール誘導（7-4）。演出が終わってから右下に出す。矢印は先端の
-         線分が片側だけのもの（対戦の勝敗画面で使っているものと同じ性格）。 -->
+    <!-- スクロール誘導（7-4／2026-08-17改訂）。演出が終わってから右下に出す。
+         英字は縦組み、その下の区間を小さな丸が上下に往復する。 -->
     <div class="fvScroll" aria-hidden="true">
-      <span class="fvScrollLabel enBase">SCROLL</span>
-      <svg class="fvScrollArrow" viewBox="0 0 14 34" fill="none" stroke="currentColor"
-           stroke-width="1.6" stroke-linecap="round">
-        <path d="M7 1 V31"></path>
-        <path d="M7 31 L1 24"></path>
-      </svg>
+      <span class="fvScrollLabel enBase"><span>S</span><span>C</span><span>R</span><span>O</span><span>L</span><span>L</span></span>
+      <span class="fvScrollTrack"><i class="fvScrollDot"></i></span>
     </div>
   </div>
 </section>
@@ -1497,13 +1578,30 @@ html.intro-skip .fvScrollArrow{
       <h1 class="logo enBase reveal" data-d="0"><span>READY</span><span class="l2">OR NOT</span></h1>
       <p class="tagline jpAccent reveal" data-d="1">―防災カードバトル―</p>
       <div class="cta reveal" data-d="2">
-        <a class="ctaMain" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html">
+        <a class="ctaMain" href="https://toshibousai-cardgame.web.app/">
           <b>ブラウザですぐ遊ぶ</b>
           <i>ダウンロード不要・登録不要</i>
         </a>
         <div class="stores">
-          <span class="store">Google Play<em>準備中</em></span>
+          <!-- 2026-08-17：Google Play は配信開始したので「準備中」の枠を実物の
+               バッジへ差し替えた。App Store は未配信なので枠のまま残す。 -->
+          <a class="storeLink" href="https://play.google.com/store/apps/details?id=com.readyorlab.readyornot&amp;hl=ja">
+            <img src="assets/store/googleplay_ja.png" alt="Google Play で手に入れよう" width="270" height="80">
+          </a>
           <span class="store">App Store<em>準備中</em></span>
+        </div>
+        <!-- 二次元コード（2026-08-17）。上の2つの導線それぞれに対応させる。
+             APP＝Google Play ストア／BROWSER＝ブラウザ版（Firebase）。
+             宛先は解読して確認済み（WORKTRACK 13-6）。 -->
+        <div class="heroQr">
+          <span class="storeQr">
+            <img src="assets/store/qr_play.png" alt="Google Play ストアの二次元コード" width="230" height="230">
+            <span class="storeQrCap en">APP</span>
+          </span>
+          <span class="storeQr">
+            <img src="assets/store/qr_web.png" alt="ブラウザ版の二次元コード" width="216" height="216">
+            <span class="storeQrCap en">BROWSER</span>
+          </span>
         </div>
       </div>
     </div>
@@ -1665,6 +1763,34 @@ html.intro-skip .fvScrollArrow{
       <line x1="92" y1="8" x2="8" y2="92"></line>
     </svg>
   </div>
+
+  <!-- クリエイトラボ（2026-08-17 新設）。赤青パネルの下に、両方の横幅ぶんを
+       使う緑の面を1枚。面そのものが features.html への入口リンク。 -->
+  <a class="wayFullCreate reveal" data-d="3" href="features.html">
+    <span class="wayArtWord wayArtWord--create enAccent" aria-hidden="true"><span>C</span><span>R</span><span>E</span><span>A</span><span>T</span><span>E</span></span>
+    <span class="wayInner">
+      <!-- ⚠️ .en の字間（0.14em）が乗るため7文字は2行になる。放っておくと
+           「クリエイトラ／ボ」と1文字だけ送られる（恒久ルール違反）。
+           意味の切れ目で明示的に折る。 -->
+      <span class="wayMode en">クリエイト<br>ラボ</span>
+      <span class="waySub jpAccent">バトルをより楽しくするやり込み要素</span>
+      <span class="wayBody">対戦・協力モードからの延長で遊べるやり込み要素。オリジナルカードの作成やデイリータスク等を仲間と共有しよう</span>
+    </span>
+    <span class="labList">
+      <span class="labItem">
+        <span class="labName jpAccent">カード工房</span>
+        <span class="labText">自分だけのオリジナルカードを作成できる。ストック画像も豊富にあるので簡単。仲間に共有も。</span>
+      </span>
+      <span class="labItem">
+        <span class="labName jpAccent">問題工房</span>
+        <span class="labText">都市・来襲する災害・手札・予算を指定し、自作の詰め防災パズルを出題できる。共有コードで配布でき、プレイは常に練習扱いになる。</span>
+      </span>
+      <span class="labItem">
+        <span class="labName jpAccent">デイリー防災</span>
+        <span class="labText">1日1回、対戦モードの対応フェーズのみを体験できるミニマムかつ奥深いミニゲーム。最善の手を見つけ出そう。</span>
+      </span>
+    </span>
+  </a>
 </section>
 
 <!-- ══════ 04 締め（新設。§13）。タグライン再掲＋PLAY への大きな導線を1つ。
@@ -1678,7 +1804,7 @@ html.intro-skip .fvScrollArrow{
            そのままにし、平仮名（.tagKana）だけをスマホ幅で縮小して収める
            （全体を一律縮小しない。指示どおり）。 -->
       <p class="closeTag jpAccent reveal" data-d="0">失敗<span class="tagKana">できる</span><br class="tagBr">災害<span class="tagKana">はここだけ</span></p>
-      <a class="closeCta reveal" data-d="1" href="https://kawa50451-prog.github.io/bousai-card-game/game_online.html">PLAY</a>
+      <a class="closeCta reveal" data-d="1" href="https://toshibousai-cardgame.web.app/">PLAY</a>
     </div>
   </div>
 </section>
