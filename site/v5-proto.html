@@ -1228,13 +1228,22 @@ html.intro-skip .fvScroll{
    対策：**中央寄せ＋一定の隙間**にし、**字の大きさを箱の高さで頭打ちにする**。
    ⚠️ cqh を使うため container-type:size が要る。size containment は幅も
       内容から決められなくなるので、**width を明示すること**（省くと幅0に潰れる）。 */
+/* ⚠️ 大きさと横位置は元の設計に戻した（2026-08-23）。
+   一度 container-type:size ＋ cqh で「箱に収める」形にしたが、これは改悪だった。
+   ①width を明示した結果、スマホ用の right:負値（＝わざと画面外へ少しはみ出す配置）が
+     効かなくなり、文字が面の内側に収まってしまった。
+   ②font-size を span へ移した結果、スマホ用の
+     font-size:clamp(var(--fs-d2),26vw,var(--fs-d3))（390pxで90px）が効かなくなり、
+     38px まで縮んだ。
+   残したのは **中央寄せ＋詰めた字間** だけ。旧 space-between は、箱に入りきる語
+   （CREATE）では字間が60pxまで開き、入りきらない語（VERSUS）では詰まる、という
+   バラバラな結果になっていた。 */
 .wayArtWord{position:absolute;top:var(--s4);bottom:var(--s4);right:var(--s4);
-  width:clamp(2.5rem,7vw,6.5rem);container-type:size;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.04em;
   line-height:1;pointer-events:none;
+  font-size:clamp(var(--fs-h1),9vw,calc(var(--fs-d3) * 1.3));
   color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.5);opacity:.9}
-.wayArtWord > span{display:block;
-  font-size:min(clamp(var(--fs-h1),9vw,calc(var(--fs-d3) * 1.3)), calc(94cqh / var(--n,6)))}
+.wayArtWord > span{display:block}
 @supports not (-webkit-text-stroke: 1px #fff){
   .wayArtWord{color:rgba(255,255,255,.14)}
 }
@@ -1294,8 +1303,7 @@ html.intro-skip .fvScroll{
 .wayFullCreate:focus-visible{outline:2px solid var(--gold);outline-offset:-6px}
 /* 縦書きの CREATE は赤青パネルより一段小さくする。右側に3項目が入るため、
    VERSUS/COOP と同じ 9vw だと本文に覆いかぶさる。 */
-.wayArtWord--create > span{font-size:min(clamp(var(--fs-h2),5vw,var(--fs-d1)), calc(94cqh / var(--n,6)))}
-.wayArtWord--create{opacity:.72}
+.wayArtWord--create{font-size:clamp(var(--fs-h2),5vw,var(--fs-d1));opacity:.72}
 /* 3機能。カード化せず、細い罫だけで仕切る（DESIGN：意味的に必要ない囲いを作らない）。 */
 .labList{position:relative;z-index:1;display:block}
 .labItem{display:block;padding:var(--s3) 0;border-top:1px solid rgba(255,255,255,.26)}

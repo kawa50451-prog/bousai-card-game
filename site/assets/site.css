@@ -1293,7 +1293,9 @@ html[data-introfreeze] .loadInk{ display:block !important }
 .vArc--vul{stroke:#3fb950;fill:rgba(63,185,80,.10)}
 /* 3円の共通部分。⚠️ 正本は白地なので「暗い灰」で沈めているが、こちらは
    暗い地なので同じことをすると消える。逆に**明るい中間色**で持ち上げる。 */
-.vCore{fill:rgba(233,239,247,.26);stroke:none}
+/* ⚠️ 中心の塗りは3円が出そろってから。題と引出線はさらにその後。
+   （2026-08-23 ユーザー指示。順番＝円→円→円→カード→中心→題→線→点） */
+.vCore{fill:rgba(233,239,247,.26);stroke:none;opacity:0}
 .vLead{stroke:rgba(255,255,255,.72);stroke-width:4;stroke-linecap:round;fill:none}
 .vDot{fill:rgba(255,255,255,.95)}
 
@@ -1301,7 +1303,7 @@ html[data-introfreeze] .loadInk{ display:block !important }
 /* ⚠️ 円の群れを画面中央に置くため、正本の座標から左へ 12.1%（viewBox 270）
    ずらしてある。題と引出線もその分だけ動かした（2026-08-23 ユーザー指示）。
    題は小さくして、赤い円の左肩に掛からない位置に置く。 */
-.vennTitle{position:absolute;left:1.5%;top:4%;z-index:5;
+.vennTitle{position:absolute;left:1.5%;top:4%;z-index:5;opacity:0;
   display:inline-block;padding:.10em .34em;background:#000;color:#fff;
   font-size:5.4cqw;line-height:1.22;white-space:nowrap}
 /* ラベルは円と同じ色。正本では円の下寄りに置かれている。 */
@@ -1335,27 +1337,32 @@ html[data-introfreeze] .loadInk{ display:block !important }
    基準に飛んでいく。 */
 .vArc{transform:scale(.5);transform-box:fill-box;transform-origin:center}
 .vennCard{transform:translateY(-1.6em)}
-.vLead{stroke-dasharray:600;stroke-dashoffset:600}
+.vLead{stroke-dasharray:880;stroke-dashoffset:880}
 .vDot{opacity:0}
 @keyframes vennPop{ from{opacity:0;transform:scale(.5)} to{opacity:1;transform:scale(1)} }
 @keyframes vennDrop{ from{opacity:0;transform:translateY(-1.6em)} to{opacity:1;transform:translateY(0)} }
-@keyframes vennDraw{ from{stroke-dashoffset:600} to{stroke-dashoffset:0} }
+/* ⚠️ 線を伸ばしたら dasharray も引き直すこと。短いと線が途中までしか出ない。
+   現在の線長は約864（(700,258)→(1110,1018)）。 */
+@keyframes vennDraw{ from{stroke-dashoffset:880} to{stroke-dashoffset:0} }
 @keyframes vennDot{ from{opacity:0} to{opacity:1} }
 @supports (animation-timeline: view()){
-  .vArc,.vennCard,.vLead,.vDot{
+  .vArc,.vennCard,.vCore,.vennTitle,.vLead,.vDot{
     animation-timeline:view();animation-fill-mode:both;animation-timing-function:var(--e)}
+  /* 3円とカードが出そろってから中心が塗られ、その後に題→線→点と続く。 */
+  .vCore{animation-name:vennDot;animation-range:entry 76% entry 86%}
+  .vennTitle{animation-name:vennDot;animation-range:entry 86% entry 94%}
   .vArc{animation-name:vennPop}
   .vennCard{animation-name:vennDrop}
   .vLead{animation-name:vennDraw;animation-timing-function:linear}
   .vDot{animation-name:vennDot}
-  .vArc--haz{animation-range:entry 28% entry 60%}
-  .vArc--exp{animation-range:entry 35% entry 67%}
-  .vArc--vul{animation-range:entry 42% entry 74%}
-  .vennCard--haz{animation-range:entry 52% entry 84%}
-  .vennCard--exp{animation-range:entry 59% entry 91%}
-  .vennCard--vul{animation-range:entry 66% entry 98%}
-  .vLead{animation-range:entry 76% entry 100%}
-  .vDot{animation-range:entry 96% entry 100%}
+  .vArc--haz{animation-range:entry 26% entry 46%}
+  .vArc--exp{animation-range:entry 32% entry 52%}
+  .vArc--vul{animation-range:entry 38% entry 58%}
+  .vennCard--haz{animation-range:entry 46% entry 62%}
+  .vennCard--exp{animation-range:entry 52% entry 68%}
+  .vennCard--vul{animation-range:entry 58% entry 74%}
+  .vLead{animation-range:entry 88% entry 97%}
+  .vDot{animation-range:entry 97% entry 100%}
 }
 /* scroll-driven 非対応：site.js が .reveal へ付ける .is-in で時間駆動に落とす。
    ⚠️ .is-in は scroll-driven 非対応のときだけ付く（site.js の supportsScrollTimeline）。 */
@@ -1367,14 +1374,18 @@ html[data-introfreeze] .loadInk{ display:block !important }
   .venn.is-in .vennCard--haz{animation-delay:.36s}
   .venn.is-in .vennCard--exp{animation-delay:.48s}
   .venn.is-in .vennCard--vul{animation-delay:.60s}
-  .venn.is-in .vLead{animation:vennDraw .8s linear .72s both}
-  .venn.is-in .vDot{animation:vennDot .3s linear 1.5s both}
+  .venn.is-in .vCore{animation:vennDot .5s linear .78s both}
+  .venn.is-in .vennTitle{animation:vennDot .5s linear 1.08s both}
+  .venn.is-in .vLead{animation:vennDraw .8s linear 1.3s both}
+  .venn.is-in .vDot{animation:vennDot .3s linear 2.1s both}
 }
 @media (prefers-reduced-motion: reduce){
   html:not([data-motion="on"]) .vArc{animation:none!important;opacity:1;transform:none}
   html:not([data-motion="on"]) .vennCard{animation:none!important;opacity:1;transform:none}
   html:not([data-motion="on"]) .vLead{animation:none!important;stroke-dashoffset:0}
   html:not([data-motion="on"]) .vDot{animation:none!important;opacity:1}
+  html:not([data-motion="on"]) .vCore,
+  html:not([data-motion="on"]) .vennTitle{animation:none!important;opacity:1}
 }
 
 
@@ -1410,20 +1421,30 @@ html[data-introfreeze] .loadInk{ display:block !important }
 /* HOME の .wayArtWord と同じ作法・同じ大きさに揃えた（2026-08-23）。
    ⚠️ 詳しい理由は v5-proto.html の .wayArtWord のコメントを見ること
       （space-between は負の余白を作れず、文字が溢れて切れる）。 */
+/* HOME の .wayArtWord と**同じ値**にしてある（2026-08-23 ユーザー指示）。
+   スマホ用の上書き（26vw＝390pxで90px・right の負値ではみ出す）まで含めて複製する。
+   ⚠️ ここを HOME と食い違わせない。過去に小さくして「改悪」と指摘された。 */
 .modeArtWord{position:absolute;top:var(--s4);bottom:var(--s4);right:var(--s4);
-  width:clamp(2.5rem,7vw,6.5rem);container-type:size;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.04em;
   line-height:1;pointer-events:none;
+  font-size:clamp(var(--fs-h1),9vw,calc(var(--fs-d3) * 1.3));
   color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.5);opacity:.9}
-.modeArtWord > span{display:block;
-  font-size:min(clamp(var(--fs-h1),9vw,calc(var(--fs-d3) * 1.3)), calc(94cqh / var(--n,6)))}
+.modeArtWord > span{display:block}
 @supports not (-webkit-text-stroke: 1px #fff){ .modeArtWord{color:rgba(255,255,255,.14)} }
 /* ⚠️ 実機画面は縦長（1080:2340）なので、幅で決めると面より背が高くなり、
    面が中央で浮いて見える。高さ側で決めて面の高さに近づける。 */
 .modeHeroShot .modeShotWrap{max-width:none;width:auto;margin:0 auto;
   height:clamp(17rem,27vw,24rem)}
 @media(max-width:899px){
-  .modeHero{display:block}
+  .modeHero{display:block;
+    /* ⚠️ HOMEの赤青パネルは .wrap の外にあり画面幅いっぱいを覆う。下層の面は
+       .wrap の内側にあるため、そのままだと左右に地が見えて別物になる。
+       負のマージンで画面幅まで広げて揃える（2026-08-23 ユーザー指示）。 */
+    margin-inline:calc(50% - 50vw)}
   .modeHeroShot{display:none}
-  .modePanel{padding:var(--s5) var(--s4)}
+  .modePanel{padding:var(--s6) var(--pad)}
+  /* 縦組み英字もHOMEのスマホ指定と同じに。右端の外へ少しはみ出させる。 */
+  .modeArtWord{right:calc(var(--pad) * -.35);opacity:.55;
+    font-size:clamp(var(--fs-d2),26vw,var(--fs-d3))}
+  .modePanelInner{max-width:none}
 }
