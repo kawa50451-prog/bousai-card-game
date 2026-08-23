@@ -235,12 +235,19 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
     <figure class="venn reveal venn--roles" data-d="2">
       <div class="vennStage">
         <span class="vennTitle jpAccent">災害リスク</span>
-        <span class="vennCircle vennCircle--haz" aria-hidden="true"></span>
-        <span class="vennCircle vennCircle--exp" aria-hidden="true"></span>
-        <span class="vennCircle vennCircle--vul" aria-hidden="true"></span>
-        <svg class="vennLead" viewBox="0 0 2231 1762" aria-hidden="true">
-          <line x1="790" y1="480" x2="1210" y2="880"></line>
-          <circle cx="1215" cy="885" r="16"></circle>
+        <svg class="vennArt" viewBox="0 0 2231 1762" aria-hidden="true">
+          <defs>
+            <clipPath id="coh"><circle cx="1386.5" cy="630" r="528"/></clipPath>
+            <clipPath id="coe"><circle cx="1081" cy="1223" r="528"/></clipPath>
+          </defs>
+          <circle class="vArc vArc--haz" cx="1386.5" cy="630" r="528"></circle>
+          <circle class="vArc vArc--exp" cx="1081" cy="1223" r="528"></circle>
+          <circle class="vArc vArc--vul" cx="1692" cy="1223" r="528"></circle>
+          <g clip-path="url(#coh)"><g clip-path="url(#coe)">
+            <circle class="vCore" cx="1692" cy="1223" r="528"></circle>
+          </g></g>
+          <line class="vLead" x1="840" y1="300" x2="1210" y2="880"></line>
+          <circle class="vDot" cx="1215" cy="885" r="16"></circle>
         </svg>
         <span class="vennLabel vennLabel--haz jpBase" aria-hidden="true">ハザード</span>
         <span class="vennLabel vennLabel--exp jpBase" aria-hidden="true">曝露</span>
@@ -258,20 +265,35 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
     </figure>
 
     <div class="pairGrid reveal" data-d="3">
-      <div class="pairCard">
+      <div class="pairCard pairCard--haz">
         <b class="en">HAZARD</b>
         <h3>自然災害カード</h3>
         <p>地震・津波・洪水・台風・大火災・土砂崩れ・複合災害。自然側が選ぶが、いつ来るかは都市側には分からない。</p>
+        <div class="pairCards" aria-label="扱うカードの例">
+          <img src="../assets/cards/earthquake.webp" alt="" loading="lazy" width="288" height="450">
+          <img src="../assets/cards/typhoon.webp" alt="" loading="lazy" width="288" height="450">
+          <img src="../assets/cards/flood.webp" alt="" loading="lazy" width="288" height="450">
+        </div>
       </div>
-      <div class="pairCard">
+      <div class="pairCard pairCard--exp">
         <b class="en">EXPOSURE</b>
         <h3>都市カードの属性</h3>
         <p>津波は海岸都市に、土砂崩れは山間都市に追加被害を与える。曝露の高い都市ほど、自然側から見て狙う理由になる。</p>
+        <div class="pairCards" aria-label="扱う都市カードの例">
+          <img src="../assets/cities/kobe.webp" alt="" loading="lazy" width="288" height="450">
+          <img src="../assets/cities/tokyo.webp" alt="" loading="lazy" width="288" height="450">
+          <img src="../assets/cities/hiroshima.webp" alt="" loading="lazy" width="288" height="450">
+        </div>
       </div>
-      <div class="pairCard">
+      <div class="pairCard pairCard--vul">
         <b class="en">VULNERABILITY</b>
         <h3>政策カード2系統</h3>
         <p>耐震補強や堤防建設は構造的脆弱性を下げる。避難訓練や相互支援協定は社会的脆弱性を下げる。デマ拡散は逆に脆弱性を増やす。</p>
+        <div class="pairCards" aria-label="扱う政策カードの例">
+          <img src="../assets/cards/quake_wall.webp" alt="" loading="lazy" width="288" height="450">
+          <img src="../assets/cards/dam.webp" alt="" loading="lazy" width="288" height="450">
+          <img src="../assets/cards/agreement.webp" alt="" loading="lazy" width="288" height="450">
+        </div>
       </div>
     </div>
 

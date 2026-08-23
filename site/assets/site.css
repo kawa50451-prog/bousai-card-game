@@ -1088,9 +1088,17 @@ html.menu-open{overflow:hidden}
 
 .pairGrid{margin-top:var(--s5);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3)}
 @media(max-width:899px){ .pairGrid{grid-template-columns:1fr;gap:var(--s3)} }
-.pairCard{padding:var(--s4) var(--s3);background:var(--surface);
-  box-shadow:inset 0 0 0 1px var(--border);border-radius:4px}
-.pairCard b{display:block;font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--gold)}
+.pairCard{--c:var(--gold);padding:var(--s4) var(--s3);background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--border),inset 3px 0 0 var(--c);border-radius:4px}
+/* 3枚の色はベン図の円と揃える（2026-08-23）。 */
+.pairCard--haz{--c:#f85149}
+.pairCard--exp{--c:#388bfd}
+.pairCard--vul{--c:#3fb950}
+.pairCard b{display:block;font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--c)}
+/* 各項目で扱うカードの代表を3枚並べる。 */
+.pairCards{margin-top:var(--s3);display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s1)}
+.pairCards img{width:100%;height:auto;border-radius:4px;
+  box-shadow:0 8px 18px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06)}
 .pairCard h3{margin-top:var(--s2);font-size:var(--fs-h2);color:var(--t1);line-height:var(--lh-h)}
 .pairCard p{margin-top:var(--s2);font-size:var(--fs-s);color:var(--t2);line-height:var(--lh-b)}
 
@@ -1272,35 +1280,35 @@ html[data-introfreeze] .loadInk{ display:block !important }
       画面幅を変えたときだけ図の中身が崩れる。
    ══════════════════════════════════════════════════════════════════════ */
 .venn{margin:var(--s5) 0 0;position:relative;z-index:1}
-/* ⚠️ 寸法はすべて正本 hazzard-exposure-volunerability.png（2231×1762）の実測値。
-   円は最小二乗で当てた：曝露(1081,1223) 脆弱性(1692,1223) 半径528、
-   ハザードは左右の中点 x=1386.5・最右点から y=630・半径528。
-   カードは局所コントラストで抽出（幅335px＝15.0%W）。
-   ⚠️ 数値を目分量で動かさない。動かすときは正本を測り直すこと。 */
+/* ⚠️ 円・引出線・中心の重なりは SVG で描く。3円の共通部分は clipPath を
+   入れ子にして正確に切り出す（div の重ね合わせでは出せない形である）。
+   座標は正本の実測値：曝露(1081,1223) 脆弱性(1692,1223) ハザード(1386.5,630)、
+   いずれも半径528。viewBox は正本と同じ 2231×1762。 */
 .vennStage{container-type:inline-size;position:relative;
   width:100%;max-width:44rem;margin-inline:auto;aspect-ratio:2231/1762}
-.vennTitle{position:absolute;left:5.6%;top:6.7%;z-index:5;
-  font-size:6.2cqw;line-height:1;color:var(--t1);white-space:nowrap;
-  text-shadow:0 2px 14px rgba(0,0,0,.6)}
-/* ⚠️ mix-blend-mode:screen は使わない。正本は「黒地に半透明を重ねて、
-   交わりが暗い灰になる」通常合成である。screen だと交わりが白く飛んで
-   別物になる（第2版で実際にそうなった）。 */
-.vennCircle{position:absolute;width:47.3%;aspect-ratio:1;border-radius:50%;z-index:1}
-.vennCircle--haz{left:38.5%;top:5.8%;  background:rgba(248,81,73,.62)}
-.vennCircle--exp{left:24.8%;top:39.4%; background:rgba(56,139,253,.62)}
-.vennCircle--vul{left:52.2%;top:39.4%; background:rgba(63,185,80,.62)}
-/* ラベル。正本では1文字あたり181px＝8.1%W、地に溶けるほど薄い。 */
+.vennArt{position:absolute;inset:0;width:100%;height:100%;z-index:1;overflow:visible}
+.vArc{stroke-width:5}
+.vArc--haz{stroke:#f85149;fill:rgba(248,81,73,.10)}
+.vArc--exp{stroke:#388bfd;fill:rgba(56,139,253,.10)}
+.vArc--vul{stroke:#3fb950;fill:rgba(63,185,80,.10)}
+/* 3円の共通部分。⚠️ 正本は白地なので「暗い灰」で沈めているが、こちらは
+   暗い地なので同じことをすると消える。逆に**明るい中間色**で持ち上げる。 */
+.vCore{fill:rgba(233,239,247,.26);stroke:none}
+.vLead{stroke:rgba(255,255,255,.72);stroke-width:4;stroke-linecap:round;fill:none}
+.vDot{fill:rgba(255,255,255,.95)}
+
+/* 題は黒帯に白抜き（正本どおり）。 */
+.vennTitle{position:absolute;left:2.2%;top:5.4%;z-index:5;
+  display:inline-block;padding:.10em .34em;background:#000;color:#fff;
+  font-size:6.2cqw;line-height:1.22;white-space:nowrap}
+/* ラベルは円と同じ色。正本では円の下寄りに置かれている。 */
 .vennLabel{position:absolute;z-index:2;white-space:nowrap;
-  font-size:8.1cqw;line-height:1;color:rgba(255,255,255,.22);letter-spacing:0}
-.vennLabel--haz{left:50.6%;top:24.4%}
-.vennLabel--exp{left:30.1%;top:75.0%}
-.vennLabel--vul{left:73.9%;top:75.0%}
-/* 引出線。viewBox は正本と同じ比にして、実測座標をそのまま書ける形にする。 */
-.vennLead{position:absolute;inset:0;z-index:3;width:100%;height:100%;overflow:visible}
-/* ⚠️ viewBox が 2231×1762 なので、stroke-width も dasharray も
-   viewBox の単位で書く（%や小数だと線が消える）。線長は約580。 */
-.vennLead line{stroke:rgba(255,255,255,.72);stroke-width:4;stroke-linecap:round}
-.vennLead circle{fill:rgba(255,255,255,.95)}
+  font-size:6.6cqw;line-height:1;letter-spacing:0}
+/* ⚠️ ハザードは下2枚のカード（新潟 32.4〜47.4%／耐震補強 75.3〜90.3%）の
+   あいだ、かつカード上端(45.4%)より上に置く。ここを外すと札に文字が乗る。 */
+.vennLabel--haz{left:48.2%;top:35.5%;color:rgba(248,81,73,.82)}
+.vennLabel--exp{left:41.0%;top:81.0%;color:rgba(56,139,253,.82)}
+.vennLabel--vul{left:65.0%;top:81.0%;color:rgba(63,185,80,.82)}
 .vennCard{position:absolute;z-index:4;width:15%;height:auto;border-radius:6px;
   box-shadow:0 14px 34px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08)}
 .vennCard--haz{left:54.5%;top:0.3%}
@@ -1319,49 +1327,51 @@ html[data-introfreeze] .loadInk{ display:block !important }
 
 /* 進行：円→円→円→カード→引出線。⚠️ scroll-driven では animation-delay が
    効かないので、順番は animation-range でずらす。 */
-.vennCircle,.vennCard{opacity:0}
-.vennCircle{transform:scale(.5)}
+.vArc,.vennCard{opacity:0}
+/* ⚠️ SVG の拡大は transform-box:fill-box を付けないと、viewBox の原点を
+   基準に飛んでいく。 */
+.vArc{transform:scale(.5);transform-box:fill-box;transform-origin:center}
 .vennCard{transform:translateY(-1.6em)}
-.vennLead line{stroke-dasharray:600;stroke-dashoffset:600}
-.vennLead circle{opacity:0}
+.vLead{stroke-dasharray:600;stroke-dashoffset:600}
+.vDot{opacity:0}
 @keyframes vennPop{ from{opacity:0;transform:scale(.5)} to{opacity:1;transform:scale(1)} }
 @keyframes vennDrop{ from{opacity:0;transform:translateY(-1.6em)} to{opacity:1;transform:translateY(0)} }
 @keyframes vennDraw{ from{stroke-dashoffset:600} to{stroke-dashoffset:0} }
 @keyframes vennDot{ from{opacity:0} to{opacity:1} }
 @supports (animation-timeline: view()){
-  .vennCircle,.vennCard,.vennLead line,.vennLead circle{
+  .vArc,.vennCard,.vLead,.vDot{
     animation-timeline:view();animation-fill-mode:both;animation-timing-function:var(--e)}
-  .vennCircle{animation-name:vennPop}
+  .vArc{animation-name:vennPop}
   .vennCard{animation-name:vennDrop}
-  .vennLead line{animation-name:vennDraw;animation-timing-function:linear}
-  .vennLead circle{animation-name:vennDot}
-  .vennCircle--haz{animation-range:entry 10% entry 42%}
-  .vennCircle--exp{animation-range:entry 17% entry 49%}
-  .vennCircle--vul{animation-range:entry 24% entry 56%}
+  .vLead{animation-name:vennDraw;animation-timing-function:linear}
+  .vDot{animation-name:vennDot}
+  .vArc--haz{animation-range:entry 10% entry 42%}
+  .vArc--exp{animation-range:entry 17% entry 49%}
+  .vArc--vul{animation-range:entry 24% entry 56%}
   .vennCard--haz{animation-range:entry 34% entry 66%}
   .vennCard--exp{animation-range:entry 41% entry 73%}
   .vennCard--vul{animation-range:entry 48% entry 80%}
-  .vennLead line{animation-range:entry 58% entry 88%}
-  .vennLead circle{animation-range:entry 86% entry 94%}
+  .vLead{animation-range:entry 58% entry 88%}
+  .vDot{animation-range:entry 86% entry 94%}
 }
 /* scroll-driven 非対応：site.js が .reveal へ付ける .is-in で時間駆動に落とす。
    ⚠️ .is-in は scroll-driven 非対応のときだけ付く（site.js の supportsScrollTimeline）。 */
 @supports not (animation-timeline: view()){
-  .venn.is-in .vennCircle{animation:vennPop .8s var(--e) both}
-  .venn.is-in .vennCircle--exp{animation-delay:.12s}
-  .venn.is-in .vennCircle--vul{animation-delay:.24s}
+  .venn.is-in .vArc{animation:vennPop .8s var(--e) both}
+  .venn.is-in .vArc--exp{animation-delay:.12s}
+  .venn.is-in .vArc--vul{animation-delay:.24s}
   .venn.is-in .vennCard{animation:vennDrop .7s var(--e) both}
   .venn.is-in .vennCard--haz{animation-delay:.36s}
   .venn.is-in .vennCard--exp{animation-delay:.48s}
   .venn.is-in .vennCard--vul{animation-delay:.60s}
-  .venn.is-in .vennLead line{animation:vennDraw .8s linear .72s both}
-  .venn.is-in .vennLead circle{animation:vennDot .3s linear 1.5s both}
+  .venn.is-in .vLead{animation:vennDraw .8s linear .72s both}
+  .venn.is-in .vDot{animation:vennDot .3s linear 1.5s both}
 }
 @media (prefers-reduced-motion: reduce){
-  html:not([data-motion="on"]) .vennCircle{animation:none!important;opacity:1;transform:none}
+  html:not([data-motion="on"]) .vArc{animation:none!important;opacity:1;transform:none}
   html:not([data-motion="on"]) .vennCard{animation:none!important;opacity:1;transform:none}
-  html:not([data-motion="on"]) .vennLead line{animation:none!important;stroke-dashoffset:0}
-  html:not([data-motion="on"]) .vennLead circle{animation:none!important;opacity:1}
+  html:not([data-motion="on"]) .vLead{animation:none!important;stroke-dashoffset:0}
+  html:not([data-motion="on"]) .vDot{animation:none!important;opacity:1}
 }
 
 
