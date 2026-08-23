@@ -1272,39 +1272,48 @@ html[data-introfreeze] .loadInk{ display:block !important }
       画面幅を変えたときだけ図の中身が崩れる。
    ══════════════════════════════════════════════════════════════════════ */
 .venn{margin:var(--s5) 0 0;position:relative;z-index:1}
-.vennStage{container-type:inline-size;
-  position:relative;width:100%;max-width:34rem;margin-inline:auto;aspect-ratio:1/1}
-.vennTitle{position:absolute;left:1%;top:4%;z-index:4;
-  font-size:clamp(1.4rem,11cqw,4.6rem);line-height:1.1;color:var(--t1);
-  text-shadow:0 2px 12px rgba(0,0,0,.55)}
-.vennCircle{position:absolute;width:54%;height:54%;border-radius:50%;
-  mix-blend-mode:screen;opacity:.42;z-index:1}
-.vennCircle--haz{left:23%;top:6%;  background:#f85149}
-.vennCircle--exp{left:6%; top:33%; background:#388bfd}
-.vennCircle--vul{left:40%;top:33%; background:#3fb950}
-/* 引出線。stage が正方形なので viewBox 0 0 100 100 がそのまま％座標になる。 */
-.vennLead{position:absolute;inset:0;z-index:2;width:100%;height:100%;overflow:visible}
-.vennLead line{stroke:rgba(255,255,255,.62);stroke-width:.5}
-.vennLead circle{fill:rgba(255,255,255,.92)}
-.vennLabel{position:absolute;z-index:3;white-space:nowrap;
-  font-size:clamp(1rem,8.4cqw,3.4rem);line-height:1;
-  color:rgba(255,255,255,.30);letter-spacing:.04em}
-.vennLabel--haz{left:56%;top:23%}
-.vennLabel--exp{left:7%; top:69%}
-.vennLabel--vul{left:57%;top:69%}
-.vennCard{position:absolute;z-index:4;width:17%;height:auto;border-radius:6px;
-  box-shadow:0 14px 30px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08)}
-.vennCard--haz{left:41.5%;top:3%}
-.vennCard--exp{left:17%;  top:35%}
-.vennCard--vul{left:66%;  top:35%}
+/* ⚠️ 寸法はすべて正本 hazzard-exposure-volunerability.png（2231×1762）の実測値。
+   円は最小二乗で当てた：曝露(1081,1223) 脆弱性(1692,1223) 半径528、
+   ハザードは左右の中点 x=1386.5・最右点から y=630・半径528。
+   カードは局所コントラストで抽出（幅335px＝15.0%W）。
+   ⚠️ 数値を目分量で動かさない。動かすときは正本を測り直すこと。 */
+.vennStage{container-type:inline-size;position:relative;
+  width:100%;max-width:44rem;margin-inline:auto;aspect-ratio:2231/1762}
+.vennTitle{position:absolute;left:5.6%;top:6.7%;z-index:5;
+  font-size:6.2cqw;line-height:1;color:var(--t1);white-space:nowrap;
+  text-shadow:0 2px 14px rgba(0,0,0,.6)}
+/* ⚠️ mix-blend-mode:screen は使わない。正本は「黒地に半透明を重ねて、
+   交わりが暗い灰になる」通常合成である。screen だと交わりが白く飛んで
+   別物になる（第2版で実際にそうなった）。 */
+.vennCircle{position:absolute;width:47.3%;aspect-ratio:1;border-radius:50%;z-index:1}
+.vennCircle--haz{left:38.5%;top:5.8%;  background:rgba(248,81,73,.62)}
+.vennCircle--exp{left:24.8%;top:39.4%; background:rgba(56,139,253,.62)}
+.vennCircle--vul{left:52.2%;top:39.4%; background:rgba(63,185,80,.62)}
+/* ラベル。正本では1文字あたり181px＝8.1%W、地に溶けるほど薄い。 */
+.vennLabel{position:absolute;z-index:2;white-space:nowrap;
+  font-size:8.1cqw;line-height:1;color:rgba(255,255,255,.22);letter-spacing:0}
+.vennLabel--haz{left:50.6%;top:24.4%}
+.vennLabel--exp{left:30.1%;top:75.0%}
+.vennLabel--vul{left:73.9%;top:75.0%}
+/* 引出線。viewBox は正本と同じ比にして、実測座標をそのまま書ける形にする。 */
+.vennLead{position:absolute;inset:0;z-index:3;width:100%;height:100%;overflow:visible}
+/* ⚠️ viewBox が 2231×1762 なので、stroke-width も dasharray も
+   viewBox の単位で書く（%や小数だと線が消える）。線長は約580。 */
+.vennLead line{stroke:rgba(255,255,255,.72);stroke-width:4;stroke-linecap:round}
+.vennLead circle{fill:rgba(255,255,255,.95)}
+.vennCard{position:absolute;z-index:4;width:15%;height:auto;border-radius:6px;
+  box-shadow:0 14px 34px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08)}
+.vennCard--haz{left:54.5%;top:0.3%}
+.vennCard--exp{left:32.4%;top:45.4%}
+.vennCard--vul{left:75.3%;top:45.4%}
 /* 役割の注記。CO-OP だけ出す（自然側＝ハザード／都市側＝曝露と脆弱性）。 */
-.vennRole{position:absolute;z-index:4;display:none;align-items:center;gap:.4em;
-  font-size:clamp(.7rem,3cqw,1.1rem);letter-spacing:var(--tr-label);
+.vennRole{position:absolute;z-index:5;display:none;align-items:center;gap:.4em;
+  font-size:clamp(.7rem,2.6cqw,1.1rem);letter-spacing:var(--tr-label);
   color:rgba(255,255,255,.82)}
 .vennRole::before{content:'';width:.7em;height:.7em;border-radius:50%;background:var(--roleC)}
 .venn--roles .vennRole{display:inline-flex}
-.vennRole--nature{left:74%;top:1%;  --roleC:#f85149}
-.vennRole--city{left:50%;top:93%;transform:translateX(-50%);--roleC:#388bfd}
+.vennRole--nature{left:76%;top:2%;  --roleC:#f85149}
+.vennRole--city{left:34%;top:95%;   --roleC:#388bfd}
 .vennCap{margin-top:var(--s3);text-align:center;
   font-size:var(--fs-s);color:var(--t3);line-height:var(--lh-b)}
 
@@ -1313,11 +1322,11 @@ html[data-introfreeze] .loadInk{ display:block !important }
 .vennCircle,.vennCard{opacity:0}
 .vennCircle{transform:scale(.5)}
 .vennCard{transform:translateY(-1.6em)}
-.vennLead line{stroke-dasharray:44;stroke-dashoffset:44}
+.vennLead line{stroke-dasharray:600;stroke-dashoffset:600}
 .vennLead circle{opacity:0}
-@keyframes vennPop{ from{opacity:0;transform:scale(.5)} to{opacity:.42;transform:scale(1)} }
+@keyframes vennPop{ from{opacity:0;transform:scale(.5)} to{opacity:1;transform:scale(1)} }
 @keyframes vennDrop{ from{opacity:0;transform:translateY(-1.6em)} to{opacity:1;transform:translateY(0)} }
-@keyframes vennDraw{ from{stroke-dashoffset:44} to{stroke-dashoffset:0} }
+@keyframes vennDraw{ from{stroke-dashoffset:600} to{stroke-dashoffset:0} }
 @keyframes vennDot{ from{opacity:0} to{opacity:1} }
 @supports (animation-timeline: view()){
   .vennCircle,.vennCard,.vennLead line,.vennLead circle{
@@ -1349,7 +1358,7 @@ html[data-introfreeze] .loadInk{ display:block !important }
   .venn.is-in .vennLead circle{animation:vennDot .3s linear 1.5s both}
 }
 @media (prefers-reduced-motion: reduce){
-  html:not([data-motion="on"]) .vennCircle{animation:none!important;opacity:.42;transform:none}
+  html:not([data-motion="on"]) .vennCircle{animation:none!important;opacity:1;transform:none}
   html:not([data-motion="on"]) .vennCard{animation:none!important;opacity:1;transform:none}
   html:not([data-motion="on"]) .vennLead line{animation:none!important;stroke-dashoffset:0}
   html:not([data-motion="on"]) .vennLead circle{animation:none!important;opacity:1}
@@ -1378,6 +1387,10 @@ html[data-introfreeze] .loadInk{ display:block !important }
 .modeCountSep{color:rgba(255,255,255,.6)}
 .modePanelBody{display:block;margin-top:var(--s3);font-size:var(--fs-s);
   color:rgba(255,255,255,.86);line-height:var(--lh-b)}
+/* HOME の .wayNote と同じ添え書き。⚠️ 面の文章はHOMEと1字も変えない
+   （2026-08-23 ユーザー指示）。棲み分けの説明は下の「何を決めるゲームか」に置く。 */
+.modePanelNote{display:block;margin-top:var(--s2);font-size:var(--fs-s);
+  color:rgba(255,255,255,.66);line-height:var(--lh-b)}
 /* 縦組みの VERSUS。HOMEの .wayArtWord と同じ作法。
    ⚠️ 1語のまま writing-mode で流すと面の高さより長くなったとき端が欠ける。
       1文字ずつの子要素にして縦flexで space-between すれば必ず収まる。 */

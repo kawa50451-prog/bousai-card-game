@@ -182,7 +182,8 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
           <span class="modeCountSep en" aria-hidden="true">/</span>
           <span class="modeCountGroup"><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">2人</span></span>
         </span>
-        <span class="modePanelBody">1人で守りと攻めの両方を持つ。毎ターン攻守が入れ替わるので駆け引きが濃く、1試合3〜5分で終わる。覚えることが少なく、防災を知らない人でもそのまま入れる。まず遊ぶならこちらである。</span>
+        <span class="modePanelBody">毎ターン攻守を入れ替えで行い、防災と災害をサクッと体験しながら学べる。始めるならまずはこれがオススメ。</span>
+        <span class="modePanelNote">CPU対戦で1人でもプレイできる。</span>
       </div>
     </div>
     <div class="modeHeroShot">
@@ -230,6 +231,8 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
       <p>対局の初めに、12都市からガチャで2都市を引き、手札を4枚引く。</p>
       <p>都市は1枚ごとに地形が決まっている。海岸・内陸・山間部のどれかで、同じ災害でも受ける重さが変わる。さらに都市ごとに固有能力を持っている。</p>
       <p>あとは毎ターン、予算の範囲でどのカードを切るかを決めるだけである。<b style="color:var(--gold)">緑・黄・赤・紫</b>。手札のこの4色が、そのまま選択肢になる。</p>
+      <!-- 棲み分け（2026-08-23）。⚠️ 面（HOMEと同じ文章）には書かず、ここに置く。 -->
+      <p>攻守は毎ターン入れ替わる。守りながら攻める判断を、1人で全部持つことになる。覚えることが少なく1試合3〜5分で終わるので、防災を知らない人が最初に触るならこちらである。</p>
     </div>
     <!-- 手札の扇。旧・文章での色の列挙（緑は…黄は…）を実物に置き換えた。
          左から 緑（シールド）→黄（即時）→赤（自然災害）→紫（人為災害）。 -->
@@ -262,9 +265,9 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
         <span class="vennCircle vennCircle--haz" aria-hidden="true"></span>
         <span class="vennCircle vennCircle--exp" aria-hidden="true"></span>
         <span class="vennCircle vennCircle--vul" aria-hidden="true"></span>
-        <svg class="vennLead" viewBox="0 0 100 100" aria-hidden="true">
-          <line x1="20" y1="23" x2="49.4" y2="50.2"></line>
-          <circle cx="49.6" cy="50.4" r="1.1"></circle>
+        <svg class="vennLead" viewBox="0 0 2231 1762" aria-hidden="true">
+          <line x1="790" y1="480" x2="1210" y2="880"></line>
+          <circle cx="1215" cy="885" r="16"></circle>
         </svg>
         <span class="vennLabel vennLabel--haz jpBase" aria-hidden="true">ハザード</span>
         <span class="vennLabel vennLabel--exp jpBase" aria-hidden="true">曝露</span>
