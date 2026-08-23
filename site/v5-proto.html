@@ -1220,12 +1220,21 @@ html.intro-skip .fvScroll{
    ときに端が切れる（実機で VERSUS の V・E・S が欠けていた）。
    1文字ずつの子要素にして縦のflexで space-between すれば、面の高さが
    いくつでも必ず全文字が収まり、端から端へ均等に散る。 */
+/* 2026-08-23 全面見直し。
+   ⚠️ 旧実装は justify-content:space-between だったが、**負の余白は作れない**ので
+      文字が箱に入りきらないと下へ溢れて切れる。実測：HOMEのVERSUS（6文字）は
+      390px幅で 517px 必要なのに箱が 359px しかなく、158px 溢れて切れていた。
+      逆に CREATE は箱が余って文字間が 60px に開き、語として読めなくなっていた。
+   対策：**中央寄せ＋一定の隙間**にし、**字の大きさを箱の高さで頭打ちにする**。
+   ⚠️ cqh を使うため container-type:size が要る。size containment は幅も
+      内容から決められなくなるので、**width を明示すること**（省くと幅0に潰れる）。 */
 .wayArtWord{position:absolute;top:var(--s4);bottom:var(--s4);right:var(--s4);
-  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  width:clamp(2.5rem,7vw,6.5rem);container-type:size;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.04em;
   line-height:1;pointer-events:none;
-  font-size:clamp(var(--fs-h1),9vw,calc(var(--fs-d3) * 1.3));
   color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.5);opacity:.9}
-.wayArtWord > span{display:block}
+.wayArtWord > span{display:block;
+  font-size:min(clamp(var(--fs-h1),9vw,calc(var(--fs-d3) * 1.3)), calc(94cqh / var(--n,6)))}
 @supports not (-webkit-text-stroke: 1px #fff){
   .wayArtWord{color:rgba(255,255,255,.14)}
 }
@@ -1285,7 +1294,8 @@ html.intro-skip .fvScroll{
 .wayFullCreate:focus-visible{outline:2px solid var(--gold);outline-offset:-6px}
 /* 縦書きの CREATE は赤青パネルより一段小さくする。右側に3項目が入るため、
    VERSUS/COOP と同じ 9vw だと本文に覆いかぶさる。 */
-.wayArtWord--create{font-size:clamp(var(--fs-h2),5vw,var(--fs-d1));opacity:.72}
+.wayArtWord--create > span{font-size:min(clamp(var(--fs-h2),5vw,var(--fs-d1)), calc(94cqh / var(--n,6)))}
+.wayArtWord--create{opacity:.72}
 /* 3機能。カード化せず、細い罫だけで仕切る（DESIGN：意味的に必要ない囲いを作らない）。 */
 .labList{position:relative;z-index:1;display:block}
 .labItem{display:block;padding:var(--s3) 0;border-top:1px solid rgba(255,255,255,.26)}
@@ -1729,7 +1739,7 @@ html.intro-skip .fvScroll{
        理由はCSS側コメント参照）。面そのものが modes/* への入口リンクになる。 -->
   <div class="wayFull reveal" data-d="2">
     <a class="wayFullHalf wayFullHalf--vs" href="modes/versus.html">
-      <span class="wayArtWord enAccent" aria-hidden="true"><span>V</span><span>E</span><span>R</span><span>S</span><span>U</span><span>S</span></span>
+      <span class="wayArtWord enAccent" aria-hidden="true" style="--n:6"><span>V</span><span>E</span><span>R</span><span>S</span><span>U</span><span>S</span></span>
       <span class="wayInner">
         <span class="wayMode en">対戦モード</span>
         <span class="waySub jpAccent">シンプル・王道カードバトル</span>
@@ -1744,7 +1754,7 @@ html.intro-skip .fvScroll{
     </a>
 
     <a class="wayFullHalf wayFullHalf--coop" href="modes/co-op.html">
-      <span class="wayArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>O</span><span>P</span></span>
+      <span class="wayArtWord enAccent" aria-hidden="true" style="--n:4"><span>C</span><span>O</span><span>O</span><span>P</span></span>
       <span class="wayInner">
         <span class="wayMode en">協力モード</span>
         <span class="waySub jpAccent">激動のサバイバル</span>
@@ -1767,7 +1777,7 @@ html.intro-skip .fvScroll{
   <!-- クリエイトラボ（2026-08-17 新設）。赤青パネルの下に、両方の横幅ぶんを
        使う緑の面を1枚。面そのものが features.html への入口リンク。 -->
   <a class="wayFullCreate reveal" data-d="3" href="features.html">
-    <span class="wayArtWord wayArtWord--create enAccent" aria-hidden="true"><span>C</span><span>R</span><span>E</span><span>A</span><span>T</span><span>E</span></span>
+    <span class="wayArtWord wayArtWord--create enAccent" aria-hidden="true" style="--n:6"><span>C</span><span>R</span><span>E</span><span>A</span><span>T</span><span>E</span></span>
     <span class="wayInner">
       <!-- ⚠️ .en の字間（0.14em）が乗るため7文字は2行になる。放っておくと
            「クリエイトラ／ボ」と1文字だけ送られる（恒久ルール違反）。
