@@ -132,6 +132,15 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </div>
 </nav>
 
+<!-- 人数アイコン。HOME・VERSUS と同じシンボル定義を複製している。
+     絵文字は使わない（design_system.md）。定義自体は非表示。 -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="iconPerson" viewBox="0 0 24 24">
+    <circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
+    <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+  </symbol>
+</svg>
+
 <div class="pageScale">
 <div class="wrap">
   <!-- パンくず（§13.3） -->
@@ -143,12 +152,28 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
     <p class="modeMeta en">協力 ／ 3〜5人 ／ 5〜7分</p>
   </header>
 
-  <!-- 2. 実機画面を大きく -->
-  <section class="modeShot reveal" data-d="1">
-    <div class="modeShotWrap maskReveal">
-      <img src="../assets/shots/s04_coop_battle.webp" alt="協力モードのバトル画面。仲間の都市と自分の都市を並べて守る" loading="lazy" width="800" height="1733">
+  <!-- 2. 左＝協力モードの面／右＝実機画面（2026-08-23。VERSUSと同じ組み）。
+       ⚠️ リンクにしない（既にCO-OPにいる）。⚠️ スマホでは実機画面を出さない。 -->
+  <div class="modeHero reveal" data-d="1" style="--panelBg:#002A6C">
+    <div class="modePanel">
+      <span class="modeArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>O</span><span>P</span></span>
+      <div class="modePanelInner">
+        <span class="modeLabel en">協力モード</span>
+        <span class="modeSub jpAccent">激動のサバイバル</span>
+        <span class="modeCount">
+          <span class="modeCountGroup"><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">3人</span></span>
+          <span class="modeCountSep en" aria-hidden="true">〜</span>
+          <span class="modeCountGroup"><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">5人</span></span>
+        </span>
+        <span class="modePanelBody">1試合につき、自然側か都市側のどちらか一方だけを担当する。役割が固定されるぶん、その視点に深く入れる。1試合5〜7分。友達と大人数で腰を据えて遊ぶモードである。</span>
+      </div>
     </div>
-  </section>
+    <div class="modeHeroShot">
+      <div class="modeShotWrap maskReveal">
+        <img src="../assets/shots/s04_coop_battle.webp" alt="協力モードのバトル画面。仲間の都市と自分の都市を並べて守る" loading="lazy" width="800" height="1733">
+      </div>
+    </div>
+  </div>
 
   <!-- 3. 1ターンの流れ -->
   <section class="flowSec sec ink-blue">
@@ -159,20 +184,20 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
       <div class="inkStage far"></div>
     </div>
     <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">1ターンの流れ</span></span></h2>
-    <ol class="flowList reveal" data-d="2">
-      <li class="flowItem"><span class="flowNum en">1</span><div>
+    <ol class="flowList">
+      <li class="flowItem reveal" data-d="1"><span class="flowNum en">1</span><div>
         <span class="flowLabel en">CITY</span>
         <span class="flowName">都市フェーズ</span>
         <span class="flowText">都市側の全員が政策カードを使う。自分の予算で仲間の都市を助けることもできる。</span></div></li>
-      <li class="flowItem"><span class="flowNum en">2</span><div>
+      <li class="flowItem reveal" data-d="2"><span class="flowNum en">2</span><div>
         <span class="flowLabel en">NATURE</span>
         <span class="flowName">自然フェーズ</span>
         <span class="flowText">自然側がハザードカードを選び、都市を攻撃する。</span></div></li>
-      <li class="flowItem"><span class="flowNum en">3</span><div>
+      <li class="flowItem reveal" data-d="3"><span class="flowNum en">3</span><div>
         <span class="flowLabel en">RESPONSE</span>
         <span class="flowName">対応フェーズ</span>
         <span class="flowText">攻撃された都市は政策カードで被害を軽減できる。</span></div></li>
-      <li class="flowItem"><span class="flowNum en">4</span><div>
+      <li class="flowItem reveal" data-d="4"><span class="flowNum en">4</span><div>
         <span class="flowLabel en">NEXT TURN</span>
         <span class="flowName">結果確認</span>
         <span class="flowText">ダメージ・回復を確認し、次のターンの都市フェーズへ。</span></div></li>
@@ -198,11 +223,37 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
       <div class="inkStage near"></div>
       <div class="inkStage far"></div>
     </div>
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">ここで何が学べるか</span></span></h2>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">学べること</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p>災害リスクは国際的に、<b style="color:var(--gold)">リスク＝ハザード×曝露×脆弱性</b>という式で説明される。この3項が、そのままカードの3系統に対応している。</p>
     </div>
-    <p class="eq reveal" data-d="2" aria-hidden="true"><b class="jpBase">ハザード</b><i>×</i><b class="jpBase">曝露</b><i>×</i><b class="jpBase">脆弱性</b></p>
+    <!-- 3円の図（第2版・2026-08-23）。受領スライドの構図に合わせて作り直した。
+         題→引出線→中心の点、という視線の順で「重なりが災害リスク」を示す。
+         実装は assets/site.css の「3円の図」ブロック。 -->
+    <figure class="venn reveal venn--roles" data-d="2">
+      <div class="vennStage">
+        <span class="vennTitle jpAccent">災害リスク</span>
+        <span class="vennCircle vennCircle--haz" aria-hidden="true"></span>
+        <span class="vennCircle vennCircle--exp" aria-hidden="true"></span>
+        <span class="vennCircle vennCircle--vul" aria-hidden="true"></span>
+        <svg class="vennLead" viewBox="0 0 100 100" aria-hidden="true">
+          <line x1="20" y1="23" x2="49.4" y2="50.2"></line>
+          <circle cx="49.6" cy="50.4" r="1.1"></circle>
+        </svg>
+        <span class="vennLabel vennLabel--haz jpBase" aria-hidden="true">ハザード</span>
+        <span class="vennLabel vennLabel--exp jpBase" aria-hidden="true">曝露</span>
+        <span class="vennLabel vennLabel--vul jpBase" aria-hidden="true">脆弱性</span>
+        <img class="vennCard vennCard--haz" src="../assets/cards/earthquake.webp"
+             alt="ハザードの例：地震カード" loading="lazy" width="288" height="450">
+        <img class="vennCard vennCard--exp" src="../assets/cities/niigata.webp"
+             alt="曝露の例：内陸都市 新潟のカード" loading="lazy" width="288" height="450">
+        <img class="vennCard vennCard--vul" src="../assets/cards/quake_wall.webp"
+             alt="脆弱性の例：耐震補強の政策カード" loading="lazy" width="288" height="450">
+        <span class="vennRole vennRole--nature en">自然側</span>
+        <span class="vennRole vennRole--city en">都市側</span>
+      </div>
+      <figcaption class="vennCap">同じ式を、CO-OPでは2人以上で分けて持つ。自然側はハザードの円だけを動かし、都市側は曝露と脆弱性の2円を動かす。</figcaption>
+    </figure>
 
     <div class="pairGrid reveal" data-d="3">
       <div class="pairCard">
