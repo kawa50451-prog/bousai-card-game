@@ -151,22 +151,39 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </section>
 
   <!-- 3. 1ターンの流れ -->
-  <section class="flowSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">1ターンの流れ</span></span></h2>
-    <div class="flowRow reveal" data-d="2">
-      <div class="flowStep"><i>CITY</i><b>都市フェーズ</b><span>都市側の全員が政策カードを使う。自分の予算で仲間の都市を助けることもできる。</span></div>
-      <span class="flowArrow" aria-hidden="true">→</span>
-      <div class="flowStep"><i>NATURE</i><b>自然フェーズ</b><span>自然側がハザードカードを選び、都市を攻撃する。</span></div>
-      <span class="flowArrow" aria-hidden="true">→</span>
-      <div class="flowStep"><i>RESPONSE</i><b>対応フェーズ</b><span>攻撃された都市は政策カードで被害を軽減できる。</span></div>
-      <span class="flowArrow" aria-hidden="true">→</span>
-      <div class="flowStep"><i>NEXT TURN</i><b>結果確認</b><span>ダメージ・回復を確認し、次のターンの都市フェーズへ。</span></div>
+  <section class="flowSec sec ink-blue">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
     </div>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">1ターンの流れ</span></span></h2>
+    <ol class="flowList reveal" data-d="2">
+      <li class="flowItem"><span class="flowNum en">1</span><div>
+        <span class="flowLabel en">CITY</span>
+        <span class="flowName">都市フェーズ</span>
+        <span class="flowText">都市側の全員が政策カードを使う。自分の予算で仲間の都市を助けることもできる。</span></div></li>
+      <li class="flowItem"><span class="flowNum en">2</span><div>
+        <span class="flowLabel en">NATURE</span>
+        <span class="flowName">自然フェーズ</span>
+        <span class="flowText">自然側がハザードカードを選び、都市を攻撃する。</span></div></li>
+      <li class="flowItem"><span class="flowNum en">3</span><div>
+        <span class="flowLabel en">RESPONSE</span>
+        <span class="flowName">対応フェーズ</span>
+        <span class="flowText">攻撃された都市は政策カードで被害を軽減できる。</span></div></li>
+      <li class="flowItem"><span class="flowNum en">4</span><div>
+        <span class="flowLabel en">NEXT TURN</span>
+        <span class="flowName">結果確認</span>
+        <span class="flowText">ダメージ・回復を確認し、次のターンの都市フェーズへ。</span></div></li>
+    </ol>
   </section>
 
   <!-- 4. 何を決めるゲームか -->
   <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">何を決めるゲームか</span></span></h2>
+    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
+         見える区間を残す（2026-08-23 ユーザー確定）。 -->
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">何を決めるゲームか</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p>1人が自然側となりハザードを選び、残る都市側の全員（最大4人）で街を守る。都市側は限られた予算をどの都市に配分するかを、全員で判断しながら進める。自分の都市だけでなく、仲間の担当する都市にも政策カードを使える。</p>
       <p>都市が壊滅しても終わりではない。壊滅した都市の担当者は後方支援に回り、毎ターン貯まる予算で生存中の仲間にシールドや回復を送れる。加えて、部屋の設定次第で復興（0〜3回・既定1回）を使い、生存都市プレイヤー全員の承認を得れば、提供した分と同じHPで都市を復活させられる。</p>
@@ -174,8 +191,14 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </section>
 
   <!-- 5. ここで何が学べるか -->
-  <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">ここで何が学べるか</span></span></h2>
+  <section class="modeSec sec ink-blue">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">ここで何が学べるか</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p>災害リスクは国際的に、<b style="color:var(--gold)">リスク＝ハザード×曝露×脆弱性</b>という式で説明される。この3項が、そのままカードの3系統に対応している。</p>
     </div>
@@ -199,16 +222,24 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
       </div>
     </div>
 
+    <!-- ⚠️ 2026-08-23：VERSUS にあった「守りと攻めは、同じ式の裏表」をここへ移した。
+         同じ式を両側から見る話は、1試合につき片側へ専念する CO-OP のほうが強い。
+         既存の「自然側を経験すると〜」と主張が重なるため、別ブロックを足さず
+         1つに畳んである。 -->
     <div class="insight reveal" data-d="3">
-      <h3 class="jpBase">自然側を経験すると、狙われる理由が分かる</h3>
-      <p>CO-OPでは、自然側はハザードを選び、都市側は曝露と脆弱性を操作する。自然側を一度でも担当すると「都市の壊滅を狙え」という視点で盤面を見ることになり、曝露の高い都市がなぜ狙われるのかが体感で分かる。守る側だけを遊んでいては得られない視点である。</p>
-      <p>都市側は資源配分を全員で合議する、共助の意思決定そのものを体験する。誰かの都市が壊滅しても、後方支援や復興で立て直せるため、「誰の街を先に救うか」というトリアージの判断が発生する。</p>
+      <h3 class="jpAccent">片方に専念するから、深く入れる</h3>
+      <p>VERSUSでは1人が守りと攻めを同時にこなす。CO-OPは違う。1試合のあいだ、自然側か都市側のどちらか一方に専念する。役割が固定されるぶん、その視点の思考が深くなる。</p>
+      <p>自然側はハザードを選び、都市側は曝露と脆弱性を操作する。自然側を一度でも担当すると「都市の壊滅を狙え」という視点で盤面を見ることになり、曝露の高い都市がなぜ狙われるのかが体感で分かる。守る側だけを遊んでいては得られない視点である。</p>
+      <p>都市側は資源配分を全員で合議する、共助の意思決定そのものを体験する。誰かの都市が壊滅しても後方支援や復興で立て直せるため、「誰の街を先に救うか」というトリアージの判断が発生する。</p>
+      <p>そして両方の側を遊べば、同じ<b style="color:var(--gold)">災害リスクの式</b>を、最小化する側と最大化する側の両方から見たことになる。守りと攻めは、同じ式の裏表である。</p>
     </div>
   </section>
 
   <!-- 6. 設定でできること → PLAY -->
   <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">設定でできること</span></span></h2>
+    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
+         見える区間を残す（2026-08-23 ユーザー確定）。 -->
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">設定でできること</span></span></h2>
     <dl class="settingsList reveal" data-d="2">
       <div class="settingsItem">
         <dt>自然役の決め方</dt>

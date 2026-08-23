@@ -174,7 +174,7 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
 
   <!-- 2. 現実とリンクした世界観（§16 確定コピー） -->
   <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">現実とリンクした世界観</span></span></h2>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">現実とリンクした世界観</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p>都市も、災害も、政策カードも、すべて現実にある出来事や制度がもとになっている。色ごとに切り替えて、1枚ずつ確かめられる。</p>
     </div>
@@ -190,7 +190,13 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </nav>
 
   <!-- 都市（青） -->
-  <section class="colorSec sec" id="city">
+  <section class="colorSec sec ink-blue" id="city">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
     <span class="headRule" data-d="0" aria-hidden="true" style="background:#388bfd"></span>
     <div class="colorHead reveal" data-d="1">
       <img src="assets/icons/neon_city.webp" alt="" width="64" height="64" loading="lazy">
@@ -217,7 +223,13 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </section>
 
   <!-- 自然災害（赤） -->
-  <section class="colorSec sec" id="dis">
+  <section class="colorSec sec ink-red" id="dis">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
     <span class="headRule" data-d="0" aria-hidden="true" style="background:#f85149"></span>
     <div class="colorHead reveal" data-d="1">
       <img src="assets/icons/neon_disaster.webp" alt="" width="64" height="64" loading="lazy">
@@ -239,7 +251,13 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </section>
 
   <!-- 人為災害（紫） -->
-  <section class="colorSec sec" id="hum">
+  <section class="colorSec sec ink-purple" id="hum">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
     <span class="headRule" data-d="0" aria-hidden="true" style="background:#a371f7"></span>
     <div class="colorHead reveal" data-d="1">
       <img src="assets/icons/neon_jinzai.webp" alt="" width="64" height="64" loading="lazy">
@@ -257,7 +275,13 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </section>
 
   <!-- 政策・シールド（緑） -->
-  <section class="colorSec sec" id="shield">
+  <section class="colorSec sec ink-green" id="shield">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
     <span class="headRule" data-d="0" aria-hidden="true" style="background:#3fb950"></span>
     <div class="colorHead reveal" data-d="1">
       <img src="assets/icons/neon_policy_shield.webp" alt="" width="64" height="64" loading="lazy">
@@ -276,7 +300,13 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </section>
 
   <!-- 政策・即時（黄） -->
-  <section class="colorSec sec" id="inst">
+  <section class="colorSec sec ink-gold" id="inst">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
     <span class="headRule" data-d="0" aria-hidden="true" style="background:#e3b341"></span>
     <div class="colorHead reveal" data-d="1">
       <img src="assets/icons/neon_policy_instant.webp" alt="" width="64" height="64" loading="lazy">

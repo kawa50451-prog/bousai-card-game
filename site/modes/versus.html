@@ -31,6 +31,136 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
    揃えた。site.css の :root 既定値と同じだが、このページ単体で開いた場合の
    フォールバックとして明示している。 */
 :root{ --gL:.265; --gC:.090; --gH:255; }
+
+/* 「ハザード×曝露×脆弱性」の図（2026-08-23）。font-size は9段・余白は7段の
+   スケールのみを使い、新しい数値は足していない（§10.5）。
+   max-width の 62rem はレイアウトの寸法であってスペーシングスケールの対象外。 */
+.vennFig{margin:var(--s5) 0 0;position:relative;z-index:1}
+.vennFig img{display:block;width:100%;max-width:62rem;height:auto;margin-inline:auto}
+.vennCap{margin-top:var(--s2);text-align:center;
+  font-size:var(--fs-s);color:var(--t3);letter-spacing:var(--tr-label)}
+
+/* ══════ ヒーロー：左＝対戦モードの面／右＝実機画面（2026-08-23） ══════
+   HOMEの赤青パネル（.wayFullHalf--vs）と同じ面をこのページの冒頭へ持ってきた。
+   ⚠️ ここはリンクにしない（すでに VERSUS を開いているため）。
+   ⚠️ スマホでは実機画面を出さない（2026-08-23 ユーザー確定）。面のすぐ下に
+      「1ターンの流れ」が続き、本題へ早く入る。 */
+.vsHero{margin-top:var(--s4);display:grid;grid-template-columns:7fr 5fr;
+  column-gap:var(--s4);align-items:center}
+.vsPanel{position:relative;overflow:hidden;padding:var(--s6) var(--s5);
+  background:#E60B00;color:var(--t1)}
+.vsPanelInner{position:relative;z-index:1;max-width:26em}
+.vsMode{display:block;font-size:clamp(var(--fs-h1),5vw,var(--fs-d1));line-height:var(--lh-d)}
+.vsMode::after{content:'';display:block;width:clamp(3rem,26%,10rem);height:1px;
+  background:#fff;opacity:.9;margin-top:var(--s2)}
+.vsSub{display:block;margin-top:var(--s2);font-size:var(--fs-b);color:rgba(255,255,255,.86)}
+.vsCount{margin-top:var(--s3);display:flex;flex-wrap:wrap;align-items:center;
+  gap:var(--s2);color:rgba(255,255,255,.86)}
+.vsCountGroup{display:inline-flex;align-items:center;gap:.28em}
+.vsIcon{width:1.1em;height:1.1em;color:#fff}
+.vsCountSep{color:rgba(255,255,255,.6)}
+.vsPanelBody{display:block;margin-top:var(--s3);font-size:var(--fs-s);
+  color:rgba(255,255,255,.86);line-height:var(--lh-b)}
+/* 縦組みの VERSUS。HOMEの .wayArtWord と同じ作法。
+   ⚠️ 1語のまま writing-mode で流すと面の高さより長くなったとき端が欠ける。
+      1文字ずつの子要素にして縦flexで space-between すれば必ず収まる。 */
+.vsArtWord{position:absolute;top:var(--s4);bottom:var(--s4);right:var(--s4);
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  line-height:1;pointer-events:none;
+  font-size:clamp(var(--fs-h2),6vw,var(--fs-d2));
+  color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.5);opacity:.9}
+.vsArtWord > span{display:block}
+@supports not (-webkit-text-stroke: 1px #fff){ .vsArtWord{color:rgba(255,255,255,.14)} }
+/* ⚠️ 実機画面は縦長（1080:2340）なので、幅で決めると面より背が高くなり、
+   面が中央で浮いて見える。高さ側で決めて面の高さに近づける。 */
+.vsHeroShot .modeShotWrap{max-width:none;width:auto;margin:0 auto;
+  height:clamp(17rem,27vw,24rem)}
+@media(max-width:899px){
+  .vsHero{display:block}
+  .vsHeroShot{display:none}
+  .vsPanel{padding:var(--s5) var(--s4)}
+}
+
+/* ══════ 手札の扇（2026-08-23） ══════
+   「緑のカード／黄のカード…」と文章で列挙していた箇所を実物に置き換えた。
+   1点を軸に角度を付けて、手札を持っている構図にする。 */
+/* ⚠️ 軸が札の下（145%）にあるため、外側の札は回転で上へ持ち上がる。
+   箱の高さは札の高さだけでは足りない。 */
+.handFan{position:relative;margin-top:var(--s5);
+  height:clamp(16rem,30vw,25rem);pointer-events:none}
+.handFan img{position:absolute;left:50%;bottom:0;
+  width:clamp(6rem,11vw,9.5rem);height:auto;border-radius:8px;
+  transform-origin:50% 145%;
+  transform:translateX(-50%) rotate(var(--r)) translateY(var(--ty,0));
+  box-shadow:0 18px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07)}
+
+/* ══════ 3円の図（2026-08-23。受領画像をコードへ起こし直した） ══════
+   画像のままだと動かせないため、円・ラベル・カードを個別の要素にした。
+   進行は .reveal と同じ scroll-driven（animation-timeline: view()）で、
+   円 → 円 → 円 → カードの順に animation-range をずらして重ねる。
+   ⚠️ scroll-driven では animation-delay が効かない。順番は range でずらす。 */
+.venn{margin:var(--s5) 0 0;position:relative;z-index:1}
+/* ⚠️ 題を絶対配置で図に重ねない。円の上に乗って「災害リスク」と「ハザード」が
+   重なった（実測で確認）。図の上に普通に置けば衝突しない。 */
+.vennTitle{display:block;margin-bottom:var(--s2);
+  font-size:clamp(var(--fs-h2),3.4vw,var(--fs-h1));line-height:var(--lh-d);color:var(--t1)}
+/* ⚠️ stage は正方形にする。長方形にすると width:% で決めた円の高さが
+   縦横比のぶん膨らみ、画面いっぱいの巨大な円になる（一度そうなった）。 */
+.vennStage{position:relative;width:100%;max-width:38rem;margin-inline:auto;aspect-ratio:1/1}
+.vennCircle{position:absolute;width:54%;height:54%;border-radius:50%;
+  mix-blend-mode:screen;opacity:.38}
+.vennCircle--haz{left:23%;top:4%;  background:#f85149}
+.vennCircle--exp{left:6%; top:36%; background:#388bfd}
+.vennCircle--vul{left:40%;top:36%; background:#3fb950}
+.vennLabel{position:absolute;font-size:clamp(var(--fs-h3),2.4vw,var(--fs-h2));
+  color:rgba(255,255,255,.42);letter-spacing:.06em;white-space:nowrap}
+.vennLabel--haz{left:62%;top:12%}
+.vennLabel--exp{left:2%; top:78%}
+.vennLabel--vul{left:66%;top:78%}
+.vennCard{position:absolute;width:17%;height:auto;border-radius:6px;
+  box-shadow:0 14px 30px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08)}
+.vennCard--haz{left:41.5%;top:9%}
+.vennCard--exp{left:24.5%;top:45%}
+.vennCard--vul{left:58.5%;top:45%}
+@media(max-width:899px){
+  .vennStage{max-width:24rem}
+  .vennCard{width:20%}
+  .vennCard--haz{left:40%;top:8%}
+  .vennCard--exp{left:23%;top:45%}
+  .vennCard--vul{left:57%;top:45%}
+}
+.vennCircle,.vennCard{opacity:0}
+.vennCircle{transform:scale(.5)}
+.vennCard{transform:translateY(-1.6em)}
+@keyframes vennPop{ from{opacity:0;transform:scale(.5)} to{opacity:.42;transform:scale(1)} }
+@keyframes vennDrop{ from{opacity:0;transform:translateY(-1.6em)} to{opacity:1;transform:translateY(0)} }
+@supports (animation-timeline: view()){
+  .vennCircle{animation:vennPop linear both;animation-timeline:view();
+    animation-timing-function:var(--e)}
+  .vennCard{animation:vennDrop linear both;animation-timeline:view();
+    animation-timing-function:var(--e)}
+  .vennCircle--haz{animation-range:entry 12% entry 46%}
+  .vennCircle--exp{animation-range:entry 20% entry 54%}
+  .vennCircle--vul{animation-range:entry 28% entry 62%}
+  .vennCard--haz{animation-range:entry 40% entry 76%}
+  .vennCard--exp{animation-range:entry 48% entry 84%}
+  .vennCard--vul{animation-range:entry 56% entry 92%}
+}
+/* scroll-driven 非対応：site.js が .reveal へ付ける .is-in で時間駆動に落とす。 */
+@supports not (animation-timeline: view()){
+  .venn.is-in .vennCircle{animation:vennPop .8s var(--e) both}
+  .venn.is-in .vennCircle--exp{animation-delay:.12s}
+  .venn.is-in .vennCircle--vul{animation-delay:.24s}
+  .venn.is-in .vennCard{animation:vennDrop .7s var(--e) both}
+  .venn.is-in .vennCard--haz{animation-delay:.36s}
+  .venn.is-in .vennCard--exp{animation-delay:.48s}
+  .venn.is-in .vennCard--vul{animation-delay:.60s}
+}
+/* 縮退：動かさず最終状態で出す。図の情報は配置そのものなので何も欠けない。 */
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .vennCircle{animation:none!important;opacity:.42;transform:none}
+  html:not([data-motion="on"]) .vennCard{animation:none!important;opacity:1;transform:none}
+}
 </style>
 </head>
 <body>
@@ -132,6 +262,15 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </div>
 </nav>
 
+<!-- 人数アイコン。HOME（v5-proto.html）と同じシンボル定義を複製している。
+     絵文字は使わない（design_system.md）。定義自体は非表示。 -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="iconPerson" viewBox="0 0 24 24">
+    <circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
+    <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+  </symbol>
+</svg>
+
 <div class="pageScale">
 <div class="wrap">
   <!-- パンくず（§13.3） -->
@@ -143,43 +282,112 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
     <p class="modeMeta en">対戦 ／ 1〜2人 ／ 3〜5分</p>
   </header>
 
-  <!-- 2. 実機画面を大きく -->
-  <section class="modeShot reveal" data-d="1">
-    <div class="modeShotWrap maskReveal">
-      <img src="../assets/shots/s02_vs_response.webp" alt="対戦モードの対応フェーズ画面。相手の自然災害カードに対し、政策カードで被害を軽減するか選ぶ" loading="lazy" width="800" height="1733">
+  <!-- 2. 左＝対戦モードの面／右＝実機画面（2026-08-23 ユーザー指示）。
+       面はHOMEの赤青パネルと同じ組み。⚠️ リンクにしない（既にVERSUSにいる）。
+       ⚠️ スマホでは .vsHeroShot を display:none にして実機画面を出さない。 -->
+  <div class="vsHero reveal" data-d="1">
+    <div class="vsPanel">
+      <span class="vsArtWord enAccent" aria-hidden="true"><span>V</span><span>E</span><span>R</span><span>S</span><span>U</span><span>S</span></span>
+      <div class="vsPanelInner">
+        <span class="vsMode en">対戦モード</span>
+        <span class="vsSub jpAccent">シンプル・王道カードバトル</span>
+        <span class="vsCount">
+          <span class="vsCountGroup"><svg class="vsIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">1人</span></span>
+          <span class="vsCountSep en" aria-hidden="true">/</span>
+          <span class="vsCountGroup"><svg class="vsIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="vsIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">2人</span></span>
+        </span>
+        <span class="vsPanelBody">毎ターン攻守を入れ替えで行い、防災と災害をサクッと体験しながら学べる。始めるならまずはこれがオススメ。</span>
+      </div>
     </div>
-  </section>
+    <div class="vsHeroShot">
+      <div class="modeShotWrap maskReveal">
+        <img src="../assets/shots/s02_vs_response.webp" alt="対戦モードの対応フェーズ画面。相手の自然災害カードに対し、政策カードで被害を軽減するか選ぶ" loading="lazy" width="800" height="1733">
+      </div>
+    </div>
+  </div>
 
   <!-- 3. 1ターンの流れ -->
-  <section class="flowSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">1ターンの流れ</span></span></h2>
-    <div class="flowRow reveal" data-d="2">
-      <div class="flowStep"><i>DRAW</i><b>ドロー</b><span>手札上限5枚との差分（最大2枚）を補充する。</span></div>
-      <span class="flowArrow" aria-hidden="true">→</span>
-      <div class="flowStep"><i>YOUR TURN</i><b>あなたのターン</b><span>予算3pt（神戸のみ4pt）の範囲でカードを使う。複数枚使用可。</span></div>
-      <span class="flowArrow" aria-hidden="true">→</span>
-      <div class="flowStep"><i>RESPONSE</i><b>対応フェーズ</b><span>自然災害カードを使われた相手は、政策カード1枚をコスト無料で使い被害を減らせる。</span></div>
-      <span class="flowArrow" aria-hidden="true">→</span>
-      <div class="flowStep"><i>SUMMARY</i><b>ターンまとめ</b><span>結果を確認し、相手のターンへ交代する。</span></div>
+  <section class="flowSec sec ink-red">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
     </div>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">1ターンの流れ</span></span></h2>
+    <ol class="flowList reveal" data-d="2">
+      <li class="flowItem"><span class="flowNum en">1</span><div>
+        <span class="flowLabel en">DRAW</span>
+        <span class="flowName">ドロー</span>
+        <span class="flowText">手札上限5枚との差分（最大2枚）を補充する。</span></div></li>
+      <li class="flowItem"><span class="flowNum en">2</span><div>
+        <span class="flowLabel en">YOUR TURN</span>
+        <span class="flowName">あなたのターン</span>
+        <span class="flowText">予算の範囲でカードを使う。複数枚まとめて使ってもよい。</span></div></li>
+      <li class="flowItem"><span class="flowNum en">3</span><div>
+        <span class="flowLabel en">RESPONSE</span>
+        <span class="flowName">対応フェーズ</span>
+        <span class="flowText">自然災害カードを使われた相手は、政策カード1枚をコスト無料で使い被害を減らせる。</span></div></li>
+      <li class="flowItem"><span class="flowNum en">4</span><div>
+        <span class="flowLabel en">SUMMARY</span>
+        <span class="flowName">ターンまとめ</span>
+        <span class="flowText">結果を確認し、相手のターンへ交代する。</span></div></li>
+    </ol>
   </section>
 
   <!-- 4. 何を決めるゲームか -->
+  <!-- ⚠️ この節はインクを敷かない（1つおきに間引いて、素の地と粒子が
+       見える区間を残すため。2026-08-23 ユーザー確定）。 -->
   <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">何を決めるゲームか</span></span></h2>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">何を決めるゲームか</span></span></h2>
     <div class="modeBody reveal" data-d="2">
-      <p>対局前に12都市からガチャで2都市を引く。都市ごとに地形（海岸・内陸・山間部）と固有能力が異なり、どちらを先に出すかも選ぶ。先の都市のHPが0になると、自動で2都市目に切り替わる。</p>
-      <p>対局が始まれば、毎ターン予算3pt（神戸のみ4pt）をどのカードに使うかを選ぶ。緑のシールド型政策は事前に設置して構造的な備えにし、黄の即時型政策はその場でHP回復や手札の入れ替えに使う。赤の自然災害カードは相手都市を攻撃し、紫の人為災害カードは直接ダメージを与えない代わりに、相手のシールド破壊・対応封じ・予算減少で妨害する。</p>
+      <p>対局の初めに、12都市からガチャで2都市を引き、手札を4枚引く。</p>
+      <p>都市は1枚ごとに地形が決まっている。海岸・内陸・山間部のどれかで、同じ災害でも受ける重さが変わる。さらに都市ごとに固有能力を持っている。</p>
+      <p>あとは毎ターン、予算の範囲でどのカードを切るかを決めるだけである。<b style="color:var(--gold)">緑・黄・赤・紫</b>。手札のこの4色が、そのまま選択肢になる。</p>
+    </div>
+    <!-- 手札の扇。旧・文章での色の列挙（緑は…黄は…）を実物に置き換えた。
+         左から 緑（シールド）→黄（即時）→赤（自然災害）→紫（人為災害）。 -->
+    <div class="handFan reveal" data-d="3" aria-hidden="true">
+      <img style="--r:-24deg;--ty:.8em" src="../assets/cards/quake_wall.webp" alt="" loading="lazy" width="288" height="450">
+      <img style="--r:-8deg;--ty:0"    src="../assets/cards/drill.webp"      alt="" loading="lazy" width="288" height="450">
+      <img style="--r:8deg;--ty:0"     src="../assets/cards/earthquake.webp" alt="" loading="lazy" width="288" height="450">
+      <img style="--r:24deg;--ty:.8em" src="../assets/cards/terror.webp"     alt="" loading="lazy" width="288" height="450">
     </div>
   </section>
 
   <!-- 5. ここで何が学べるか -->
-  <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">ここで何が学べるか</span></span></h2>
+  <section class="modeSec sec ink-red">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">学べること</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p>災害リスクは国際的に、<b style="color:var(--gold)">リスク＝ハザード×曝露×脆弱性</b>という式で説明される。この3項が、そのままカードの3系統に対応している。</p>
     </div>
-    <p class="eq reveal" data-d="2" aria-hidden="true"><b class="jpBase">ハザード</b><i>×</i><b class="jpBase">曝露</b><i>×</i><b class="jpBase">脆弱性</b></p>
+    <!-- 3項とカード3系統の対応を1枚で見せる図。2026-08-23、受領画像（PNG）から
+         コードへ起こし直した。⚠️ 画像のままだと動かせないため。
+         円→円→円→カードの順で入る。進行は .reveal と同じ scroll-driven。 -->
+    <figure class="venn reveal" data-d="2">
+      <div class="vennStage">
+        <span class="vennTitle jpAccent">災害リスク</span>
+        <span class="vennCircle vennCircle--haz" aria-hidden="true"></span>
+        <span class="vennCircle vennCircle--exp" aria-hidden="true"></span>
+        <span class="vennCircle vennCircle--vul" aria-hidden="true"></span>
+        <span class="vennLabel vennLabel--haz jpBase" aria-hidden="true">ハザード</span>
+        <span class="vennLabel vennLabel--exp jpBase" aria-hidden="true">曝露</span>
+        <span class="vennLabel vennLabel--vul jpBase" aria-hidden="true">脆弱性</span>
+        <img class="vennCard vennCard--haz" src="../assets/cards/earthquake.webp"
+             alt="ハザードの例：地震カード" loading="lazy" width="288" height="450">
+        <img class="vennCard vennCard--exp" src="../assets/cities/niigata.webp"
+             alt="曝露の例：内陸都市 新潟のカード" loading="lazy" width="288" height="450">
+        <img class="vennCard vennCard--vul" src="../assets/cards/quake_wall.webp"
+             alt="脆弱性の例：耐震補強の政策カード" loading="lazy" width="288" height="450">
+      </div>
+      <figcaption class="vennCap">3つが重なったところだけが、実際の被害になる。</figcaption>
+    </figure>
 
     <div class="pairGrid reveal" data-d="3">
       <div class="pairCard">
@@ -199,16 +407,12 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
       </div>
     </div>
 
-    <div class="insight reveal" data-d="3">
-      <h3 class="jpBase">守りと攻めは、同じ式の裏表</h3>
-      <p>VERSUSでは、自分の都市のリスクを最小化しながら、相手の都市のリスクを最大化することを同時に行う。守りに使うシールド型は高コストで特定の災害に確実に効くハード対策、即時型は低コストで広く効くソフト対策というトレードオフがある。</p>
-      <p>先にシールドを置いて備えるか、対応フェーズまで温存して来てから受けるか。対応フェーズは政策カードをコスト無料で使えるが、即時型のHP回復効果だけは半減する。事前投資と事後対応、どちらに予算を配分するかがそのまま勝敗を分ける。</p>
-    </div>
   </section>
 
   <!-- 6. 設定でできること → PLAY -->
+  <!-- ⚠️ この節もインクを敷かない（1つおきの間引き）。 -->
   <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">設定でできること</span></span></h2>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">設定でできること</span></span></h2>
     <dl class="settingsList reveal" data-d="2">
       <div class="settingsItem">
         <dt>ひとりで練習</dt>

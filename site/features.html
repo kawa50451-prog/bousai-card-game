@@ -146,8 +146,14 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </header>
 
   <!-- 2. デイリー防災（実機画面つき） -->
-  <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">デイリー防災</span></span></h2>
+  <section class="modeSec sec ink-green">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">デイリー防災</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p>1日1回、固定シードの局面に挑戦する。届く災害予報を見て、手持ちの政策カードを各災害に割り当てる。結果はストリークとしてカレンダーに記録される。カード工房で保存したマイ都市に差し替えて挑戦することもできる（公式記録とは別枠で扱う）。</p>
     </div>
@@ -160,7 +166,9 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
 
   <!-- 3. 図鑑（実機画面つき） -->
   <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">図鑑</span></span></h2>
+    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
+         見える区間を残す（2026-08-23 ユーザー確定）。 -->
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">図鑑</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p>都市・自然災害・人為災害・政策カードの全種を一覧で見られる。カードをタップすると拡大表示され、防災上の意味を解説するコラムが開く。</p>
     </div>
@@ -172,8 +180,14 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </section>
 
   <!-- 4. そのほかの機能（実機画面なし） -->
-  <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">そのほかの機能</span></span></h2>
+  <section class="modeSec sec ink-green">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">そのほかの機能</span></span></h2>
     <dl class="settingsList reveal" data-d="2">
       <div class="settingsItem">
         <dt>カード工房</dt>
@@ -200,7 +214,9 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
 
   <!-- 5. 主力2モードへの導線 -->
   <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">主力2モードの詳しい遊び方</span></span></h2>
+    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
+         見える区間を残す（2026-08-23 ユーザー確定）。 -->
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">主力2モードの詳しい遊び方</span></span></h2>
     <div class="featCtaRow reveal" data-d="2">
       <a class="btnFill en" href="modes/versus.html">VERSUS を見る</a>
       <a class="btnFill en" href="modes/co-op.html">CO-OP を見る</a>

@@ -1024,6 +1024,29 @@ html.menu-open{overflow:hidden}
   padding:var(--s3);background:var(--surface);box-shadow:inset 0 0 0 1px var(--border);border-radius:4px}
 .flowStep b{font-size:var(--fs-h3);color:var(--t1);line-height:var(--lh-h)}
 .flowStep span{font-size:var(--fs-s);color:var(--t2);line-height:var(--lh-b)}
+
+/* 縦のタイムライン（2026-08-23）。旧 .flowRow はPCで4段が横に潰れて読みにくく、
+   VERSUS・CO-OP の両方で置き換えた。.flowRow/.flowStep は他で使っていないが、
+   参照が残っていないか確認したうえで消すこと（今回は残置）。 */
+/* ══════ 1ターンの流れ：縦のタイムライン（2026-08-23 作り直し） ══════
+   旧・横並び（.flowRow）はPCで4段が横に潰れて読みにくかった。丸囲みの番号を
+   縦線でつなぎ、右に英字ラベル・見出し・説明を置く。 */
+.flowList{margin-top:var(--s5);list-style:none;padding:0;max-width:44em}
+.flowItem{--flowDot:2.5rem;position:relative;display:grid;
+  grid-template-columns:var(--flowDot) 1fr;column-gap:var(--s3);padding-bottom:var(--s4)}
+.flowItem:last-child{padding-bottom:0}
+/* 縦線は丸の中心から次の丸へ。最後の項目には引かない。 */
+.flowItem::before{content:'';position:absolute;left:calc(var(--flowDot) / 2);
+  top:var(--flowDot);bottom:0;width:1px;background:var(--border);transform:translateX(-50%)}
+.flowItem:last-child::before{display:none}
+.flowNum{width:var(--flowDot);height:var(--flowDot);display:grid;place-items:center;
+  border-radius:50%;box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent);
+  background:var(--ground);font-size:var(--fs-s);letter-spacing:0}
+.flowLabel{display:block;font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--gold)}
+.flowName{display:block;margin-top:var(--s1);font-size:var(--fs-h3);line-height:var(--lh-h)}
+.flowText{display:block;margin-top:var(--s1);font-size:var(--fs-s);
+  color:var(--t2);line-height:var(--lh-b)}
+
 .flowStep i{font-style:normal;font-size:var(--fs-xs);letter-spacing:var(--tr-label);color:var(--gold)}
 .flowArrow{align-self:center;flex:none;font-size:var(--fs-h3);color:var(--t3)}
 @media(max-width:640px){ .flowArrow{display:none} }
@@ -1118,3 +1141,90 @@ html[data-introfreeze] .loadOverlay,
 html[data-introfreeze] .loadOverlay *{ animation-play-state:paused !important }
 html[data-introfreeze] .loadOverlay{ display:flex !important }
 html[data-introfreeze] .loadInk{ display:block !important }
+
+/* ══════════════════════════════════════════════════════════════════════
+   インク背景・下層ページ共通（2026-08-23 新設。§18／§19）
+
+   これまでインク層は v5-proto.html のページ内 <style> にしか無く、下層5ページは
+   地のベタ塗りだけだった。HOMEと背景を揃えるため、ここへ切り出す。
+
+   ⚠️ **v5-proto.html のページ内CSSは触っていない。**あちらは <link> より後に
+      書かれているので同名ルールは後勝ちし、HOMEの見た目は一切変わらない。
+   ⚠️ **url() の基準はこのファイル（assets/site.css）自身になる。**
+      'assets/ink/…' ではなく 'ink/…' と書くこと。前者だと assets/assets/ink/…
+      を見に行って全ページでインクが消える。modes/ 配下が1階層深い問題も、
+      CSS側で解決するのでページ相対パスの差は出ない。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* 下層ページは <div class="wrap"> の内側に節が並ぶ構造で、HOMEのように節が
+   画面幅いっぱいではない。そのままインクを敷くと 1280px で切れて左右に
+   地のベタ塗りが残るため、この修飾子で画面幅まで広げる。
+   ⚠️ HOMEは .inkLayer（inset:0）だけを使い、この修飾子は使わない。 */
+.inkLayer--bleed{position:absolute;top:0;bottom:0;left:50%;width:100vw;
+  transform:translateX(-50%);z-index:0;overflow:hidden;pointer-events:none}
+
+/* インク本体。既定は静止1段階・低い不透明度で、mask 非対応でもここで完結する
+   （HOMEの .inkStage と同じ設計。background-blend-mode:multiply で
+   輝度×色を合成し、黒は地に溶けて消える）。 */
+.inkStage{position:absolute;inset:0;
+  --ink-peak:.30;--ink-peak-far:.18;
+  --ink-url:url('ink/ink_2.webp');
+  background-image:var(--ink-url);
+  background-color:var(--ink-color,transparent);
+  background-blend-mode:multiply;
+  background-repeat:no-repeat;background-position:center;background-size:contain;
+  opacity:var(--ink-peak);filter:blur(1px);transform:scale(1.05);
+  transition:background-color .3s linear}
+
+/* 節の意味色。site.css に既にある色だけを使い、新しい値は足していない
+   （#f85149 #388bfd #3fb950 #a371f7 はいずれも既出）。
+   上限は「補助文字 --t2 が地に対して4.5:1 を保てる最大値の85%」で、
+   HOMEの .why/.marq/.ways と同じ根拠・同じ数値である。 */
+.ink-red{--ink-color:#f85149}      .ink-red .inkStage{--ink-peak:.45;--ink-peak-far:.27}
+.ink-blue{--ink-color:#388bfd}     .ink-blue .inkStage{--ink-peak:.37;--ink-peak-far:.22}
+.ink-green{--ink-color:#3fb950}    .ink-green .inkStage{--ink-peak:.32;--ink-peak-far:.19}
+.ink-purple{--ink-color:#a371f7}   .ink-purple .inkStage{--ink-peak:.39;--ink-peak-far:.23}
+.ink-gold{--ink-color:#e3b341}     .ink-gold .inkStage{--ink-peak:.29;--ink-peak-far:.17}
+
+/* mask 対応ブラウザでは輝度マスクへ切り替える（multiply版より発色が純粋になる）。 */
+@supports ((mask-image: linear-gradient(#000,#000)) or (-webkit-mask-image: linear-gradient(#000,#000))){
+  .inkStage{
+    background-image:none;background-blend-mode:normal;
+    background-color:var(--ink-color,transparent);
+    -webkit-mask-image:var(--ink-url);mask-image:var(--ink-url);
+    -webkit-mask-source-type:luminance;-webkit-mask-mode:luminance;mask-mode:luminance;
+    -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+    -webkit-mask-position:center;mask-position:center;
+    -webkit-mask-size:contain;mask-size:contain;
+  }
+}
+
+/* スクロールに応じて ink_1〜ink_5 を切り替えつつ拡大・ぼかし・不透明度で奥行きを作る。
+   near は節の入場中に一気に広がり（速い＝手前）、far は節が画面を通過し終える
+   まで遅れて広がる（遅い＝奥）。HOMEと同じ2枚重ねの視差である。
+   ⚠️ HOMEは同名の @keyframes をページ内で再定義するため、HOME上ではあちらが勝つ。 */
+@supports (animation-timeline: view()){
+  @keyframes inkNear{
+    0%   { --ink-url:url('ink/ink_1.webp'); opacity:calc(var(--ink-peak) * .36); filter:blur(0px); transform:scale(1) }
+    30%  { --ink-url:url('ink/ink_2.webp'); opacity:var(--ink-peak);             filter:blur(1px); transform:scale(1.04) }
+    60%  { --ink-url:url('ink/ink_3.webp'); opacity:calc(var(--ink-peak) * .82); filter:blur(2px); transform:scale(1.10) }
+    100% { --ink-url:url('ink/ink_4.webp'); opacity:calc(var(--ink-peak) * .55); filter:blur(3px); transform:scale(1.18) }
+  }
+  @keyframes inkFar{
+    0%   { --ink-url:url('ink/ink_2.webp'); opacity:calc(var(--ink-peak-far) * .40); filter:blur(2px); transform:scale(1.1) }
+    50%  { --ink-url:url('ink/ink_3.webp'); opacity:var(--ink-peak-far);             filter:blur(3px); transform:scale(1.14) }
+    100% { --ink-url:url('ink/ink_5.webp'); opacity:calc(var(--ink-peak-far) * .60); filter:blur(4px); transform:scale(1.26) }
+  }
+  .inkStage.near{animation:inkNear linear both;animation-timeline:view();
+    animation-range:entry 0% entry 100%}
+  .inkStage.far{animation:inkFar linear both;animation-timeline:view();
+    animation-range:entry 0% exit 100%}
+}
+
+/* 縮退（§5.3）：拡散もぼかしも動かさず静止1段階のみ。情報はインクの色だけなので
+   静止しても何も欠けない。 */
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .inkStage{
+    animation:none !important;--ink-url:url('ink/ink_2.webp') !important;
+    opacity:.12 !important;filter:none !important;transform:none !important}
+}

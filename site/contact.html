@@ -158,8 +158,14 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   </header>
 
   <!-- 2. 問い合わせについて -->
-  <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">問い合わせについて</span></span></h2>
+  <section class="modeSec sec ink-blue">
+    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
+         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
+    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
+      <div class="inkStage near"></div>
+      <div class="inkStage far"></div>
+    </div>
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">問い合わせについて</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p>Ready or Not は、Ready or Lab が制作している都市防災カードバトルである。ご意見・不具合の報告などの問い合わせ手段は、現在準備中である。</p>
     </div>
@@ -171,7 +177,9 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
 
   <!-- 3. プライバシーポリシーへの導線 -->
   <section class="modeSec sec">
-    <h2 class="modeSecTitle jpBase reveal" data-d="1"><span class="hSlide"><span class="hText">プライバシーポリシー</span></span></h2>
+    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
+         見える区間を残す（2026-08-23 ユーザー確定）。 -->
+    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">プライバシーポリシー</span></span></h2>
     <div class="modeBody reveal" data-d="2">
       <p><a class="textLink" href="../privacy.html">プライバシーポリシーを見る</a></p>
     </div>
