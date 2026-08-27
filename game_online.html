@@ -1808,6 +1808,13 @@
       cursor: pointer;
       -webkit-tap-highlight-color: transparent
     }
+
+    /* 2026-08-28：協力モードの都市パネル向けの詰めたバッジ。パネル内側幅が3都市で97pxしかないため、
+       既定のpadding（2px 8px）だとシールド2個で108pxになり2行に割れる。左右を詰めて2個で1行に収める。 */
+    .eff-badge--compact {
+      padding: 2px 4px;
+      gap: 2px
+    }
     button.eff-badge:active { transform: scale(.96) }
 
     .eff-blue {
@@ -6341,7 +6348,9 @@
 
       // ── ステータスバー・バッジ・アクションバー ──
       const statusBar = (ts.step >= 2 && ts.step <= 5) ? `<div class="status-bar"><span class="turn-badge" style="color:var(--t1)">チュートリアル | あなたのターン</span><div class="budget-display"><span class="budget-label" style="color:var(--t1)">予算</span>${budgetPipsHtml(3, ts.budgetUsed, 0)}<span style="font-size:.8rem;font-weight:700;color:var(--green)">${budgetLeft}<span style="color:var(--t3);font-weight:400">/3</span></span></div></div>` : '';
-      const shieldBadge = ts.shieldActive ? `<div style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.25);border-radius:6px;padding:3px 8px;font-size:.72rem;color:var(--green);display:inline-block">${uiIcoShield(14,'var(--green)')} 堤防設置中 -25</div>` : '';
+      // 2026-08-28：本編の効果バッジ（.eff-badge eff-blue「堤防シールド −25」）と表記・意匠を統一する。
+      // チュートリアル中はカード拡大モーダルがステップ進行を妄げうるため、本編と違い<button>にせず<span>のまま置く。
+      const shieldBadge = ts.shieldActive ? `<span class="eff-badge eff-blue">${uiIcoShield(13)} 堤防シールド −25</span>` : '';
       const skipWarn = ts.skipWarning ? `<div style="background:rgba(210,153,34,.15);border:1px solid rgba(210,153,34,.3);border-radius:6px;padding:5px 10px;font-size:.75rem;color:var(--yellow);margin-top:6px">${coopIcoWarnTriangle(15,'var(--yellow)')} まず上のカードをタップして対応を試してみましょう！</div>` : '';
       const respBar = isResp ? `<div class="response-pending-bar tut-resp-anim"><div class="rpb-icon">${coopIcoWarnTriangle(18,'var(--yellow)')}</div><div class="rpb-text"><strong>東京が「${uiIcoDroplet(14,'var(--red)')} 洪水」を使用！</strong><br>想定ダメージ: 40 → 堤防 -25 → 実ダメージ <strong>15</strong><br>政策カードを選んで対応するか「対応しない」を押してください。${skipWarn}</div><button class="btn-skip-resp" onclick="tutorialAction('skip_attempt')">対応しない</button></div>` : '';
       const actionBar = step.action === 'end_turn' ? `<div class="action-bar"><button class="btn-end tut-glow" onclick="tutorialAction('end_turn')">ターン終了 →</button></div>` : (ts.step >= 2 && ts.step <= 4) ? `<div class="action-bar"><button class="btn-end" style="opacity:.3;pointer-events:none">ターン終了 →</button></div>` : '';
@@ -8172,7 +8181,9 @@
       const pct = Math.max(0, Math.round(hp/60*100));
       const col = hpColor(hp,60);
       const owner = mine ? `<div style="margin:3px 0 5px"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.66rem;font-weight:700;background:rgba(56,139,253,.3);color:var(--t0);border:1px solid #388bfd">あなた</span></div>` : '';
-      const shield = (mine && coopTutorialState.shieldActive) ? uiIcoShield(13) : '';
+      // 2026-08-28：本編のcoopCityPanelと表記を統一（アイコンのみ→「耐震シールド −30」。協力チュートリアルは耐震補強を設置する）。
+      // 本編と違いタップでカード拡大は開かない（ステップ進行を妄げないため）。
+      const shield = (mine && coopTutorialState.shieldActive) ? `<span class="eff-badge eff-blue eff-badge--compact" aria-label="耐震シールド −30">${cardIconSvg('quake_wall', 13)} −30</span>` : '';
       // 協力チュートリアルの予報前提撤廃（2026-07-12）：常設の災害予報パネルを撤去した代わりに、
       // 自都市の地形リスク（一般的な地形+10ボーナス。design_system.md §1.4の黄=注意色）を可視化する。
       const terrainLabel = city.isCoastal ? '海岸：洪水・津波 +10' : city.isMountain ? '山間部：土砂崩れ +10' : '内陸：地震 +10';
@@ -9359,23 +9370,34 @@
     // シールド系1件分のバッジHTML。軽減値をインライン表示し、タップで既存のカード拡大モーダル
     // （_lpShowCardById）を開くボタンにする（2026-08-28・B-1/B-2）。event.stopPropagation()で
     // 親要素（都市パネルのタップ等）へのクリック伝播を防ぐ（cardZoomBtnHtmlと同じ対処）。
-    function _effShieldBadgeBtn(colorClass, iconHtml, text, cardId) {
-      return `<button type="button" class="eff-badge ${colorClass}" onclick="event.stopPropagation();_lpShowCardById('${cardId}',true)" aria-label="${_escHtml(text)}の詳細を見る">${iconHtml} ${text}</button>`;
+    // ariaTextを別引数にしてあるのは、compact表示（協力）だと画面の文字が「−30」だけになり、
+    // そのまま読み上げると何の−30か分からなくなるため。読み上げは常にフル名称を使う。
+    function _effShieldBadgeBtn(colorClass, iconHtml, text, cardId, ariaText) {
+      return `<button type="button" class="eff-badge ${colorClass}" onclick="event.stopPropagation();_lpShowCardById('${cardId}',true)" aria-label="${_escHtml(ariaText || text)}の詳細を見る">${iconHtml} ${text}</button>`;
     }
     // シールド系バッジ（耐震/堤防/特殊効果無効/防災庁設置）の行を _activeShieldsFromEffects から組み立てる。
     // 対戦（renderEffectBadges）・協力（coopCityPanel）で共通利用し、軽減値の定義を1箇所に保つ。
     // シールドが1つもなければ空文字を返す（「効果なし」等のプレースホルダはこの関数の責務ではない）。
-    function _shieldBadgesHtml(effects) {
+    // compact=true（協力モードの都市パネル）は人数分のパネルが横に並ぶため、1枚あたりの内側幅が
+    // 3都市で約97pxしかない（390px実測）。フル表記の「耐震シールド −30」はここで2行に折り返し、
+    // バッジ高が22px→38pxへ肥大化して都市パネルを縦に伸ばしてしまう。このためcompactではラベルを
+    // 落とし、カード固有アイコン（cardIconSvg）＋軽減値だけにする。名前と効果全文はタップで開く
+    // カードで確認できる（design_system.md §10.2「仲間の情報はコンパクト表示＋タップで詳細展開」）。
+    // 耐震・堤防はどちらもuiIcoShieldで同じ絵になるため、compactではカード固有アイコンへ差し替えて区別できるようにしてある。
+    function _shieldBadgesHtml(effects, compact) {
       const byKey = {};
       _activeShieldsFromEffects(effects).forEach(s => { byKey[s.key] = s; });
       const b = [];
-      if (byKey.shieldQuakeFire) { const s = byKey.shieldQuakeFire; b.push(_effShieldBadgeBtn('eff-blue', uiIcoShield(13), `${s.label} −${s.reduceValue}`, s.cardId)); }
-      if (byKey.shieldFlood) { const s = byKey.shieldFlood; b.push(_effShieldBadgeBtn('eff-blue', uiIcoShield(13), `${s.label} −${s.reduceValue}`, s.cardId)); }
+      const push = (s, colorClass, fullIcon, fullText, compactText) => {
+        b.push(_effShieldBadgeBtn(colorClass + (compact ? ' eff-badge--compact' : ''), compact ? cardIconSvg(s.icon, 13) : fullIcon, compact ? compactText : fullText, s.cardId, fullText));
+      };
+      if (byKey.shieldQuakeFire) { const s = byKey.shieldQuakeFire; push(s, 'eff-blue', uiIcoShield(13), `${s.label} −${s.reduceValue}`, `−${s.reduceValue}`); }
+      if (byKey.shieldFlood) { const s = byKey.shieldFlood; push(s, 'eff-blue', uiIcoShield(13), `${s.label} −${s.reduceValue}`, `−${s.reduceValue}`); }
       // 広域避難指示の−10は「特殊効果の無効化」とは別枠の全ダメージ軽減であり、「耐震シールド −30」と同じ形で
       // 「特殊効果無効 −10」と並べると『無効化が10軽減される』と読めてしまう。ここだけ数値を添えず、
       // タップで開くカード（desc「特殊効果・テロ攻撃を無効＋ダメージ−10」）に説明を委ねる（2026-08-28レビュー指摘）。
-      if (byKey.negateSpecial) { const s = byKey.negateSpecial; b.push(_effShieldBadgeBtn('eff-blue', uiIcoMegaphone(13), s.label, s.cardId)); }
-      if (byKey.damageReduceHits) { const s = byKey.damageReduceHits; b.push(_effShieldBadgeBtn('eff-yellow', uiIcoShield(13), `全ダメ−${s.reduceValue}（残${effects.damageReduceHits}回）`, s.cardId)); }
+      if (byKey.negateSpecial) { const s = byKey.negateSpecial; push(s, 'eff-blue', uiIcoMegaphone(13), s.label, '無効'); }
+      if (byKey.damageReduceHits) { const s = byKey.damageReduceHits; push(s, 'eff-yellow', uiIcoShield(13), `全ダメ−${s.reduceValue}（残${effects.damageReduceHits}回）`, `−${s.reduceValue}×${effects.damageReduceHits}`); }
       return b.join('');
     }
     function renderEffectBadges(eff, pi) {
@@ -13477,7 +13499,7 @@
       // 2026-08-28（B-1〜B-3）：トグル開閉（旧coop-shield-toggle）を廃止し、対戦モードと同じ「軽減値を
       // バッジにインライン表示＋タップでカード拡大モーダル」に統一する（_shieldBadgesHtmlを共通利用）。
       // 差分render機構（_coPatchCityPanel／coopDiffRenderBoard）との干渉源だった開閉状態の持ち回りが不要になる。
-      const badges = guardBadge + _shieldBadgesHtml(cs.effects);
+      const badges = guardBadge + _shieldBadgesHtml(cs.effects, true);
       const mine = CO.mp && cs.ownerId && cs.ownerId === CO.myId;
       const showTurn = CO.mp && (CO.phase === 'city' || CO.phase === 'draw');
       const readyChip = showTurn ? (cs.ready ? `<span style="display:inline-flex;align-items:center;gap:2px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>` : `<span style="display:inline-block;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(255,255,255,.05);color:rgba(var(--t0-rgb),.4);border:1px solid rgba(255,255,255,.15)">…</span>`) : '';
