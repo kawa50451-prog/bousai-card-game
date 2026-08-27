@@ -1792,8 +1792,23 @@
       font-size: .68rem;
       padding: 2px 8px;
       border-radius: 10px;
-      font-weight: 600
+      font-weight: 600;
+      font-family: inherit;
+      /* 2026-08-28：シールド系だけ<button>化した結果、同じ行に並ぶ<span>のバッジ（復興直後・テロ準備等）と
+         高さが18px/22pxで食い違ったため、inline-flexを基底クラス側へ移して全バッジの高さを揃える */
+      display: inline-flex;
+      align-items: center;
+      gap: 3px
     }
+
+    /* 2026-08-28：シールド系バッジは<button>化してタップでカード拡大モーダルを開く（B-2）。
+       worldview.md §4に従い常時発光は付けない。押せることは.card-zoom-btnと同じcursor:pointer＋
+       :activeの軽い押し込みだけで示す（色・枠は.eff-blue等の既存クラスをそのまま継承） */
+    button.eff-badge {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent
+    }
+    button.eff-badge:active { transform: scale(.96) }
 
     .eff-blue {
       background: rgba(56, 139, 253, .2);
@@ -3380,56 +3395,9 @@
     .co-hand-tabfade { animation:co-hand-tabfade-in .16s cubic-bezier(.23,1,.32,1); }
     @keyframes co-hand-tabfade-in { from { opacity:.35; } to { opacity:1; } }
 
-    /* 協力モード：都市パネルのシールドバッジ／仲間の手札 タップ詳細トグル
-       1.4.2：常時うっすら見える背景+枠で「タップできる」ことを視認しやすくし（従来はhover/focus時のみ着色で
-       スマホでは常時無地に見えていた）、::beforeで見た目の大きさを変えずに44px四方のヒットエリアを確保する */
-    .coop-shield-toggle {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      background: rgba(56,139,253,.10);
-      border: 1px solid rgba(56,139,253,.3);
-      padding: 3px 7px;
-      margin: -3px -7px;
-      color: var(--t0);
-      cursor: pointer;
-      font: inherit;
-      -webkit-tap-highlight-color: transparent;
-      border-radius: 6px;
-    }
-    .coop-shield-toggle::before {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 44px; height: 44px;
-      transform: translate(-50%,-50%);
-    }
-    /* 2026-07-27 P0追撃修正：:focus-visibleはキーボード操作用のためガード対象外。hoverのみ分離してガードする */
-    @media (hover:hover) {
-      .coop-shield-toggle:hover {
-        background: rgba(56,139,253,.24);
-        border-color: var(--blue,#388bfd);
-        color: var(--blue,#388bfd);
-      }
-    }
-    .coop-shield-toggle:focus-visible {
-      background: rgba(56,139,253,.24);
-      border-color: var(--blue,#388bfd);
-      color: var(--blue,#388bfd);
-    }
-    .coop-shield-chevron { transition: transform .15s ease; }
-    .coop-shield-toggle[aria-expanded="true"] .coop-shield-chevron { transform: rotate(180deg); }
-    .coop-shield-detail {
-      margin-top: 5px;
-      padding: 6px 8px;
-      background: rgba(56,139,253,.08);
-      border: 1px solid rgba(56,139,253,.25);
-      border-radius: 6px;
-      animation: ts-fade-in .18s ease both;
-    }
-    .coop-shield-detail-row { display: flex; align-items: flex-start; gap: 5px; font-size: .66rem; color: var(--t0); line-height: 1.5; }
-    .coop-shield-detail-row + .coop-shield-detail-row { margin-top: 3px; }
+    /* 2026-08-28：協力モード都市パネルのシールドバッジ トグル開閉（旧.coop-shield-toggle/.coop-shield-detail）は
+       廃止し、対戦モードと同じ .eff-badge（軽減値インライン表示＋タップでカード拡大モーダル）に統一した。
+       旧ルールはここにあった（coopCityPanel参照）。 */
 
     /* 協力：リーチ警告バッジ（HPバー右上に重ねる。シールドトグル行＝バー下部とは別レイヤーのためレイアウト競合なし） */
     .coop-reach-warn { position:absolute; top:-6px; right:-6px; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#0d1117; border:1.5px solid #f85149; box-shadow:0 0 6px rgba(248,81,73,.55); animation: coop-reach-pulse 1.6s ease-in-out infinite; z-index:2 }
@@ -5605,6 +5573,16 @@
         setTimeout(() => document.addEventListener('click', closeOnNext, true), 0);
       }
     }
+    // 効果バッジ等、.card要素を持たない場所からカード拡大モーダルを開くためのアダプタ（2026-08-28・B-2）。
+    // _lpShowPreview は DOM から名前・画像・説明を読むため、detachedな要素を組んで渡す。
+    // カードの実体は POLICY_CARDS から id で引く（getActiveShields の cardId は全て政策カード）。
+    function _lpShowCardById(cardId, interactive) {
+      const card = POLICY_CARDS.find(c => c.id === cardId);
+      if (!card) return;
+      const el = document.createElement('div');
+      el.innerHTML = `<img class="card-img" src="images/cards/${card.id}.webp" alt="">${cardNameBarHtml(card.name, cardTypeLabel(card))}<div class="card-desc">${card.desc}</div>`;
+      _lpShowPreview(el, interactive);
+    }
     if (typeof document !== 'undefined' && document.addEventListener) {
       document.addEventListener('touchstart', _lpOnTouchStart, { passive: true });
       document.addEventListener('touchmove', _lpOnTouchMove, { passive: false });
@@ -6929,15 +6907,20 @@
     // ═══════════════════════════════════════
     // JINZAI (人為災害) EFFECTS
     // ═══════════════════════════════════════
-    // プレイヤーが設置中の「シールド型」効果（緑政策由来）を列挙する。公害カードの破壊対象。
-    function getActiveShields(p) {
-      const e = p.effects; const list = [];
-      if (e.shieldQuakeFire) list.push({ key: 'shieldQuakeFire', cardId: 'quake_wall', icon: 'quake_wall', label: '耐震シールド', desc: '地震・大火災 −30' });
-      if (e.shieldFlood) list.push({ key: 'shieldFlood', cardId: 'dam', icon: 'dam', label: '堤防シールド', desc: '洪水・津波 −25' });
-      if (e.negateSpecial) list.push({ key: 'negateSpecial', cardId: 'evacuation', icon: 'evacuation', label: '特殊効果無効', desc: '特殊効果・テロを無効＋ダメージ−10' });
-      if (e.damageReduceHits > 0) list.push({ key: 'damageReduceHits', cardId: 'bousai_cho', icon: 'bousai_cho', label: `防災庁設置（残${e.damageReduceHits}回）`, desc: '全ダメージ −15' });
+    // effects（p.effects または協力モードのcs.effects）から直接「シールド型」効果（緑政策由来）を列挙する。
+    // getActiveShields(p)とrenderEffectBadges(eff)の両方から同じ情報源を参照させ、軽減値の定義を
+    // 2箇所に分散させないための共通実装（2026-08-28：バッジ軽減値インライン表示のため切り出し。reduceValueは
+    // バッジに「−N」を数値として直接添えるためのフィールドで、descの文字列を再パースせずに済むように追加した）。
+    function _activeShieldsFromEffects(e) {
+      const list = [];
+      if (e.shieldQuakeFire) list.push({ key: 'shieldQuakeFire', cardId: 'quake_wall', icon: 'quake_wall', label: '耐震シールド', desc: '地震・大火災 −30', reduceValue: 30 });
+      if (e.shieldFlood) list.push({ key: 'shieldFlood', cardId: 'dam', icon: 'dam', label: '堤防シールド', desc: '洪水・津波 −25', reduceValue: 25 });
+      if (e.negateSpecial) list.push({ key: 'negateSpecial', cardId: 'evacuation', icon: 'evacuation', label: '特殊効果無効', desc: '特殊効果・テロを無効＋ダメージ−10', reduceValue: 10 });
+      if (e.damageReduceHits > 0) list.push({ key: 'damageReduceHits', cardId: 'bousai_cho', icon: 'bousai_cho', label: `防災庁設置（残${e.damageReduceHits}回）`, desc: '全ダメージ −15', reduceValue: 15 });
       return list;
     }
+    // プレイヤーが設置中の「シールド型」効果（緑政策由来）を列挙する。公害カードの破壊対象。
+    function getActiveShields(p) { return _activeShieldsFromEffects(p.effects); }
     // シールド消費予告バッジ用：この攻撃(atkCard)が対戦/協力どちらの effects でも、耐震・堤防シールドを消費するか判定する（対戦=p.effects／協力=cs.effects、フィールド名は共通）
     function shieldConsumeLabel(atkCard, effects) {
       if (!atkCard || !effects) return '';
@@ -8987,7 +8970,12 @@
           /* 内訳は人のアイコンで見せる（自然＝赤・都市＝青）。数字より先に色で伝わる。
              ⚠️ 絵文字は使わない。既存のneon UIトーンに合わせたSVGで描く。 */
           const _pIcon = (col, dashed) => `<svg viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"${dashed ? ' stroke-dasharray="3 2.4"' : ''} style="width:15px;height:15px;flex-shrink:0"><circle cx="12" cy="7.5" r="3.6"/><path d="M4.5 20.5c0-3.9 3.4-6.4 7.5-6.4s7.5 2.5 7.5 6.4"/></svg>`;
-          const cntBtns = [2, 3, 4, 5].map(n => {
+          /* ⚠️ 都市側は最大4人（coopMPCheckRoom の cityFull: cityCount >= 4）。
+             部屋の定員5人は自然側1人を含んだ数である。自然をCPUに任せると
+             全員が都市側になるため、選べる合計は4人までになる。
+             ここを5人まで出すと「参加できない人数」を提示することになる。 */
+          const _maxTotal = natureIsHuman ? 5 : 4;
+          const cntBtns = [2, 3, 4, 5].filter(n => n <= _maxTotal).map(n => {
             const cityN = natureIsHuman ? n - 1 : n;
             const natIcons = natureIsHuman ? _pIcon('#f85149', false) : _pIcon('#f85149', true);
             const cityIcons = Array.from({ length: cityN }, () => _pIcon('#388bfd', false)).join('');
@@ -9368,12 +9356,30 @@
     }
 
     // ─── 効果バッジ ───
-    function renderEffectBadges(eff, pi) {
+    // シールド系1件分のバッジHTML。軽減値をインライン表示し、タップで既存のカード拡大モーダル
+    // （_lpShowCardById）を開くボタンにする（2026-08-28・B-1/B-2）。event.stopPropagation()で
+    // 親要素（都市パネルのタップ等）へのクリック伝播を防ぐ（cardZoomBtnHtmlと同じ対処）。
+    function _effShieldBadgeBtn(colorClass, iconHtml, text, cardId) {
+      return `<button type="button" class="eff-badge ${colorClass}" onclick="event.stopPropagation();_lpShowCardById('${cardId}',true)" aria-label="${_escHtml(text)}の詳細を見る">${iconHtml} ${text}</button>`;
+    }
+    // シールド系バッジ（耐震/堤防/特殊効果無効/防災庁設置）の行を _activeShieldsFromEffects から組み立てる。
+    // 対戦（renderEffectBadges）・協力（coopCityPanel）で共通利用し、軽減値の定義を1箇所に保つ。
+    // シールドが1つもなければ空文字を返す（「効果なし」等のプレースホルダはこの関数の責務ではない）。
+    function _shieldBadgesHtml(effects) {
+      const byKey = {};
+      _activeShieldsFromEffects(effects).forEach(s => { byKey[s.key] = s; });
       const b = [];
-      if (eff.shieldQuakeFire) b.push(`<span class="eff-badge eff-blue">${uiIcoShield(13)} 耐震シールド</span>`);
-      if (eff.shieldFlood) b.push(`<span class="eff-badge eff-blue">${uiIcoShield(13)} 堤防シールド</span>`);
-      if (eff.negateSpecial) b.push(`<span class="eff-badge eff-blue">${uiIcoMegaphone(13)} 特殊効果無効</span>`);
-      if (eff.damageReduceHits > 0) b.push(`<span class="eff-badge eff-yellow">${uiIcoShield(13)} 全ダメ−15（残${eff.damageReduceHits}回）</span>`);
+      if (byKey.shieldQuakeFire) { const s = byKey.shieldQuakeFire; b.push(_effShieldBadgeBtn('eff-blue', uiIcoShield(13), `${s.label} −${s.reduceValue}`, s.cardId)); }
+      if (byKey.shieldFlood) { const s = byKey.shieldFlood; b.push(_effShieldBadgeBtn('eff-blue', uiIcoShield(13), `${s.label} −${s.reduceValue}`, s.cardId)); }
+      // 広域避難指示の−10は「特殊効果の無効化」とは別枠の全ダメージ軽減であり、「耐震シールド −30」と同じ形で
+      // 「特殊効果無効 −10」と並べると『無効化が10軽減される』と読めてしまう。ここだけ数値を添えず、
+      // タップで開くカード（desc「特殊効果・テロ攻撃を無効＋ダメージ−10」）に説明を委ねる（2026-08-28レビュー指摘）。
+      if (byKey.negateSpecial) { const s = byKey.negateSpecial; b.push(_effShieldBadgeBtn('eff-blue', uiIcoMegaphone(13), s.label, s.cardId)); }
+      if (byKey.damageReduceHits) { const s = byKey.damageReduceHits; b.push(_effShieldBadgeBtn('eff-yellow', uiIcoShield(13), `全ダメ−${s.reduceValue}（残${effects.damageReduceHits}回）`, s.cardId)); }
+      return b.join('');
+    }
+    function renderEffectBadges(eff, pi) {
+      const b = [_shieldBadgesHtml(eff)];
       if (eff.floodBonusTurns > 0) { const _fc = pi != null ? getActiveCity(pi) : null; const _fa = _fc?.abilityValue ?? 1; b.push(`<span class="eff-badge eff-blue">${uiIcoDroplet(13)} 予算+${_fa}</span>`); }
       if (eff.terrorNextDisaster) b.push(`<span class="eff-badge eff-red">${uiIcoAlertOctagon(13)} テロ準備</span>`);
       if (eff.debtBudget > 0) b.push(`<span class="eff-badge eff-red">${uiIcoTrendDown(13)} 予算−${eff.debtBudget}</span>`);
@@ -11198,19 +11204,11 @@
       const totalAttacks = coopMPAttackPerTurn(n, draw) * maxTurns; // = coopMPAttackCount × ターン数
       return Math.max(3, Math.min(maxTurns, Math.ceil(totalAttacks / 6) + 1));
     }
-    // 協力モード都市パネルのシールドバッジ：現在有効な設置効果の一覧を返す（アイコン・見出し・タップ詳細用の説明文）
-    function coopShieldEffects(e) {
-      const list = [];
-      if (e.shieldQuakeFire) list.push({ icon: uiIcoShield(13), label: '耐震シールド', detail: '地震・大火災のダメージを30軽減する' });
-      if (e.shieldFlood) list.push({ icon: uiIcoShield(13), label: '堤防シールド', detail: '洪水・津波のダメージを25軽減する' });
-      if (e.negateSpecial) list.push({ icon: uiIcoMegaphone(13), label: '特殊効果無効', detail: '広域避難指示の効果で特殊効果・テロ攻撃を無効化する' });
-      if (e.damageReduceHits > 0) list.push({ icon: uiIcoShield(13), label: '防災庁', detail: `全ダメージを15軽減する（残り${e.damageReduceHits}回）` });
-      return list;
-    }
-    // 都市パネル別にシールド詳細トグルの開閉状態を保持（Firebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
-    let _coShieldDetailOpen = {};
-    // 2026-07-17ユーザーレビュー第3弾（ちらつき根本修正・方針1）：シールド/能力トグルはローカルUI状態の開閉のみで
-    // ゲーム状態（CO）を一切変更しないため、renderCoop()（app.innerHTML全置換）を呼ばず、該当都市パネルのDOMノードだけを
+    // 2026-08-28：都市パネルのシールドバッジはトグル開閉を廃止し renderEffectBadges と共通の
+    // _shieldBadgesHtml（軽減値インライン表示＋タップでカード拡大モーダル）に統一したため、
+    // 旧coopShieldEffects／_coShieldDetailOpen／coopToggleShieldDetailは削除した（coopCityPanel参照）。
+    // 2026-07-17ユーザーレビュー第3弾（ちらつき根本修正・方針1）：都市名タップ等のローカルUI状態の開閉のみで
+    // ゲーム状態（CO）を一切変更しないものは、renderCoop()（app.innerHTML全置換）を呼ばず、該当都市パネルのDOMノードだけを
     // outerHTMLで差し替える。手札カード列など無関係な領域には一切触れないため、対戦モードの都市名タップ詳細相当の
     // トグル操作で自分の手札列が消える問題が起きなくなる（問題工房ドラッグ実装のrender()回避方針と同じ考え方）
     function _coPatchCityPanel(idx) {
@@ -11221,9 +11219,8 @@
       el.outerHTML = coopCityPanel(CO.cities[idx], idx, compact);
       delete _coContainerCache.cities; // 次回のrenderCoop()でcitiesコンテナだけを最新化させる（手札等の他コンテナには影響しない）
     }
-    function coopToggleShieldDetail(idx) { _coShieldDetailOpen[idx] = !_coShieldDetailOpen[idx]; _coPatchCityPanel(idx); }
     // 2026-07-17：仲間パネルのコンパクト化に伴い、能力詳細は都市名タップで開閉する（対戦モードの都市名タップ詳細と同じ体験）。
-    // 都市スロット別に開閉状態を保持（_coShieldDetailOpenと同じくFirebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
+    // 都市スロット別に開閉状態を保持（Firebase同期には載せないローカル表示state。協力ゲーム開始時にクリア）
     let _coCityDetailOpen = {};
     // 2026-07-27：閲覧方法統一（coopCityPanel）に伴い、未設定時の既定値は「自分の都市（mine）なら開・それ以外は閉」。
     // 単純に!_coCityDetailOpen[idx]で反転すると、未設定（＝画面上は既定で開いて見えるmineの都市）の初回タップで
@@ -12618,7 +12615,7 @@
       CO.budgetCarriedIn = carriedIn;
       CO.budget = b; CO.budgetUsed = 0;
     }
-    function coopBeginPlay() { CO.turn = 1; _coShieldDetailOpen = {}; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; _coHandSeenUids = null; _coHandSeenOwner = null; coopStartCityTurn(true); }
+    function coopBeginPlay() { CO.turn = 1; _coCityDetailOpen = {}; _coHandTab = 'me'; _coRespPreviewUid = null; _coContainerCache = {}; _coAreaCache = {}; _coLastFullHtml = null; _coHandSeenUids = null; _coHandSeenOwner = null; coopStartCityTurn(true); }
     // 都市ターン開始（humanSide によって人間操作／CPU防衛に分岐）
     function coopStartCityTurn(initial) {
       if (CO.mp) return coopStartCityTurnMP(initial);
@@ -13474,16 +13471,13 @@
       const pct = Math.max(0, Math.round(cs.hp / cs.maxHp * 100));
       const ratio = cs.hp / cs.maxHp;
       const col = ratio > 0.6 ? '#3fb950' : ratio > 0.3 ? '#d29922' : '#f85149';
-      const shieldList = coopShieldEffects(cs.effects);
-      const shieldDetailOpen = !!_coShieldDetailOpen[idx];
       // 復興直後の猶予（§13.9）：既存の効果バッジ（.eff-badge）と同じ形式で常時表示する。観戦者・仲間の
       // 画面でも見えるようCO.cities[idx]（Firebaseで配信される状態）のreviveGuardをそのまま参照する。
       const guardBadge = (cs.reviveGuard > 0) ? `<span class="eff-badge eff-blue">${uiIcoClock(13)} 復興直後（残${cs.reviveGuard}ターン）</span>` : '';
-      const badges = guardBadge + (shieldList.length === 0 ? '' : (() => {
-        const row = `<button type="button" class="coop-shield-toggle" aria-expanded="${shieldDetailOpen}" aria-label="設置中の効果の詳細を${shieldDetailOpen ? '閉じる' : '表示する'}" onclick="coopToggleShieldDetail(${idx})">${shieldList.map(s => s.icon).join(' ')}${uiIcoChevronDown(10)}</button>`;
-        const detail = shieldDetailOpen ? `<div class="coop-shield-detail">${shieldList.map(s => `<div class="coop-shield-detail-row">${s.icon}<span><strong>${s.label}</strong>：${s.detail}</span></div>`).join('')}</div>` : '';
-        return row + detail;
-      })());
+      // 2026-08-28（B-1〜B-3）：トグル開閉（旧coop-shield-toggle）を廃止し、対戦モードと同じ「軽減値を
+      // バッジにインライン表示＋タップでカード拡大モーダル」に統一する（_shieldBadgesHtmlを共通利用）。
+      // 差分render機構（_coPatchCityPanel／coopDiffRenderBoard）との干渉源だった開閉状態の持ち回りが不要になる。
+      const badges = guardBadge + _shieldBadgesHtml(cs.effects);
       const mine = CO.mp && cs.ownerId && cs.ownerId === CO.myId;
       const showTurn = CO.mp && (CO.phase === 'city' || CO.phase === 'draw');
       const readyChip = showTurn ? (cs.ready ? `<span style="display:inline-flex;align-items:center;gap:2px;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(63,185,80,.18);color:#9ff0a8;border:1px solid rgba(63,185,80,.45)">✓ 完了</span>` : `<span style="display:inline-block;margin-left:4px;padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:700;background:rgba(255,255,255,.05);color:rgba(var(--t0-rgb),.4);border:1px solid rgba(255,255,255,.15)">…</span>`) : '';
@@ -13528,7 +13522,7 @@
       const badgeStyle = compact ? 'font-size:.78rem;margin-top:4px;min-height:16px' : 'font-size:.85rem;margin-top:5px;min-height:18px';
       // リーチ警告バッジはHPバーの外側（overflow:hiddenの影響を受けない position:relative ラッパー）に重ねる。バー内部のoverflow:hiddenでクリップされないようにするため
       // data-city-idx/data-compact：2026-07-17ユーザーレビュー第3弾（ちらつき根本修正）で追加。
-      // シールド/能力トグル（coopToggleShieldDetail/coopToggleCityDetail）がrenderCoop()を呼ばず
+      // 能力トグル（coopToggleCityDetail）がrenderCoop()を呼ばず
       // このパネル1枚だけをouterHTMLで差し替えるための識別子（_coPatchCityPanel参照）
       return `<div data-city-idx="${idx}" data-compact="${compact ? 1 : 0}" class="coop-city-frame" style="--zone-bracket:${bracketColor};flex:1;background:var(--bg2,#161b22);border-radius:6px;padding:${panelPad};${dead ? 'opacity:.65;' : ''}">${nameBlock}${owner}${standaloneAbility}<div style="display:flex;align-items:center;gap:6px"><span class="hp-label" style="flex-shrink:0">HP</span><div style="position:relative;flex:1;min-width:0">${reachBadge}<div data-co-city="${idx}" style="background:#0d1117;border-radius:6px;height:${hpBarH}px;overflow:hidden;position:relative">${barInner}<span class="${warnCls.trim()}" style="position:absolute;inset:0;text-align:center;font-size:.66rem;line-height:${hpBarH}px;color:#fff;text-shadow:0 0 2px #000;font-variant-numeric:tabular-nums">${dead ? '壊滅' : cs.hp + ' / ' + cs.maxHp}</span></div></div></div><div style="${badgeStyle}">${badges}</div></div>`;
     }
@@ -14985,6 +14979,17 @@
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
     }
+    // 日付キーとサブシード番号を32bitへ撹拌する（lowbias32 finalizer）。サブシードを seed+k の連番に
+    // すると、日付キーが1日で+1しか動かないため隣接する日の候補集合が49/50重複し、「最初に検品を通った
+    // 候補を採用する」規則の下で採用シードが同じ整数に張り付いて問題が固定される（2026-08-26修正）。
+    // Date.now()/Math.random()は使わないため、同じ日付キーなら常に同じ結果になる決定性は維持される。
+    function ddSubSeed(dateKey, k) {
+      let x = (((Number(dateKey) || 1) >>> 0) ^ Math.imul(k + 1, 0x9E3779B9)) >>> 0;
+      x ^= x >>> 16; x = Math.imul(x, 0x7feb352d);
+      x ^= x >>> 15; x = Math.imul(x, 0x846ca68b);
+      x ^= x >>> 16;
+      return x >>> 0;
+    }
     function _ddShuffle(arr, rng) {
       for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1));[arr[i], arr[j]] = [arr[j], arr[i]]; }
       return arr;
@@ -15447,7 +15452,7 @@
       };
     }
 
-    // 柱2 本体：候補生成→検品→合格採用。シード（日付キー整数）からサブシード列 seed, seed+1, seed+2, … を
+    // 柱2 本体：候補生成→検品→合格採用。シード（日付キー整数）を ddSubSeed で撹拌したサブシード列を
     // 固定順で辿り、各サブシードで候補シナリオを生成→検品し、最初に合格した候補を採用する。
     // Date.now()やMath.random()は一切使わないため、同じ日付キーなら常に同じ結果になる（決定的）。
     //
@@ -15463,10 +15468,9 @@
     // 過去7日アーカイブ（D2）の再挑戦は新シナリオになるが、練習扱いのため実害はない。
     // 公式記録（localStorageの ron_daily_v1）は日付キー単位で保存されているため、過去の記録自体は破壊されない。
     function ddBuildScenario(dateKey) {
-      const seed = Number(dateKey) || 1;
       const candidates = [];
       for (let k = 0; k < DD_QC_CANDIDATE_COUNT; k++) {
-        const cand = _ddBuildScenarioCandidate(dateKey, seed + k);
+        const cand = _ddBuildScenarioCandidate(dateKey, ddSubSeed(dateKey, k));
         const optimal = dailyComputeOptimal(cand);
         const unique = ddCheckUniqueSolution(cand, optimal.best);
         const cleverness = ddComputeCleverness(cand, optimal.best);
