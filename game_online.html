@@ -7872,10 +7872,10 @@
       if (G.winner === null || G.winner === undefined) {
         const hp0 = G.players[0].cityHps.reduce((s,h)=>s+Math.max(0,h),0);
         const hp1 = G.players[1].cityHps.reduce((s,h)=>s+Math.max(0,h),0);
-        text = `【観戦レポート】\n${G.players[0].name} vs ${G.players[1].name}\n結果：引き分け（HP合計 ${hp0} 対 ${hp1}）\n総ターン数：${totalTurns}\n${G.players[0].name} 都市：${p0cities}\n${G.players[1].name} 都市：${p1cities}\n#ReadyOrNot #防災`;
+        text = `【観戦レポート】\n${G.players[0].name} vs ${G.players[1].name}\n結果：引き分け（HP合計 ${hp0} 対 ${hp1}）\n総手番数：${totalTurns}\n${G.players[0].name} 都市：${p0cities}\n${G.players[1].name} 都市：${p1cities}\n#ReadyOrNot #防災`;
       } else {
         const wi = G.winner; const w = G.players[wi]; const l = G.players[wi===0?1:0];
-        text = `【観戦レポート】\n${w.name} vs ${l.name}\n結果：${w.name} の勝利\n総ターン数：${totalTurns}\n${G.players[0].name} 都市：${p0cities}\n${G.players[1].name} 都市：${p1cities}\n#ReadyOrNot #防災`;
+        text = `【観戦レポート】\n${w.name} vs ${l.name}\n結果：${w.name} の勝利\n総手番数：${totalTurns}\n${G.players[0].name} 都市：${p0cities}\n${G.players[1].name} 都市：${p1cities}\n#ReadyOrNot #防災`;
       }
       _copyText(text, '観戦レポートをコピー');
     }
@@ -10699,7 +10699,7 @@
         const maxAtk = allDmg.reduce((m,ev)=>ev.damage>(m?.damage??0)?ev:m,null);
         const p0dealt = allDmg.filter(ev=>ev.playerIdx===1).reduce((s,ev)=>s+ev.damage,0);
         const p1dealt = allDmg.filter(ev=>ev.playerIdx===0).reduce((s,ev)=>s+ev.damage,0);
-        highlightHtml = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_disaster.webp" style="width:20px;height:20px;object-fit:contain"> 試合ハイライト</div>${maxAtk?`<div class="go-stats-row"><span style="font-size:1rem">${cardIconSvg(maxAtk.cardIcon,16)}</span><span class="go-stats-row-name">最大ダメージ：${maxAtk.cardName}</span><span class="go-hp-dead">−${maxAtk.damage}</span></div>`:''}<div class="go-stats-row"><span style="font-size:1rem">${uiIcoSwords(15)}</span><span class="go-stats-row-name">${G.players[0].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p0dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">${uiIcoSwords(15)}</span><span class="go-stats-row-name">${G.players[1].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p1dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">${uiIcoClock(15)}</span><span class="go-stats-row-name">総ターン数</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${totalTurns}</span></div></div>`;
+        highlightHtml = `<div class="go-inview go-stats-table"><div class="go-stats-section-header go-karte-header"><img src="images/icons/neon_disaster.webp" style="width:20px;height:20px;object-fit:contain"> 試合ハイライト</div>${maxAtk?`<div class="go-stats-row"><span style="font-size:1rem">${cardIconSvg(maxAtk.cardIcon,16)}</span><span class="go-stats-row-name">最大ダメージ：${maxAtk.cardName}</span><span class="go-hp-dead">−${maxAtk.damage}</span></div>`:''}<div class="go-stats-row"><span style="font-size:1rem">${uiIcoSwords(15)}</span><span class="go-stats-row-name">${G.players[0].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p0dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">${uiIcoSwords(15)}</span><span class="go-stats-row-name">${G.players[1].name} 総与ダメージ</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${p1dealt}</span></div><div class="go-stats-row"><span style="font-size:1rem">${uiIcoClock(15)}</span><span class="go-stats-row-name">総手番数</span><span style="color:var(--t1);font-weight:700;font-family:'Roboto Condensed',sans-serif">${totalTurns}</span></div></div>`;
       }
 
       // 観戦者限定: 観戦レポートコピー
@@ -10726,7 +10726,7 @@
             <div class="go-stats-section-header">${isDraw ? G.players[0].name : `WINNER ${w.name}`}</div>${wRows}
             <div class="go-stats-section-header">${isDraw ? G.players[1].name : `LOSER ${l.name}`}</div>${lRows}
           </div>
-          <div class="go-inview go-turns-badge">総ターン数 <strong>${totalTurns}</strong></div>
+          <div class="go-inview go-turns-badge">総手番数 <strong>${totalTurns}</strong></div>
           ${karte}${terrainStat}${counterHtml}
           ${disasterLearn}
           ${highlightHtml}
@@ -10941,7 +10941,7 @@
       <div class="go-stats-section-header">${isDraw ? G.players[0].name : `WINNER ${w.name}`}</div>${wRows}
       <div class="go-stats-section-header">${isDraw ? G.players[1].name : `LOSER ${l.name}`}</div>${lRows}
     </div>
-    <div class="go-inview go-turns-badge">総ターン数 <strong>${totalTurns}</strong></div>
+    <div class="go-inview go-turns-badge">総手番数 <strong>${totalTurns}</strong></div>
     ${cityBadgesHtml}
     ${karte}
     ${jinzaiKarte}
