@@ -2113,18 +2113,28 @@
     .db-city-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
     .db-city-name { font-weight: 700; font-size: .84rem; color: var(--t0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .db-city-ability { font-size: .68rem; color: var(--t2); margin-top: 4px; line-height: 1.35; }
-    .db-gauges-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
-    .db-gauge { flex: 1; min-width: 74px; background: var(--bg2); border-left: 3px solid var(--blue); border-radius: 6px; padding: 6px 8px; }
+    /* Phase7：スタンドアロン編成（クリエイトラボ「Myデッキを作る」）では都市カードの代わりにこの1行注記を出す。 */
+    .db-standalone-note { font-size: .78rem; color: var(--t2); line-height: 1.5; background: var(--bg2); border: 1px solid var(--bg3); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+    /* Phase7：③ドーナツ＋数値ゲージ。ドーナツ(72px固定)を左、4つの数値ゲージを右の2×2グリッドに置く
+       （390px幅で1行4カラムのままだと潰れるため。db-gauge自体はグリッドセルなのでflex/min-widthは持たない）。 */
+    .db-gauges-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+    .db-gauges-grid { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .db-gauge { min-width: 0; background: var(--bg2); border-left: 3px solid var(--blue); border-radius: 6px; padding: 6px 8px; }
     .db-gauge-bad { border-left-color: var(--red); }
     .db-gauge-bad .db-gauge-num { color: var(--red); }
     .db-gauge-label { font-size: .6rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--t2); }
     .db-gauge-num { font-size: 1.05rem; font-weight: 900; color: var(--t0); font-variant-numeric: tabular-nums; margin-top: 1px; }
     .db-gauge-range { font-size: .66rem; font-weight: 700; color: var(--t2); margin-left: 2px; }
-    /* Phase6：都市に合わせた自動生成の根拠を示す短い注記（citiesHtmlとgaugesHtmlの間）。 */
-    .db-cityaware-note { font-size: .72rem; color: var(--t2); margin: -2px 0 10px; line-height: 1.4; }
-    /* Phase6：既定/都市に合わせて/マイデッキの3ボタンを横並びに（10.1：折返しで生じる不定形の空白を避ける）。 */
+    /* Phase7：③ドーナツ本体。stroke-dasharray/dashoffsetはdeckBuildDonutSvg()側で計算する（アニメーションは付けない）。 */
+    .db-donut-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+    .db-donut { display: block; width: 72px; height: 72px; transform: rotate(-90deg); }
+    .db-donut-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: .92rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .db-donut-center small { font-size: .6rem; font-weight: 700; color: var(--t2); margin-left: 1px; }
+    /* Phase7：②自動生成の根拠は画面内常設ではなく中央の一時ポップ（.db-note-splash）へ移した。
+       Phase7：既定で埋める/都市に合わせて埋める/マイデッキの3ボタン→オススメデッキを作る/Myデッキを使うの2ボタンへ整理。
+       スマホでラベルが1文字ずつ折り返さないようnowrap・アイコン横並びにする（10.1：折返しで生じる不定形の空白を避ける）。 */
     .db-actions-row { display: flex; gap: 6px; margin-bottom: 10px; }
-    .db-default-btn { flex: 1; min-width: 0; padding: 10px 4px; font-size: .74rem; }
+    .db-default-btn { flex: 1; min-width: 0; padding: 10px 4px; font-size: .72rem; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
     .db-card-list { margin-bottom: 8px; }
     .db-frame-section { margin-bottom: 6px; }
     .db-frame-title { font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--t1); border-left: 3px solid var(--bg3); padding: 4px 0 4px 8px; margin: 10px 0 2px; }
@@ -2139,11 +2149,29 @@
     .db-step-btn { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--bg3); background: var(--bg2); color: var(--t0); font-weight: 900; font-size: .9rem; line-height: 1; cursor: pointer; padding: 0; }
     .db-step-btn:disabled { opacity: .35; cursor: default; }
     .db-step-num { min-width: 16px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--t0); }
-    .db-reasons { margin: 8px 0; padding: 8px 10px; background: rgba(248,81,73,.08); border: 1px solid var(--red); border-radius: 8px; }
+    /* Phase7：④db-reasonsをdb-confirm-rowより下に置き直したため、カード枚数を変えるたびに
+       確定/保存ボタンの位置が上下しない（db-reasonsの出現・消滅で動くのは自分より下の余白だけ）。 */
+    .db-reasons { margin: 8px 0 0; padding: 8px 10px; background: rgba(248,81,73,.08); border: 1px solid var(--red); border-radius: 8px; }
     .db-reason-item { font-size: .74rem; color: var(--red); line-height: 1.5; }
     .db-reason-item::before { content: '・'; }
     .db-confirm-row { margin-top: 6px; margin-bottom: 12px; }
     .db-confirm-btn { width: 100%; padding: 12px; font-size: .95rem; }
+    /* Phase7：スタンドアロン編成の下部（保存して戻る／戻る）。確定ボタンの縦積み版。 */
+    .db-standalone-actions { display: flex; flex-direction: column; gap: 8px; }
+    .db-standalone-back-btn { width: 100%; padding: 11px; font-size: .86rem; background: transparent; border: 1px solid var(--bg3); color: var(--t0); }
+    .db-standalone-error { font-size: .74rem; color: var(--red); text-align: center; margin-top: 4px; }
+    /* Phase7：②生成根拠の一時ポップ（デッキ編成画面に入った直後／オススメデッキを作る押下直後）。
+       showTurnSplashの.turn-bannerと同じ「出て消える」作法だが、モーションはフェード以外を持たない
+       （拡大・縮小・スライド・回転は入れない。design_system.mdのモーション方針）。 */
+    @keyframes db-note-fade { 0% { opacity: 0; } 15.6% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; } }
+    .db-note-splash {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      max-width: min(320px, calc(100vw - 48px));
+      background: var(--bg2); border: 1px solid var(--bg3); border-radius: 10px;
+      padding: 12px 16px; font-size: .8rem; color: var(--t0); line-height: 1.5; text-align: center;
+      z-index: 9999; pointer-events: none;
+      animation: db-note-fade 1.6s ease both;
+    }
 
     .card-back {
       width: var(--card-w);
@@ -6313,8 +6341,9 @@
       defend: ALL_CARDS.filter(c => c.frame === 'defend'),
       free: ALL_CARDS.filter(c => c.frame === 'free'),
     };
-    // 既定デッキ（都市非依存の固定構成。24枚ちょうど・3枠制約を満たす。CPU戦のCPU側デッキ／
-    // 「既定で埋める」ボタンの読み込み元として共通利用する。都市に合わせた自動生成はPhase6で別途）。
+    // 既定デッキ（都市非依存の固定構成。24枚ちょうど・3枠制約を満たす）。buildCityAwareDeckCountsの
+    // 土台として使う（都市が無い/未選択のときのフォールバック＝標準構成そのもの）。Phase7で「既定で埋める」
+    // ボタン自体はUIから廃止したが、この定数はbuildCityAwareDeckCountsの土台として残す。
     const VERSUS_DEFAULT_DECK_COUNTS = {
       earthquake: 2, flood: 2, typhoon: 1, tsunami: 1, landslide: 1, wildfire: 1, compound: 1, pollution: 1,
       quake_wall: 2, dam: 2, drill: 2, agreement: 2, evacuation: 1, bousai_cho: 1,
@@ -7105,6 +7134,8 @@
       // 何も触らず確定を押せば即座に進められるし、気になる所だけ1枚単位で直せる。
       G.deckBuildState = { playerIdx: pi, counts: buildCityAwareDeckCounts(G.players[pi].cities) };
       G.screen = 'deckBuild';
+      // Phase7②：デッキ編成画面に入った直後、生成根拠を一時ポップで示す（都市が無ければ空文字でno-op）。
+      showDeckBuildNote(vsCityAwareNote(G.players[pi].cities));
     }
     // 枚数を0〜VERSUS_DECK_MAX_COPIESへクランプして設定する（UI側で+/-ボタンの有効範囲を絞るため、
     // このクランプ自体が破られることは通常ないが、防御的に常にクランプする）。0のときはcountsから
@@ -7117,18 +7148,17 @@
     }
     function deckBuildInc(cardId) { const ds = G.deckBuildState; if (!ds) return; deckBuildSetCount(cardId, (ds.counts[cardId] || 0) + 1); }
     function deckBuildDec(cardId) { const ds = G.deckBuildState; if (!ds) return; deckBuildSetCount(cardId, (ds.counts[cardId] || 0) - 1); }
-    // 「既定で埋める」：5-Dの固定構成を丸ごと読み込む（そこから手で微調整できる）。
-    function deckBuildApplyDefault() {
-      const ds = G.deckBuildState; if (!ds) return;
-      ds.counts = { ...VERSUS_DEFAULT_DECK_COUNTS };
-      pushState(); render();
-    }
-    // Phase6：「都市に合わせて埋める」。startDeckBuild()の初期値と同じ生成をボタンからやり直せる
-    // （手で崩した後に自動生成へ戻したいとき用）。
+    // Phase7：「既定で埋める」ボタンはUIから廃止した（意味が伝わらない・3ボタンだとスマホで折返す）。
+    // 「オススメデッキを作る」＝「都市に合わせて埋める」だけに一本化する。ds.standaloneのとき（クリエイトラボの
+    // スタンドアロン編成）は都市を持たないため、cities=[]を渡し標準構成（VERSUS_DEFAULT_DECK_COUNTS）を返す
+    // buildCityAwareDeckCountsの既存フォールバックへそのまま乗せる。
     function deckBuildApplyCityAware() {
       const ds = G.deckBuildState; if (!ds) return;
-      ds.counts = buildCityAwareDeckCounts(G.players[ds.playerIdx].cities);
+      const cities = ds.standalone ? [] : G.players[ds.playerIdx].cities;
+      ds.counts = buildCityAwareDeckCounts(cities);
       pushState(); render();
+      // Phase7②：ボタンを押した直後にも生成根拠を一時ポップで示す（都市が無ければ空文字でno-op）。
+      showDeckBuildNote(vsCityAwareNote(cities));
     }
     // 自動生成の根拠を1〜2行で示す短い説明（design_system.md §10.3：説明は構造の代替ではなく最小限に留める）。
     function vsCityAwareNote(cities) {
@@ -7137,6 +7167,66 @@
       const terrainLabel = c => c.isCoastal ? '海岸' : (c.isMountain ? '山間部' : '内陸');
       const names = list.map(c => `${c.name}（${terrainLabel(c)}）`).join('・');
       return `${names}に合わせて守る枠を調整しました。`;
+    }
+    // Phase7②：生成根拠の一時ポップ（画面中央・フェードのみ・1.6秒）。showTurnSplashと同じ
+    // 「#app外のbodyへ直接追加し、setTimeoutで自然消滅」の作法だが、showTurnSplash自体は改変しない
+    // （別のバナー系機能のため）。連続で呼ばれても多重表示しないよう、既存の同クラス要素は先に消す。
+    function showDeckBuildNote(text) {
+      if (!text || typeof document === 'undefined' || !document.createElement) return;
+      document.querySelectorAll('.db-note-splash').forEach(e => e.remove());
+      const el = document.createElement('div'); el.className = 'db-note-splash';
+      el.textContent = text;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1600);
+    }
+    // Phase7①：デッキ編成画面の2ボタン用アイコン。既存のcardIconSvg等と同じ線画SVG文法
+    // （viewBox 0 0 24 24・fill none・stroke currentColor・stroke-width 2・round cap/join）。絵文字は使わない。
+    // ペン先＋4点星＝「自動で良い感じに作る」。星は中心(6.4,6)・半径約2.8の4点スパークルで、
+    // ペン本体（x:7.5〜20.4・y:3.6〜16.5の対角帯）とは座標上重ならないことを確認済み。
+    function _vsIcoRecommend(size, color) {
+      const s = size || 18; const c = color || 'currentColor';
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0">
+        <path d="M20.4 6.6 17.4 3.6 7.5 13.5v3h3z"/>
+        <path d="m15.4 5.6 3 3"/>
+        <path d="M6.4 3.2 7.2 5.2 9.2 6 7.2 6.8 6.4 8.8 5.6 6.8 3.6 6 5.6 5.2z"/>
+      </svg>`;
+    }
+    // カード3枚が扇状に開いた形＝「マイデッキ」。中央のカードを最後に描き前面に来るようにする。
+    function _vsIcoMyDeck(size, color) {
+      const s = size || 18; const c = color || 'currentColor';
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:${s}px;height:${s}px;flex-shrink:0">
+        <rect x="2.5" y="8" width="7.5" height="11" rx="1.5" transform="rotate(-18 6.25 13.5)"/>
+        <rect x="14" y="8" width="7.5" height="11" rx="1.5" transform="rotate(18 17.75 13.5)"/>
+        <rect x="8.25" y="6" width="7.5" height="11" rx="1.5"/>
+      </svg>`;
+    }
+    // Phase7③：円グラフ（ドーナツ）のセグメント比率計算。DOM非依存の純粋関数にして
+    // ハーネスから直接呼べるようにする（HTML生成はdeckBuildDonutSvg側で行う）。
+    // 24枚超過時は3枠の内訳を無視し、単一セグメント（overflow・100%）の警告表示にする。
+    function deckBuildDonutSegments(frameSums, total) {
+      if (total > VERSUS_DECK_SIZE) return [{ key: 'overflow', pct: 100 }];
+      const atk = Math.min(100, (frameSums.attack || 0) / VERSUS_DECK_SIZE * 100);
+      const def = Math.min(100, (frameSums.defend || 0) / VERSUS_DECK_SIZE * 100);
+      const free = Math.min(100, (frameSums.free || 0) / VERSUS_DECK_SIZE * 100);
+      const track = Math.max(0, 100 - (atk + def + free));
+      const segs = [{ key: 'attack', pct: atk }, { key: 'defend', pct: def }, { key: 'free', pct: free }];
+      if (track > 0) segs.push({ key: 'track', pct: track });
+      return segs;
+    }
+    const VERSUS_DONUT_COLOR = { attack: 'var(--red)', defend: 'var(--green)', free: 'var(--yellow)', track: 'var(--bg3)', overflow: 'var(--red)' };
+    // pathLength="100"を使うと%そのままをdasharray/dashoffsetに使える。dashoffsetは負値＝累積開始位置
+    // （円全体を.db-donutのCSS transform:rotate(-90deg)で12時開始にしているため、中央の数字ラベルは
+    // 別要素.db-donut-centerとして回転の外に置く）。アニメーションは付けない（増減のたびに動くと煩わしいため）。
+    function deckBuildDonutSvg(frameSums, total) {
+      const segs = deckBuildDonutSegments(frameSums, total);
+      const R = 30, C = 36, SW = 8;
+      let cum = 0;
+      const circles = segs.filter(s => s.pct > 0).map(s => {
+        const dashoffset = -cum; cum += s.pct;
+        return `<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="${VERSUS_DONUT_COLOR[s.key]}" stroke-width="${SW}" pathLength="100" stroke-dasharray="${s.pct} ${100 - s.pct}" stroke-dashoffset="${dashoffset}"/>`;
+      }).join('');
+      const centerColor = total === VERSUS_DECK_SIZE ? 'var(--t0)' : 'var(--red)';
+      return `<div class="db-donut-wrap"><svg class="db-donut" viewBox="0 0 ${C * 2} ${C * 2}">${circles}</svg><div class="db-donut-center" style="color:${centerColor}">${total}<small>/${VERSUS_DECK_SIZE}</small></div></div>`;
     }
 
     // ═══════════════════════════════════════
@@ -7177,6 +7267,22 @@
       arr.push({ id: 'vsdeck_' + Date.now() + '_' + (Math.random() * 1e6 | 0), name, counts: { ...ds.counts }, savedAt: Date.now() });
       vsDeckSaveAll(arr);
       ds.myDeckError = ''; ds.myDeckNameInput = '';
+      render();
+    }
+    // Phase7：クリエイトラボ「Myデッキを作る」（スタンドアロン編成）専用の「保存して戻る」。
+    // 保存処理そのものはvsDeckSaveCurrent()をそのまま使い、二重管理しない。myDeckErrorが立たなかった
+    // （＝保存できた）ときだけロビーへ戻る。ルール不足で保存できないときはボタン側が無効化されているため、
+    // ここに来るのは主に上限5件エラーのケースで、その場合はエラーを見せたまま画面に留まる。
+    function vsDeckStandaloneSaveAndReturn() {
+      const ds = G.deckBuildState; if (!ds || !ds.standalone) return;
+      vsDeckSaveCurrent();
+      if (G.deckBuildState && !G.deckBuildState.myDeckError) vsDeckBuildBackToLobby();
+    }
+    // スタンドアロン編成の「戻る」。confirmDeckBuild()（ドラフトへ進む経路）は通さず、
+    // 対戦を一切開始しないままロビーへ戻す。未保存の変更は破棄される。
+    function vsDeckBuildBackToLobby() {
+      G.deckBuildState = null;
+      lobbyState.mode = 'select'; lobbyState.playMode = null; lobbyState.error = '';
       render();
     }
     // 読込：将来ルールが変わったとき、古い保存デッキがそのまま入って不正なデッキで対戦が始まらないよう
@@ -7220,13 +7326,17 @@
       const frameSums = v.frameSums;
 
       // 5-E①：自分の2都市（予備都市も含む）を常に見える位置に表示する。地形・能力を出す＝ハザードマップの役割
-      function cityMini(c, hp) {
+      // Phase7：スタンドアロン編成（クリエイトラボ「Myデッキを作る」）には対戦相手も引いた都市も存在しないため、
+      // 都市カードの代わりに1行の注記を出す。
+      function cityMini(c) {
         return `<div class="db-city-card">
           <div class="db-city-head">${terrainImg(c, 20)}<span class="db-city-name">${c.name}</span><span class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</span></div>
           <div class="db-city-ability">${c.abilityDesc}</div>
         </div>`;
       }
-      const citiesHtml = `<div class="db-cities-row">${cityMini(p.cities[0], p.cityHps[0])}${p.cities.length > 1 ? cityMini(p.cities[1], p.cityHps[1]) : ''}</div>`;
+      const citiesHtml = ds.standalone
+        ? `<div class="db-standalone-note">都市は対戦のたびに変わります。ここでは標準の構成を編集して保存できます。</div>`
+        : `<div class="db-cities-row">${cityMini(p.cities[0])}${p.cities.length > 1 ? cityMini(p.cities[1]) : ''}</div>`;
 
       // 5-E②：3枠それぞれの現在枚数と下限・上限（計器の文法：ラベル小・数値大・tabular-nums）
       function frameGauge(key) {
@@ -7238,7 +7348,10 @@
         </div>`;
       }
       const totalBad = v.total !== VERSUS_DECK_SIZE;
-      const gaugesHtml = `<div class="db-gauges-row">${frameGauge('attack')}${frameGauge('defend')}${frameGauge('free')}<div class="db-gauge${totalBad ? ' db-gauge-bad' : ''}"><div class="db-gauge-label">総枚数</div><div class="db-gauge-num">${v.total}<span class="db-gauge-range">/${VERSUS_DECK_SIZE}</span></div></div></div>`;
+      // Phase7③：ドーナツ（左）＋数値ゲージ4つの2×2グリッド（右）。ドーナツはカードの増減に即応するが
+      // アニメーションは付けない（design_system.mdのモーション方針・増減のたびに動くと煩わしいため）。
+      const donutHtml = deckBuildDonutSvg(frameSums, v.total);
+      const gaugesHtml = `<div class="db-gauges-row">${donutHtml}<div class="db-gauges-grid">${frameGauge('attack')}${frameGauge('defend')}${frameGauge('free')}<div class="db-gauge${totalBad ? ' db-gauge-bad' : ''}"><div class="db-gauge-label">総枚数</div><div class="db-gauge-num">${v.total}<span class="db-gauge-range">/${VERSUS_DECK_SIZE}</span></div></div></div></div>`;
 
       // 5-E③：カードごとの枚数増減（0〜3）。名前・コスト・効果が見えること
       function cardRow(c) {
@@ -7264,32 +7377,37 @@
         </div>`;
       }
 
-      // 5-E⑤：なぜ確定できないかを必ず表示する
+      // 5-E⑤：なぜ確定できないかを必ず表示する。Phase7④：db-confirm-row（下のボタン）より下に置き、
+      // 出現・消滅で確定/保存ボタンの位置が動かないようにする（.db-card-listより下は元々スクロールする領域）。
       const reasonsHtml = v.ok ? '' : `<div class="db-reasons">${v.reasons.map(r => `<div class="db-reason-item">${_escHtml(r)}</div>`).join('')}</div>`;
-
-      // Phase6：都市に合わせた自動生成の根拠を短く示す（citiesHtmlの直後・地形/能力の生の情報のすぐ下）
-      const cityAwareNote = vsCityAwareNote(p.cities);
-      const cityAwareNoteHtml = cityAwareNote ? `<div class="db-cityaware-note">${_escHtml(cityAwareNote)}</div>` : '';
 
       // Phase6：マイデッキポップ（保存・読込・削除）。ds.myDeckOpenのときだけ描画する。
       const myDeckPopupHtml = ds.myDeckOpen ? renderVsDeckPopup(ds) : '';
 
+      // Phase7：下部ボタン。対戦中（既存）は「確定」→ドラフトへ。スタンドアロン編成（クリエイトラボ）は
+      // 「保存して戻る」（Myデッキへ保存してロビーへ）と「戻る」。confirmDeckBuild()には通さない。
+      const bottomHtml = ds.standalone
+        ? `<div class="db-confirm-row db-standalone-actions">
+            <button type="button" class="btn-ho db-confirm-btn" ${v.ok ? '' : 'disabled style="opacity:.45;cursor:default"'} onclick="vsDeckStandaloneSaveAndReturn()">${v.ok ? '保存して戻る' : '保存できません'}</button>
+            <button type="button" class="btn-ho db-standalone-back-btn" onclick="vsDeckBuildBackToLobby()">戻る</button>
+            ${ds.myDeckError ? `<div class="db-standalone-error">${_escHtml(ds.myDeckError)}</div>` : ''}
+          </div>`
+        : `<div class="db-confirm-row"><button type="button" class="btn-ho db-confirm-btn" ${v.ok ? '' : 'disabled style="opacity:.45;cursor:default"'} onclick="confirmDeckBuild()">${v.ok ? '確定' : '確定できません'}</button></div>`;
+
       return `<div class="screen active ws-editor-screen db-screen">
         <div class="db-header">
           <div class="section-title">デッキ編成</div>
-          <div class="db-sub">${_escHtml(p.name)} — ${VERSUS_DECK_SIZE}枚ちょうど・同名${VERSUS_DECK_MAX_COPIES}枚まで</div>
+          <div class="db-sub">${ds.standalone ? 'Myデッキ' : _escHtml(p.name)} — ${VERSUS_DECK_SIZE}枚ちょうど・同名${VERSUS_DECK_MAX_COPIES}枚まで</div>
         </div>
         ${citiesHtml}
-        ${cityAwareNoteHtml}
         ${gaugesHtml}
         <div class="db-actions-row">
-          <button type="button" class="btn-ho db-default-btn" onclick="deckBuildApplyDefault()">既定で埋める</button>
-          <button type="button" class="btn-ho db-default-btn" onclick="deckBuildApplyCityAware()">都市に合わせて埋める</button>
-          <button type="button" class="btn-ho db-default-btn" onclick="vsDeckOpenPopup()">マイデッキ</button>
+          <button type="button" class="btn-ho db-default-btn" onclick="deckBuildApplyCityAware()">${_vsIcoRecommend(18)}オススメデッキを作る</button>
+          <button type="button" class="btn-ho db-default-btn" onclick="vsDeckOpenPopup()">${_vsIcoMyDeck(18)}Myデッキを使う</button>
         </div>
         <div class="db-card-list">${frameSection('attack')}${frameSection('defend')}${frameSection('free')}</div>
+        ${bottomHtml}
         ${reasonsHtml}
-        <div class="db-confirm-row"><button type="button" class="btn-ho db-confirm-btn" ${v.ok ? '' : 'disabled style="opacity:.45;cursor:default"'} onclick="confirmDeckBuild()">${v.ok ? '確定' : '確定できません'}</button></div>
       </div>${myDeckPopupHtml}`;
     }
     // Phase6：マイデッキポップの描画。.confirm-overlay/.confirm-box（既存の中央モーダル）を流用する。
@@ -7556,6 +7674,9 @@
     let _recycleSelected = []; // ローリングストック：捨てるカードのuid選択（VS対戦・Firebase同期には載せないローカルUI状態）
     let _lobbyEnter = true;
     let _lobbyTitleAnimDone = false;
+    // Phase7④：デッキ編成画面（対戦中のdeckBuild画面／クリエイトラボのスタンドアロン編成lobbyState.mode==='deckLab'
+    // の両方を指す）の再描画だけスクロール位置を保つためのフラグ。render()側で使う。
+    let _lastWasDeckBuild = false;
     // 起動演出（showScanlineIntro）の初回/再訪分離用フラグ。sessionStorageに立てて
     // タブを閉じるまで「このタブでは再生済み」を記憶する（design_system.md §8.2）。
     let _introShown = false;
@@ -8717,12 +8838,20 @@
       _lpCancelTimer(); _lpClosePreview();
       _forceUnlockScroll(); // Android P0：スクロールロック残留を全画面共通の最上流で必ず解除（自己修復）
       _updateWakeLock();
-      if (coopTutorialState) { renderCoopTutorial(); return; } // 協力チュートリアルはG/CO/DD/CWいずれとも独立した専用ステートマシン
-      if (CO) { renderCoop(); return; }
-      if (DD) { renderDaily(); return; }
-      if (CW) { renderCardWorkshop(); return; }
-      if (PZ) { renderPuzzleWorkshop(); return; }
+      if (coopTutorialState) { _lastWasDeckBuild = false; renderCoopTutorial(); return; } // 協力チュートリアルはG/CO/DD/CWいずれとも独立した専用ステートマシン
+      if (CO) { _lastWasDeckBuild = false; renderCoop(); return; }
+      if (DD) { _lastWasDeckBuild = false; renderDaily(); return; }
+      if (CW) { _lastWasDeckBuild = false; renderCardWorkshop(); return; }
+      if (PZ) { _lastWasDeckBuild = false; renderPuzzleWorkshop(); return; }
+      // Phase7④：window.scrollTo(0,0)（下のif内）が呼ばれる前に必ずスクロール位置を退避する。
+      // deckBuild画面の再描画（+/-ボタンでcounts変更のたびに全体をrender()し直す構造）だけ、
+      // 末尾でこの位置へ復元する。他の画面遷移で先頭へ戻る既存挙動は変えない。CO/DD/CW/PZは上で
+      // 早期returnするため、この行はG系（対戦・ロビー）の描画に入ってから初めて評価される。
+      const _scrollYBeforeRender = window.scrollY || document.documentElement.scrollTop || 0;
       const app = document.getElementById('app'); const view = myView(); let html = '';
+      // Phase7④：対戦中のdeckBuild画面、クリエイトラボのスタンドアロン編成（lobbyState.mode==='deckLab'。
+      // G.screenは'lobby'のまま変わらないため、こちらもデッキ編成画面として扱う）のどちらも対象にする。
+      const _isDeckBuildNow = view === 'deckBuild' || (view === 'lobby' && lobbyState.mode === 'deckLab');
       const _battleViews = ['main', 'response', 'waiting_response'];
       document.body.classList.toggle('battle-active', _battleViews.includes(view));
       if (!_battleViews.includes(view)) {
@@ -8777,6 +8906,10 @@
       if (_specInviteOpen && roomId) html += renderSpecInviteOverlay();
       html += _uiTabBarHtml(); // UI第3弾（試験実装）A2：ロビー/ギャラリーのみ内部判定で表示される
       app.innerHTML = html; processHpAnims(); _updateHandScrollFade();
+      // Phase7④：deckBuild→deckBuildの再描画（+/-ボタン等）のときだけ、退避したスクロール位置へ戻す。
+      // 直前がdeckBuild以外（新規入場）のときは上のwindow.scrollTo(0,0)のまま＝先頭表示を維持する。
+      if (_lastWasDeckBuild && _isDeckBuildNow) window.scrollTo(0, _scrollYBeforeRender);
+      _lastWasDeckBuild = _isDeckBuildNow;
       if (_specPv) app.insertAdjacentHTML('beforeend', _renderSpecPreviewBar());
       if (_specInviteOpen) setTimeout(generateSpecInviteQR, 80);
       if (_lastDrawnCardUid) { setTimeout(() => { _lastDrawnCardUid = null; }, 0); }
@@ -8871,6 +9004,15 @@
       } else {
         mutateFn(); render();
       }
+    }
+    // Phase7⑤：クリエイトラボ「Myデッキを作る」の入口。対戦を一切開始せず、デッキ編成画面
+    // （スタンドアロン）だけを開く。都市が無いためbuildCityAwareDeckCounts([])は標準構成
+    // （VERSUS_DEFAULT_DECK_COUNTS）を返す既存のフォールバックにそのまま乗る。
+    // 「カードを見る」ボタン（直上）と同じ作法（lobbyGoToは使わずlobbyState.modeを直接変えてrender()）に揃える。
+    function lobbyOpenDeckLab() {
+      G.deckBuildState = { playerIdx: 0, counts: buildCityAwareDeckCounts([]), standalone: true, myDeckOpen: false, myDeckError: '', myDeckNameInput: '' };
+      lobbyState.mode = 'deckLab'; lobbyState.error = '';
+      render();
     }
     // Layer1「協力する」の入口。初めて協力モードを選んだときだけ「先にチュートリアルを体験する？」を1回提案する
     // （localStorage ron_coopTutOffered。拒否・体験済みいずれでも以降は二度と出さず、直接コープウィザードへ進む）。
@@ -9084,6 +9226,12 @@
   </div></div></div>`;
       }
 
+      // Phase7⑤：クリエイトラボ「Myデッキを作る」。G.deckBuildState.standalone===trueで入り、
+      // renderDeckBuild()自体をそのまま再利用する（画面の作りを二重に持たない）。
+      if (lobbyState.mode === 'deckLab') {
+        return renderDeckBuild();
+      }
+
       const _svgEye = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
       const spectateOffer = lobbyState.spectateCode ? `<div class="spec-offer-box"><div class="spec-offer-title">このルームは対戦中です</div><div class="spec-offer-sub">観戦者として参加できます</div><button class="spec-offer-btn" onclick="enterSpectator('${lobbyState.spectateCode}')">${_svgEye}観戦する</button></div>` : '';
       let body = '';
@@ -9141,6 +9289,7 @@
     </div>
     <button class="lobby-btn-gallery" onclick="dailyStart()"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M12 12.2 15.6 13.6V16c0 1.9-1.5 3.4-3.6 4.2-2.1-.8-3.6-2.3-3.6-4.2v-2.4z"/></svg> デイリー防災${_ddTodayCleared() ? `<span style="font-size:.62rem;color:#3fb950;margin-left:6px;font-weight:700;display:inline-flex;align-items:center;gap:3px">${coopIcoCheckCircle(13,'#3fb950')}今日の分クリア済み</span>` : ''}</button>
     <button class="lobby-btn-gallery" onclick="cwOpen()"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M4 20v-9l3.5 3.5V11L11 14.5V11l3.5 3.5V7l3.5 4v9"/></svg> カード工房</button>
+    <button class="lobby-btn-gallery" onclick="lobbyOpenDeckLab()">${_vsIcoMyDeck(18, 'currentColor')} Myデッキを作る</button>
     <button class="lobby-btn-gallery" onclick="pzOpenWorkshop()">${_pzIcoPencil(18, 'currentColor')} 問題工房</button>
     <button class="lobby-btn-gallery" onclick="lobbyState.mode='gallery';lobbyState.galleryTab=null;lobbyState.galleryZoom=null;render()">${_svgBook} カードを見る</button>`;
       } else if (lobbyState.mode === 'select' && lobbyState.playMode === 'vs') {
