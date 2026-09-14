@@ -2424,6 +2424,23 @@
       color: var(--t1)
     }
 
+    /* 2026-09-15：VERSUS_MIN_TURNS(12)超過後の「延長」表示。分母が固定でなくなったため、
+       上限に近づいていることだけを控えめな黄トーンで伝える（.spec-response-badgeと同系のトーン） */
+    .turn-ext-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      color: var(--yellow);
+      background: rgba(227,179,65,.15);
+      border: 1px solid rgba(227,179,65,.35);
+      border-radius: 20px;
+      padding: 1px 7px;
+      margin-left: 6px;
+      vertical-align: 1px;
+    }
+
     .budget-display {
       display: flex;
       align-items: center;
@@ -6469,9 +6486,20 @@
       terrorNextDisaster: false, debtBudget: 0,
     });
 
-    // 2026-09-13 Phase4：デッキ構築導入に伴うターン数上限。両者がこのターン数ずつ終えた時点でHP合計を比較して決着とする
-    // （デッキ切れ＝再シャッフル廃止のため、無限に続かないための上限。詳細はTASKS.md「デッキ構築システム導入 Phase4」）。
-    const VERSUS_MAX_TURNS = 12;
+    // 2026-09-15 Phase5.5対応：終了条件の見直し。ローリングストック（recycle_hand）が「捨て札ではなく山札へ戻す」
+    // 方式になった結果、同名カードを上限3枚積めば最大12枚を山札に戻して再ドローできる＝24枚の素引き12ターンに対し
+    // 実質+6ターン分（18ターン相当）まで山札が持つ。終了判定は上から順に、
+    //   ① 相手都市を全壊させた（checkWin。変更なし）
+    //   ② 両者がVERSUS_MIN_TURNSターンを終え、かつ両者の山札が0枚（デッキ切れ＝もう引く手段がない）
+    //   ③ 両者がVERSUS_MAX_TURNSターンを終えた（山札が残っていても必ず打ち切る止め弁）
+    // の3段。③が必要な理由：手札を出さずに抱え続ければドローが発生せず山札が減らないため、②だけでは
+    // 「1枚握って居座る」プレイで試合が無限に続いてしまう（大阪の毎ターンHP+5・新潟の被災時+10のような
+    // ターン経過ボーナスで居座るだけでHP差を作れる都市もあり、③のような無条件の上限が無いとHP合計判定自体が壊れる）。
+    // VERSUS_MAX_TURNS=18の根拠：山札24枚を毎ターン最大2枚で素引きすると12ターンで尽きる。そこにローリングストックの
+    // 上限3枚×最大4種（同名3枚ルール上、実際はカード種数に依存するが上限としてリサイクル総量12枚を見込む）を
+    // 加えると+6ターン。12＋6＝18が、現行デッキ構築ルール上ありうる最長ターン数である（恣意的な数字ではない）。
+    const VERSUS_MIN_TURNS = 12;
+    const VERSUS_MAX_TURNS = 18;
     // 2026-09-13 Phase3：山札・捨て札はプレイヤーごとに個別（deck/discardはG.players[i]に持つ。トップレベルG.deck/G.discardは廃止）。
     // ⚠️ Firebase同期スキーマの互換に注意：listenToState()は受信したstateでGを丸ごと置き換える
     // （`G = { ...JSON.parse(data), confirm: null }`）。この変更前のクライアントが送るstateは旧スキーマ
@@ -6487,7 +6515,7 @@
         { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] },
       ],
       log: [],
-      pendingAttack: null, recycleState: null, pendingPollution: null, winner: null,
+      pendingAttack: null, recycleState: null, pendingPollution: null, winner: null, _endReason: null,
       gachaPickedIds: [], gachaCurrent: null, draftState: null,
       discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, deckBuildState: null,
       _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
@@ -6819,22 +6847,26 @@
       return false;
     }
 
-    // ─── Phase4：ターン数上限（VERSUS_MAX_TURNS）到達時の判定。両プレイヤーのHP合計を比較し、多い方の勝ち。
+    // ─── ターン数上限系の判定（②山札切れ／③VERSUS_MAX_TURNS到達）。両プレイヤーのHP合計を比較し、多い方の勝ち。
     //     同点は引き分け（G.winner = null。都市壊滅でG.winnerがnullになるケースは無いため、screen==='gameover'時の
-    //     G.winner===nullは常に「引き分け」を意味する）。壊滅済み都市のHPは負値を取り得るため0として合計する。 ───
-    function finishByTurnLimit() {
+    //     G.winner===nullは常に「引き分け」を意味する）。壊滅済み都市のHPは負値を取り得るため0として合計する。
+    //     reason（'deckout'=② / 'maxturn'=③）はG._endReasonに保存し、結果画面（renderGameOver／
+    //     renderSpectatorGameOver）が「18ターン終了」という文言を②の決着に混入させないよう出し分けに使う。 ───
+    function finishByTurnLimit(reason) {
       if (!G._gameHistory) G._gameHistory = [];
       G._gameHistory.push(...(G._nextTurnEvents[0] || []).map(ev => ({ ...ev, playerIdx: 0 })));
       G._gameHistory.push(...(G._nextTurnEvents[1] || []).map(ev => ({ ...ev, playerIdx: 1 })));
       G._nextTurnEvents = { 0: [], 1: [] };
+      G._endReason = reason;
+      const reasonText = reason === 'deckout' ? '両者とも山札切れ' : `${VERSUS_MAX_TURNS}ターン終了`;
       const hp0 = G.players[0].cityHps.reduce((s, h) => s + Math.max(0, h), 0);
       const hp1 = G.players[1].cityHps.reduce((s, h) => s + Math.max(0, h), 0);
       if (hp0 === hp1) {
         G.winner = null;
-        addLog(`${VERSUS_MAX_TURNS}ターン終了・HP合計 ${hp0} 対 ${hp1} で引き分け`, 'sys');
+        addLog(`${reasonText}・HP合計 ${hp0} 対 ${hp1} で引き分け`, 'sys');
       } else {
         G.winner = hp0 > hp1 ? 0 : 1;
-        addLog(`${VERSUS_MAX_TURNS}ターン終了・HP合計 ${hp0} 対 ${hp1} で${G.players[G.winner].name}の勝利`, 'sys');
+        addLog(`${reasonText}・HP合計 ${hp0} 対 ${hp1} で${G.players[G.winner].name}の勝利`, 'sys');
         if (G.winner === myPlayerIdx) haptic(HAPTIC.win); // B1：勝利ハプティクス（design_system.md §9.2）
       }
       G.screen = 'gameover';
@@ -7047,9 +7079,20 @@
       p.effects.terrorNextDisaster = false;
       if (p.effects.debtBudget > 0) p.effects.debtBudget--;
       G.turnsEach[G.activePlayer]++; const next = G.activePlayer === 0 ? 1 : 0; G.activePlayer = next;
-      // Phase4：両プレイヤーがVERSUS_MAX_TURNSターンを終えた時点でHP合計判定に入る（片方だけ到達しても終わらせない）
-      if (G.turnsEach[0] >= VERSUS_MAX_TURNS && G.turnsEach[1] >= VERSUS_MAX_TURNS) {
-        finishByTurnLimit();
+      // 2026-09-15：終了条件②③（片方だけ到達しても終わらせない・両者が同じ基準を満たすまで待つ）。
+      // ②を③より先に判定する：山札が両者0枚ならもう引く手段が無く、VERSUS_MAX_TURNSより早く決着させてよい。
+      const bothMinTurns = G.turnsEach[0] >= VERSUS_MIN_TURNS && G.turnsEach[1] >= VERSUS_MIN_TURNS;
+      const bothDeckEmpty = G.players[0].deck.length === 0 && G.players[1].deck.length === 0;
+      const bothMaxTurns = G.turnsEach[0] >= VERSUS_MAX_TURNS && G.turnsEach[1] >= VERSUS_MAX_TURNS;
+      if (bothMinTurns && bothDeckEmpty) {
+        finishByTurnLimit('deckout');
+        pushState(); render();
+        return;
+      }
+      // 止め弁：山札が残っていても、手札を出さずに抱え続ければドローが起きず山札が減らない。
+      // 居座りによる無限試合を防ぐため、②が成立しなくてもVERSUS_MAX_TURNSで必ず打ち切る。
+      if (bothMaxTurns) {
+        finishByTurnLimit('maxturn');
         pushState(); render();
         return;
       }
@@ -9979,7 +10022,12 @@
           const pcard = G.players[ap].hand.find(cd => cd.uid === G.confirm.uid);
           if (pcard) pendingCost = pcard.cost;
         }
-        statusBar = `<div class="status-bar"><span class="turn-badge">ターン ${G.turnsEach[ap] + 1}<span style="color:var(--t2)">/${VERSUS_MAX_TURNS}</span> | ${G.players[ap].name}</span>
+        // 2026-09-15：終了ターンが②③どちらで決まるか試合ごとに変わるため「/12」「/18」の固定分母表示は誤解を招く。
+        // VERSUS_MIN_TURNS(12)ターン目までは分母なしの単純表示、13ターン目以降は「延長」バッジで上限接近を示す
+        // （本当の残り時間は既存の山札残数バッジ＝deckCountBadgeHtmlの方なので、そちらは変更せず残す）。
+        const _isExtTurn = G.turnsEach[ap] >= VERSUS_MIN_TURNS;
+        const _extBadge = _isExtTurn ? `<span class="turn-ext-badge">延長</span>` : '';
+        statusBar = `<div class="status-bar"><span class="turn-badge">ターン ${G.turnsEach[ap] + 1}${_extBadge} | ${G.players[ap].name}</span>
       <div class="budget-display"><span class="budget-label">予算</span>${budgetPipsHtml(budget, budget - left, pendingCost)}<span style="font-size:.8rem;font-weight:700;color:var(--green)">${left}<span style="color:var(--t2);font-weight:400">/${budget}</span></span></div>
       </div>`;
       }
@@ -10589,6 +10637,9 @@
       const wi = isDraw ? null : G.winner; const li = isDraw ? null : (wi === 0 ? 1 : 0);
       const w = isDraw ? null : G.players[wi]; const l = isDraw ? null : G.players[li];
       const totalTurns = G.turnsEach[0] + G.turnsEach[1];
+      // 2026-09-15：終了理由（G._endReason）に応じて表示文言を分ける。②「山札切れ」で決着したのに
+      // 「18ターン終了」と表示すると嘘になるため、③の場合だけVERSUS_MAX_TURNSの数字を出す。
+      const endReasonText = G._endReason === 'deckout' ? '両者とも山札切れ' : `${VERSUS_MAX_TURNS}ターン終了`;
       const themeCls = isDraw ? 'go-draw' : (_specTab === wi ? 'go-victory' : 'go-defeat');
       const bigTitle = isDraw ? 'DRAW' : (_specTab === wi ? 'VICTORY' : 'GAME OVER');
       const bgText = (`${bigTitle} `.repeat(6)) + (`${bigTitle} `.repeat(6));
@@ -10664,7 +10715,7 @@
           <div class="go-hero-content">
             <div style="font-size:.78rem;font-weight:700;color:rgba(var(--t0-rgb),.5);letter-spacing:.1em;margin-bottom:6px">${uiIcoEye(13,'rgba(var(--t0-rgb),.5)')} SPECTATOR</div>
             <div class="go-big-title">${bigTitle}</div>
-            <div class="go-player-name">${isDraw ? `${VERSUS_MAX_TURNS}ターン終了・引き分け` : `${w.name} の勝利！`}</div>
+            <div class="go-player-name">${isDraw ? `${endReasonText}・引き分け` : `${w.name} の勝利！`}</div>
           </div>
           <div class="go-scroll-hint"><p class="go-scroll-txt">SCROLL DOWN</p><div class="go-scroll-line"><span></span></div></div>
         </div>
@@ -10701,8 +10752,11 @@
       if (isDraw) {
         const hp0 = G.players[0].cityHps.reduce((s, h) => s + Math.max(0, h), 0);
         const hp1 = G.players[1].cityHps.reduce((s, h) => s + Math.max(0, h), 0);
-        flavorText = `${VERSUS_MAX_TURNS}ターンの死闘は決着つかず。<br>HP合計 ${hp0} 対 ${hp1}。`;
-        subtitle = `${VERSUS_MAX_TURNS}ターン終了・引き分け`;
+        // 2026-09-15：終了理由（G._endReason）で文言を分ける。②「山札切れ」の決着に③のVERSUS_MAX_TURNS表記を
+        // 混入させない（両者0枚で決着した試合が実際にVERSUS_MAX_TURNSターンに達していない場合があるため）。
+        const endReasonLabel = G._endReason === 'deckout' ? '両者とも山札切れ' : `${VERSUS_MAX_TURNS}ターンの死闘`;
+        flavorText = `${endReasonLabel}は決着つかず。<br>HP合計 ${hp0} 対 ${hp1}。`;
+        subtitle = `${G._endReason === 'deckout' ? '両者とも山札切れ' : `${VERSUS_MAX_TURNS}ターン終了`}・引き分け`;
         themeCls = 'go-draw';
         bigTitle = 'DRAW';
         const rowsFor = (idx) => G.players[idx].cities.map((c, i) => {
@@ -11085,7 +11139,7 @@
           { name: p1name, cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] },
         ],
         log: [],
-        pendingAttack: null, recycleState: null, pendingPollution: null, winner: null,
+        pendingAttack: null, recycleState: null, pendingPollution: null, winner: null, _endReason: null,
         gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null }, draftState: null,
         discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, deckBuildState: null,
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
@@ -11173,7 +11227,7 @@
         lobbyState = { mode: 'select', nameInput: '', joinCodeInput: '', error: '', galleryTab: null, galleryZoom: null, fromResult: false };
         _hintOpen = false; tutorialState = null;
         _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
-        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }], log: [], pendingAttack: null, recycleState: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, deckBuildState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
+        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }], log: [], pendingAttack: null, recycleState: null, winner: null, _endReason: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, deckBuildState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
         requestAnimationFrame(() => { _rApp.style.transition = ''; });
@@ -11195,7 +11249,7 @@
         _hintOpen = false; tutorialState = null;
         _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
         isCpuMode = false;
-        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }], log: [], pendingAttack: null, recycleState: null, winner: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, deckBuildState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
+        G = { screen: 'lobby', activePlayer: 0, turnsEach: [0, 0], players: [{ name: 'プレイヤー1', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }, { name: 'プレイヤー2', cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }], log: [], pendingAttack: null, recycleState: null, winner: null, _endReason: null, gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, deckBuildState: null, _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, usedHistory: { 0: [], 1: [] } };
         _rApp.style.transition = 'none'; _rApp.style.opacity = '1';
         render();
         requestAnimationFrame(() => { _rApp.style.transition = ''; });
@@ -11244,7 +11298,7 @@
           { name: cpuNames[difficulty], cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }
         ],
         log: [], pendingAttack: null, recycleState: null,
-        winner: null, gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null, candidates: null },
+        winner: null, _endReason: null, gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null, candidates: null },
         draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, deckBuildState: null,
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
         usedHistory: { 0: [], 1: [] }
