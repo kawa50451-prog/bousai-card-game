@@ -4977,6 +4977,673 @@
     // 対策：Web版（http/https かつ localhost系ではない）は従来どおり自分自身のURLを使い、
     // アプリ版（capacitor://・file://・http://localhost/等）はこの公開URLへ強制的にフォールバックする。
     const RON_PUBLIC_BASE = 'https://kawa50451-prog.github.io/bousai-card-game/game_online.html';
+    const POLICY_CARDS = [
+      { id: 'quake_wall', name: '耐震補強', icon: 'quake_wall', cost: 2, type: 'policy', frame: 'defend', color: 'green', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30', realConcept: 'ハード対策の代表。1981年の新耐震基準に基づく建物の構造強化。事前設置で次の地震・大火災を大幅に軽減するシールド型政策。' },
+      { id: 'dam', name: '堤防建設', icon: 'dam', cost: 2, type: 'policy', frame: 'defend', color: 'green', effectType: 'shield_flood', value: 25, desc: '次の洪水・津波 −25', realConcept: '洪水・津波に対するハード対策（治水インフラ）。物理的に水害を防ぐ構造物への投資で、効果は確実だが規模の上限がある。' },
+      { id: 'drill', name: '避難訓練', icon: 'drill', cost: 1, type: 'policy', frame: 'defend', color: 'yellow', effectType: 'heal', value: 20, desc: 'HP +20（対応時+10）', realConcept: 'ソフト対策の代表。事前の訓練が緊急時の行動を変え人的被害を減らす。対応フェーズでの効果半減は「事前準備ほど緊急時は効かない」ことを表す。' },
+      { id: 'hazard_map', name: 'ハザードマップ整備', icon: 'hazard_map', cost: 1, type: 'policy', frame: 'free', color: 'yellow', effectType: 'draw', value: 2, desc: '山札から2枚ドロー', realConcept: 'リスク情報の整備が対応選択肢（手札）を広げる。「情報は備えの前提」という防災情報整備の本質を2枚ドローで表現。' },
+      { id: 'agreement', name: '相互支援協定', icon: 'agreement', cost: 2, type: 'policy', frame: 'defend', color: 'yellow', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
+      { id: 'evacuation', name: '広域避難指示', icon: 'evacuation', cost: 2, type: 'policy', frame: 'defend', color: 'green', effectType: 'negate_special', value: 10, desc: '特殊効果・テロ攻撃を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップ・人為災害のテロ攻撃も事前設置で無効化できる汎用性の高い政策。' },
+      { id: 'bousai_cho', name: '防災庁設置', icon: 'bousai_cho', cost: 3, type: 'policy', frame: 'defend', color: 'green', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回・使用時から有効）', realConcept: '包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。2回分のダメージ軽減という持続型効果が、制度投資の長期的な価値を示す。対応フェーズで使用した場合も、その攻撃から効果が適用される。' },
+      { id: 'rolling_stock', name: 'ローリングストック', icon: 'rolling_stock', cost: 0, type: 'policy', frame: 'free', color: 'yellow', effectType: 'recycle_hand', value: 0, desc: '自分の手札を好きな枚数だけ入れ替える（同じ枚数を山札から引く）', realConcept: '備蓄品を古いものから消費し、使った分だけ新しく買い足す「ローリングストック」という備蓄法。備え（手札）は蓄えて終わりではなく、日常的に回して中身を更新し続けることで、いざという時に実際に機能する状態を保てることを示す。' },
+    ];
+
+    const DISASTER_CARDS = [
+      { id: 'earthquake', name: '地震', icon: 'earthquake', cost: 2, type: 'disaster', frame: 'attack', baseDamage: 30, specialType: 'inland_bonus', desc: '30（内陸都市 +10）', columnTitle: 'リスク ＝ ハザード × 曝露 × 脆弱性', column: '内陸都市に追加ダメージ+10（曝露の違い）。東京は都市能力で軽減（対策の違い）、ニューオーリンズは手札不足でさらに被害増（脆弱性の違い）。同じ災害カード1枚で、「被害はなぜ都市によって異なるのか」を体験できる。' },
+      { id: 'flood', name: '洪水', icon: 'flood', cost: 2, type: 'disaster', frame: 'attack', baseDamage: 30, specialType: 'coastal_bonus', desc: '30（海岸都市 +10）', columnTitle: '防災の哲学は一つではない', column: '海岸都市に追加ダメージ+10。ロッテルダム（水と共存するオランダ哲学）もニューオーリンズ（社会的脆弱性が被害を拡大）も同じ海岸都市だが、防災への向き合い方は全く異なる。日本の都市だけでは体感できない「防災の多様性」がここに詰まっている。' },
+      { id: 'typhoon', name: '台風', icon: 'typhoon', cost: 2, type: 'disaster', frame: 'attack', baseDamage: 20, specialType: 'discard_policy', desc: '20+相手の手札1枚を捨てる', columnTitle: 'ソフト対策の重要性', column: '手札1枚をランダムで廃棄し、どんな備えも突然失われることを示す。1枚のカードに頼らず複数を積み重ねることに加え、広域避難指示のようなソフト対策（行動計画）の価値も実感できる。' },
+      { id: 'tsunami', name: '津波', icon: 'tsunami', cost: 3, type: 'disaster', frame: 'attack', baseDamage: 40, specialType: 'coastal_bonus', desc: '40（海岸都市 +10）', columnTitle: '知識と行動の両立', column: '初期手札に自然災害と政策の両方が保証されているのは偶然ではない。「どんな脅威があるか知ること（災害カード）」と「それに備えること（政策カード）」の両方がなければ防災は機能しない。知識だけでも行動だけでも不十分という防災の本質。' },
+      { id: 'landslide', name: '土砂崩れ', icon: 'landslide', cost: 1, type: 'disaster', frame: 'attack', baseDamage: 20, specialType: 'mountain_bonus', desc: '20（山間部 +10）', columnTitle: null, column: null },
+      { id: 'wildfire', name: '大火災', icon: 'wildfire', cost: 3, type: 'disaster', frame: 'attack', baseDamage: 50, specialType: null, desc: 'ダメージ 50', columnTitle: '事前投資の費用対効果', column: '最大ダメージ50のカードに対し、コスト2の耐震補強を事前設置すれば大幅に軽減できる。コスト2の政策でコスト3の災害を防ぐ「事前投資の費用対効果」を最もはっきり体験できる場面。' },
+      // 2026-09-24 第1陣A-2：デッキに入れられるのは1枚まで（maxCopies。WORKTRACK.md §15 A-2）。frameと同じく
+      // カード定義を唯一の出典にする（分類・制約をコード中に散らさない）。未指定のカードはVERSUS_DECK_MAX_COPIESが既定値。
+      { id: 'compound', name: '複合災害', icon: 'compound', cost: 3, type: 'disaster', frame: 'attack', baseDamage: 40, specialType: 'skip_response', maxCopies: 1, desc: '40+相手の対応フェーズを1回強制スキップ（事前の広域避難指示で無効化可能）', columnTitle: '複合・連鎖災害の恐ろしさ', column: '相手は対応フェーズを強制スキップされ、政策カードを使う機会を奪われる。2011年東日本大震災の地震→津波→原発事故の連鎖が示すように、複合災害は「備えが追いつかない状況」を生み出す。ただし事前に広域避難指示を設置していれば無効化でき、ソフト対策の重要性を体験できる。' },
+    ];
+
+    // 人為災害カード（妨害コンセプト。ダメージは与えず相手の行動を阻害する。各2枚で出現確率を低く設定）
+    const JINZAI_DISASTER_CARDS = [
+      { id: 'pollution', name: '公害', icon: 'pollution', cost: 1, type: 'jinzai', frame: 'attack', effectType: 'break_shield', desc: '相手の有効シールドを1つ選んで破壊（防災庁設置は全回分を無効化）', columnTitle: '工業化が生むリスクの蓄積', column: '相手が設置したシールド型政策を1つ選んで無効化する。水俣病・四日市公害が示すように、工業化による恩恵の裏で都市は環境リスクを蓄積する。守りの備え（シールド）が人為的要因で崩されることを体験できる。', realConcept: '工業化に伴う環境汚染（水俣病・四日市ぜんそく等の公害病）。経済発展の裏で蓄積するリスクが、都市の備えを内側から損なうことを表す。相手の有効なシールド型政策を1つ選んで破壊する。' },
+      { id: 'terror', name: 'テロ攻撃', icon: 'terror', cost: 1, type: 'jinzai', frame: 'attack', effectType: 'terror_skip', desc: '次に使う災害への対応フェーズを封じる（広域避難指示で無効）', columnTitle: '意図的に突かれる都市の脆弱性', column: '同じターン中に次に使う自然災害カードへの対応フェーズを奪う。2001年の同時多発テロ以降、重要インフラ防護（CIP）が防災の主要課題となった。意図的な攻撃は備える時間を与えないが、広域避難指示の事前設置で無効化できる。', realConcept: '重要インフラを狙う意図的攻撃（2001年9.11以降のCIP＝重要インフラ防護の概念）。自然災害と違い「予兆なく備えの隙を突く」性質を、対応フェーズの剥奪で表現する。' },
+      { id: 'rumor', name: 'デマ拡散', icon: 'rumor', cost: 1, type: 'jinzai', frame: 'attack', effectType: 'debt_budget', desc: '次のターン相手の使えるコストが1下がる', columnTitle: '情報災害という新しい脅威', column: '相手の次ターンの予算を1減らす。2024年能登半島地震ではSNS上の偽情報が救助・避難を妨げた。情報環境の劣化そのものが「災害」となり、適切な行動の選択肢を狭めることを体験できる。', realConcept: 'SNS等を通じた偽情報の拡散（2024年能登半島地震での救助妨害デマ等）。情報災害が人々の正しい判断と行動を阻害することを、相手の予算（行動力）減少で表す。' },
+    ];
+
+    const ALL_CARDS = [...POLICY_CARDS, ...DISASTER_CARDS, ...JINZAI_DISASTER_CARDS];
+
+    // 災害カード → 効果的な対抗政策カード（カード図鑑誘導用）
+    const COUNTER_MAP = {
+      'earthquake': ['quake_wall', 'bousai_cho'],
+      'flood':      ['dam', 'evacuation'],
+      'tsunami':    ['dam', 'evacuation'],
+      'typhoon':    ['evacuation', 'bousai_cho'],
+      'landslide':  ['bousai_cho', 'quake_wall'],
+      'wildfire':   ['quake_wall', 'bousai_cho'],
+      'compound':   ['evacuation', 'bousai_cho'],
+      'terror':     ['evacuation'],
+    };
+    // ═══════════════════════════════════════
+    // DATA
+    // ═══════════════════════════════════════
+    // 2026-09-24 第2陣（WORKTRACK.md §15 B-2 イスタンブール節）：
+    //  ・nagoya：abilityType 'flood_draw' は名称のとおりの「ドロー」ではなくなった（第2陣でドローを廃止し、
+    //    学習軽減−VERSUS_FLOOD_LEARN_REDUCE固定のみに変更）。abilityTypeを改名しないのは、協力モード
+    //    （coopResolveAttack内）が同じ'flood_draw'文字列でcity.abilityTypeを直接判定し、実在都市（CITIES）
+    //    のnagoyaがコープでは今回も無変更（引き続き1枚ドロー）で使われ続けるため。identifierは歴史的な名前の
+    //    まま、対戦（resolveDamage）側の処理だけをドローなしへ変更した。abilityValue（1）もCO側のドロー枚数
+    //    としてそのまま参照され続けるため変更していない（対戦では未使用の値になったが、共有フィールドのため残す）。
+    //  ・istanbul：abilityType を 'quake_draw' → 'response_double'（対戦専用の新能力）へ改名した。協力モードは
+    //    元の「地震被弾時1枚ドロー」を維持する必要があるため、coopResolveAttack側に'response_double'も
+    //    'quake_draw'と同じ扱いにする互換分岐を追加している（下記コメント参照）。カード工房の「学習都市」
+    //    プリセットも同様に旧効果（quake_draw/1）を維持するため、CW_PRESET_DEFSに明示的な上書きを持たせた
+    //    （cwPresets()参照）。⚠️ abilityValueは1のまま変更していない＝協力モードのcoopDraw(city.abilityValue)が
+    //    このフィールドをそのまま「ドロー枚数」として読むため、意味を変えると協力モードの挙動が変わってしまう
+    //    （2に変えると協力モードのドロー枚数が2枚になる誤りを一度実装しかけて気づいた）。対応フェーズで使える
+    //    上限枚数（2枚）はresolveDamage側の定数VERSUS_ISTANBUL_RESPONSE_MAXとして別に持つ。
+    const CITIES = [
+      { id: 'tokyo', name: '東京', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'resist_quake_fire', abilityValue: 20, abilityDesc: '地震・大火災 −20', concept: '首都への集中投資。対策が進んだ都市の強さと限界。', learn: '首都への集中投資により地震・大火災への対策が最も進んだ都市。ただし首都機能の集中そのものがリスクでもある。対策の進んだ都市の「強さと限界」を体現する。' },
+      { id: 'osaka', name: '大阪', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'regen', abilityValue: 5, abilityDesc: 'ターン終了時 HP +5', concept: 'レジリエンス。やられても回復する力。', learn: '南海トラフや海抜ゼロメートル地帯のリスクを抱えながらも、粘り強く回復する「レジリエンス（回復力）」が強み。ターン終了時にHPが回復する能力がこの哲学を表す。' },
+      { id: 'kobe', name: '神戸', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'extra_budget', abilityValue: 1, abilityDesc: '毎ターン予算 +1（計4）', concept: '阪神大震災からの復興。港湾都市の経済力が防災投資を支える。', learn: '1995年の阪神・淡路大震災（死者6,434人）を経験し、防災への投資が制度化された都市。港湾都市の経済力が防災投資を支えるため、毎ターンの予算が1多い。' },
+      { id: 'hiroshima', name: '広島', icon: 'city_mountain', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_landslide', abilityValue: 20, abilityDesc: '土砂崩れ −20', concept: '山に囲まれた地形が土砂リスクを生む。', learn: '市街地を囲む山地が土砂崩れリスクを生む。2014年8月豪雨災害（死者77名）を経て山間部での防災強化が進んだ。土砂崩れへの強い耐性を持つ。' },
+      { id: 'nagoya', name: '名古屋', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_draw', abilityValue: 1, abilityDesc: '一度被弾後 洪水・津波 −20', concept: '伊勢湾台風の歴史が今の対策を作った。', learn: '1959年の伊勢湾台風（死者5,098人）が日本最初の「災害対策基本法」（1961年）を生み出した。「被災が知識をもたらす」ことを、一度でも被災した経験がその後の備えとして活き続ける学習軽減能力で表現。' },
+      { id: 'sendai', name: '仙台', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 15, abilityDesc: '洪水・津波 −15', concept: '仙台防災枠組。日本の経験が国際防災政策を変えた。', learn: '2011年東日本大震災の経験を活かし、2015年に仙台で「仙台防災枠組2015-2030」が採択。日本の地域の経験が世界の防災政策を変えた都市。' },
+      { id: 'kumamoto', name: '熊本', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。', learn: '2016年熊本地震は前震（M6.5）→本震（M7.3）という連続地震で、想定を超えた適応力が求められた。同ターン2枚目の災害への耐性がその経験を示す。' },
+      { id: 'niigata', name: '新潟', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10／捨て札2枚を山札へ', concept: '1964年新潟地震。液状化研究の原点。', learn: '1964年新潟地震（M7.5）で液状化現象が大規模に初めて記録され、防災学の重要な研究対象となった。地震を受けたターン後のHP回復は科学的蓄積と学習を象徴する。使った札を山札へ戻すことは、その蓄積が次の備えとして再び活きることを表す。' },
+      { id: 'kagoshima', name: '鹿児島', icon: 'city_mountain', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。', learn: '日本有数の活火山・桜島と共生する都市。「ゼロリスクを目指さない」防災哲学のもと、日常的な火山活動への対応力が複合災害への耐性として表れている。' },
+      { id: 'rotterdam', name: 'ロッテルダム', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 2, abilityDesc: '洪水・津波被弾時、次ターン予算+2', concept: '水と共存するオランダ型防災哲学。', learn: '国土の4分の1が海面以下のオランダの港湾都市。「水を制御するのではなく水と共存する」防災哲学を世界に発信。洪水・津波を受けた後に次ターンの予算が2増えるのはその強靭な復旧力を示す。' },
+      { id: 'istanbul', name: 'イスタンブール', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'response_double', abilityValue: 1, abilityDesc: '相手の地震への対応フェーズで政策カードを2枚まで使用可能', concept: '北アナトリア断層直上。事後学習型防災。', learn: '北アナトリア断層直上に位置し高確率でM7超の地震が予測されるが、耐震化は遅れている。事前の備えは薄いが、地震を受けた後の対応フェーズでは政策カードを2枚まで使える。「被災して初めて学ぶ事後学習型防災」の現実を示す。' },
+      { id: 'new_orleans', name: 'ニューオーリンズ', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。', learn: '2005年ハリケーン・カトリーナで被害が社会的弱者に集中したことが「社会的脆弱性」概念を世界に知らしめた。手札が少ない（準備不足の）状態でさらに被害が増える。' },
+    ];
+    // ── カード工房：都市能力パラメータ化の共通ヘルパー ──
+    // quake_regen/flood_budget/flood_draw/quake_drawの4種は元々「対象災害idが実装側に固定」だった
+    // （niigata=地震／rotterdam・nagoya=洪水・津波／istanbul=地震）。カード工房のカテゴリB特殊効果
+    // （custom_regen/custom_budgetのevent mode・custom_draw）で任意の自然災害7種をトリガーに選べるようにする
+    // ため、city.abilityTargets配列を使った汎用チェックへ置き換える。実在都市（CITIES）はabilityTargetsを
+    // 持たないため、この既定値へフォールバックすることで既存4都市の挙動を完全に維持する。
+    const RON_LEGACY_ABILITY_TARGETS = {
+      quake_regen: ['earthquake'],        // niigata
+      flood_budget: ['flood', 'tsunami'], // rotterdam
+      flood_draw: ['flood', 'tsunami'],   // nagoya
+      quake_draw: ['earthquake'],         // istanbul
+    };
+    // 2026-09-13 Phase5：デッキ構築の3枠分類。各カード定義のframeフィールド（'attack'/'defend'/'free'）を
+    // 唯一の分類元とし、この定数群はそこから導出するだけ（分類をコード中に散らさない・WORKTRACK.md §5準拠）。
+    // 攻める10種（自然7＋人為3）・守る6種・自由2種＝計18種。
+    const VERSUS_DECK_SIZE = 24;
+    const VERSUS_DECK_MAX_COPIES = 3;
+    const VERSUS_FRAME_RULES = { attack: { min: 6, max: 18 }, defend: { min: 6, max: 18 }, free: { min: 0, max: 6 } };
+    const VERSUS_FRAME_LABEL = { attack: '攻める', defend: '守る', free: '自由' };
+    const VERSUS_FRAME_CARDS = {
+      attack: ALL_CARDS.filter(c => c.frame === 'attack'),
+      defend: ALL_CARDS.filter(c => c.frame === 'defend'),
+      free: ALL_CARDS.filter(c => c.frame === 'free'),
+    };
+    // 既定デッキ（都市非依存の固定構成。24枚ちょうど・3枠制約を満たす）。buildCityAwareDeckCountsの
+    // 土台として使う（都市が無い/未選択のときのフォールバック＝標準構成そのもの）。Phase7で「既定で埋める」
+    // ボタン自体はUIから廃止したが、この定数はbuildCityAwareDeckCountsの土台として残す。
+    const VERSUS_DEFAULT_DECK_COUNTS = {
+      earthquake: 2, flood: 2, typhoon: 1, tsunami: 1, landslide: 1, wildfire: 1, compound: 1, pollution: 1,
+      quake_wall: 2, dam: 2, drill: 2, agreement: 2, evacuation: 1, bousai_cho: 1,
+      hazard_map: 2, rolling_stock: 2,
+    };
+    // Phase6：都市に合わせたデッキ自動生成。崩すのは「守る枠」10枚の内訳だけ（攻める枠・自由枠・総枚数は不変）。
+    // 12都市ぶんの補正表はハードコードせず、CITIESの isCoastal/isMountain/abilityType から機械的に導出する
+    // （表を手で持つと都市追加時の更新漏れにつながるため）。
+    // 地形リスク（specialTypeのcoastal/mountain/inland bonusで被害+10が実際に乗る）に対応する守る枠カード＝厚くする側。
+    // 山間部だけ土砂崩れ専用シールドが存在しないため、全ダメージ軽減の防災庁設置で穴を埋める。
+    const VERSUS_TERRAIN_SHIELD = { coastal: 'dam', mountain: 'bousai_cho', inland: 'quake_wall' };
+    // 都市能力がすでにカバーしている領域に対応する守る枠カード＝薄くする側（重複投資を避ける）。
+    // ここに無いabilityType（regen・extra_budget・vulnerability_draw）は守る枠に対応が無いためフォールバックを使う。
+    const VERSUS_ABILITY_COVER = {
+      resist_quake_fire: 'quake_wall', quake_regen: 'quake_wall', quake_draw: 'quake_wall',
+      resist_flood: 'dam', flood_draw: 'dam', flood_budget: 'dam',
+      resist_landslide: 'bousai_cho', resist_compound: 'bousai_cho', second_hit_reduce: 'bousai_cho',
+      // 2026-09-24 第2陣：istanbulのabilityTypeがquake_draw→response_doubleへ改名されたため、
+      // 従来と同じ「内陸＝耐震補強を薄くする」判定結果を保つには対応するエントリが必要（WORKTRACK.md §15 B-2）。
+      response_double: 'quake_wall',
+    };
+    const VERSUS_THIN_FALLBACK = 'drill';
+    const VERSUS_SHIELD_ORDER = ['quake_wall', 'dam', 'bousai_cho'];
+    // 自動生成が守る枠のカードを減らせる下限。0枚の枠を作らないためのもの（下の⚠️参照）。
+    const VERSUS_AUTO_MIN_COPIES = 1;
+
+    // 2026-09-15 Phase5.5対応：終了条件の見直し。ローリングストック（recycle_hand）が「捨て札ではなく山札へ戻す」
+    // 方式になった結果、同名カードを上限3枚積めば最大12枚を山札に戻して再ドローできる＝24枚の素引き12ターンに対し
+    // 実質+6ターン分（18ターン相当）まで山札が持つ。終了判定は上から順に、
+    //   ① 相手都市を全壊させた（checkWin。変更なし）
+    //   ② 両者がVERSUS_MIN_TURNSターンを終え、かつ両者の山札が0枚（デッキ切れ＝もう引く手段がない）
+    //   ③ 両者がVERSUS_MAX_TURNSターンを終えた（山札が残っていても必ず打ち切る止め弁）
+    // の3段。③が必要な理由：手札を出さずに抱え続ければドローが発生せず山札が減らないため、②だけでは
+    // 「1枚握って居座る」プレイで試合が無限に続いてしまう（大阪の毎ターンHP+5・新潟の被災時+10のような
+    // ターン経過ボーナスで居座るだけでHP差を作れる都市もあり、③のような無条件の上限が無いとHP合計判定自体が壊れる）。
+    // VERSUS_MAX_TURNS=18の根拠：山札24枚を毎ターン最大2枚で素引きすると12ターンで尽きる。そこにローリングストックの
+    // 上限3枚×最大4種（同名3枚ルール上、実際はカード種数に依存するが上限としてリサイクル総量12枚を見込む）を
+    // 加えると+6ターン。12＋6＝18が、現行デッキ構築ルール上ありうる最長ターン数である（恣意的な数字ではない）。
+    const VERSUS_MIN_TURNS = 12;
+    const VERSUS_MAX_TURNS = 18;
+    // 2026-09-24 第1陣A-1：先攻1ターン目の補正を「半減」から「固定−20」へ変更（WORKTRACK.md §15 A-1）。
+    // resolveDamage内に数値を直書きしない（ログ文言もこの定数から組み立てる）。
+    const VERSUS_FIRST_TURN_PENALTY = 20;
+    // 2026-09-24 第1陣B-2→第2陣で20へ改定：名古屋の学習軽減の値（WORKTRACK.md §15 B-2。「一度でも受けたら
+    // 以後は常にこの値だけ軽減」の固定値・累積しない・上限なし＝持続に期限が無い）。第1陣は10で実装したが、
+    // 第2陣でドローを廃止した結果、仙台（洪水・津波を常時−15）に対して名古屋が「初回のみ軽減なし」という
+    // 劣化版になってしまうため20へ引き上げた（「仙台＝最初から備えて常に−15／名古屋＝初回は素通しだが
+    // 以後−20」という対比を成立させるため）。1箇所の定数にまとめてあるので、値を変えるならここだけでよい。
+    const VERSUS_FLOOD_LEARN_REDUCE = 20;
+    // 2026-09-24 第2陣：イスタンブール（abilityType:'response_double'）が対応フェーズで使える政策カードの
+    // 上限枚数（WORKTRACK.md §15 B-2）。city.abilityValueを流用しなかった理由はCITIES定義側のコメント参照
+    // （協力モードのcoopDraw(city.abilityValue)がドロー枚数として同じフィールドを読むため）。
+    const VERSUS_ISTANBUL_RESPONSE_MAX = 2;
+    // 難易度は「人間にとっての難しさ」で統一。都市側／自然側で立場が逆なので side ごとに設定を分ける。
+    const _COOP_EVENTS_ALL = [{ t: 2, id: 'rumor' }, { t: 5, id: 'pollution' }, { t: 7, id: 'terror' }];
+    // オンライン多人数：1ターンの即死を防ぐ攻撃制限（同種は1ターン1回／1都市への攻撃は最大この回数）
+    // ここは既定値。実際の上限は人数別に CO.maxHits へ格納する（都市3人以上で3、それ未満で2）
+    const COOP_MAX_HITS = 2;
+    // 壊滅都市（後方支援役）の予算：2026-08-16、「毎ターン+1・上限3」から「壊滅時の一括固定」へ変更
+    // （design/coop_balance.md §B・実測で残予算1ptが63%・上限到達0.4%だったため）。壊滅を検知した最初の
+    // 都市ターン開始時に一度だけ次の額を付与し、以降は追加しない（coopApplyBudgetMP参照）。
+    //   付与額 = clamp(maxTurns − 壊滅ターン + 1, COOP_SUPPORT_GRANT_MIN, COOP_SUPPORT_GRANT_MAX)
+    // 現行の総支給量（1pt×残りターン）と一致させる設計のため、下限3・上限8はその総量が取り得る実質範囲。
+    const COOP_SUPPORT_GRANT_MIN = 3;
+    const COOP_SUPPORT_GRANT_MAX = 8;
+    const COOP_DIFF = {
+      easy: {
+        key: 'easy', label: 'EASY', color: '#3fb950', rgb: '63,185,80',
+        city:   { hp: 120, maxTurns: 10, draw: 1, events: [],                desc: 'HP120・10ターン<br>イベントなし' },
+        nature: { hp: 100, maxTurns: 10, draw: 2, events: _COOP_EVENTS_ALL, cpuSkip: 0.5,  desc: '都市が脆い・社会も混乱<br>攻めやすい' },
+      },
+      normal: {
+        key: 'normal', label: 'NORMAL', color: '#d29922', rgb: '210,153,34',
+        city:   { hp: 95, maxTurns: 8, draw: 2, events: [{ t: 3, id: 'rumor' }], desc: 'HP95・8ターン<br>T3デマ拡散' },
+        nature: { hp: 120, maxTurns: 10, draw: 2, events: [{ t: 3, id: 'rumor' }], cpuSkip: 0.15, desc: '標準的な守り<br>互角の攻防' },
+      },
+      hard: {
+        key: 'hard', label: 'HARD', color: 'var(--accent)', rgb: '250,42,78',
+        city:   { hp: 80, maxTurns: 8, draw: 2, events: _COOP_EVENTS_ALL, desc: 'HP80・8ターン<br>3イベント' },
+        nature: { hp: 150, maxTurns: 10, draw: 2, events: [], cpuSkip: 0, desc: '都市が頑強・盤石の守り<br>攻略困難' },
+      },
+    };
+    // プリセット難易度（オンライン協力・都市側専用・design/coop_balance.md §D・2026-08-16追加）。
+    // 部屋を建てる時点では参加人数が確定していないため、ロビーではEASY/NORMAL/HARDのラベルだけを選ばせ、
+    // 実際のHP・復興回数・社会的脆弱性イベントはゲーム開始時（coopMPStartHost）に実際の都市人数で
+    // 2人用／3人以上用のどちらかを自動選択して決める（coopPresetBucket・coopPresetResolve参照）。
+    // カスタムモード（HP・復興回数・社会的脆弱性を個別スライダーで調整する従来経路）とは独立しており、
+    // 部屋のpresetKeyが'custom'／未指定のときは従来どおりcityHp/socialVuln/reviveMaxの個別値を使う。
+    // HP80を下限にしているのは、それ以下だと自然側の1回の攻撃で追い詰めるとそのまま壊滅まで持っていける
+    // ため（§D注意事項）。数値は実機プレイの感触で調整する前提の暫定値。
+    /* 2026-08-16（ユーザー確定）：NORMAL と HARD の差分を「イベントの数」ではなく
+       「発生タイミングを誰が握るか」に置いた。
+         NORMAL … 3イベント全部・**固定ターン**（従来どおり。読めるから立ち回れる）
+         HARD   … 3イベント全部・**自然側が発生ターンを自分で決める**
+       狙い：自然側が負けるパターンは、都市側がシールドを固めて耐久戦に持ち込み、
+       それを剥がすのに手一杯でHPが削れない詰み盤面である。発生タイミングを自然側が
+       握れると、固められた瞬間に公害でシールドを剥がす・テロで対応を封じる、といった
+       逆転の一手が成立する。イベントの内容も総数も変えていないので、
+       EASY/NORMAL からの積み上がりは壊れない。 */
+    const COOP_PRESETS = {
+      2: { // 都市2人用
+        easy:   { hp: 110, reviveMax: 2, events: [],                eventControl: 'fixed'  },
+        normal: { hp: 95,  reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'fixed'  },
+        hard:   { hp: 85,  reviveMax: 0, events: _COOP_EVENTS_ALL,  eventControl: 'nature' },
+      },
+      3: { // 都市3人以上用
+        easy:   { hp: 120, reviveMax: 2, events: [],                eventControl: 'fixed'  },
+        normal: { hp: 100, reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'fixed'  },
+        hard:   { hp: 90,  reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'nature' },
+      },
+    };
+
+    // 協力モード専用：災害連鎖テーブル（共有データ DISASTER_CARDS は変更しない）
+    // 連鎖（二次災害）の自動ベース値。ハイブリッド方式：自動連鎖は控えめなベース（教育の最低保証）にとどめ、
+    // プレイヤーが対応する実カード（津波・洪水・土砂崩れ）を同一ターン・同一都市に続けて撃つと COOP_COMBO_BONUS で増幅する。
+    const COOP_CHAINS = {
+      earthquake: [{ cond: 'coastal', dmg: 5, label: '二次津波', icon: 'tsunami', shield: 'shieldFlood' }, { cond: 'mountain', dmg: 5, label: '土砂崩れ', icon: 'landslide', shield: null }],
+      typhoon:    [{ cond: 'coastal', dmg: 5, label: '随伴洪水', icon: 'flood', shield: 'shieldFlood' }],
+      wildfire:   [{ cond: 'inland',  dmg: 10, label: '延焼',     icon: 'wildfire', shield: 'shieldQuakeFire' }], // 延焼は対応する実カードが無いためベースのみ（増幅なし）
+    };
+    // 連鎖コンボ：2次災害の実カード（key）を、同一ターンに同じ都市へ撃った1次災害（trigger）に重ねると増幅。地形ゲートつき。
+    const COOP_COMBO_BONUS = 5; // 増幅ボーナス（低HP化に伴い10→5へ調整・要プレイテスト調整）
+    const COOP_COMBO = {
+      tsunami:   { trigger: 'earthquake', cond: 'coastal'  }, // 地震 → 津波（海岸）
+      landslide: { trigger: 'earthquake', cond: 'mountain' }, // 地震 → 土砂崩れ（山間）
+      flood:     { trigger: 'typhoon',    cond: 'coastal'  }, // 台風 → 洪水（海岸）
+    };
+    // 1次災害カード → 続けて撃つと増幅する2次災害カードの逆引き（UIヒント用）
+    const COOP_COMBO_FOLLOW = {};
+    for (const _sec in COOP_COMBO) { const _t = COOP_COMBO[_sec].trigger; (COOP_COMBO_FOLLOW[_t] = COOP_COMBO_FOLLOW[_t] || []).push({ cardId: _sec, cond: COOP_COMBO[_sec].cond }); }
+    // 2026-07-20：防災協定（予算+2の緊急融通・COOP_PACT_BUDGET）は防災協定→ローリングストック改称に伴い廃止した。
+    // 手札経済（二重通貨）の公助枠：予算と手札の2通貨のうち、実際に枯渇するのは手札側という設計不全への対処（design/coop_balance.md §10）。
+    // 緊急支援ドロー：都市ターン開始時、手札がこの枚数以下の生存都市は通常ドローに+1する。
+    const COOP_EMERGENCY_HAND_MAX = 1;
+    // 備蓄：都市ターン終了時、未使用予算がこの値以上残っている生存都市は1枚ドローする（予算は消費しない）。
+    const COOP_STOCKPILE_MIN_BUDGET = 2;
+    // 予算の繰り越し制（協力モード限定・design/coop_balance.md §12）：都市ターン終了時に余った予算を、
+    // 備蓄（1枚ドロー）の代わりに翌ターンへ繰り越せる。上限は基本予算からの相対値ではなく、繰り越し量そのものの
+    // 固定キャップ（min(この値, leftover)）。備蓄と二者択一のため同時発生しない。壊滅都市（後方支援）は
+    // 壊滅時に一度だけ固定額を受け取る独自の予算方式（§B）を持つため対象外。
+    const COOP_CARRY_BUDGET_CAP = 2;
+    // 復興ルール（協力モード限定・design/coop_balance.md §13・2026-07-29正本／§13.8・2026-08-10追加）：壊滅都市を
+    // 部屋で設定した回数（reviveMax・既定1・0〜3）だけ、提供元が差し出したHP（同量）で復活させられる。下限30は
+    // 「攻撃1回ぶんに耐えられる水準」であり、下限が無いと1HP復活（実質無償の1人分の戦力復帰）が支配的になって
+    // しまうことへの対策（§13.1）。
+    const COOP_REVIVE_MIN = 30;
+    // 復興直後の猶予（§13.9・2026-08-11決定・案A採用）：復活後HPは提供元の現在HPの半分が上限のため、
+    // 自然側の1ターンの被害（2枚連打で平均66前後）を耐えられない前提のHPで戻ってくる。猶予はHPの数字を
+    // 動かさずに、復活後COOP_REVIVE_GUARD_TURNSターン分（暫定2）だけ受けるダメージを半減させることで
+    // 「復活直後に即壊滅」を防ぐ。値は実機プレイで調整する（1では次の自然ターンで落ちる公算が高く、
+    // 3以上だと壊滅した方が守られるという逆転が起きうる、との判断が未決事項として残っている）。
+    const COOP_REVIVE_GUARD_TURNS = 2;
+    // MP専用：提案・立候補の交渉が非同期のまま延々と居座らないためのタイムアウト（§13.4）。
+    // 提案作成時・立候補確定時のいずれでもこの時間だけ延長される（協議の各段階に等しく時間を与えるため）。
+    // ソロは承認フローが無い（即実行）ため未使用。
+    const COOP_REVIVE_TIMEOUT_MS = 120000; // 2分
+    // 提供量の丸め単位（§13.8・2026-08-10追加）。スライダーのstepとクランプ後の丸めの両方に使う。
+    const COOP_REVIVE_STEP = 5;
+    // MP協力の都市HP推奨初期値（スライダーの初期位置・「デフォルト設定に戻す」の戻り先）。
+    // 2026-08-11の実機プレイで、復興1回との組み合わせは100がちょうどよいと判断（coop_balance.md §4.2.1）。
+    // スライダーの可動域80〜120は変更していない。room.cityHpが欠けた旧データの読み替えにもこの値を使う。
+    const COOP_CITY_HP_DEFAULT = 100;
+    // reviveMaxが未定義（旧仕様の部屋データ・後方互換）のときに扱う既定回数。部屋作成時の既定値でもある。
+    const COOP_REVIVE_MAX_DEFAULT = 1;
+    // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
+    const COOP_EVENT_INFO = {
+      rumor:     { id: 'rumor',     icon: 'rumor',     name: 'デマ拡散',   effectCity: 'このターンの予算 −1',                  effectNature: 'CPU都市の予算 −1（攻めの好機）',           desc: 'SNS上の偽情報が初動対応を混乱させる' },
+      pollution: { id: 'pollution', icon: 'pollution', name: '公害',       effectCity: '自然の攻撃時、設置シールドを1つ破壊',    effectNature: 'CPU都市のシールドを1つ破壊（攻めの好機）', desc: '工業化で蓄積した環境リスクが備えを内側から損なう' },
+      terror:    { id: 'terror',    icon: 'terror',    name: 'テロ攻撃',   effectCity: 'このターンは対応フェーズが封じられる',    effectNature: 'CPU都市は対応フェーズ不可（攻めの好機）',   desc: '意図的な攻撃が備えの隙を突く' },
+    };
+    // 数値設定は1箇所に集約（HP・総予算・攻撃回数・手札枚数）
+    const DAILY_CFG = { hp: 95, budget: 6, attacks: 3, handSize: 5 };
+    // ═══════════════════════════════════════
+    // DAMAGE CALCULATION（対戦モードのダメージ計算の唯一の正）
+    // ═══════════════════════════════════════
+    // 純粋関数。引数以外（グローバル状態・DOM・乱数・ログ）には一切触れない。resolveDamage（実際の解決）・
+    // computeFullDefenderEst / computeResponseEst / buildDmgBreakdown / computeEstDmg（予測表示）・
+    // _cpuEstimateDmg（CPUの手選び）は、すべてこの関数の結果から数値を得る。都市能力・政策カードの数値を
+    // 変えるときはここだけを直せばよい。
+    //
+    // input:
+    //   attackCard   攻撃カード（baseDamage・specialType・id を使う）
+    //   defCity      防御側の現在の都市（null可）
+    //   defName      防御側プレイヤー名（ログ文用）
+    //   defEffects   防御側の effects（negateSpecial・shieldQuakeFire・shieldFlood・damageReduceHits・
+    //                disastersReceivedThisTurn・floodLearned を読む。書き換えない）
+    //   defHand      防御側の手札のうち「対応フェーズで使うカードを除いた」配列（長さと種別のみ読む）
+    //   responses    使う対応カード（0〜2枚）。順序は使う順
+    //   isFirstTurnPenalty  先攻1ターン目の初動補正を適用するか
+    //   forceNegate  true なら広域避難指示を使ったものとして扱う（カードなしの仮定の予測用）
+    //   view         'actual' ＝実際の解決。'defender' ＝防御側が知り得る全部（actual と同じ数値）。
+    //                'attacker' ＝基礎ダメージ＋地形ボーナスのみ
+    //   blindDefEffects  true なら防御側の事前効果（避難指示・防災庁・シールド）を見ない（CPU easy の意図的な差）
+    // 戻り値: { total（0以上）, base, mods }
+    //   mods の各要素: { cat, delta（変化量。非ダメージ効果は null）, label（短い表記）, text（ログ文）, running（その時点の途中経過）}
+    //   と、解決側が副作用を行うための印 fx、ログに出さない印 noLog、画面の内訳に出さない印 hidden。
+    //   mods は resolveDamage が副作用とログを行う順序そのままに並ぶ。
+    function calcDamage(input) {
+      const attackCard = input.attackCard;
+      const defCity = input.defCity || null;
+      const fx = input.defEffects || {};
+      const defHand = input.defHand || [];
+      const defName = input.defName || '';
+      const responses = (input.responses || []).filter(Boolean);
+      const view = input.view || 'actual';
+      const seeDef = !input.blindDefEffects;
+      const isQF = attackCard.id === 'earthquake' || attackCard.id === 'wildfire';
+      const isFl = attackCard.id === 'flood' || attackCard.id === 'tsunami';
+      let dmg = attackCard.baseDamage;
+      const mods = [];
+      const add = (cat, delta, label, text, extra) => {
+        if (delta != null) dmg += delta;
+        const m = { cat, delta: delta ?? null, label, text, running: delta != null ? dmg : null };
+        if (extra) Object.assign(m, extra);
+        mods.push(m);
+      };
+      const fxOnly = (name, extra) => mods.push(Object.assign({ cat: 'fx', delta: null, label: null, text: '', running: null, fx: name, noLog: true, hidden: true }, extra));
+      const addExposure = () => {
+        const sp = attackCard.specialType;
+        if (sp === 'coastal_bonus' && defCity && defCity.isCoastal) add('exposure', +10, '海岸', '海岸都市（地形リスク：洪水・津波への曝露）');
+        if (sp === 'mountain_bonus' && defCity && defCity.isMountain) add('exposure', +10, '山間部', '山間部都市（地形リスク：土砂崩れへの曝露）');
+        if (sp === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) add('exposure', +10, '内陸', '内陸都市（地形リスク：地震への曝露）');
+      };
+      if (view === 'attacker') { addExposure(); return { total: Math.max(0, dmg), base: attackCard.baseDamage, mods }; }
+
+      // 特殊効果キャンセル。2枚とも広域避難指示（negate_special）でも無効化は1回だけ。
+      let negated = false;
+      if (seeDef && fx.negateSpecial) { negated = true; add('negate', -10, '避難指示', '広域避難指示（事前設置）：特殊効果を無効化 −10', { fx: 'negatePre' }); }
+      if (!negated && input.forceNegate) { negated = true; add('negate', -10, '避難指示', '広域避難指示（対応フェーズ）：特殊効果を無効化 −10'); }
+      for (const rc of responses) {
+        if (!negated && rc.effectType === 'negate_special') { negated = true; add('negate', -10, '避難指示', '広域避難指示（対応フェーズ）：特殊効果を無効化 −10'); }
+      }
+      // 特殊効果適用。台風の手札破棄は解決側の副作用（乱数）だが、手札が1枚減ることは数えられるので
+      // ニューオーリンズの手札判定にはここで反映する。
+      let handLen = defHand.length;
+      if (!negated && attackCard.specialType) {
+        addExposure();
+        if (attackCard.specialType === 'discard_policy') {
+          const pols = defHand.filter(c => c.type === 'policy' || c.type === 'disaster' || c.type === 'jinzai');
+          if (pols.length > 0) { handLen--; add('special', null, null, `台風：${defName}の手札から1枚を破棄`, { fx: 'typhoon' }); }
+          else add('special', null, null, '台風：手札なし（効果なし）');
+        }
+      }
+      // 都市能力：効果は CITY_ABILITIES（020_city-abilities.js）の versus 欄が決める。軽減は mod、副作用は fx として返ってくる。
+      // 名古屋の学習軽減は「軽減を判定してからフラグを立てる」順序（表の中で守っている）。
+      const abVs = cityAbilityMode(defCity, 'versus');
+      if (abVs && abVs.incoming) {
+        for (const it of abVs.incoming({ city: defCity, atk: attackCard, effects: fx })) {
+          if (it.kind === 'fx') fxOnly(it.name);
+          else add(it.cat, it.delta, it.label, it.text, it.fx ? { fx: it.fx } : undefined);
+        }
+      }
+      fxOnly('received');
+      // 防災庁
+      let hits = fx.damageReduceHits;
+      if (seeDef && hits > 0) { hits--; add('agency', -15, '防災庁', `防災庁設置：全ダメージ軽減（残${hits}回）`, { fx: 'agencyPre' }); }
+      // シールド（事前）
+      if (seeDef && fx.shieldQuakeFire && isQF) add('shield_pre', -30, '耐震', '耐震補強（事前設置）：発動・消費', { fx: 'shieldPreQF' });
+      if (seeDef && fx.shieldFlood && isFl) add('shield_pre', -25, '堤防', '堤防建設（事前設置）：発動・消費', { fx: 'shieldPreFlood' });
+      // 対応カード（シールド系・防災庁）：使用した瞬間からこの攻撃にも適用される。2枚とも対象なら両方の効果を乗せる。
+      // applyPolicyEffect は防災庁を「残り2回」にセットする（足さない）ので、残り回数はここで 2 にしてから減らす。
+      for (const rc of responses) {
+        if (rc.effectType !== 'negate_special' && rc.effectType !== 'heal') {
+          fxOnly('applyPolicy', { rc });
+          if (rc.effectType === 'damage_reduce_2t') hits = 2;
+          if (rc.effectType === 'shield_quake_fire') { if (isQF) add('shield_resp', -30, '耐震', '耐震補強（対応フェーズ）：発動・消費', { fx: 'respClearQF' }); else fxOnly('respClearQF'); }
+          if (rc.effectType === 'shield_flood') { if (isFl) add('shield_resp', -25, '堤防', '堤防建設（対応フェーズ）：発動・消費', { fx: 'respClearFlood' }); else fxOnly('respClearFlood'); }
+          if (rc.effectType === 'damage_reduce_2t') { hits--; add('agency', -15, '防災庁', `防災庁設置（対応フェーズ）：全ダメージ軽減・発動（残${hits}回）`, { fx: 'agencyResp' }); }
+        }
+      }
+      // 対応カード（即時回復：ダメージ軽減として計算。ログには出さない）。対応時は半減のまま合算する。
+      for (const rc of responses) {
+        if (rc.effectType === 'heal') add('heal', -Math.floor(rc.value / 2), '回復', `${rc.name}：回復軽減（対応時半減）`, { noLog: true, rc });
+      }
+      // ニューオーリンズ：対応カードを使う前の手札数で判定する（今の手札＋使った対応カード枚数）。
+      const handLenBeforeResponse = handLen + responses.length;
+      const abVsLate = cityAbilityMode(defCity, 'versus');
+      if (abVsLate && abVsLate.late) {
+        for (const it of abVsLate.late({ city: defCity, atk: attackCard, effects: fx, handLen: handLenBeforeResponse })) add(it.cat, it.delta, it.label, it.text, it.fx ? { fx: it.fx } : undefined);
+      }
+      // 先攻1ターン目の初動補正は、全ての軽減を終えた最終段に固定値で入れる
+      if (input.isFirstTurnPenalty) add('first_turn_penalty', -VERSUS_FIRST_TURN_PENALTY, '初動', `先攻1ターン目：初動補正 −${VERSUS_FIRST_TURN_PENALTY}`);
+      return { total: Math.max(0, dmg), base: attackCard.baseDamage, mods };
+    }
+    // ═══════════════════════════════════════
+    // CITY ABILITIES（都市能力の表：どの能力が、どのモードで、何をするか）
+    // ═══════════════════════════════════════
+    // abilityType ごとに1行。同じ abilityType でもモードで意図的に効果が違うので、versus / coop / daily を
+    // 同じ行に並べて書く。null ＝ そのモードでは（ダメージ計算では）何もしない。
+    // 純粋関数のみ。ゲーム状態・DOM・乱数・ログには触れない。軽減は「項目（delta 付き）」を返し、
+    // 副作用は「指示（fx）」を返す。実際の副作用は各モードの解決関数（resolveDamage / coopResolveAttack）が実行する。
+    //
+    // 各モードの段（stage）。モードの解決関数がこの順に呼ぶ。
+    //   incoming(ctx) 被弾時の軽減と、被弾時に起きる副作用（地形ボーナス・コンボの後、防災庁・シールドの前）
+    //   late(ctx)     対応カードの軽減を済ませた後の補正（脆弱性）
+    //   after(ctx)    解決後（デイリーの回復）
+    // ctx: { city, atk, effects, attackIndex, handLen, hpAfter, maxHp }（使うものだけ入る）
+    //   versus の handLen ＝対応カードを使う前の手札数。coop の handLen ＝対応カードと台風の破棄を除いた後の手札数
+    // 項目の形（モードごと）
+    //   versus: { kind:'mod', cat, delta, label, text, fx } または { kind:'fx', name }（calcDamage の mods にそのまま積まれる）
+    //   coop:   { t（ログ文。null なら出さない）, delta（変化量。null可）, fx（{op:'draw'|'budget'|'quakeHit', n}） }
+    //   daily:  { t, delta } / after のみ { t, heal }
+    //
+    // 範囲外（この表に入れていない場所）の abilityType 判定は、各行のコメントに「範囲外:」として残してある。
+
+    // ── 共通の判定 ──
+    function cityAbilIsQF(id) { return id === 'earthquake' || id === 'wildfire'; }
+    function cityAbilIsFlood(id) { return id === 'flood' || id === 'tsunami'; }
+    function cityAbilCustomLabel(city) { return city.abilityTargets.map(cwCustomResistTargetLabel).join('・') + '軽減'; }
+    // resist_* の行を作る共通部品。対象災害を −abilityValue。3モードで同じ効果（文言だけ違う）。
+    function cityAbilResistRow(name, hit, label) {
+      return {
+        name,
+        versus: { incoming: (c) => hit(c) ? [{ kind: 'mod', cat: 'city_policy', delta: -c.city.abilityValue, label: '都市', text: `${c.city.name}の都市対策：${label(c.city)}（防災投資）` }] : [] },
+        coop:   { incoming: (c) => hit(c) ? [{ t: `${c.city.name}：${label(c.city)}`, delta: -c.city.abilityValue }] : [] },
+        daily:  { incoming: (c) => hit(c) ? [{ t: `${c.city.name}の都市対策：${label(c.city)}`, delta: -c.city.abilityValue }] : [] },
+      };
+    }
+    // 協力の「被災後の学習ドロー」（名古屋 flood_draw ／ イスタンブール response_double ／ カード工房 quake_draw で共通）
+    function cityAbilCoopLearnDraw(trigger) {
+      return { incoming: (c) => ronAbilityTargetMatch(c.city, trigger, c.atk.id) ? [{ t: `${c.city.name}：被災後の学習で${c.city.abilityValue}枚ドロー`, delta: null, fx: { op: 'draw', n: c.city.abilityValue } }] : [] };
+    }
+
+    const CITY_ABILITIES = {
+      // ── 対象災害を −abilityValue（3モード同じ）。範囲外: data/040 VERSUS_ABILITY_COVER（デッキ自動生成）、200_ cwAbilityInfo ──
+      resist_compound:   cityAbilResistRow('鹿児島：複合災害軽減', (c) => c.atk.id === 'compound', () => '複合災害軽減'),
+      resist_quake_fire: cityAbilResistRow('東京：地震・大火災軽減', (c) => cityAbilIsQF(c.atk.id), () => '地震・大火災軽減'),
+      resist_landslide:  cityAbilResistRow('広島：土砂崩れ軽減', (c) => c.atk.id === 'landslide', () => '土砂崩れ軽減'),
+      resist_flood:      cityAbilResistRow('仙台：洪水・津波軽減', (c) => cityAbilIsFlood(c.atk.id), () => '洪水・津波軽減'),
+      // カード工房のカスタム耐性（abilityTargets に含まれる災害を軽減）。範囲外: 150_ coopCustomResistsEvent（人為災害の無効化判定）
+      resist_custom:     cityAbilResistRow('カード工房：カスタム耐性', (c) => Array.isArray(c.city.abilityTargets) && c.city.abilityTargets.includes(c.atk.id), cityAbilCustomLabel),
+
+      // 熊本。同ターン2枚目以降の災害を −abilityValue。差：対戦・協力は「今ターンに受けた災害数 >= 1」、デイリーは「攻撃の何番目か >= 1」
+      second_hit_reduce: {
+        name: '熊本：連続被弾軽減',
+        versus: { incoming: (c) => c.effects.disastersReceivedThisTurn >= 1 ? [{ kind: 'mod', cat: 'city_policy', delta: -c.city.abilityValue, label: '都市', text: `${c.city.name}の都市対策：連続被弾軽減（適応力）` }] : [] },
+        coop:   { incoming: (c) => c.effects.disastersReceivedThisTurn >= 1 ? [{ t: `${c.city.name}：連続被弾軽減`, delta: -c.city.abilityValue }] : [] },
+        daily:  { incoming: (c) => c.attackIndex >= 1 ? [{ t: `${c.city.name}の都市対策：連続被弾軽減`, delta: -c.city.abilityValue }] : [] },
+      },
+
+      // 名古屋。差：対戦は1回目素通し→以後 −VERSUS_FLOOD_LEARN_REDUCE（floodLearned フラグ。ドローなし）／
+      // 協力は洪水・津波の被弾で abilityValue 枚ドロー（軽減なし）／デイリーは効果なし
+      flood_draw: {
+        name: '名古屋：被災の学習',
+        versus: { incoming: (c) => {
+          if (!ronAbilityTargetMatch(c.city, 'flood_draw', c.atk.id)) return [];
+          const out = [];
+          if (c.effects.floodLearned) out.push({ kind: 'mod', cat: 'city_policy', delta: -VERSUS_FLOOD_LEARN_REDUCE, label: '都市', text: `${c.city.name}の都市対策：洪水・津波の学習軽減（被災の経験） −${VERSUS_FLOOD_LEARN_REDUCE}` });
+          out.push({ kind: 'fx', name: 'floodLearned' });
+          return out;
+        } },
+        coop:   cityAbilCoopLearnDraw('flood_draw'),
+        daily:  null,
+      },
+
+      // イスタンブール。差：対戦はダメージ計算では何もしない（対応フェーズで政策カード2枚まで使える。範囲外: 110_ 107行付近の可否判定）／
+      // 協力は地震被弾で abilityValue 枚ドロー（quake_draw と同じ）／デイリーは効果なし
+      response_double: {
+        name: 'イスタンブール：対応2枚（協力は地震で学習ドロー）',
+        versus: null,
+        coop:   cityAbilCoopLearnDraw('quake_draw'),
+        daily:  null,
+      },
+
+      // カード工房のカスタムドロー（実在都市は使わない）。差：対戦は被弾で abilityValue 枚ドロー（fx quakeDraw）／協力も同じ／デイリーは効果なし
+      quake_draw: {
+        name: 'カード工房：被災後の学習ドロー',
+        versus: { incoming: (c) => ronAbilityTargetMatch(c.city, 'quake_draw', c.atk.id) ? [{ kind: 'mod', cat: 'city_effect', delta: null, label: null, text: `${c.city.name}の都市能力：${c.city.abilityValue}枚ドロー（被災後の学習）`, fx: 'quakeDraw' }] : [] },
+        coop:   cityAbilCoopLearnDraw('quake_draw'),
+        daily:  null,
+      },
+
+      // 新潟。被弾でフラグ quakeHitThisTurn を立てる（対戦と協力。デイリーは効果なし）。
+      // 範囲外: 050_ 175行付近（対戦のターン終了時の回復本体と捨て札2枚を山札へ）、150_ coopApplyRegen（協力の回復本体）
+      quake_regen: {
+        name: '新潟：地震を受けたターン終了時に回復',
+        versus: { incoming: (c) => ronAbilityTargetMatch(c.city, 'quake_regen', c.atk.id) ? [{ kind: 'fx', name: 'quakeHit' }] : [] },
+        coop:   { incoming: (c) => ronAbilityTargetMatch(c.city, 'quake_regen', c.atk.id) ? [{ t: null, delta: null, fx: { op: 'quakeHit' } }] : [] },
+        daily:  null,
+      },
+
+      // ロッテルダム。差：対戦は floodBonusTurns = 1（次ターン予算+abilityValue）／協力は次ターン予算ボーナス（nextBudgetBonus）に abilityValue を加算／デイリーは効果なし
+      // 範囲外: 040_ getBudget（予算の反映）、130_/140_ の協力の予算
+      flood_budget: {
+        name: 'ロッテルダム：洪水後の次ターン予算+',
+        versus: { incoming: (c) => ronAbilityTargetMatch(c.city, 'flood_budget', c.atk.id) ? [{ kind: 'mod', cat: 'city_effect', delta: null, label: null, text: `${c.city.name}の都市能力：次ターン予算+${c.city.abilityValue}（洪水後の復旧力）`, fx: 'floodBudget' }] : [] },
+        coop:   { incoming: (c) => ronAbilityTargetMatch(c.city, 'flood_budget', c.atk.id) ? [{ t: `${c.city.name}：次ターン予算+${c.city.abilityValue}`, delta: null, fx: { op: 'budget', n: c.city.abilityValue } }] : [] },
+        daily:  null,
+      },
+
+      // ニューオーリンズ。手札2枚以下で被害 +abilityValue・1枚ドロー。差：対戦は「対応カードを使う前」の手札数で判定／
+      // 協力は「対応カードと台風の破棄を除いた後」の手札数で判定（どちらも ctx.handLen で渡される）／デイリーは効果なし
+      vulnerability_draw: {
+        name: 'ニューオーリンズ：脆弱性',
+        versus: { late: (c) => c.handLen <= 2 ? [
+          { kind: 'mod', cat: 'vuln', delta: +c.city.abilityValue, label: '脆弱性', text: `ニューオーリンズ（社会的脆弱性：手札${c.handLen}枚）` },
+          { kind: 'mod', cat: 'city_effect', delta: null, label: null, text: 'ニューオーリンズの底力：コミュニティ1枚ドロー', fx: 'vulnDraw' },
+        ] : [] },
+        coop:   { late: (c) => c.handLen <= 2 ? [{ t: `${c.city.name}（社会的脆弱性：手札${c.handLen}枚）`, delta: +c.city.abilityValue, fx: { op: 'draw', n: 1 } }] : [] },
+        daily:  null,
+      },
+
+      // 大阪（とカード工房のカスタム回復 turn mode）。差：対戦・協力はダメージ計算では何もしない／
+      // デイリーは解決後に HP 回復（maxHp 上限。攻撃を受けて生存時のみ）
+      // 範囲外: 050_ 174行付近（対戦のターン終了時回復）、150_ coopApplyRegen（協力のターン終了時回復）
+      regen: {
+        name: '大阪：回復',
+        versus: null,
+        coop:   null,
+        daily:  { after: (c) => {
+          if (!(c.hpAfter > 0)) return [];
+          const heal = Math.min(c.city.abilityValue, c.maxHp - c.hpAfter);
+          return heal > 0 ? [{ t: `${c.city.name}の都市対策：ターン終了時回復`, heal }] : [];
+        } },
+      },
+
+      // 神戸（とカード工房のカスタム予算 turn mode）。ダメージ計算では3モードとも何もしない。
+      // 範囲外: 040_ getBudget、130_ 263・274行、140_ 391行（協力の予算）、190_ 295行（デイリーの予算）
+      extra_budget: { name: '神戸：毎ターン予算+', versus: null, coop: null, daily: null },
+    };
+
+    // 都市の能力表から、指定モード（'versus' | 'coop' | 'daily'）の定義を引く。無ければ null。
+    function cityAbilityMode(city, mode) {
+      const t = city && city.abilityType;
+      if (!t || !Object.prototype.hasOwnProperty.call(CITY_ABILITIES, t)) return null;
+      return CITY_ABILITIES[t][mode] || null;
+    }
+    // ═══════════════════════════════════════
+    // COOP DAMAGE CALCULATION（協力モードのダメージ計算の唯一の正）
+    // ═══════════════════════════════════════
+    // 純粋関数。引数以外（ゲーム状態・DOM・乱数・ログ）には一切触れない。coopResolveAttack（実際の解決）と
+    // coopPredictDamage（予測表示・CPUの手選び・リーチ警告）は、どちらもこの関数の結果から数値を得る。
+    // 都市能力の効果は CITY_ABILITIES（020_city-abilities.js）の coop 欄を参照する。
+    //
+    // input:
+    //   atk          攻撃カード（baseDamage・specialType・id）
+    //   city         被弾する都市（abilityType・abilityValue・abilityTargets・isCoastal・isMountain・name）
+    //   effects      被弾都市の effects（negateSpecial・damageReduceHits・shieldQuakeFire・shieldFlood・disastersReceivedThisTurn。書き換えない）
+    //   resp         使う対応カード（null可。手札から取り除く処理は呼び出し側）
+    //   comboBonus   連鎖コンボ増幅（省略時0）。地形ボーナスの直後・耐性の前に加算する
+    //   handLen      対応カードを手札から除いた後の手札枚数（台風の破棄とニューオーリンズの判定に使う）
+    //   reviveGuard  被弾都市の復興猶予の残りターン数（>0 なら最後に半減。切り上げ）
+    // 戻り値: { total（0以上）, steps }
+    //   steps の各要素: { t（ログ文。null なら出さない）, d（変化量。無ければ null）, fx（解決側が実行する指示。無ければ null）, k（種類。neg/terrain/combo/half のどれか。その他は null）}
+    //   fx の op: negatePre / typhoon（手札から1枚ランダム破棄。ログ文は解決側が作る）/ quakeHit / budget(n) / draw(n) /
+    //             received / agencyPre / shieldQF / shieldFlood
+    //   steps は coopResolveAttack が副作用とログを行う順序そのままに並ぶ。
+    function calcCoopDamage(input) {
+      const atk = input.atk;
+      const city = input.city;
+      const e = input.effects || {};
+      const resp = input.resp || null;
+      const comboBonus = input.comboBonus || 0;
+      let handLen = input.handLen || 0;
+      const isQF = atk.id === 'earthquake' || atk.id === 'wildfire';
+      const isFl = atk.id === 'flood' || atk.id === 'tsunami';
+      const ab = cityAbilityMode(city, 'coop');
+      let dmg = atk.baseDamage;
+      const steps = [];
+      const step = (t, d, fx, k) => { if (d != null) dmg += d; steps.push({ t, d: d == null ? null : d, fx: fx || null, k: k || null }); };
+      let neg = false;
+      if (e.negateSpecial) { neg = true; step('広域避難指示（事前）：特殊効果を無効', -10, { op: 'negatePre' }, 'neg'); }
+      else if (resp && resp.effectType === 'negate_special') { neg = true; step('広域避難指示（対応）：特殊効果を無効', -10, null, 'neg'); }
+      if (!neg && atk.specialType) {
+        if (atk.specialType === 'coastal_bonus' && city.isCoastal) step('海岸都市（地形リスク）', +10, null, 'terrain');
+        if (atk.specialType === 'mountain_bonus' && city.isMountain) step('山間部都市（地形リスク）', +10, null, 'terrain');
+        if (atk.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain) step('内陸都市（地形リスク）', +10, null, 'terrain');
+        if (atk.specialType === 'discard_policy') {
+          if (handLen > 0) { handLen--; step(null, null, { op: 'typhoon' }); }
+          else step('台風：手札なし（効果なし）', null);
+        }
+      }
+      // 連鎖コンボ増幅：同一ターンに trigger 災害を撃った都市へ2次災害の実カードを重ねた時の追い打ち。広域避難（特殊無効）の影響は受けない。
+      if (comboBonus > 0) step('連鎖増幅（前の災害への追い打ち）', +comboBonus, null, 'combo');
+      // 都市能力（被弾時の軽減と副作用）。1都市に abilityType は1つだけ。
+      if (ab && ab.incoming) for (const it of ab.incoming({ city, atk, effects: e, handLen })) step(it.t, it.delta, it.fx);
+      step(null, null, { op: 'received' });
+      if (e.damageReduceHits > 0) { const left = e.damageReduceHits - 1; step(`防災庁設置：全ダメージ軽減（残${left}）`, -15, { op: 'agencyPre' }); }
+      if (e.shieldQuakeFire && isQF) step('耐震補強（シールド）発動・消費', -30, { op: 'shieldQF' });
+      if (e.shieldFlood && isFl) step('堤防建設（シールド）発動・消費', -25, { op: 'shieldFlood' });
+      if (resp && resp.effectType === 'shield_quake_fire' && isQF) step('耐震補強（対応）発動', -30);
+      if (resp && resp.effectType === 'shield_flood' && isFl) step('堤防建設（対応）発動', -25);
+      if (resp && resp.effectType === 'heal') { const h = Math.floor(resp.value / 2); step(`${resp.name}（対応・半減）でHP回復`, -h); }
+      // 脆弱性などの手札依存の補正は、対応カードを除き台風の破棄を済ませた後の手札枚数で判定する
+      if (ab && ab.late) for (const it of ab.late({ city, atk, effects: e, handLen })) step(it.t, it.delta, it.fx);
+      // 復興直後の猶予（§13.9）：他のすべての軽減を適用し終えた最後に半減を掛ける。端数は切り上げ。
+      if (input.reviveGuard > 0 && dmg > 0) {
+        const halvedDmg = Math.ceil(dmg / 2);
+        step('復興直後の緊急支援：被害半減', halvedDmg - dmg, null, 'half');
+      }
+      return { total: Math.max(0, dmg), steps };
+    }
+
+    // ── 被弾都市の effects への fx 適用（実際の解決と予測が共有する唯一の書き方） ──
+    // 引数 e だけを書き換える（CO・G には触れない）。typhoon / budget / draw のような CO 側の fx は解決側（coopApplyHitFx）が行う。
+    function coopApplyFxToEffects(e, fx) {
+      switch (fx.op) {
+        case 'negatePre': e.negateSpecial = false; break;
+        case 'quakeHit': e.quakeHitThisTurn = true; break;
+        case 'received': e.disastersReceivedThisTurn++; break;
+        case 'agencyPre': e.damageReduceHits--; break;
+        case 'shieldQF': e.shieldQuakeFire = false; break;
+        case 'shieldFlood': e.shieldFlood = false; break;
+      }
+    }
+    // 本体攻撃を解決し終えた後の effects を、steps の fx から導出して返す（effects 自体は書き換えない）。連鎖の予測の起点になる。
+    function coopEffectsAfterHit(effects, steps) {
+      const e = Object.assign({}, effects || {});
+      for (const st of steps) if (st.fx) coopApplyFxToEffects(e, st.fx);
+      return e;
+    }
+
+    // ═══════════════════════════════════════
+    // COOP CHAIN CALCULATION（協力モードの連鎖ダメージ計算の唯一の正）
+    // ═══════════════════════════════════════
+    // 純粋関数。coopApplyChain（実際）と coopPredictChain（予測）が共通で呼ぶ。
+    // input: { atk, city, effects（本体攻撃を解決し終えた後の被弾都市の effects。書き換えない）, reviveGuard }
+    // 戻り値: { total, items }。items の各要素: { label（復興猶予で半減したら注記付き）, baseLabel, icon, dmg, halved, fx（解決側が effects へ適用する指示の配列）}
+    // 連鎖は広域避難指示の特殊無効の影響を受けず、地形が合えば必ず発生する。連鎖1件ごとに シールド → 防災庁 → 復興猶予の半減（切り上げ）の順。
+    function calcCoopChain(input) {
+      const atk = input.atk;
+      const city = input.city;
+      const e = input.effects || {};
+      const chains = COOP_CHAINS[atk.id];
+      const items = [];
+      if (!chains) return { total: 0, items };
+      let floodShield = !!e.shieldFlood;
+      let quakeShield = !!e.shieldQuakeFire;
+      let hits = e.damageReduceHits > 0 ? e.damageReduceHits : 0;
+      let total = 0;
+      for (const ch of chains) {
+        const m = ch.cond === 'coastal' ? city.isCoastal : ch.cond === 'mountain' ? city.isMountain : (!city.isCoastal && !city.isMountain);
+        if (!m) continue;
+        let d = ch.dmg; let label = ch.label; const fx = [];
+        if (ch.shield === 'shieldFlood' && floodShield) { d = Math.max(0, d - 25); floodShield = false; fx.push({ op: 'shieldFlood' }); }
+        if (ch.shield === 'shieldQuakeFire' && quakeShield) { d = Math.max(0, d - 30); quakeShield = false; fx.push({ op: 'shieldQF' }); }
+        if (hits > 0) { d = Math.max(0, d - 15); hits--; fx.push({ op: 'agencyPre' }); }
+        let halved = false;
+        if (input.reviveGuard > 0 && d > 0) { d = Math.ceil(d / 2); label += '（復興直後の緊急支援：被害半減）'; halved = true; }
+        d = Math.max(0, d);
+        total += d;
+        items.push({ label, baseLabel: ch.label, icon: ch.icon, dmg: d, halved, fx });
+      }
+      return { total, items };
+    }
+
+    // ═══════════════════════════════════════
+    // COOP ESTIMATE（本体＋連鎖の合計と内訳。予測表示・確認ポップの唯一の正）
+    // ═══════════════════════════════════════
+    // 純粋関数。input は calcCoopDamage と同じ（resp・comboBonus・handLen・reviveGuard を含む）。
+    // 本体を calcCoopDamage で計算し、その fx から本体解決後の effects を導出して calcCoopChain に渡す。
+    // 戻り値: { total, body, chain（calcCoopChainの戻り値）, steps, parts }
+    //   parts: { base, terrain, other, combo, half, chain }
+    //     base=カードの基礎ダメージ／terrain=地形ボーナス／combo=連鎖増幅／half=復興猶予の半減（0以下）／chain=連鎖の合計（半減後）
+    //     other=軽減（負）または脆弱性（正）の残り全部（クランプの影響もここに寄せる）。base+terrain+other+combo+half = body
+    //     total = body + chain
+    function calcCoopEstimate(input) {
+      const body = calcCoopDamage(input);
+      const after = coopEffectsAfterHit(input.effects, body.steps);
+      const chain = calcCoopChain({ atk: input.atk, city: input.city, effects: after, reviveGuard: input.reviveGuard });
+      const sumK = (k) => body.steps.reduce((s, st) => s + (st.k === k && st.d != null ? st.d : 0), 0);
+      const base = input.atk.baseDamage, terrain = sumK('terrain'), combo = sumK('combo'), half = sumK('half');
+      const other = body.total - base - terrain - combo - half;
+      return { total: body.total + chain.total, body: body.total, chain, steps: body.steps, parts: { base, terrain, other, combo, half, chain: chain.total } };
+    }
     function ronShareBase() {
       try {
         const proto = location.protocol;
@@ -5114,64 +5781,6 @@
     let _coSpectatorCount = 0;      // プレイヤー側表示用：現在の観戦者数
     let _coSpectatorCountRef = null;
     let _coSpecPlayersRef = null, _coSpecStartedRef = null, _coSpecStateRef = null, _coSpecPresRef = null, _coSpecLastRecv = null; // 観戦者専用のFirebase購読参照
-    // 難易度は「人間にとっての難しさ」で統一。都市側／自然側で立場が逆なので side ごとに設定を分ける。
-    const _COOP_EVENTS_ALL = [{ t: 2, id: 'rumor' }, { t: 5, id: 'pollution' }, { t: 7, id: 'terror' }];
-    // オンライン多人数：1ターンの即死を防ぐ攻撃制限（同種は1ターン1回／1都市への攻撃は最大この回数）
-    // ここは既定値。実際の上限は人数別に CO.maxHits へ格納する（都市3人以上で3、それ未満で2）
-    const COOP_MAX_HITS = 2;
-    // 壊滅都市（後方支援役）の予算：2026-08-16、「毎ターン+1・上限3」から「壊滅時の一括固定」へ変更
-    // （design/coop_balance.md §B・実測で残予算1ptが63%・上限到達0.4%だったため）。壊滅を検知した最初の
-    // 都市ターン開始時に一度だけ次の額を付与し、以降は追加しない（coopApplyBudgetMP参照）。
-    //   付与額 = clamp(maxTurns − 壊滅ターン + 1, COOP_SUPPORT_GRANT_MIN, COOP_SUPPORT_GRANT_MAX)
-    // 現行の総支給量（1pt×残りターン）と一致させる設計のため、下限3・上限8はその総量が取り得る実質範囲。
-    const COOP_SUPPORT_GRANT_MIN = 3;
-    const COOP_SUPPORT_GRANT_MAX = 8;
-    const COOP_DIFF = {
-      easy: {
-        key: 'easy', label: 'EASY', color: '#3fb950', rgb: '63,185,80',
-        city:   { hp: 120, maxTurns: 10, draw: 1, events: [],                desc: 'HP120・10ターン<br>イベントなし' },
-        nature: { hp: 100, maxTurns: 10, draw: 2, events: _COOP_EVENTS_ALL, cpuSkip: 0.5,  desc: '都市が脆い・社会も混乱<br>攻めやすい' },
-      },
-      normal: {
-        key: 'normal', label: 'NORMAL', color: '#d29922', rgb: '210,153,34',
-        city:   { hp: 95, maxTurns: 8, draw: 2, events: [{ t: 3, id: 'rumor' }], desc: 'HP95・8ターン<br>T3デマ拡散' },
-        nature: { hp: 120, maxTurns: 10, draw: 2, events: [{ t: 3, id: 'rumor' }], cpuSkip: 0.15, desc: '標準的な守り<br>互角の攻防' },
-      },
-      hard: {
-        key: 'hard', label: 'HARD', color: 'var(--accent)', rgb: '250,42,78',
-        city:   { hp: 80, maxTurns: 8, draw: 2, events: _COOP_EVENTS_ALL, desc: 'HP80・8ターン<br>3イベント' },
-        nature: { hp: 150, maxTurns: 10, draw: 2, events: [], cpuSkip: 0, desc: '都市が頑強・盤石の守り<br>攻略困難' },
-      },
-    };
-    // プリセット難易度（オンライン協力・都市側専用・design/coop_balance.md §D・2026-08-16追加）。
-    // 部屋を建てる時点では参加人数が確定していないため、ロビーではEASY/NORMAL/HARDのラベルだけを選ばせ、
-    // 実際のHP・復興回数・社会的脆弱性イベントはゲーム開始時（coopMPStartHost）に実際の都市人数で
-    // 2人用／3人以上用のどちらかを自動選択して決める（coopPresetBucket・coopPresetResolve参照）。
-    // カスタムモード（HP・復興回数・社会的脆弱性を個別スライダーで調整する従来経路）とは独立しており、
-    // 部屋のpresetKeyが'custom'／未指定のときは従来どおりcityHp/socialVuln/reviveMaxの個別値を使う。
-    // HP80を下限にしているのは、それ以下だと自然側の1回の攻撃で追い詰めるとそのまま壊滅まで持っていける
-    // ため（§D注意事項）。数値は実機プレイの感触で調整する前提の暫定値。
-    /* 2026-08-16（ユーザー確定）：NORMAL と HARD の差分を「イベントの数」ではなく
-       「発生タイミングを誰が握るか」に置いた。
-         NORMAL … 3イベント全部・**固定ターン**（従来どおり。読めるから立ち回れる）
-         HARD   … 3イベント全部・**自然側が発生ターンを自分で決める**
-       狙い：自然側が負けるパターンは、都市側がシールドを固めて耐久戦に持ち込み、
-       それを剥がすのに手一杯でHPが削れない詰み盤面である。発生タイミングを自然側が
-       握れると、固められた瞬間に公害でシールドを剥がす・テロで対応を封じる、といった
-       逆転の一手が成立する。イベントの内容も総数も変えていないので、
-       EASY/NORMAL からの積み上がりは壊れない。 */
-    const COOP_PRESETS = {
-      2: { // 都市2人用
-        easy:   { hp: 110, reviveMax: 2, events: [],                eventControl: 'fixed'  },
-        normal: { hp: 95,  reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'fixed'  },
-        hard:   { hp: 85,  reviveMax: 0, events: _COOP_EVENTS_ALL,  eventControl: 'nature' },
-      },
-      3: { // 都市3人以上用
-        easy:   { hp: 120, reviveMax: 2, events: [],                eventControl: 'fixed'  },
-        normal: { hp: 100, reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'fixed'  },
-        hard:   { hp: 90,  reviveMax: 1, events: _COOP_EVENTS_ALL,  eventControl: 'nature' },
-      },
-    };
     // 都市人数からプリセットのバケットキー（2 or 3＝3人以上）を解決する
     function coopPresetBucket(cityCount) { return (cityCount >= 3) ? 3 : 2; }
     // presetKeyと都市人数から実際の数値パッケージを解決する（存在しなければnull＝カスタム扱い）。
@@ -5190,8 +5799,6 @@
     }
     // ══ デイリー防災（固定シード1日1局面パズル）状態。対戦(G)・協力(CO)とは完全独立の追加モジュール ══
     let DD = null;
-    // 数値設定は1箇所に集約（HP・総予算・攻撃回数・手札枚数）
-    const DAILY_CFG = { hp: 95, budget: 6, attacks: 3, handSize: 5 };
     // ══ カード工房（ご当地カードメーカー）状態。対戦(G)・協力(CO)・デイリー(DD)とは完全独立の追加モジュール ══
     let CW = null;
     // ══ 問題工房（詰め防災 柱4）状態。対戦(G)・協力(CO)・デイリー(DD)・カード工房(CW)とは完全独立の追加モジュール。
@@ -5508,59 +6115,6 @@
         try { if (typeof _ddPreventTouchMove === 'function') document.removeEventListener('touchmove', _ddPreventTouchMove, { passive: false }); } catch (e) {}
       }, { passive: true });
     }
-
-    // 協力モード専用：災害連鎖テーブル（共有データ DISASTER_CARDS は変更しない）
-    // 連鎖（二次災害）の自動ベース値。ハイブリッド方式：自動連鎖は控えめなベース（教育の最低保証）にとどめ、
-    // プレイヤーが対応する実カード（津波・洪水・土砂崩れ）を同一ターン・同一都市に続けて撃つと COOP_COMBO_BONUS で増幅する。
-    const COOP_CHAINS = {
-      earthquake: [{ cond: 'coastal', dmg: 5, label: '二次津波', icon: 'tsunami', shield: 'shieldFlood' }, { cond: 'mountain', dmg: 5, label: '土砂崩れ', icon: 'landslide', shield: null }],
-      typhoon:    [{ cond: 'coastal', dmg: 5, label: '随伴洪水', icon: 'flood', shield: 'shieldFlood' }],
-      wildfire:   [{ cond: 'inland',  dmg: 10, label: '延焼',     icon: 'wildfire', shield: 'shieldQuakeFire' }], // 延焼は対応する実カードが無いためベースのみ（増幅なし）
-    };
-    // 連鎖コンボ：2次災害の実カード（key）を、同一ターンに同じ都市へ撃った1次災害（trigger）に重ねると増幅。地形ゲートつき。
-    const COOP_COMBO_BONUS = 5; // 増幅ボーナス（低HP化に伴い10→5へ調整・要プレイテスト調整）
-    const COOP_COMBO = {
-      tsunami:   { trigger: 'earthquake', cond: 'coastal'  }, // 地震 → 津波（海岸）
-      landslide: { trigger: 'earthquake', cond: 'mountain' }, // 地震 → 土砂崩れ（山間）
-      flood:     { trigger: 'typhoon',    cond: 'coastal'  }, // 台風 → 洪水（海岸）
-    };
-    // 1次災害カード → 続けて撃つと増幅する2次災害カードの逆引き（UIヒント用）
-    const COOP_COMBO_FOLLOW = {};
-    for (const _sec in COOP_COMBO) { const _t = COOP_COMBO[_sec].trigger; (COOP_COMBO_FOLLOW[_t] = COOP_COMBO_FOLLOW[_t] || []).push({ cardId: _sec, cond: COOP_COMBO[_sec].cond }); }
-    // 2026-07-20：防災協定（予算+2の緊急融通・COOP_PACT_BUDGET）は防災協定→ローリングストック改称に伴い廃止した。
-    // 手札経済（二重通貨）の公助枠：予算と手札の2通貨のうち、実際に枯渇するのは手札側という設計不全への対処（design/coop_balance.md §10）。
-    // 緊急支援ドロー：都市ターン開始時、手札がこの枚数以下の生存都市は通常ドローに+1する。
-    const COOP_EMERGENCY_HAND_MAX = 1;
-    // 備蓄：都市ターン終了時、未使用予算がこの値以上残っている生存都市は1枚ドローする（予算は消費しない）。
-    const COOP_STOCKPILE_MIN_BUDGET = 2;
-    // 予算の繰り越し制（協力モード限定・design/coop_balance.md §12）：都市ターン終了時に余った予算を、
-    // 備蓄（1枚ドロー）の代わりに翌ターンへ繰り越せる。上限は基本予算からの相対値ではなく、繰り越し量そのものの
-    // 固定キャップ（min(この値, leftover)）。備蓄と二者択一のため同時発生しない。壊滅都市（後方支援）は
-    // 壊滅時に一度だけ固定額を受け取る独自の予算方式（§B）を持つため対象外。
-    const COOP_CARRY_BUDGET_CAP = 2;
-    // 復興ルール（協力モード限定・design/coop_balance.md §13・2026-07-29正本／§13.8・2026-08-10追加）：壊滅都市を
-    // 部屋で設定した回数（reviveMax・既定1・0〜3）だけ、提供元が差し出したHP（同量）で復活させられる。下限30は
-    // 「攻撃1回ぶんに耐えられる水準」であり、下限が無いと1HP復活（実質無償の1人分の戦力復帰）が支配的になって
-    // しまうことへの対策（§13.1）。
-    const COOP_REVIVE_MIN = 30;
-    // 復興直後の猶予（§13.9・2026-08-11決定・案A採用）：復活後HPは提供元の現在HPの半分が上限のため、
-    // 自然側の1ターンの被害（2枚連打で平均66前後）を耐えられない前提のHPで戻ってくる。猶予はHPの数字を
-    // 動かさずに、復活後COOP_REVIVE_GUARD_TURNSターン分（暫定2）だけ受けるダメージを半減させることで
-    // 「復活直後に即壊滅」を防ぐ。値は実機プレイで調整する（1では次の自然ターンで落ちる公算が高く、
-    // 3以上だと壊滅した方が守られるという逆転が起きうる、との判断が未決事項として残っている）。
-    const COOP_REVIVE_GUARD_TURNS = 2;
-    // MP専用：提案・立候補の交渉が非同期のまま延々と居座らないためのタイムアウト（§13.4）。
-    // 提案作成時・立候補確定時のいずれでもこの時間だけ延長される（協議の各段階に等しく時間を与えるため）。
-    // ソロは承認フローが無い（即実行）ため未使用。
-    const COOP_REVIVE_TIMEOUT_MS = 120000; // 2分
-    // 提供量の丸め単位（§13.8・2026-08-10追加）。スライダーのstepとクランプ後の丸めの両方に使う。
-    const COOP_REVIVE_STEP = 5;
-    // MP協力の都市HP推奨初期値（スライダーの初期位置・「デフォルト設定に戻す」の戻り先）。
-    // 2026-08-11の実機プレイで、復興1回との組み合わせは100がちょうどよいと判断（coop_balance.md §4.2.1）。
-    // スライダーの可動域80〜120は変更していない。room.cityHpが欠けた旧データの読み替えにもこの値を使う。
-    const COOP_CITY_HP_DEFAULT = 100;
-    // reviveMaxが未定義（旧仕様の部屋データ・後方互換）のときに扱う既定回数。部屋作成時の既定値でもある。
-    const COOP_REVIVE_MAX_DEFAULT = 1;
     // 値を5の倍数へ切り下げる（提供元の上限floor(hp/2)が5の倍数でない場合の丸め・§13.8）。
     function coopReviveStepDown(v) { return Math.floor(v / COOP_REVIVE_STEP) * COOP_REVIVE_STEP; }
     // 提供元が差し出せる上限（floor(hp/2)を5の倍数に切り下げ済み）。例：HP105→半分52→上限50。
@@ -5591,12 +6145,6 @@
       if (!Array.isArray(co.eventPool)) co.eventPool = [];
       if (co.eventFiredTurn == null) co.eventFiredTurn = 0;
     }
-    // 協力モードの社会的脆弱性イベント（人為災害カードを固定ターンに発動）。ターン開始ポップ用の情報。
-    const COOP_EVENT_INFO = {
-      rumor:     { id: 'rumor',     icon: 'rumor',     name: 'デマ拡散',   effectCity: 'このターンの予算 −1',                  effectNature: 'CPU都市の予算 −1（攻めの好機）',           desc: 'SNS上の偽情報が初動対応を混乱させる' },
-      pollution: { id: 'pollution', icon: 'pollution', name: '公害',       effectCity: '自然の攻撃時、設置シールドを1つ破壊',    effectNature: 'CPU都市のシールドを1つ破壊（攻めの好機）', desc: '工業化で蓄積した環境リスクが備えを内側から損なう' },
-      terror:    { id: 'terror',    icon: 'terror',    name: 'テロ攻撃',   effectCity: 'このターンは対応フェーズが封じられる',    effectNature: 'CPU都市は対応フェーズ不可（攻めの好機）',   desc: '意図的な攻撃が備えの隙を突く' },
-    };
     let _logExpanded = false;
     let _cityInfoModal = null;
     let _hintOpen = false;
@@ -6312,109 +6860,6 @@
       </div>${cityOverlay}${cardOverlay}</div>`;
     }
 
-    // ═══════════════════════════════════════
-    // DATA
-    // ═══════════════════════════════════════
-    // 2026-09-24 第2陣（WORKTRACK.md §15 B-2 イスタンブール節）：
-    //  ・nagoya：abilityType 'flood_draw' は名称のとおりの「ドロー」ではなくなった（第2陣でドローを廃止し、
-    //    学習軽減−VERSUS_FLOOD_LEARN_REDUCE固定のみに変更）。abilityTypeを改名しないのは、協力モード
-    //    （coopResolveAttack内）が同じ'flood_draw'文字列でcity.abilityTypeを直接判定し、実在都市（CITIES）
-    //    のnagoyaがコープでは今回も無変更（引き続き1枚ドロー）で使われ続けるため。identifierは歴史的な名前の
-    //    まま、対戦（resolveDamage）側の処理だけをドローなしへ変更した。abilityValue（1）もCO側のドロー枚数
-    //    としてそのまま参照され続けるため変更していない（対戦では未使用の値になったが、共有フィールドのため残す）。
-    //  ・istanbul：abilityType を 'quake_draw' → 'response_double'（対戦専用の新能力）へ改名した。協力モードは
-    //    元の「地震被弾時1枚ドロー」を維持する必要があるため、coopResolveAttack側に'response_double'も
-    //    'quake_draw'と同じ扱いにする互換分岐を追加している（下記コメント参照）。カード工房の「学習都市」
-    //    プリセットも同様に旧効果（quake_draw/1）を維持するため、CW_PRESET_DEFSに明示的な上書きを持たせた
-    //    （cwPresets()参照）。⚠️ abilityValueは1のまま変更していない＝協力モードのcoopDraw(city.abilityValue)が
-    //    このフィールドをそのまま「ドロー枚数」として読むため、意味を変えると協力モードの挙動が変わってしまう
-    //    （2に変えると協力モードのドロー枚数が2枚になる誤りを一度実装しかけて気づいた）。対応フェーズで使える
-    //    上限枚数（2枚）はresolveDamage側の定数VERSUS_ISTANBUL_RESPONSE_MAXとして別に持つ。
-    const CITIES = [
-      { id: 'tokyo', name: '東京', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'resist_quake_fire', abilityValue: 20, abilityDesc: '地震・大火災 −20', concept: '首都への集中投資。対策が進んだ都市の強さと限界。', learn: '首都への集中投資により地震・大火災への対策が最も進んだ都市。ただし首都機能の集中そのものがリスクでもある。対策の進んだ都市の「強さと限界」を体現する。' },
-      { id: 'osaka', name: '大阪', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'regen', abilityValue: 5, abilityDesc: 'ターン終了時 HP +5', concept: 'レジリエンス。やられても回復する力。', learn: '南海トラフや海抜ゼロメートル地帯のリスクを抱えながらも、粘り強く回復する「レジリエンス（回復力）」が強み。ターン終了時にHPが回復する能力がこの哲学を表す。' },
-      { id: 'kobe', name: '神戸', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'extra_budget', abilityValue: 1, abilityDesc: '毎ターン予算 +1（計4）', concept: '阪神大震災からの復興。港湾都市の経済力が防災投資を支える。', learn: '1995年の阪神・淡路大震災（死者6,434人）を経験し、防災への投資が制度化された都市。港湾都市の経済力が防災投資を支えるため、毎ターンの予算が1多い。' },
-      { id: 'hiroshima', name: '広島', icon: 'city_mountain', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_landslide', abilityValue: 20, abilityDesc: '土砂崩れ −20', concept: '山に囲まれた地形が土砂リスクを生む。', learn: '市街地を囲む山地が土砂崩れリスクを生む。2014年8月豪雨災害（死者77名）を経て山間部での防災強化が進んだ。土砂崩れへの強い耐性を持つ。' },
-      { id: 'nagoya', name: '名古屋', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_draw', abilityValue: 1, abilityDesc: '一度被弾後 洪水・津波 −20', concept: '伊勢湾台風の歴史が今の対策を作った。', learn: '1959年の伊勢湾台風（死者5,098人）が日本最初の「災害対策基本法」（1961年）を生み出した。「被災が知識をもたらす」ことを、一度でも被災した経験がその後の備えとして活き続ける学習軽減能力で表現。' },
-      { id: 'sendai', name: '仙台', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'resist_flood', abilityValue: 15, abilityDesc: '洪水・津波 −15', concept: '仙台防災枠組。日本の経験が国際防災政策を変えた。', learn: '2011年東日本大震災の経験を活かし、2015年に仙台で「仙台防災枠組2015-2030」が採択。日本の地域の経験が世界の防災政策を変えた都市。' },
-      { id: 'kumamoto', name: '熊本', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'second_hit_reduce', abilityValue: 20, abilityDesc: '同ターン2枚目の災害 −20', concept: '前震・本震の連続。想定外への適応力。', learn: '2016年熊本地震は前震（M6.5）→本震（M7.3）という連続地震で、想定を超えた適応力が求められた。同ターン2枚目の災害への耐性がその経験を示す。' },
-      { id: 'niigata', name: '新潟', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10／捨て札2枚を山札へ', concept: '1964年新潟地震。液状化研究の原点。', learn: '1964年新潟地震（M7.5）で液状化現象が大規模に初めて記録され、防災学の重要な研究対象となった。地震を受けたターン後のHP回復は科学的蓄積と学習を象徴する。使った札を山札へ戻すことは、その蓄積が次の備えとして再び活きることを表す。' },
-      { id: 'kagoshima', name: '鹿児島', icon: 'city_mountain', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。', learn: '日本有数の活火山・桜島と共生する都市。「ゼロリスクを目指さない」防災哲学のもと、日常的な火山活動への対応力が複合災害への耐性として表れている。' },
-      { id: 'rotterdam', name: 'ロッテルダム', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 2, abilityDesc: '洪水・津波被弾時、次ターン予算+2', concept: '水と共存するオランダ型防災哲学。', learn: '国土の4分の1が海面以下のオランダの港湾都市。「水を制御するのではなく水と共存する」防災哲学を世界に発信。洪水・津波を受けた後に次ターンの予算が2増えるのはその強靭な復旧力を示す。' },
-      { id: 'istanbul', name: 'イスタンブール', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'response_double', abilityValue: 1, abilityDesc: '相手の地震への対応フェーズで政策カードを2枚まで使用可能', concept: '北アナトリア断層直上。事後学習型防災。', learn: '北アナトリア断層直上に位置し高確率でM7超の地震が予測されるが、耐震化は遅れている。事前の備えは薄いが、地震を受けた後の対応フェーズでは政策カードを2枚まで使える。「被災して初めて学ぶ事後学習型防災」の現実を示す。' },
-      { id: 'new_orleans', name: 'ニューオーリンズ', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。', learn: '2005年ハリケーン・カトリーナで被害が社会的弱者に集中したことが「社会的脆弱性」概念を世界に知らしめた。手札が少ない（準備不足の）状態でさらに被害が増える。' },
-    ];
-
-    const POLICY_CARDS = [
-      { id: 'quake_wall', name: '耐震補強', icon: 'quake_wall', cost: 2, type: 'policy', frame: 'defend', color: 'green', effectType: 'shield_quake_fire', value: 30, desc: '次の地震・大火災 −30', realConcept: 'ハード対策の代表。1981年の新耐震基準に基づく建物の構造強化。事前設置で次の地震・大火災を大幅に軽減するシールド型政策。' },
-      { id: 'dam', name: '堤防建設', icon: 'dam', cost: 2, type: 'policy', frame: 'defend', color: 'green', effectType: 'shield_flood', value: 25, desc: '次の洪水・津波 −25', realConcept: '洪水・津波に対するハード対策（治水インフラ）。物理的に水害を防ぐ構造物への投資で、効果は確実だが規模の上限がある。' },
-      { id: 'drill', name: '避難訓練', icon: 'drill', cost: 1, type: 'policy', frame: 'defend', color: 'yellow', effectType: 'heal', value: 20, desc: 'HP +20（対応時+10）', realConcept: 'ソフト対策の代表。事前の訓練が緊急時の行動を変え人的被害を減らす。対応フェーズでの効果半減は「事前準備ほど緊急時は効かない」ことを表す。' },
-      { id: 'hazard_map', name: 'ハザードマップ整備', icon: 'hazard_map', cost: 1, type: 'policy', frame: 'free', color: 'yellow', effectType: 'draw', value: 2, desc: '山札から2枚ドロー', realConcept: 'リスク情報の整備が対応選択肢（手札）を広げる。「情報は備えの前提」という防災情報整備の本質を2枚ドローで表現。' },
-      { id: 'agreement', name: '相互支援協定', icon: 'agreement', cost: 2, type: 'policy', frame: 'defend', color: 'yellow', effectType: 'heal', value: 30, desc: 'HP +30（対応時+15）', realConcept: '自治体間の広域連携・相互応援体制。大きなHP回復は広域連携の有効性を示し、対応時の効果半減は「事前の合意があってこそ機能する」ことを表す。' },
-      { id: 'evacuation', name: '広域避難指示', icon: 'evacuation', cost: 2, type: 'policy', frame: 'defend', color: 'green', effectType: 'negate_special', value: 10, desc: '特殊効果・テロ攻撃を無効＋ダメージ−10', realConcept: '「逃げる」という判断を制度化したソフト対策。台風の手札廃棄・複合災害のスキップ・人為災害のテロ攻撃も事前設置で無効化できる汎用性の高い政策。' },
-      { id: 'bousai_cho', name: '防災庁設置', icon: 'bousai_cho', cost: 3, type: 'policy', frame: 'defend', color: 'green', effectType: 'damage_reduce_2t', value: 15, desc: '全ダメージ −15（2回・使用時から有効）', realConcept: '包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。2回分のダメージ軽減という持続型効果が、制度投資の長期的な価値を示す。対応フェーズで使用した場合も、その攻撃から効果が適用される。' },
-      { id: 'rolling_stock', name: 'ローリングストック', icon: 'rolling_stock', cost: 0, type: 'policy', frame: 'free', color: 'yellow', effectType: 'recycle_hand', value: 0, desc: '自分の手札を好きな枚数だけ入れ替える（同じ枚数を山札から引く）', realConcept: '備蓄品を古いものから消費し、使った分だけ新しく買い足す「ローリングストック」という備蓄法。備え（手札）は蓄えて終わりではなく、日常的に回して中身を更新し続けることで、いざという時に実際に機能する状態を保てることを示す。' },
-    ];
-
-    const DISASTER_CARDS = [
-      { id: 'earthquake', name: '地震', icon: 'earthquake', cost: 2, type: 'disaster', frame: 'attack', baseDamage: 30, specialType: 'inland_bonus', desc: '30（内陸都市 +10）', columnTitle: 'リスク ＝ ハザード × 曝露 × 脆弱性', column: '内陸都市に追加ダメージ+10（曝露の違い）。東京は都市能力で軽減（対策の違い）、ニューオーリンズは手札不足でさらに被害増（脆弱性の違い）。同じ災害カード1枚で、「被害はなぜ都市によって異なるのか」を体験できる。' },
-      { id: 'flood', name: '洪水', icon: 'flood', cost: 2, type: 'disaster', frame: 'attack', baseDamage: 30, specialType: 'coastal_bonus', desc: '30（海岸都市 +10）', columnTitle: '防災の哲学は一つではない', column: '海岸都市に追加ダメージ+10。ロッテルダム（水と共存するオランダ哲学）もニューオーリンズ（社会的脆弱性が被害を拡大）も同じ海岸都市だが、防災への向き合い方は全く異なる。日本の都市だけでは体感できない「防災の多様性」がここに詰まっている。' },
-      { id: 'typhoon', name: '台風', icon: 'typhoon', cost: 2, type: 'disaster', frame: 'attack', baseDamage: 20, specialType: 'discard_policy', desc: '20+相手の手札1枚を捨てる', columnTitle: 'ソフト対策の重要性', column: '手札1枚をランダムで廃棄し、どんな備えも突然失われることを示す。1枚のカードに頼らず複数を積み重ねることに加え、広域避難指示のようなソフト対策（行動計画）の価値も実感できる。' },
-      { id: 'tsunami', name: '津波', icon: 'tsunami', cost: 3, type: 'disaster', frame: 'attack', baseDamage: 40, specialType: 'coastal_bonus', desc: '40（海岸都市 +10）', columnTitle: '知識と行動の両立', column: '初期手札に自然災害と政策の両方が保証されているのは偶然ではない。「どんな脅威があるか知ること（災害カード）」と「それに備えること（政策カード）」の両方がなければ防災は機能しない。知識だけでも行動だけでも不十分という防災の本質。' },
-      { id: 'landslide', name: '土砂崩れ', icon: 'landslide', cost: 1, type: 'disaster', frame: 'attack', baseDamage: 20, specialType: 'mountain_bonus', desc: '20（山間部 +10）', columnTitle: null, column: null },
-      { id: 'wildfire', name: '大火災', icon: 'wildfire', cost: 3, type: 'disaster', frame: 'attack', baseDamage: 50, specialType: null, desc: 'ダメージ 50', columnTitle: '事前投資の費用対効果', column: '最大ダメージ50のカードに対し、コスト2の耐震補強を事前設置すれば大幅に軽減できる。コスト2の政策でコスト3の災害を防ぐ「事前投資の費用対効果」を最もはっきり体験できる場面。' },
-      // 2026-09-24 第1陣A-2：デッキに入れられるのは1枚まで（maxCopies。WORKTRACK.md §15 A-2）。frameと同じく
-      // カード定義を唯一の出典にする（分類・制約をコード中に散らさない）。未指定のカードはVERSUS_DECK_MAX_COPIESが既定値。
-      { id: 'compound', name: '複合災害', icon: 'compound', cost: 3, type: 'disaster', frame: 'attack', baseDamage: 40, specialType: 'skip_response', maxCopies: 1, desc: '40+相手の対応フェーズを1回強制スキップ（事前の広域避難指示で無効化可能）', columnTitle: '複合・連鎖災害の恐ろしさ', column: '相手は対応フェーズを強制スキップされ、政策カードを使う機会を奪われる。2011年東日本大震災の地震→津波→原発事故の連鎖が示すように、複合災害は「備えが追いつかない状況」を生み出す。ただし事前に広域避難指示を設置していれば無効化でき、ソフト対策の重要性を体験できる。' },
-    ];
-
-    // 人為災害カード（妨害コンセプト。ダメージは与えず相手の行動を阻害する。各2枚で出現確率を低く設定）
-    const JINZAI_DISASTER_CARDS = [
-      { id: 'pollution', name: '公害', icon: 'pollution', cost: 1, type: 'jinzai', frame: 'attack', effectType: 'break_shield', desc: '相手の有効シールドを1つ選んで破壊（防災庁設置は全回分を無効化）', columnTitle: '工業化が生むリスクの蓄積', column: '相手が設置したシールド型政策を1つ選んで無効化する。水俣病・四日市公害が示すように、工業化による恩恵の裏で都市は環境リスクを蓄積する。守りの備え（シールド）が人為的要因で崩されることを体験できる。', realConcept: '工業化に伴う環境汚染（水俣病・四日市ぜんそく等の公害病）。経済発展の裏で蓄積するリスクが、都市の備えを内側から損なうことを表す。相手の有効なシールド型政策を1つ選んで破壊する。' },
-      { id: 'terror', name: 'テロ攻撃', icon: 'terror', cost: 1, type: 'jinzai', frame: 'attack', effectType: 'terror_skip', desc: '次に使う災害への対応フェーズを封じる（広域避難指示で無効）', columnTitle: '意図的に突かれる都市の脆弱性', column: '同じターン中に次に使う自然災害カードへの対応フェーズを奪う。2001年の同時多発テロ以降、重要インフラ防護（CIP）が防災の主要課題となった。意図的な攻撃は備える時間を与えないが、広域避難指示の事前設置で無効化できる。', realConcept: '重要インフラを狙う意図的攻撃（2001年9.11以降のCIP＝重要インフラ防護の概念）。自然災害と違い「予兆なく備えの隙を突く」性質を、対応フェーズの剥奪で表現する。' },
-      { id: 'rumor', name: 'デマ拡散', icon: 'rumor', cost: 1, type: 'jinzai', frame: 'attack', effectType: 'debt_budget', desc: '次のターン相手の使えるコストが1下がる', columnTitle: '情報災害という新しい脅威', column: '相手の次ターンの予算を1減らす。2024年能登半島地震ではSNS上の偽情報が救助・避難を妨げた。情報環境の劣化そのものが「災害」となり、適切な行動の選択肢を狭めることを体験できる。', realConcept: 'SNS等を通じた偽情報の拡散（2024年能登半島地震での救助妨害デマ等）。情報災害が人々の正しい判断と行動を阻害することを、相手の予算（行動力）減少で表す。' },
-    ];
-
-    const ALL_CARDS = [...POLICY_CARDS, ...DISASTER_CARDS, ...JINZAI_DISASTER_CARDS];
-
-    // 2026-09-13 Phase5：デッキ構築の3枠分類。各カード定義のframeフィールド（'attack'/'defend'/'free'）を
-    // 唯一の分類元とし、この定数群はそこから導出するだけ（分類をコード中に散らさない・WORKTRACK.md §5準拠）。
-    // 攻める10種（自然7＋人為3）・守る6種・自由2種＝計18種。
-    const VERSUS_DECK_SIZE = 24;
-    const VERSUS_DECK_MAX_COPIES = 3;
-    const VERSUS_FRAME_RULES = { attack: { min: 6, max: 18 }, defend: { min: 6, max: 18 }, free: { min: 0, max: 6 } };
-    const VERSUS_FRAME_LABEL = { attack: '攻める', defend: '守る', free: '自由' };
-    const VERSUS_FRAME_CARDS = {
-      attack: ALL_CARDS.filter(c => c.frame === 'attack'),
-      defend: ALL_CARDS.filter(c => c.frame === 'defend'),
-      free: ALL_CARDS.filter(c => c.frame === 'free'),
-    };
-    // 既定デッキ（都市非依存の固定構成。24枚ちょうど・3枠制約を満たす）。buildCityAwareDeckCountsの
-    // 土台として使う（都市が無い/未選択のときのフォールバック＝標準構成そのもの）。Phase7で「既定で埋める」
-    // ボタン自体はUIから廃止したが、この定数はbuildCityAwareDeckCountsの土台として残す。
-    const VERSUS_DEFAULT_DECK_COUNTS = {
-      earthquake: 2, flood: 2, typhoon: 1, tsunami: 1, landslide: 1, wildfire: 1, compound: 1, pollution: 1,
-      quake_wall: 2, dam: 2, drill: 2, agreement: 2, evacuation: 1, bousai_cho: 1,
-      hazard_map: 2, rolling_stock: 2,
-    };
-    // Phase6：都市に合わせたデッキ自動生成。崩すのは「守る枠」10枚の内訳だけ（攻める枠・自由枠・総枚数は不変）。
-    // 12都市ぶんの補正表はハードコードせず、CITIESの isCoastal/isMountain/abilityType から機械的に導出する
-    // （表を手で持つと都市追加時の更新漏れにつながるため）。
-    // 地形リスク（specialTypeのcoastal/mountain/inland bonusで被害+10が実際に乗る）に対応する守る枠カード＝厚くする側。
-    // 山間部だけ土砂崩れ専用シールドが存在しないため、全ダメージ軽減の防災庁設置で穴を埋める。
-    const VERSUS_TERRAIN_SHIELD = { coastal: 'dam', mountain: 'bousai_cho', inland: 'quake_wall' };
-    // 都市能力がすでにカバーしている領域に対応する守る枠カード＝薄くする側（重複投資を避ける）。
-    // ここに無いabilityType（regen・extra_budget・vulnerability_draw）は守る枠に対応が無いためフォールバックを使う。
-    const VERSUS_ABILITY_COVER = {
-      resist_quake_fire: 'quake_wall', quake_regen: 'quake_wall', quake_draw: 'quake_wall',
-      resist_flood: 'dam', flood_draw: 'dam', flood_budget: 'dam',
-      resist_landslide: 'bousai_cho', resist_compound: 'bousai_cho', second_hit_reduce: 'bousai_cho',
-      // 2026-09-24 第2陣：istanbulのabilityTypeがquake_draw→response_doubleへ改名されたため、
-      // 従来と同じ「内陸＝耐震補強を薄くする」判定結果を保つには対応するエントリが必要（WORKTRACK.md §15 B-2）。
-      response_double: 'quake_wall',
-    };
-    const VERSUS_THIN_FALLBACK = 'drill';
-    const VERSUS_SHIELD_ORDER = ['quake_wall', 'dam', 'bousai_cho'];
     // counts（{cardId: 枚数}）からデッキ実体を組む。既存createDeck()と同じuid形式（id+'_'+連番）に揃える。
     function buildVersusDeckFromCounts(counts) {
       const d = [];
@@ -6451,8 +6896,6 @@
       }
       return { ok: reasons.length === 0, reasons, total, frameSums };
     }
-    // 自動生成が守る枠のカードを減らせる下限。0枚の枠を作らないためのもの（下の⚠️参照）。
-    const VERSUS_AUTO_MIN_COPIES = 1;
     // 都市（主城[0]・予備都市[1]）に合わせて「守る枠」10枚の内訳だけを既定デッキから調整する。
     // 重みは主城・予備都市とも1。1都市につき動くのは最大1枚（2都市で最大2枚）。攻める枠・自由枠・総枚数24は不変。
     //
@@ -6504,18 +6947,6 @@
       return counts;
     }
 
-    // 災害カード → 効果的な対抗政策カード（カード図鑑誘導用）
-    const COUNTER_MAP = {
-      'earthquake': ['quake_wall', 'bousai_cho'],
-      'flood':      ['dam', 'evacuation'],
-      'tsunami':    ['dam', 'evacuation'],
-      'typhoon':    ['evacuation', 'bousai_cho'],
-      'landslide':  ['bousai_cho', 'quake_wall'],
-      'wildfire':   ['quake_wall', 'bousai_cho'],
-      'compound':   ['evacuation', 'bousai_cho'],
-      'terror':     ['evacuation'],
-    };
-
     // ═══════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════
@@ -6531,34 +6962,6 @@
       // coop側はCS.effectsを別に持つため、この値を参照しない。
       floodLearned: false,
     });
-
-    // 2026-09-15 Phase5.5対応：終了条件の見直し。ローリングストック（recycle_hand）が「捨て札ではなく山札へ戻す」
-    // 方式になった結果、同名カードを上限3枚積めば最大12枚を山札に戻して再ドローできる＝24枚の素引き12ターンに対し
-    // 実質+6ターン分（18ターン相当）まで山札が持つ。終了判定は上から順に、
-    //   ① 相手都市を全壊させた（checkWin。変更なし）
-    //   ② 両者がVERSUS_MIN_TURNSターンを終え、かつ両者の山札が0枚（デッキ切れ＝もう引く手段がない）
-    //   ③ 両者がVERSUS_MAX_TURNSターンを終えた（山札が残っていても必ず打ち切る止め弁）
-    // の3段。③が必要な理由：手札を出さずに抱え続ければドローが発生せず山札が減らないため、②だけでは
-    // 「1枚握って居座る」プレイで試合が無限に続いてしまう（大阪の毎ターンHP+5・新潟の被災時+10のような
-    // ターン経過ボーナスで居座るだけでHP差を作れる都市もあり、③のような無条件の上限が無いとHP合計判定自体が壊れる）。
-    // VERSUS_MAX_TURNS=18の根拠：山札24枚を毎ターン最大2枚で素引きすると12ターンで尽きる。そこにローリングストックの
-    // 上限3枚×最大4種（同名3枚ルール上、実際はカード種数に依存するが上限としてリサイクル総量12枚を見込む）を
-    // 加えると+6ターン。12＋6＝18が、現行デッキ構築ルール上ありうる最長ターン数である（恣意的な数字ではない）。
-    const VERSUS_MIN_TURNS = 12;
-    const VERSUS_MAX_TURNS = 18;
-    // 2026-09-24 第1陣A-1：先攻1ターン目の補正を「半減」から「固定−20」へ変更（WORKTRACK.md §15 A-1）。
-    // resolveDamage内に数値を直書きしない（ログ文言もこの定数から組み立てる）。
-    const VERSUS_FIRST_TURN_PENALTY = 20;
-    // 2026-09-24 第1陣B-2→第2陣で20へ改定：名古屋の学習軽減の値（WORKTRACK.md §15 B-2。「一度でも受けたら
-    // 以後は常にこの値だけ軽減」の固定値・累積しない・上限なし＝持続に期限が無い）。第1陣は10で実装したが、
-    // 第2陣でドローを廃止した結果、仙台（洪水・津波を常時−15）に対して名古屋が「初回のみ軽減なし」という
-    // 劣化版になってしまうため20へ引き上げた（「仙台＝最初から備えて常に−15／名古屋＝初回は素通しだが
-    // 以後−20」という対比を成立させるため）。1箇所の定数にまとめてあるので、値を変えるならここだけでよい。
-    const VERSUS_FLOOD_LEARN_REDUCE = 20;
-    // 2026-09-24 第2陣：イスタンブール（abilityType:'response_double'）が対応フェーズで使える政策カードの
-    // 上限枚数（WORKTRACK.md §15 B-2）。city.abilityValueを流用しなかった理由はCITIES定義側のコメント参照
-    // （協力モードのcoopDraw(city.abilityValue)がドロー枚数として同じフィールドを読むため）。
-    const VERSUS_ISTANBUL_RESPONSE_MAX = 2;
     // 2026-09-13 Phase3：山札・捨て札はプレイヤーごとに個別（deck/discardはG.players[i]に持つ。トップレベルG.deck/G.discardは廃止）。
     // ⚠️ Firebase同期スキーマの互換に注意：listenToState()は受信したstateでGを丸ごと置き換える
     // （`G = { ...JSON.parse(data), confirm: null }`）。この変更前のクライアントが送るstateは旧スキーマ
@@ -6588,18 +6991,6 @@
     function getActiveCity(pi) { const p = G.players[pi]; return p.cities[p.activeCityIdx]; }
     function getActiveCityHp(pi) { const p = G.players[pi]; return p.cityHps[p.activeCityIdx]; }
     function getActiveMaxHp(pi) { return G.players[pi].cities[G.players[pi].activeCityIdx].hp; }
-    // ── カード工房：都市能力パラメータ化の共通ヘルパー ──
-    // quake_regen/flood_budget/flood_draw/quake_drawの4種は元々「対象災害idが実装側に固定」だった
-    // （niigata=地震／rotterdam・nagoya=洪水・津波／istanbul=地震）。カード工房のカテゴリB特殊効果
-    // （custom_regen/custom_budgetのevent mode・custom_draw）で任意の自然災害7種をトリガーに選べるようにする
-    // ため、city.abilityTargets配列を使った汎用チェックへ置き換える。実在都市（CITIES）はabilityTargetsを
-    // 持たないため、この既定値へフォールバックすることで既存4都市の挙動を完全に維持する。
-    const RON_LEGACY_ABILITY_TARGETS = {
-      quake_regen: ['earthquake'],        // niigata
-      flood_budget: ['flood', 'tsunami'], // rotterdam
-      flood_draw: ['flood', 'tsunami'],   // nagoya
-      quake_draw: ['earthquake'],         // istanbul
-    };
     function ronAbilityTargetMatch(city, abilityType, disasterId) {
       const targets = (city && Array.isArray(city.abilityTargets)) ? city.abilityTargets : (RON_LEGACY_ABILITY_TARGETS[abilityType] || null);
       return !!targets && targets.includes(disasterId);
@@ -6788,116 +7179,34 @@
       if (G.players[pi].hand.length > 5) { G.discardNeeded = { pi, returnTo }; G.screen = 'discard'; pushState(); render(); return true; }
       return false;
     }
-    function computeEstDmg(card, defIdx) {
-      const d = getActiveCity(defIdx); let e = card.baseDamage;
-      if (card.specialType === 'coastal_bonus' && d && d.isCoastal) e += 10;
-      else if (card.specialType === 'mountain_bonus' && d && d.isMountain) e += 10;
-      else if (card.specialType === 'inland_bonus' && d && !d.isCoastal && !d.isMountain) e += 10;
-      return e;
+    // 2026-10-09 段階2：以下の予測関数はすべて calcDamage（src/rules/010_damage.js）を呼ぶ薄いラッパー。
+    // 先攻1ターン目の初動補正を適用するか。実際の解決（resolveDamage）と予測が同じ条件を見るための唯一の判定。
+    function versusFirstTurnPenaltyApplies(attackCard) {
+      return attackCard.type === 'disaster' && !!G.pendingAttack && G.pendingAttack.attackerIdx === 0 && G.turnsEach[0] === 0;
     }
-    // 防御側が把握できる全要素を込みにした精度の高い予測ダメージ（対応フェーズ用）
+    // 通常フェーズの攻撃側視点：基礎ダメージ＋地形ボーナスのみ
+    function computeEstDmg(card, defIdx) {
+      return calcDamage({ attackCard: card, defCity: getActiveCity(defIdx), view: 'attacker' }).total;
+    }
+    // 防御側が把握できる全要素を込みにした精度の高い予測ダメージ（対応カードなし。forceNegate＝広域避難指示を使った仮定）
     function computeFullDefenderEst(attackCard, defIdx, forceNegate) {
-      const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
-      let e = attackCard.baseDamage;
-      const negated = forceNegate || def.effects.negateSpecial;
-      if (negated) { e -= 10; }
-      else {
-        if (attackCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) e += 10;
-        else if (attackCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) e += 10;
-        else if (attackCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) e += 10;
-      }
-      if (defCity) {
-        if (defCity.abilityType === 'resist_compound' && attackCard.id === 'compound') e -= defCity.abilityValue;
-        if (defCity.abilityType === 'resist_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) e -= defCity.abilityValue;
-        if (defCity.abilityType === 'resist_landslide' && attackCard.id === 'landslide') e -= defCity.abilityValue;
-        if (defCity.abilityType === 'resist_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) e -= defCity.abilityValue;
-        if (defCity.abilityType === 'resist_custom' && Array.isArray(defCity.abilityTargets) && defCity.abilityTargets.includes(attackCard.id)) e -= defCity.abilityValue;
-        if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) e -= defCity.abilityValue;
-        // 2026-09-24 第1陣B-2：名古屋の学習軽減（実際の適用はresolveDamage側）。予測もresolveDamageと
-        // 同じ値を出すため、ここでも同じ判定を反映する。
-        if (defCity.abilityType === 'flood_draw' && ronAbilityTargetMatch(defCity, 'flood_draw', attackCard.id) && def.effects.floodLearned) e -= VERSUS_FLOOD_LEARN_REDUCE;
-      }
-      if (def.effects.damageReduceHits > 0) e -= 15;
-      if (def.effects.shieldQuakeFire && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) e -= 30;
-      if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) e -= 25;
-      if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) e += defCity.abilityValue;
-      return Math.max(0, e);
+      const def = G.players[defIdx];
+      return calcDamage({ attackCard, defCity: getActiveCity(defIdx), defName: def.name, defEffects: def.effects, defHand: def.hand, responses: [], forceNegate: !!forceNegate, isFirstTurnPenalty: versusFirstTurnPenaltyApplies(attackCard), view: 'defender' }).total;
     }
     // 対応カードを使った場合の推定ダメージ（④HP予測用）
-    // 2026-09-24 第2陣：priorCards（省略可・既定[]）＝イスタンブールの対応フェーズで既に1枚目として使用
-    // 済みの対応カード。2枚目の候補カードごとの「予測HP」表示（renderResponseHand）で、1枚目の効果も
-    // 合わせた予測を出すために追加した。省略時（既存の全呼び出し）は従来どおりの計算のまま。
+    // priors＝イスタンブールの対応フェーズで既に1枚目として使用済みの対応カード（手札からは既に抜けている）。
+    // responseCard＝使おうとしている候補（手札にある）。解決時と同じく、候補を手札から除いた残りを渡す。
     function computeResponseEst(atkCard, defIdx, responseCard, priorCards) {
-      const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
+      const def = G.players[defIdx];
       const priors = priorCards || [];
-      let e = atkCard.baseDamage;
-      let specialNegated = def.effects.negateSpecial;
-      if (specialNegated) e -= 10;
-      const negaters = [...priors, responseCard].filter(c => c && c.effectType === 'negate_special');
-      if (!specialNegated && negaters.length > 0) { specialNegated = true; e -= 10; }
-      if (!specialNegated && atkCard.specialType) {
-        if (atkCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) e += 10;
-        else if (atkCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) e += 10;
-        else if (atkCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) e += 10;
-      }
-      if (defCity) {
-        if (defCity.abilityType === 'resist_compound' && atkCard.id === 'compound') e -= defCity.abilityValue;
-        if (defCity.abilityType === 'resist_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) e -= defCity.abilityValue;
-        if (defCity.abilityType === 'resist_landslide' && atkCard.id === 'landslide') e -= defCity.abilityValue;
-        if (defCity.abilityType === 'resist_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= defCity.abilityValue;
-        if (defCity.abilityType === 'resist_custom' && Array.isArray(defCity.abilityTargets) && defCity.abilityTargets.includes(atkCard.id)) e -= defCity.abilityValue;
-        if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) e -= defCity.abilityValue;
-        // 2026-09-24 第1陣B-2：名古屋の学習軽減（実際の適用はresolveDamage側）。
-        if (defCity.abilityType === 'flood_draw' && ronAbilityTargetMatch(defCity, 'flood_draw', atkCard.id) && def.effects.floodLearned) e -= VERSUS_FLOOD_LEARN_REDUCE;
-      }
-      if (def.effects.damageReduceHits > 0) e -= 15;
-      if (def.effects.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) e -= 30;
-      if (def.effects.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= 25;
-      // イスタンブールの1枚目（既に使用済み）の効果を先に反映してから、2枚目の候補（responseCard）を足す
-      for (const pc of priors) {
-        if (pc.effectType === 'shield_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) e -= 30;
-        if (pc.effectType === 'shield_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= 25;
-        if (pc.effectType === 'heal') e -= Math.floor(pc.value / 2);
-        if (pc.effectType === 'damage_reduce_2t') e -= 15;
-      }
-      if (responseCard) {
-        if (responseCard.effectType === 'shield_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) e -= 30;
-        if (responseCard.effectType === 'shield_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) e -= 25;
-        if (responseCard.effectType === 'heal') e -= Math.floor(responseCard.value / 2);
-        if (responseCard.effectType === 'damage_reduce_2t') e -= 15; // 4.1.1決定：対応フェーズ使用でもこの攻撃から即時軽減
-      }
-      if (defCity && defCity.abilityType === 'vulnerability_draw') {
-        const postRespLen = def.hand.length - (responseCard ? 1 : 0) - priors.length;
-        if (postRespLen <= 2) e += defCity.abilityValue;
-      }
-      return Math.max(0, e);
+      const hand = responseCard ? def.hand.filter(c => c !== responseCard && !(c.uid && c.uid === responseCard.uid)) : def.hand;
+      return calcDamage({ attackCard: atkCard, defCity: getActiveCity(defIdx), defName: def.name, defEffects: def.effects, defHand: hand, responses: [...priors, responseCard], isFirstTurnPenalty: versusFirstTurnPenaltyApplies(atkCard), view: 'defender' }).total;
     }
     // 対応バーのダメージ内訳を生成（①ダメージ内訳表示用）
     function buildDmgBreakdown(atkCard, defIdx) {
-      const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
-      let e = atkCard.baseDamage; const mods = [];
-      const negated = def.effects.negateSpecial;
-      if (negated) { mods.push({label:'避難指示',delta:-10}); e -= 10; }
-      else if (atkCard.specialType) {
-        if (atkCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) { mods.push({label:'海岸',delta:+10}); e += 10; }
-        else if (atkCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) { mods.push({label:'山間部',delta:+10}); e += 10; }
-        else if (atkCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) { mods.push({label:'内陸',delta:+10}); e += 10; }
-      }
-      if (defCity) {
-        if (defCity.abilityType === 'resist_compound' && atkCard.id === 'compound') { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
-        if (defCity.abilityType === 'resist_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
-        if (defCity.abilityType === 'resist_landslide' && atkCard.id === 'landslide') { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
-        if (defCity.abilityType === 'resist_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
-        if (defCity.abilityType === 'resist_custom' && Array.isArray(defCity.abilityTargets) && defCity.abilityTargets.includes(atkCard.id)) { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
-        if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { mods.push({label:'都市',delta:-defCity.abilityValue}); e -= defCity.abilityValue; }
-        // 2026-09-24 第1陣B-2：名古屋の学習軽減（実際の適用はresolveDamage側）。
-        if (defCity.abilityType === 'flood_draw' && ronAbilityTargetMatch(defCity, 'flood_draw', atkCard.id) && def.effects.floodLearned) { mods.push({label:'都市',delta:-VERSUS_FLOOD_LEARN_REDUCE}); e -= VERSUS_FLOOD_LEARN_REDUCE; }
-      }
-      if (def.effects.damageReduceHits > 0) { mods.push({label:'防災庁',delta:-15}); e -= 15; }
-      if (def.effects.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) { mods.push({label:'耐震',delta:-30}); e -= 30; }
-      if (def.effects.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) { mods.push({label:'堤防',delta:-25}); e -= 25; }
-      if (defCity && defCity.abilityType === 'vulnerability_draw' && def.hand.length <= 2) { mods.push({label:'脆弱性',delta:+defCity.abilityValue}); e += defCity.abilityValue; }
-      return { total: Math.max(0, e), base: atkCard.baseDamage, mods };
+      const def = G.players[defIdx];
+      const r = calcDamage({ attackCard: atkCard, defCity: getActiveCity(defIdx), defName: def.name, defEffects: def.effects, defHand: def.hand, responses: [], isFirstTurnPenalty: versusFirstTurnPenaltyApplies(atkCard), view: 'defender' });
+      return { total: r.total, base: r.base, mods: r.mods.filter(m => !m.hidden && m.delta != null).map(m => ({ label: m.label, delta: m.delta })) };
     }
     // 2026-09-12 Phase2-A：先攻1ターン目の「災害カード使用不可」は撤廃（ダメージ半減方式へ変更）のため、
     // ここでの型別フィルタも撤廃。予算のみが使用可否を決める。
@@ -6972,105 +7281,39 @@
     function resolveDamage(attackCard, defIdx, responseCard, responseCard2) {
       const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
       const responses = [responseCard, responseCard2].filter(Boolean);
-      const fromHp = def.cityHps[def.activeCityIdx]; let dmg = attackCard.baseDamage; const log = [];
-      // 構造化ログヘルパー：cat=カテゴリ, text=説明文, delta=ダメージ変化量（nullなら非ダメージ効果）
-      const ld = (cat, text, delta) => log.push({ cat, text, delta: delta ?? null, running: delta != null ? dmg : null });
-      // 特殊効果キャンセル。2枚とも広域避難指示（negate_special）でも無効化は1回だけ（specialNegatedガード）。
-      let specialNegated = false;
-      if (def.effects.negateSpecial) { specialNegated = true; def.effects.negateSpecial = false; dmg -= 10; ld('negate', '広域避難指示（事前設置）：特殊効果を無効化 −10', -10); }
-      for (const rc of responses) {
-        if (!specialNegated && rc.effectType === 'negate_special') { specialNegated = true; dmg -= 10; ld('negate', '広域避難指示（対応フェーズ）：特殊効果を無効化 −10', -10); }
-      }
-      // 特殊効果適用
-      if (!specialNegated && attackCard.specialType) {
-        if (attackCard.specialType === 'coastal_bonus' && defCity && defCity.isCoastal) { dmg += 10; ld('exposure', '海岸都市（地形リスク：洪水・津波への曝露）', +10); }
-        if (attackCard.specialType === 'mountain_bonus' && defCity && defCity.isMountain) { dmg += 10; ld('exposure', '山間部都市（地形リスク：土砂崩れへの曝露）', +10); }
-        if (attackCard.specialType === 'inland_bonus' && defCity && !defCity.isCoastal && !defCity.isMountain) { dmg += 10; ld('exposure', '内陸都市（地形リスク：地震への曝露）', +10); }
-        if (attackCard.specialType === 'discard_policy') {
-          const pols = def.hand.filter(c => c.type === 'policy' || c.type === 'disaster' || c.type === 'jinzai');
-          if (pols.length > 0) { const d = pols[Math.random() * pols.length | 0]; def.hand.splice(def.hand.indexOf(d), 1); def.discard.push(d); ld('special', `台風：${def.name}の手札から1枚を破棄`, null); G._nextTurnEvents[defIdx].push({ type: 'typhoon_discard', cardIcon: d.icon, cardName: d.name }); }
-          else ld('special', '台風：手札なし（効果なし）', null);
-        }
-      }
-      // 都市能力
-      if (defCity) {
-        if (defCity.abilityType === 'resist_compound' && attackCard.id === 'compound') { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：複合災害軽減（防災投資）`, -defCity.abilityValue); }
-        if (defCity.abilityType === 'resist_quake_fire' && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：地震・大火災軽減（防災投資）`, -defCity.abilityValue); }
-        if (defCity.abilityType === 'resist_landslide' && attackCard.id === 'landslide') { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：土砂崩れ軽減（防災投資）`, -defCity.abilityValue); }
-        if (defCity.abilityType === 'resist_flood' && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：洪水・津波軽減（防災投資）`, -defCity.abilityValue); }
-        if (defCity.abilityType === 'resist_custom' && Array.isArray(defCity.abilityTargets) && defCity.abilityTargets.includes(attackCard.id)) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：${defCity.abilityTargets.map(cwCustomResistTargetLabel).join('・')}軽減（防災投資）`, -defCity.abilityValue); }
-        if (defCity.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) { dmg -= defCity.abilityValue; ld('city_policy', `${defCity.name}の都市対策：連続被弾軽減（適応力）`, -defCity.abilityValue); }
-        // 2026-09-24 第1陣B-2→第2陣：名古屋の学習軽減（WORKTRACK.md §15 B-2）。「一度でも受けたら以後は
-        // 常に軽減される」仕様のため、①フラグが立っていれば今回のダメージを固定値で軽減 → ②フラグを立てる、
-        // の順で行う（今回の被弾には使わない＝1回目は素通し。2回目以降は常に−VERSUS_FLOOD_LEARN_REDUCE
-        // （第2陣で20に改定）で据え置き・増えない。累積ではない）。
-        // flood_draw（洪水・津波時1枚ドロー）はnagoya専用のabilityType（CW経由のカスタムドロー＝
-        // custom_drawはcwAbilityInfoが常にabilityType:'quake_draw'を返すため、ここには乗らない。
-        // カード工房の挙動はこの変更で一切変わらない＝確認済み）。
-        if (defCity.abilityType === 'flood_draw' && ronAbilityTargetMatch(defCity, 'flood_draw', attackCard.id)) {
-          if (def.effects.floodLearned) { dmg -= VERSUS_FLOOD_LEARN_REDUCE; ld('city_policy', `${defCity.name}の都市対策：洪水・津波の学習軽減（被災の経験） −${VERSUS_FLOOD_LEARN_REDUCE}`, -VERSUS_FLOOD_LEARN_REDUCE); }
-          def.effects.floodLearned = true;
-        }
-        if (defCity.abilityType === 'quake_regen' && ronAbilityTargetMatch(defCity, 'quake_regen', attackCard.id)) def.effects.quakeHitThisTurn = true;
-        if (defCity.abilityType === 'flood_budget' && ronAbilityTargetMatch(defCity, 'flood_budget', attackCard.id)) { def.effects.floodBonusTurns = 1; ld('city_effect', `${defCity.name}の都市能力：次ターン予算+${defCity.abilityValue}（洪水後の復旧力）`, null); G._nextTurnEvents[defIdx].push({ type: 'flood_budget', cityIcon: terrainImg(defCity, 18), cityName: defCity.name, bonusAmt: defCity.abilityValue }); }
-        // 2026-09-24 第2陣：名古屋のドローを廃止した（WORKTRACK.md §15 B-2 追加指示）。以前はここで
-        // drawCards(defIdx, defCity.abilityValue)+autoDiscard(defIdx)を呼んでいたが削除し、上のfloodLearned
-        // 軽減ブロックのみを残した。nagoyaのabilityValue（1）自体は削除していない＝協力モード
-        // （coopResolveAttack、13000行台）が同じ'flood_draw'で今回も無変更（引き続きabilityValue枚ドロー）
-        // のため、共有フィールドとして残す必要がある。
-        // quake_draw（地震被弾時1枚ドロー）は、実在都市ではもう使われない（istanbulはresponse_doubleへ改名
-        // 済み）が、カード工房のカスタムドロー（CW_CUSTOM_DRAW_ID）が任意の都市に汎用的に付与できる能力
-        // として引き続き存在するため、このブロック自体は残す。
-        if (defCity.abilityType === 'quake_draw' && ronAbilityTargetMatch(defCity, 'quake_draw', attackCard.id)) { drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); ld('city_effect', `${defCity.name}の都市能力：${defCity.abilityValue}枚ドロー（被災後の学習）`, null); }
-      }
-      def.effects.disastersReceivedThisTurn++;
-      // 防災庁
-      if (def.effects.damageReduceHits > 0) { dmg -= 15; def.effects.damageReduceHits--; ld('agency', `防災庁設置：全ダメージ軽減（残${def.effects.damageReduceHits}回）`, -15); G._nextTurnEvents[defIdx].push({ type: 'disaster_agency_remaining', remaining: def.effects.damageReduceHits }); }
-      // シールド（事前）
-      if (def.effects.shieldQuakeFire && (attackCard.id === 'earthquake' || attackCard.id === 'wildfire')) { dmg -= 30; def.effects.shieldQuakeFire = false; ld('shield_pre', '耐震補強（事前設置）：発動・消費', -30); }
-      if (def.effects.shieldFlood && (attackCard.id === 'flood' || attackCard.id === 'tsunami')) { dmg -= 25; def.effects.shieldFlood = false; ld('shield_pre', '堤防建設（事前設置）：発動・消費', -25); }
-      // 対応カード（シールド系・防災庁）：耐震補強・堤防建設と同じく、使用した瞬間からこの攻撃にも適用される（4.1.1決定・2026-07-17統一）。
-      // 2026-09-24 第2陣：2枚とも対象で「政策カードを2枚まで使える」仕様どおり両方の効果を乗せる方針で実装した
-      // （例：耐震補強を2枚使えば−30が2回で−60になる。防災庁設置を2枚ならdamage_reduce_2tが2回発動し、
-      // 実測はdev/_versus_harness.js・TASKS.mdの実装記録を参照）。
-      for (const rc of responses) {
-        if (rc.effectType !== 'negate_special' && rc.effectType !== 'heal') {
-          applyPolicyEffect(rc, defIdx, true);
-          if (rc.effectType === 'shield_quake_fire') { def.effects.shieldQuakeFire = false; if (attackCard.id === 'earthquake' || attackCard.id === 'wildfire') { dmg -= 30; ld('shield_resp', '耐震補強（対応フェーズ）：発動・消費', -30); } }
-          if (rc.effectType === 'shield_flood') { def.effects.shieldFlood = false; if (attackCard.id === 'flood' || attackCard.id === 'tsunami') { dmg -= 25; ld('shield_resp', '堤防建設（対応フェーズ）：発動・消費', -25); } }
-          if (rc.effectType === 'damage_reduce_2t') { dmg -= 15; def.effects.damageReduceHits--; ld('agency', `防災庁設置（対応フェーズ）：全ダメージ軽減・発動（残${def.effects.damageReduceHits}回）`, -15); G._nextTurnEvents[defIdx].push({ type: 'disaster_agency_remaining', remaining: def.effects.damageReduceHits }); }
-        }
-      }
-      // 対応カード（即時回復：ダメージ軽減として計算）。2枚とも回復系なら両方とも対応時半減のまま合算する。
+      const fromHp = def.cityHps[def.activeCityIdx];
+      // 数値とログ文は calcDamage（純粋関数）が決める。ここでは mods を順に辿って副作用だけを行う。
+      // mods は副作用とログの順序そのままに並んでいる（台風の破棄・ドロー・防災庁の消費などがダメージの間に挟まる）。
+      const calc = calcDamage({ attackCard, defCity, defName: def.name, defEffects: def.effects, defHand: def.hand, responses, isFirstTurnPenalty: versusFirstTurnPenaltyApplies(attackCard), view: 'actual' });
+      const log = [];
       let healAmt = 0; const healNames = [];
-      for (const rc of responses) {
-        if (rc.effectType === 'heal') {
-          const healVal = Math.floor(rc.value / 2); // 対応フェーズでは半減
-          healAmt += healVal; healNames.push(rc.name);
-          dmg -= healVal;
+      for (const m of calc.mods) {
+        switch (m.fx) {
+          case 'negatePre': def.effects.negateSpecial = false; break;
+          case 'typhoon': {
+            const pols = def.hand.filter(c => c.type === 'policy' || c.type === 'disaster' || c.type === 'jinzai');
+            if (pols.length > 0) { const d = pols[Math.random() * pols.length | 0]; def.hand.splice(def.hand.indexOf(d), 1); def.discard.push(d); G._nextTurnEvents[defIdx].push({ type: 'typhoon_discard', cardIcon: d.icon, cardName: d.name }); }
+            break;
+          }
+          case 'floodLearned': def.effects.floodLearned = true; break;
+          case 'quakeHit': def.effects.quakeHitThisTurn = true; break;
+          case 'floodBudget': def.effects.floodBonusTurns = 1; G._nextTurnEvents[defIdx].push({ type: 'flood_budget', cityIcon: terrainImg(defCity, 18), cityName: defCity.name, bonusAmt: defCity.abilityValue }); break;
+          case 'quakeDraw': drawCards(defIdx, defCity.abilityValue); autoDiscard(defIdx); break;
+          case 'received': def.effects.disastersReceivedThisTurn++; break;
+          case 'agencyPre': case 'agencyResp': def.effects.damageReduceHits--; G._nextTurnEvents[defIdx].push({ type: 'disaster_agency_remaining', remaining: def.effects.damageReduceHits }); break;
+          case 'shieldPreQF': def.effects.shieldQuakeFire = false; break;
+          case 'shieldPreFlood': def.effects.shieldFlood = false; break;
+          case 'applyPolicy': applyPolicyEffect(m.rc, defIdx, true); break;
+          case 'respClearQF': def.effects.shieldQuakeFire = false; break;
+          case 'respClearFlood': def.effects.shieldFlood = false; break;
+          case 'vulnDraw': drawCards(defIdx, 1); autoDiscard(defIdx); break;
         }
+        if (m.cat === 'heal') { healAmt += -m.delta; healNames.push(m.rc.name); }
+        if (!m.noLog) log.push({ cat: m.cat, text: m.text, delta: m.delta, running: m.running });
       }
       const healName = healNames.join('・');
-      // ニューオーリンズ（対応カードを使った場合は使用前の手札数で判定）。2026-09-24 第2陣：使用した
-      // 対応カードの実枚数（responses.length・0〜2）を足す形に修正した（旧実装は`responseCard ? 1 : 0`で
-      // 2枚使用時に手札数がずれていた）。
-      const _noHandLen = def.hand.length + responses.length;
-      if (defCity && defCity.abilityType === 'vulnerability_draw' && _noHandLen <= 2) {
-        dmg += defCity.abilityValue; ld('vuln', `ニューオーリンズ（社会的脆弱性：手札${_noHandLen}枚）`, +defCity.abilityValue);
-        drawCards(defIdx, 1); autoDiscard(defIdx); ld('city_effect', 'ニューオーリンズの底力：コミュニティ1枚ドロー', null);
-      }
-      // 2026-09-12 Phase2-A：先攻1ターン目の「使用不可」を「ダメージ半減」に変更（初期手札の内訳ルール撤廃と対）。
-      // 2026-09-24 第1陣A-1：さらに「半減」を「固定−20」へ変更（WORKTRACK.md §15 A-1）。ゲーム中唯一の
-      // 割り算箇所をここから無くす狙い。適用位置は変更しない＝都市能力・シールド・防災庁・対応カードなど
-      // 全ての軽減を終えた最終段。人為災害（公害・テロ攻撃・デマ拡散）はbaseDamageを持たないため対象外
-      // （そのまま使用できる。公害は1ターン目に相手のシールドが存在しないため実質空振りになるが、
-      // これは仕様として許容する＝エラーにしない）。
-      if (attackCard.type === 'disaster' && G.pendingAttack && G.pendingAttack.attackerIdx === 0 && G.turnsEach[0] === 0) {
-        dmg -= VERSUS_FIRST_TURN_PENALTY;
-        ld('first_turn_penalty', `先攻1ターン目：初動補正 −${VERSUS_FIRST_TURN_PENALTY}`, -VERSUS_FIRST_TURN_PENALTY);
-      }
       // ダメージ確定
-      dmg = Math.max(0, dmg); def.cityHps[def.activeCityIdx] -= dmg;
+      const dmg = calc.total; def.cityHps[def.activeCityIdx] -= dmg;
       let finalHp = def.cityHps[def.activeCityIdx]; const hpAD = finalHp;
       if (fromHp !== finalHp) queueHpAnim(defIdx, fromHp, finalHp);
       const aN = G.players[G.pendingAttack.attackerIdx].name;
@@ -10342,12 +10585,14 @@
           const p = G.players[pi]; const curHp = p.cityHps[p.activeCityIdx]; const mxHp = getActiveMaxHp(pi); let h = '';
           if (c.fn === 'playResponseCard' && G.pendingAttack) {
             // 対応フェーズ：防御側が把握できる全要素を込みにした予測
-            const atk = G.pendingAttack.card; const est = computeFullDefenderEst(atk, pi);
+            // 対応カードを使った後の予測は computeResponseEst に一本化（手札が減ることも含め、解決時と同じ計算）
+            const atk = G.pendingAttack.card; const _priors = G.pendingAttack.responses || [];
+            const _est = () => computeResponseEst(atk, pi, card, _priors);
             if (card.effectType === 'heal') { const healResp = Math.floor(card.value / 2); h = `HP +${healResp} 回復（対応時半減）`; }
-            else if (card.effectType === 'shield_quake_fire') { if (atk.id === 'earthquake' || atk.id === 'wildfire') { h = `この攻撃に適用：−30 → 予測ダメージ <strong style="color:var(--green)">${Math.max(0, est - 30)}</strong>`; } else { h = 'この攻撃には不適用（次の地震・大火災に −30 設置）'; } }
-            else if (card.effectType === 'shield_flood') { if (atk.id === 'flood' || atk.id === 'tsunami') { h = `この攻撃に適用：−25 → 予測ダメージ <strong style="color:var(--green)">${Math.max(0, est - 25)}</strong>`; } else { h = 'この攻撃には不適用（次の洪水・津波に −25 設置）'; } }
-            else if (card.effectType === 'negate_special') { const withN = computeFullDefenderEst(atk, pi, true); h = `特殊効果を無効＋ダメージ−10 → 予測ダメージ <strong style="color:var(--green)">${withN}</strong>`; }
-            else if (card.effectType === 'damage_reduce_2t') { h = `全ダメージ −15（2回・今回の攻撃から適用）→ 予測ダメージ <strong style="color:var(--green)">${Math.max(0, est - 15)}</strong>`; }
+            else if (card.effectType === 'shield_quake_fire') { if (atk.id === 'earthquake' || atk.id === 'wildfire') { h = `この攻撃に適用：−30 → 予測ダメージ <strong style="color:var(--green)">${_est()}</strong>`; } else { h = 'この攻撃には不適用（次の地震・大火災に −30 設置）'; } }
+            else if (card.effectType === 'shield_flood') { if (atk.id === 'flood' || atk.id === 'tsunami') { h = `この攻撃に適用：−25 → 予測ダメージ <strong style="color:var(--green)">${_est()}</strong>`; } else { h = 'この攻撃には不適用（次の洪水・津波に −25 設置）'; } }
+            else if (card.effectType === 'negate_special') { h = `特殊効果を無効＋ダメージ−10 → 予測ダメージ <strong style="color:var(--green)">${_est()}</strong>`; }
+            else if (card.effectType === 'damage_reduce_2t') { h = `全ダメージ −15（2回・今回の攻撃から適用）→ 予測ダメージ <strong style="color:var(--green)">${_est()}</strong>`; }
             else if (card.effectType === 'draw') { h = `山札から ${card.value} 枚ドロー`; }
             else if (card.effectType === 'recycle_hand') { h = '手札を好きな枚数だけ山札に戻して同じ枚数を引き直す'; }
           } else {
@@ -11636,28 +11881,14 @@
       else selectCityOrder(1, 0);
     }
 
+    // CPUの手選び用の見積もり。数値は calcDamage（防御側視点の全要素）に任せる。
+    // easy だけは防御側の事前効果（避難指示・防災庁・シールド）を見ない（意図的な弱さ）。
+    // CPUは常に後攻（idx1）なので先攻1ターン目の初動補正は対象外。
     function _cpuEstimateDmg(card, defIdx) {
       if (card.type !== 'disaster') return 0;
       const def = G.players[defIdx]; const city = def.cities[def.activeCityIdx];
       if (!city) return 0;
-      let dmg = card.baseDamage;
-      if (card.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain) dmg += 10;
-      if (card.specialType === 'coastal_bonus' && city.isCoastal) dmg += 10;
-      if (card.specialType === 'mountain_bonus' && city.isMountain) dmg += 10;
-      if (city.abilityType === 'resist_quake_fire' && (card.id === 'earthquake' || card.id === 'wildfire')) dmg -= city.abilityValue;
-      if (city.abilityType === 'resist_flood' && (card.id === 'flood' || card.id === 'tsunami')) dmg -= city.abilityValue;
-      if (city.abilityType === 'resist_landslide' && card.id === 'landslide') dmg -= city.abilityValue;
-      if (city.abilityType === 'resist_compound' && card.id === 'compound') dmg -= city.abilityValue;
-      if (city.abilityType === 'resist_custom' && Array.isArray(city.abilityTargets) && city.abilityTargets.includes(card.id)) dmg -= city.abilityValue;
-      if (city.abilityType === 'second_hit_reduce' && def.effects.disastersReceivedThisTurn >= 1) dmg -= city.abilityValue;
-      if (city.abilityType === 'vulnerability_draw' && def.hand.length <= 2) dmg += city.abilityValue;
-      if (cpuDifficulty !== 'easy') {
-        if (def.effects.shieldQuakeFire && (card.id === 'earthquake' || card.id === 'wildfire')) dmg -= 30;
-        if (def.effects.shieldFlood && (card.id === 'flood' || card.id === 'tsunami')) dmg -= 25;
-        if (def.effects.negateSpecial && card.specialType === 'skip_response') dmg -= 10;
-        if (def.effects.damageReduceHits > 0) dmg -= 15;
-      }
-      return Math.max(0, dmg);
+      return calcDamage({ attackCard: card, defCity: city, defName: def.name, defEffects: def.effects, defHand: def.hand, responses: [], isFirstTurnPenalty: false, view: 'defender', blindDefEffects: cpuDifficulty === 'easy' }).total;
     }
 
     function _cpuDoMainTurn() {
@@ -13619,57 +13850,15 @@
     // comboBonus は省略可（既定0）。連鎖コンボ増幅を含めた合計を予測する呼び出し側（coopEstimate等）向けのオプション引数で、
     // 実際の解決(coopResolveAttack)と同じ位置（地形ボーナスの直後・耐性/シールド軽減より前）で加算し、最終クランプも1回だけにすることで
     // 「軽減で一旦0未満になった値をコンボ増幅が引き上げる」ケースの予測とのズレを防ぐ（省略時は従来どおりの計算・結果と完全に同じ）
+    // 計算本体は calcCoopDamage（rules/030_coop-damage.js）。coopResolveAttack と同じ関数を呼ぶので、予測と実際は構造的に一致する。
+    // 手札枚数は、対応カード（resp）を手札から除いた後の枚数で渡す（実際の解決は対応カードを除いてから呼ばれる）。
     function coopPredictDamage(atkCard, cs, resp, comboBonus) {
-      const city = cs.city, e = cs.effects;
-      let dmg = atkCard.baseDamage; let neg = false;
-      if (e.negateSpecial) { neg = true; dmg -= 10; }
-      else if (resp && resp.effectType === 'negate_special') { neg = true; dmg -= 10; }
-      let extraHandLoss = 0; // 台風：ランダムに手札を1枚破棄する（どのカードが選ばれるかは予測不能だが、破棄されるかどうか＝手札枚数が1減るかは決定的）
-      if (!neg && atkCard.specialType) {
-        if (atkCard.specialType === 'coastal_bonus' && city.isCoastal) dmg += 10;
-        else if (atkCard.specialType === 'mountain_bonus' && city.isMountain) dmg += 10;
-        else if (atkCard.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain) dmg += 10;
-        else if (atkCard.specialType === 'discard_policy' && (CO.hand.length - (resp ? 1 : 0)) > 0) extraHandLoss = 1;
-      }
-      if (comboBonus) dmg += comboBonus;
-      if (city.abilityType === 'resist_compound' && atkCard.id === 'compound') dmg -= city.abilityValue;
-      if (city.abilityType === 'resist_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= city.abilityValue;
-      if (city.abilityType === 'resist_landslide' && atkCard.id === 'landslide') dmg -= city.abilityValue;
-      if (city.abilityType === 'resist_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= city.abilityValue;
-      if (city.abilityType === 'resist_custom' && Array.isArray(city.abilityTargets) && city.abilityTargets.includes(atkCard.id)) dmg -= city.abilityValue;
-      if (city.abilityType === 'second_hit_reduce' && e.disastersReceivedThisTurn >= 1) dmg -= city.abilityValue;
-      if (e.damageReduceHits > 0) dmg -= 15;
-      if (e.shieldQuakeFire && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= 30;
-      if (e.shieldFlood && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= 25;
-      if (resp) {
-        if (resp.effectType === 'shield_quake_fire' && (atkCard.id === 'earthquake' || atkCard.id === 'wildfire')) dmg -= 30;
-        if (resp.effectType === 'shield_flood' && (atkCard.id === 'flood' || atkCard.id === 'tsunami')) dmg -= 25;
-        if (resp.effectType === 'heal') dmg -= Math.floor(resp.value / 2);
-      }
-      // 脆弱性判定は実際の解決(coopResolveRound)では対応カードを手札から取り除いた後（＋台風なら追加で1枚破棄された後）の枚数で行われるため、
-      // resp（プレビュー/適用予定のカード）・台風の破棄を反映した枚数で判定し実測との乖離を防ぐ
-      if (city.abilityType === 'vulnerability_draw' && (CO.hand.length - (resp ? 1 : 0) - extraHandLoss) <= 2) dmg += city.abilityValue;
-      return Math.max(0, dmg);
+      return calcCoopDamage({ atk: atkCard, city: cs.city, effects: cs.effects, resp, comboBonus, handLen: CO.hand.length - (resp ? 1 : 0), reviveGuard: cs.reviveGuard }).total;
     }
-    // 連鎖（二次災害）の予測。read-only。本体攻撃が先に消費するシールド・防災庁を考慮して追加ダメージを返す。
-    // coopApplyChain と同じ判定をミラーする（連鎖は広域避難指示の特殊無効の影響を受けず、地形が合えば必ず発生する）。
+    // 連鎖（二次災害）の予測。read-only。計算は calcCoopEstimate → calcCoopChain（rules/030_coop-damage.js）で、coopApplyChain と同じ関数を呼ぶ。
+    // 本体攻撃が消費するシールド・防災庁は、本体の steps の fx から導出した「本体解決後の effects」を起点にするので、手で真似ない。復興猶予の半減も同じ関数が掛ける。
     function coopPredictChain(atkCard, cs) {
-      const chains = COOP_CHAINS[atkCard.id]; if (!chains) return [];
-      const e = cs.effects;
-      let hitsLeft = e.damageReduceHits > 0 ? e.damageReduceHits - 1 : 0; // 防災庁は本体攻撃が1回消費した残りを連鎖に適用
-      let floodShield = e.shieldFlood && !(atkCard.id === 'flood' || atkCard.id === 'tsunami');         // 本体が同種でなければ堤防は連鎖まで残る
-      let quakeShield = e.shieldQuakeFire && !(atkCard.id === 'earthquake' || atkCard.id === 'wildfire'); // 大火災は本体が耐震を消費するため延焼には残らない
-      const out = [];
-      for (const ch of chains) {
-        const m = ch.cond === 'coastal' ? cs.city.isCoastal : ch.cond === 'mountain' ? cs.city.isMountain : (!cs.city.isCoastal && !cs.city.isMountain);
-        if (!m) continue;
-        let d = ch.dmg;
-        if (ch.shield === 'shieldFlood' && floodShield) { d = Math.max(0, d - 25); floodShield = false; }
-        if (ch.shield === 'shieldQuakeFire' && quakeShield) { d = Math.max(0, d - 30); quakeShield = false; }
-        if (hitsLeft > 0) { d = Math.max(0, d - 15); hitsLeft--; }
-        out.push({ label: ch.label, icon: ch.icon, dmg: Math.max(0, d) });
-      }
-      return out;
+      return coopEstimateDetail(atkCard, cs, null).chain.items.map(it => ({ label: it.baseLabel, icon: it.icon, dmg: it.dmg, halved: it.halved }));
     }
     // 連鎖コンボ増幅の判定（read-only）。2次災害の実カードを、同一ターンに同じ都市へ撃った1次災害（trigger）に重ねた時のボーナス。
     // 地形が合い、かつ現在の予約攻撃（CO.incoming）に trigger 災害が同都市へ入っている場合のみ COOP_COMBO_BONUS を返す。
@@ -13683,11 +13872,13 @@
     }
     // 予測総ダメージ＝本体＋連鎖＋コンボ増幅（表示用。実ダメージは coopResolveAttack＋coopApplyChain が算出する）
     // コンボ増幅はcoopPredictDamageの4番目の引数として渡し、実解決と同じ「最終クランプの前に加算」の順序に揃える
-    function coopEstimate(card, cs) {
+    // 計算は calcCoopEstimate（本体＋連鎖＋コンボ＋復興猶予の半減）。確認ポップの内訳も同じ戻り値（parts）から作る。resp を渡すと対応カード適用後の予測。
+    function coopEstimateDetail(card, cs, resp) {
       const idx = CO.cities ? CO.cities.indexOf(cs) : -1;
       const combo = idx >= 0 ? coopComboBonus(card, idx) : 0;
-      return coopPredictDamage(card, cs, null, combo) + coopPredictChain(card, cs).reduce((s, x) => s + x.dmg, 0);
+      return calcCoopEstimate({ atk: card, city: cs.city, effects: cs.effects, resp: resp || null, comboBonus: combo, handLen: CO.hand.length - (resp ? 1 : 0), reviveGuard: cs.reviveGuard });
     }
+    function coopEstimate(card, cs) { return coopEstimateDetail(card, cs, null).total; }
     // リーチ警告バッジ用：残り災害プールに実際に来襲し得る種類だけを返す（プールに存在しない災害での過大警告を防ぐ）。
     // 人間が自然側を操作する場合（CO.humanSide==='nature'）は有限のCO.naturePool（使い切ると二度と出ない）を参照する。
     // それ以外（通常の都市側プレイ・MP＝自然側は常にCPU/スクリプト）はCO.natureDeck+natureDiscardの合算枚数を見る。
@@ -13739,73 +13930,38 @@
     }
 
     // ── ダメージ解決（協力版：対戦の式を踏襲しつつ CO 状態で計算） ──
-    function coopResolveAttack(atk, cs, resp, comboBonus) {
-      const city = cs.city, e = cs.effects; const fromHp = cs.hp;
-      let dmg = atk.baseDamage; const lines = [];
-      const ld = (t, d) => lines.push({ t, d: d == null ? null : d });
-      let neg = false;
-      if (e.negateSpecial) { neg = true; e.negateSpecial = false; dmg -= 10; ld('広域避難指示（事前）：特殊効果を無効', -10); }
-      else if (resp && resp.effectType === 'negate_special') { neg = true; dmg -= 10; ld('広域避難指示（対応）：特殊効果を無効', -10); }
-      if (!neg && atk.specialType) {
-        if (atk.specialType === 'coastal_bonus' && city.isCoastal) { dmg += 10; ld('海岸都市（地形リスク）', +10); }
-        if (atk.specialType === 'mountain_bonus' && city.isMountain) { dmg += 10; ld('山間部都市（地形リスク）', +10); }
-        if (atk.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain) { dmg += 10; ld('内陸都市（地形リスク）', +10); }
-        if (atk.specialType === 'discard_policy') {
-          if (CO.hand.length > 0) { const di = Math.random() * CO.hand.length | 0; const d = CO.hand.splice(di, 1)[0]; CO.policyDiscard.push(d); ld(`台風：手札「${d.name}」を破棄`, null); }
-          else ld('台風：手札なし（効果なし）', null);
+    // 計算は calcCoopDamage（rules/030_coop-damage.js）が行い、ここは返ってきた steps の順に副作用とログを実行する。
+    function coopApplyHitFx(fx, cs, lines) {
+      const e = cs.effects;
+      switch (fx.op) {
+        case 'typhoon': {
+          const di = Math.random() * CO.hand.length | 0; const d = CO.hand.splice(di, 1)[0]; CO.policyDiscard.push(d);
+          lines.push({ t: `台風：手札「${d.name}」を破棄`, d: null });
+          break;
         }
+        case 'budget': CO.nextBudgetBonus = (CO.nextBudgetBonus || 0) + fx.n; break;
+        case 'draw': coopDraw(fx.n); break;
+        default: coopApplyFxToEffects(e, fx); // effects だけを書き換える fx は rules/030_coop-damage.js の共有関数が行う
       }
-      // 連鎖コンボ増幅：同一ターンに trigger 災害を撃った都市へ2次災害の実カードを重ねた時の追い打ち。広域避難（特殊無効）の影響は受けない。
-      if (comboBonus > 0) { dmg += comboBonus; ld('連鎖増幅（前の災害への追い打ち）', +comboBonus); }
-      if (city.abilityType === 'resist_compound' && atk.id === 'compound') { dmg -= city.abilityValue; ld(`${city.name}：複合災害軽減`, -city.abilityValue); }
-      if (city.abilityType === 'resist_quake_fire' && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= city.abilityValue; ld(`${city.name}：地震・大火災軽減`, -city.abilityValue); }
-      if (city.abilityType === 'resist_landslide' && atk.id === 'landslide') { dmg -= city.abilityValue; ld(`${city.name}：土砂崩れ軽減`, -city.abilityValue); }
-      if (city.abilityType === 'resist_flood' && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= city.abilityValue; ld(`${city.name}：洪水・津波軽減`, -city.abilityValue); }
-      if (city.abilityType === 'resist_custom' && Array.isArray(city.abilityTargets) && city.abilityTargets.includes(atk.id)) { dmg -= city.abilityValue; ld(`${city.name}：${city.abilityTargets.map(cwCustomResistTargetLabel).join('・')}軽減`, -city.abilityValue); }
-      if (city.abilityType === 'second_hit_reduce' && e.disastersReceivedThisTurn >= 1) { dmg -= city.abilityValue; ld(`${city.name}：連続被弾軽減`, -city.abilityValue); }
-      if (city.abilityType === 'quake_regen' && ronAbilityTargetMatch(city, 'quake_regen', atk.id)) e.quakeHitThisTurn = true;
-      if (city.abilityType === 'flood_budget' && ronAbilityTargetMatch(city, 'flood_budget', atk.id)) { CO.nextBudgetBonus = (CO.nextBudgetBonus || 0) + city.abilityValue; ld(`${city.name}：次ターン予算+${city.abilityValue}`, null); }
-      if (city.abilityType === 'flood_draw' && ronAbilityTargetMatch(city, 'flood_draw', atk.id)) { coopDraw(city.abilityValue); ld(`${city.name}：被災後の学習で${city.abilityValue}枚ドロー`, null); }
-      // 2026-09-24 第2陣：istanbul（実在都市）のabilityTypeは対戦専用の新能力へ改名され'response_double'に
-      // なったが、協力モードは変更対象外（WORKTRACK.md §15 B-2）＝従来どおり「地震被弾時1枚ドロー」のまま。
-      // CITIES側のistanbul.abilityTypeが変わった後も協力モードの挙動を保つため、'response_double'も
-      // 'quake_draw'と同様のドロー扱いにする（対戦専用の「対応フェーズ2枚使用」処理はresolveDamage側にのみ実装、
-      // 協力モードはここで従来通りドローする）。ronAbilityTargetMatchへは判定用に'quake_draw'を渡す
-      // （istanbulはabilityTargetsを持たないためRON_LEGACY_ABILITY_TARGETS.quake_draw=['earthquake']へ
-      // フォールバックする。これは元々の挙動と同じ）。
-      if ((city.abilityType === 'quake_draw' || city.abilityType === 'response_double') && ronAbilityTargetMatch(city, 'quake_draw', atk.id)) { coopDraw(city.abilityValue); ld(`${city.name}：被災後の学習で${city.abilityValue}枚ドロー`, null); }
-      e.disastersReceivedThisTurn++;
-      if (e.damageReduceHits > 0) { dmg -= 15; e.damageReduceHits--; ld(`防災庁設置：全ダメージ軽減（残${e.damageReduceHits}）`, -15); }
-      if (e.shieldQuakeFire && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; e.shieldQuakeFire = false; ld('耐震補強（シールド）発動・消費', -30); }
-      if (e.shieldFlood && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= 25; e.shieldFlood = false; ld('堤防建設（シールド）発動・消費', -25); }
-      if (resp && resp.effectType === 'shield_quake_fire' && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; ld('耐震補強（対応）発動', -30); }
-      if (resp && resp.effectType === 'shield_flood' && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= 25; ld('堤防建設（対応）発動', -25); }
-      if (resp && resp.effectType === 'heal') { const h = Math.floor(resp.value / 2); dmg -= h; ld(`${resp.name}（対応・半減）でHP回復`, -h); }
-      if (city.abilityType === 'vulnerability_draw' && CO.hand.length <= 2) { dmg += city.abilityValue; ld(`${city.name}（社会的脆弱性：手札${CO.hand.length}枚）`, +city.abilityValue); coopDraw(1); }
-      // 復興直後の猶予（§13.9）：他のすべての軽減を適用し終えた最後に半減を掛ける（プレイヤー視点で
-      // 「実際に飛んでくる被害が半分になる」と一致させるため）。端数は切り上げ（過剰に強くならないよう）。
-      if (cs.reviveGuard > 0 && dmg > 0) {
-        const halvedDmg = Math.ceil(dmg / 2);
-        ld('復興直後の緊急支援：被害半減', halvedDmg - dmg);
-        dmg = halvedDmg;
+    }
+    function coopResolveAttack(atk, cs, resp, comboBonus) {
+      const fromHp = cs.hp; const lines = [];
+      const r = calcCoopDamage({ atk, city: cs.city, effects: cs.effects, resp, comboBonus, handLen: CO.hand.length, reviveGuard: cs.reviveGuard });
+      for (const st of r.steps) {
+        if (st.fx) coopApplyHitFx(st.fx, cs, lines);
+        if (st.t != null) lines.push({ t: st.t, d: st.d });
       }
-      dmg = Math.max(0, dmg); cs.hp = Math.max(0, cs.hp - dmg);
+      const dmg = r.total; cs.hp = Math.max(0, cs.hp - dmg);
       return { dmg, lines, fromHp, toHp: cs.hp };
     }
+    // 連鎖の計算は calcCoopChain（rules/030_coop-damage.js）。ここは返ってきた items の順に effects とHPへ反映するだけ。
     function coopApplyChain(atk, cs) {
-      const chains = COOP_CHAINS[atk.id]; if (!chains) return [];
+      const r = calcCoopChain({ atk, city: cs.city, effects: cs.effects, reviveGuard: cs.reviveGuard });
       const out = [];
-      for (const ch of chains) {
-        const m = ch.cond === 'coastal' ? cs.city.isCoastal : ch.cond === 'mountain' ? cs.city.isMountain : (!cs.city.isCoastal && !cs.city.isMountain);
-        if (!m) continue;
-        let d = ch.dmg; const e = cs.effects; let label = ch.label;
-        if (ch.shield === 'shieldFlood' && e.shieldFlood) { d = Math.max(0, d - 25); e.shieldFlood = false; }
-        if (ch.shield === 'shieldQuakeFire' && e.shieldQuakeFire) { d = Math.max(0, d - 30); e.shieldQuakeFire = false; }
-        if (e.damageReduceHits > 0) { d = Math.max(0, d - 15); e.damageReduceHits--; }
-        // 復興直後の猶予（§13.9）：連鎖被害も対象。他の軽減を適用し終えた最後に半減する（coopResolveAttackと同じ順序）
-        if (cs.reviveGuard > 0 && d > 0) { d = Math.ceil(d / 2); label += '（復興直後の緊急支援：被害半減）'; }
-        d = Math.max(0, d); cs.hp = Math.max(0, cs.hp - d);
-        out.push({ label, icon: ch.icon, dmg: d });
+      for (const it of r.items) {
+        for (const fx of it.fx) coopApplyFxToEffects(cs.effects, fx);
+        cs.hp = Math.max(0, cs.hp - it.dmg);
+        out.push({ label: it.label, icon: it.icon, dmg: it.dmg });
       }
       return out;
     }
@@ -14347,6 +14503,22 @@
         default: return '';
       }
     }
+    // 攻撃確認ポップの内訳（本体＋各項目＝合計）。est は coopEstimateDetail の戻り値。各要素は { html, v（合計への寄与）}。v の総和が est.total になる。
+    // 軽減・脆弱性は calcCoopEstimate の parts.other（地形・コンボ・半減を除いた残り）から作る。
+    function coopAttackBreakdown(c, est) {
+      const parts = est.parts;
+      const _tLabel = c.specialType === 'coastal_bonus' ? '海岸' : c.specialType === 'mountain_bonus' ? '山間' : '内陸';
+      const _redux = -parts.other; // >0=軽減, <0=脆弱性
+      const _cA = 'color:#ff9b9b;font-weight:700'; const _cS = 'color:#9ff0a8;font-weight:700';
+      const it = [{ html: `<span>本体${c.baseDamage}</span>`, v: c.baseDamage }];
+      if (parts.terrain > 0) it.push({ html: `<span style="${_cA}">＋${_tLabel}+${parts.terrain}</span>`, v: parts.terrain });
+      if (_redux > 0) it.push({ html: `<span style="${_cS}">−備え${_redux}</span>`, v: parts.other });
+      else if (_redux < 0) it.push({ html: `<span style="${_cA}">＋脆弱性+${-_redux}</span>`, v: parts.other });
+      if (parts.chain > 0) it.push({ html: `<span style="${_cA}">＋連鎖+${parts.chain}</span>`, v: parts.chain });
+      if (parts.combo > 0) it.push({ html: `<span style="${_cA}">${coopZapIco(11,'var(--red)')}増幅+${parts.combo}</span>`, v: parts.combo });
+      if (parts.half < 0) it.push({ html: `<span style="${_cS}">猶予 半減−${-parts.half}</span>`, v: parts.half });
+      return it;
+    }
     function coopRenderConfirm() {
       const actBtn = 'background:var(--blue);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:.92rem;cursor:pointer;padding:11px;margin:5px 0;width:100%;display:flex;align-items:center;justify-content:center;gap:6px';
       const actBtnTall = 'background:var(--blue);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;padding:9px 11px;margin:5px 0;width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.35';
@@ -14406,24 +14578,13 @@
           const cap = CO.maxHits || COOP_MAX_HITS;
           const capped = CO.mp && (((CO.atkCityHits && CO.atkCityHits[i]) || 0) >= cap);
           if (capped) return `<button disabled style="${actBtnTall};opacity:.45;cursor:not-allowed"><span style="display:flex;align-items:center;gap:5px">${terrainImg(cs.city, 18)} ${cs.city.name}</span><span style="font-size:.74rem;font-weight:600">今ターンの攻撃上限（${cap}回）に到達</span></button>`;
-          const chain = coopPredictChain(c, cs).filter(x => x.dmg > 0);
-          const combo = coopComboBonus(c, i);
-          const predictBodyDmg = coopPredictDamage(c, cs, null);
-          const chainTotal = chain.reduce((s, x) => s + x.dmg, 0);
-          const total = predictBodyDmg + chainTotal + combo;
-          // A-1: ダメージ内訳パーツ（合計は coopEstimate と一致）
-          const _isNeg = cs.effects.negateSpecial;
-          const _tBonus = (!_isNeg && c.specialType) ? (c.specialType === 'coastal_bonus' && cs.city.isCoastal ? 10 : c.specialType === 'mountain_bonus' && cs.city.isMountain ? 10 : c.specialType === 'inland_bonus' && !cs.city.isCoastal && !cs.city.isMountain ? 10 : 0) : 0;
-          const _tLabel = c.specialType === 'coastal_bonus' ? '海岸' : c.specialType === 'mountain_bonus' ? '山間' : '内陸';
-          const _redux = (c.baseDamage + _tBonus) - predictBodyDmg; // >0=軽減, <0=脆弱性
-          const _cA = 'color:#ff9b9b;font-weight:700'; const _cS = 'color:#9ff0a8;font-weight:700';
-          const _bk = [`<span>本体${c.baseDamage}</span>`];
-          if (_tBonus > 0) _bk.push(`<span style="${_cA}">＋${_tLabel}+${_tBonus}</span>`);
-          if (_redux > 0) _bk.push(`<span style="${_cS}">−備え${_redux}</span>`);
-          else if (_redux < 0) _bk.push(`<span style="${_cA}">＋脆弱性+${-_redux}</span>`);
-          if (chainTotal > 0) _bk.push(`<span style="${_cA}">＋連鎖+${chainTotal}</span>`);
-          if (combo > 0) _bk.push(`<span style="${_cA}">${coopZapIco(11,'var(--red)')}増幅+${combo}</span>`);
-          _bk.push(`<span style="font-weight:800;color:#fff">＝${total}</span>`);
+          // 合計と内訳は coopEstimateDetail（calcCoopEstimate）の1回の計算から作る。合計は coopEstimate と同じ値になる
+          const est = coopEstimateDetail(c, cs, null);
+          const total = est.total; const combo = est.parts.combo;
+          const _bk = coopAttackBreakdown(c, est).map(x => x.html);
+          // 合計「＝N」だけが次の行へ単独で落ちないよう、最後の項目と1つの塊にする（折り返しは意味の切れ目で起きる）
+          const _bkLast = _bk.pop();
+          _bk.push(`<span style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${_bkLast}<span style="font-weight:800;color:#fff">＝${total}</span></span>`);
           const breakdownLine = `<span style="display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px;font-size:.68rem;margin-top:3px">${_bk.join('')}</span>`;
           // A-2: コンボ成立都市ボタンの強調
           const hasCombo = combo > 0;
@@ -15152,9 +15313,7 @@
       const cs = CO.cities[a.idx];
       const before = a.est;
       if (!previewCard) return `<span style="color:#f85149">約${before}ダメージ</span>`;
-      const chainTotal = coopPredictChain(a.card, cs).reduce((s, x) => s + x.dmg, 0);
-      const combo = coopComboBonus(a.card, a.idx);
-      const after = coopPredictDamage(a.card, cs, previewCard, combo) + chainTotal;
+      const after = coopEstimateDetail(a.card, cs, previewCard).total; // 本体＋連鎖＋コンボ＋復興猶予の半減（coopEstimate と同じ計算で対応カード適用後）
       if (previewCard.effectType === 'heal') {
         const healResp = Math.floor(previewCard.value / 2);
         return `<span style="color:#f85149">${before}</span><span style="color:var(--t2)"> → </span><span style="color:#9ff0a8;font-weight:800">${after}</span><span style="color:#9ff0a8;font-size:.68rem;margin-left:4px">(HP+${healResp}回復扱い)</span>`;
@@ -15862,12 +16021,9 @@
         if (atk.specialType === 'mountain_bonus' && city.isMountain) { dmg += 10; ld('山間部都市（地形リスク）', +10); }
         if (atk.specialType === 'inland_bonus' && !city.isCoastal && !city.isMountain) { dmg += 10; ld('内陸都市（地形リスク）', +10); }
       }
-      if (city.abilityType === 'resist_quake_fire' && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= city.abilityValue; ld(`${city.name}の都市対策：地震・大火災軽減`, -city.abilityValue); }
-      if (city.abilityType === 'resist_landslide' && atk.id === 'landslide') { dmg -= city.abilityValue; ld(`${city.name}の都市対策：土砂崩れ軽減`, -city.abilityValue); }
-      if (city.abilityType === 'resist_flood' && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= city.abilityValue; ld(`${city.name}の都市対策：洪水・津波軽減`, -city.abilityValue); }
-      if (city.abilityType === 'resist_compound' && atk.id === 'compound') { dmg -= city.abilityValue; ld(`${city.name}の都市対策：複合災害軽減`, -city.abilityValue); }
-      if (city.abilityType === 'resist_custom' && Array.isArray(city.abilityTargets) && city.abilityTargets.includes(atk.id)) { dmg -= city.abilityValue; ld(`${city.name}の都市対策：${city.abilityTargets.map(cwCustomResistTargetLabel).join('・')}軽減`, -city.abilityValue); }
-      if (city.abilityType === 'second_hit_reduce' && attackIndex >= 1) { dmg -= city.abilityValue; ld(`${city.name}の都市対策：連続被弾軽減`, -city.abilityValue); }
+      // 都市能力：効果は CITY_ABILITIES（rules/020_city-abilities.js）の daily 欄が決める
+      const abDaily = cityAbilityMode(city, 'daily');
+      if (abDaily && abDaily.incoming) for (const it of abDaily.incoming({ city, atk, attackIndex })) { dmg += it.delta; ld(it.t, it.delta); }
       if (DD.reduceHits > 0) { dmg -= 15; DD.reduceHits--; ld('防災庁設置：全ダメージ軽減', -15); }
       if (DD.shieldQuakeFire && (atk.id === 'earthquake' || atk.id === 'wildfire')) { dmg -= 30; DD.shieldQuakeFire = false; ld('耐震補強（シールド）発動・消費', -30); }
       if (DD.shieldFlood && (atk.id === 'flood' || atk.id === 'tsunami')) { dmg -= 25; DD.shieldFlood = false; ld('堤防建設（シールド）発動・消費', -25); }
@@ -15876,10 +16032,7 @@
       let hpAfter = Math.max(0, hpBefore - dmg);
       // カスタム回復（大阪のregen能力を借用）：G/COの「自分のターン終了時にHP回復」を、DDでは1回の攻撃解決＝1ラウンドとみなして適用する
       // （攻撃を受けて生存している場合のみ。G/COと同じくDAILY_CFG.hpを上限にキャップする）
-      if (city.abilityType === 'regen' && hpAfter > 0) {
-        const heal = Math.min(city.abilityValue, DAILY_CFG.hp - hpAfter);
-        if (heal > 0) { hpAfter += heal; ld(`${city.name}の都市対策：ターン終了時回復`, -heal); }
-      }
+      if (abDaily && abDaily.after) for (const it of abDaily.after({ city, atk, hpAfter, maxHp: DAILY_CFG.hp })) { hpAfter += it.heal; ld(it.t, -it.heal); }
       return { card: atk, dmg, lines, hpBefore, hpAfter };
     }
     function dailyEvalLabel(hpFinal, totalDamage) {
