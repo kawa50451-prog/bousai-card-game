@@ -2161,6 +2161,21 @@
     .db-reasons { margin: 8px 0 0; padding: 8px 10px; background: rgba(248,81,73,.08); border: 1px solid var(--red); border-radius: 8px; }
     .db-reason-item { font-size: .74rem; color: var(--red); line-height: 1.5; }
     .db-reason-item::before { content: '・'; }
+    /* 2026-10-09：両者同時のデッキ構築。相手が確定したかの1行（編成中画面でも待機画面でも同じ位置・同じ高さ）と、確定後の待機カード。 */
+    .db-opp-status { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 7px 10px; background: var(--bg2); border: 1px solid var(--bg3); border-radius: 8px; font-size: .78rem; color: var(--t1); }
+    .db-opp-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--t2); }
+    .db-opp-dot-ready { background: var(--green); }
+    .db-wait-box { display: flex; flex-direction: column; gap: 10px; padding: 14px 12px; margin-bottom: 10px; background: var(--bg2); border: 1px solid var(--bg3); border-radius: 10px; }
+    .db-wait-done { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 800; color: var(--t0); }
+    .db-wait-total { margin-left: auto; font-size: .9rem; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--t1); }
+    .db-wait-lead { display: flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--t0); font-weight: 700; padding-top: 10px; border-top: 1px solid var(--bg3); }
+    .db-wait-lead .pulse-dot, .db-opp-status .pulse-dot { flex-shrink: 0; }
+    .db-wait-deck { margin-bottom: 10px; }
+    .db-wait-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    .db-wait-card { display: flex; justify-content: space-between; gap: 6px; min-width: 0; padding: 5px 2px; font-size: .78rem; color: var(--t1); border-bottom: 1px solid var(--bg3); }
+    .db-wait-card span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .db-wait-card b { flex-shrink: 0; color: var(--t0); font-variant-numeric: tabular-nums; }
+    .db-wait-locked { text-align: center; padding: 12px; font-size: .86rem; font-weight: 700; color: var(--t2); }
     .db-confirm-row { margin-top: 6px; margin-bottom: 12px; }
     .db-confirm-btn { width: 100%; padding: 12px; font-size: .95rem; }
     /* Phase7：スタンドアロン編成の下部（保存して戻る／戻る）。確定ボタンの縦積み版。 */
@@ -3184,6 +3199,14 @@
     }
     .gallery-tab-btn.active { border-color:var(--accent); background:rgba(var(--accent-rgb),.15); color:var(--accent) }
     .tab-icon { width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0 }
+    /* 図鑑の対戦／協力の切替（2つのボタンをつないだセグメント。タブと同じ accent の選択色）。最小タップ領域は高さ40px以上 */
+    .gallery-mode-seg { display:flex; border:1.5px solid var(--bg3); border-radius:10px; overflow:hidden; background:var(--bg2) }
+    .gms-btn { flex:1; min-height:40px; padding:8px 12px; background:transparent; border:0; color:var(--t1); cursor:pointer; font-size:.85rem; font-weight:700; transition:.2s }
+    .gms-btn + .gms-btn { border-left:1.5px solid var(--bg3) }
+    @media (hover:hover) {
+      .gms-btn:hover { background:rgba(var(--accent-rgb),.1); color:var(--accent) }
+    }
+    .gms-btn.active { background:rgba(var(--accent-rgb),.15); color:var(--accent) }
     .gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
     .gallery-section-label { display:flex; align-items:center; gap:6px; font-size:.82rem; font-weight:700; color:var(--red); margin:6px 0 2px; letter-spacing:.04em }
     .gallery-section-label.gallery-section-label-jinzai { color:#c084fc; margin-top:0 }
@@ -3469,6 +3492,50 @@
     .gacha-card-reveal-area.revealed { border-color:var(--yellow); box-shadow:0 0 32px rgba(210,153,34,.35); cursor:default }
     .cityorder-city-img { width:120px; border-radius:8px; display:block; margin:0 auto 8px }
 
+    /* ── 文字なし画像＋コード描画のカード面（.cface）。js/015_card-face.js が出す。位置はすべて％、文字の大きさは cqw
+       （カード面の幅の1/100）なので、どの大きさでも同じ見た目になる。値は data/070_card-face.js の CARD_FACE_LAYOUT と対応。
+       文字なし画像が無いカードは今までどおり <img> のまま（この規則は当たらない）。 ── */
+    .cface { position:relative; display:block; aspect-ratio:288 / 450; container-type:inline-size; overflow:hidden;
+             --cface-font:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; font-family:var(--cface-font);
+             -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+    /* 手札の .card-img は height:100% の cover 指定。面は幅いっぱい・高さは比率どおりにして上端基準で下をはみ出させる
+       （画像の object-position:top と同じ切れ方。はみ出しは .card-img-wrap の overflow:hidden で隠れる） */
+    .cface.card-img { height:auto; }
+    .cface > .cface-art { position:absolute; inset:0; width:100%; height:100%; max-width:none; object-fit:fill; border-radius:0; display:block; pointer-events:none; -webkit-user-drag:none; }
+    /* 8bit・デジタル設定の !important 上書きより優先させ、カードの文字は常に同じ書体にする */
+    .cface .cface-t { font-family:var(--cface-font) !important; position:absolute; transform:translate(-50%, -50%); white-space:nowrap; line-height:1; color:#fff; pointer-events:none; }
+    /* 縁の影の色は種類ごと（面のルートの --sh＝濃い縁／--sh2＝ずらし影。cardFaceHtml が CARD_FACE_LAYOUT の sh から付ける） */
+    .cface .cface-sh { text-shadow: 0 0 .25cqw rgba(var(--sh, 20,0,0), 1), 0 0 .25cqw rgba(var(--sh, 20,0,0), 1), .3cqw .45cqw .3cqw rgba(var(--sh2, 15,0,0), 1), .15cqw .25cqw 1.4cqw rgba(var(--sh2, 15,0,0), .95); }
+    .cface .cface-nm  { font-size:9.4cqw; font-weight:900; letter-spacing:.04em; }
+    .cface .cface-ty  { font-size:3.9cqw; font-weight:700; }
+    .cface .cface-cl  { font-size:3.6cqw; font-weight:900; color:#dde457; text-shadow:0 0 .3cqw rgba(0,0,0,.9); letter-spacing:-.02em; }
+    .cface .cface-cn  { font-size:10.6cqw; font-weight:700; text-shadow:0 0 .3cqw rgba(0,0,0,.95), .2cqw .3cqw .4cqw rgba(0,0,0,.9); }
+    .cface .cface-pl  { font-size:3.9cqw; font-weight:700; }
+    .cface .cface-pn  { font-size:10.6cqw; font-weight:700; letter-spacing:-.02em; }
+    .cface .cface-hp  { font-size:9.8cqw; font-weight:700; }
+    .cface .cface-num { font-family:'Arial', 'Helvetica Neue', var(--cface-font) !important; }
+    /* 効果文：左揃え・文節で改行・細い同色の縁取り。箱の幅は fitCardFace() が折り返し後の最長行に合わせる（cqw で保存） */
+    .cface .cface-fx  { transform:translate(calc(-50% + var(--ox, 0cqw)), -50%); font-size:calc(var(--fs, 4.6) * 1cqw); font-weight:700; line-height:1.3; letter-spacing:.01em; white-space:normal; width:max-content; max-width:77cqw; text-align:left;
+                        word-break:keep-all; overflow-wrap:anywhere; text-wrap:pretty; -webkit-text-stroke:calc(var(--fs, 4.6) * .025cqw) currentColor; paint-order:stroke fill; color:var(--fx, #fff6f2); }
+    /* 明るい枠（都市・政策）の上は暗い文字に白い光彩（proto_c の .tx.dark） */
+    .cface .cface-fx-dark { text-shadow:0 0 .6cqw rgba(255,255,255,.45); }
+    /* 複数行（見出し行など）は1行ずつ block。'' の行は空き */
+    .cface .cface-l { display:block; }
+    .cface .cface-gap { display:block; height:.6em; }
+    .cface .cface-fx.cface-clamped { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; }
+    /* 小さな正方形サムネイル（cardFaceHtml の sq 指定）：面を中央で切り抜く。従来の img の object-fit:cover と同じ見え方 */
+    .cface-sqwrap { display:block; position:relative; overflow:hidden; border-radius:6px; flex-shrink:0; }
+    .cface-sqwrap > .cface { position:absolute; left:0; top:50%; width:100%; transform:translateY(-50%); }
+    /* 面を入れる各枠の指定（従来は img に付いていた角丸・サイズ。面は div なので同じ枠の中で同じ形にする） */
+    .draft-large-card .cface { border-radius:12px; }
+    .draft-all-card .cface { border-radius:10px; }
+    .recycle-tile .cface { width:100%; max-width:56px; border-radius:5px; }
+    .gacha-city-duo-card .cface { border-radius:10px; }
+    .go-city-badge .cface { width:100%; max-width:72px; border-radius:8px; }
+    .gallery-card .cface, .gacha-card-reveal-area .cface, .co-draw-card .cface { height:100%; }
+    .cface.gallery-zoom-img { width:min(166px, 70vw); flex-shrink:0; }
+    /* 文字なし画像が描画できるまで文字は隠す（絵より先に文字だけ出ない）。ready は cardFaceReady() が付ける */
+    .cface:not(.cface-ready) .cface-t { visibility:hidden; }
     /* ── 1. Usable card glow ── */
     .card.card-usable.policy { box-shadow: 0 0 10px rgba(56,139,253,.32), 0 0 0 1px rgba(56,139,253,.2) }
     .card.card-usable.disaster { box-shadow: 0 0 10px rgba(248,81,73,.32), 0 0 0 1px rgba(248,81,73,.2) }
@@ -5325,6 +5392,213 @@
     const DAILY_CFG = { hp: 95, budget: 6, attacks: 3, handSize: 5 };
     // @ts-check
     // ═══════════════════════════════════════
+    // カード面（文字なし画像＋文字をコードで描く表示）の設定。表示の組み立ては js/015_card-face.js の cardFaceHtml()。
+    // 使うカード・都市は CARD_FACE_NT に入れたものだけ。それ以外は今までどおり焼き込み済み画像のまま
+    // （カードは images/cards/<id>.webp、都市は images/cities/<id>.webp。カード工房の自作都市もこちら）。
+    // 新しいカードを足す手順：①文字なし画像を images/cards/nt/<id>.webp（都市は images/cities/nt/）に置く
+    //   ②そのカードの id を CARD_FACE_NT に足す ③そのカードの種類が CARD_FACE_LAYOUT に無ければ足す
+    //   ④CARD_FACE_TEXT に面の文（co、対戦だけ違えば vs）を書く ⑤npm run seg（効果文の文節分けを作り直す）⑥sw.js の SW_VERSION を上げる。
+    // 位置は [x, y]＝カード面の幅・高さに対する割合（0〜1）。焼き込み画像と文字なし画像の差分（輝度差>45の外接矩形）から求めた。
+    //   台風（自然）は proto_c/full.html の LAYOUT_NATURE、効果文の枠は proto_c/cfg.js の各種類の rect。
+    // ═══════════════════════════════════════
+    /** 文字なし画像を持つカードと都市の id。ここに無いものは焼き込み済み画像を使う */
+    const CARD_FACE_NT = [
+      'quake_wall', 'dam', 'drill', 'hazard_map', 'agreement', 'evacuation', 'bousai_cho', 'rolling_stock',
+      'earthquake', 'flood', 'typhoon', 'tsunami', 'landslide', 'wildfire', 'compound',
+      'pollution', 'terror', 'rumor',
+      'tokyo', 'osaka', 'kobe', 'hiroshima', 'nagoya', 'sendai', 'kumamoto', 'niigata', 'kagoshima', 'rotterdam', 'istanbul', 'new_orleans',
+    ];
+    /**
+     * 種類ごとの文字の位置・色。キーは cardFaceLayoutKey() が返す値（nature 自然／human 人為／policy_gold 即時の政策／policy_green シールドの政策／city 都市）。
+     *   name・type・costLabel・cost・powLabel・pow・hp は [x, y]、または { at: [x, y], fs（cqw）, ls（letter-spacing） }。無い要素は出さない。
+     *   fxMax＝効果文の箱の最大幅（cqw。既定の枠より広い明るい枠は 80）、fxOneLine＝短い文は文字を縮めて1行に収める（都市・政策）
+     *   fxRect＝効果文の枠 [左, 上, 右, 下]（文章はこの枠の中心に置き、高さは枠の高さに収める）
+     *   sh＝名称などの文字の縁の影の色（RGB。濃い縁／ずらし影）、fx＝効果文の文字色、fxDark＝明るい枠の上の暗い文字（白い光彩）にする
+     */
+    const CARD_FACE_LAYOUT = {
+      nature: {
+        name: [0.485, 0.106], type: [0.485, 0.175],
+        costLabel: [0.836, 0.084], cost: [0.836, 0.137],
+        powLabel: [0.193, 0.622], pow: [0.193, 0.678],
+        fxRect: [0.0953, 0.745, 0.9012, 0.9181], fxMax: 77, sh: ['20,0,0', '15,0,0'], fx: '#fff6f2', fxDark: false,
+      },
+      human: {
+        name: [0.492, 0.105], type: [0.4965, 0.175],
+        costLabel: [0.836, 0.084], cost: [0.836, 0.137],
+        fxRect: [0.0988, 0.6907, 0.8942, 0.9203], fxMax: 77, sh: ['22,0,28', '16,0,22'], fx: '#fef6fe', fxDark: false,
+      },
+      policy_gold: {
+        name: [0.507, 0.107], type: [0.5025, 0.1745],
+        costLabel: [0.8445, 0.085], cost: [0.84, 0.1385],
+        fxRect: [0.0988, 0.6884, 0.8977, 0.9203], fxMax: 80, fxOneLine: true, sh: ['40,22,0', '30,16,0'], fx: '#23190b', fxDark: true,
+      },
+      policy_green: {
+        name: [0.5, 0.112], type: [0.494, 0.1855],
+        costLabel: [0.8345, 0.0925], cost: [0.8365, 0.148],
+        fxRect: [0.0953, 0.6878, 0.9012, 0.927], fxMax: 80, fxOneLine: true, sh: ['0,25,5', '0,18,3'], fx: '#181d0e', fxDark: true,
+      },
+      city: {
+        name: [0.502, 0.114], type: { at: [0.499, 0.187], fs: 4.2, ls: '.06em' },
+        hp: [0.3905, 0.6655],
+        fxRect: [0.0988, 0.73, 0.8977, 0.927], fxMax: 80, fxOneLine: true, sh: ['0,15,40', '0,10,30'], fx: '#121b24', fxDark: true,
+      },
+    };
+    /** カードごとの効果文の縦位置の微調整（cqw。下が正）。焼き込み画像の文字の位置（枠の中心からのずれ）に合わせる。必要になったカードだけ書く */
+    /** @type {{ [cardId: string]: number }} */
+    const CARD_FACE_DY = {
+      earthquake: -2.2, flood: -2.2, tsunami: -2.2, landslide: -2.2, wildfire: -6.4, pollution: -1.5,
+      drill: -2.2, hazard_map: -2.9, agreement: -1.2, rolling_stock: -1.6,
+      quake_wall: -1.3, dam: -1.3, evacuation: -1.6,
+    };
+    /**
+     * カード面に出す文（カード画像に印字する文。カードの desc・VERSUS_CARD_TEXT.desc・都市の abilityDesc は画面の説明文・ログ用の短い文で、面には使わない）。
+     * vs＝対戦／co＝協力・デイリー・図鑑・チュートリアル。文字列、または行の配列（見出し行などの意図した改行。'' は行間の空き）。
+     * CARD_FACE_NT の id は co を必ず書き、対戦だけ効果が違うもの（VERSUS_CARD_TEXT に entry があるカード・対戦だけ違う都市）は vs も必ず書く。
+     * 無いと desc 系の短い文に落ちる。
+     * @type {{ [id: string]: { vs?: string | string[], co: string | string[] } }}
+     */
+    const CARD_FACE_TEXT = {
+      // 政策カード（シールド＝緑／即時＝金）
+      quake_wall: {
+        vs: ['シールド（1回）', '地震・大火災を受けるとき、ダメージを30軽減する。'],
+        co: ['シールド（1回）', '地震・大火災の次の1回のダメージを30軽減する。対応する種類の攻撃が来たときのみ消費される。'],
+      },
+      dam: {
+        vs: ['シールド（1回）', '洪水・津波を受けるとき、ダメージを25軽減する。'],
+        co: ['シールド（1回）', '洪水・津波の次の1回のダメージを25軽減する。対応する種類の攻撃が来たときのみ消費される。'],
+      },
+      drill: { co: ['即時適用', 'メインフェーズ：HPを+20回復', '対応フェーズ：HPを+10回復'] },
+      hazard_map: { co: ['即時適用', '山札から2枚カードを引くことができる。'] },
+      agreement: { co: ['即時適用', 'メインフェーズ：HPを+30回復', '対応フェーズ：HPを+15回復'] },
+      evacuation: {
+        vs: ['シールド（1回）', '次の攻撃の特殊効果を無効にし、ダメージを10軽減する。事前に設置すると、複合災害・テロ攻撃のスキップも防ぐ。'],
+        co: ['シールド（1回）', '次の災害の特殊効果を無効化し、ダメージを10軽減する。事前設置済みの場合のみ、複合災害の対応フェーズ強制スキップを防げる。'],
+      },
+      bousai_cho: {
+        vs: ['シールド（2回）', '受ける攻撃2回のダメージを、それぞれ15軽減する。'],
+        co: ['シールド（2回）', '次に受ける攻撃2回のダメージを各15軽減する。1回の攻撃に対する軽減は15が上限。有効中に重ねて使用しても軽減できる攻撃回数は増えない。'],
+      },
+      rolling_stock: {
+        vs: ['即時適用', '手札を好きな枚数選び、同じ枚数を山札から引いたあと、選んだカードを山札に戻す。引ける枚数は山札の残りまで。'],
+        co: ['即時適用', '自分の手札を好きな枚数分だけ捨てその枚数分だけ山札からカードを引くことができる。'],
+      },
+      // 自然災害
+      earthquake: { co: '内陸都市に対してダメージ+10追加（計40）。' },
+      flood: { co: '海岸都市に対してダメージ+10追加（計40）。' },
+      typhoon: {
+        vs: '相手の手札を見て1枚選び、奪って自分の山札の一番上に置く',
+        co: '相手の手札から1枚ランダムで捨てさせる。相手の手札が0枚の時は効果なし',
+      },
+      tsunami: { co: '海岸都市に対してダメージ+10追加（計50）。' },
+      landslide: { co: '山間部都市に対してダメージ+10追加（計30）。' },
+      wildfire: { co: '特殊効果：なし' },
+      compound: { co: '相手の対応フェーズを強制的にスキップさせる。相手が広域避難指示を事前設置済みの場合のみ無効化される。' },
+      // 人為災害
+      pollution: {
+        vs: '相手が設置中のシールド（耐震補強・堤防建設・広域避難指示・防災庁）を1つ選んで破壊する。防災庁は残りの回数ごと破壊される。シールドがなければ効果なし。',
+        co: '相手の有効シールドを1つ選んで無効にする。防災庁の2回分のシールドも対象内である。',
+      },
+      terror: { co: 'このターン中、自身が次に使う自然災害カードへの対応フェーズをスキップさせる。ただし相手が広域避難指示を設置済みならば無効となる。' },
+      rumor: {
+        vs: '相手の次のターンの予算を1減らす。重ねて使っても減るのは1まで。',
+        co: '次のターン相手の使えるコストが1下がる。',
+      },
+      // 都市（vs は対戦だけ能力が違う都市）
+      tokyo: { co: '地震・大火災のダメージを20軽減する。' },
+      osaka: { co: '自分のターン終了時にHPが5回復する。' },
+      kobe: { co: '毎ターンの予算が+1（計4pt）。' },
+      hiroshima: { co: '土砂崩れのダメージを20軽減する。' },
+      nagoya: {
+        vs: '洪水・津波を一度受けると、以後の洪水・津波は−20',
+        co: '洪水・津波を受けた時、山札から1枚カードを引くことができる。',
+      },
+      sendai: { co: '洪水・津波のダメージを15軽減する。' },
+      kumamoto: { co: '同じターンに2枚目の災害を受ける時、ダメージを20軽減する。' },
+      niigata: {
+        vs: '地震を受けたターンの終わりにHP+10。捨て札2枚を山札に戻す',
+        co: '地震を受けたターンの終了時にHPが10回復する。',
+      },
+      kagoshima: { co: '複合災害のダメージを20軽減する。' },
+      rotterdam: { co: '洪水・津波を受けた次のターン、予算が +2 される。' },
+      istanbul: {
+        vs: '相手の地震に対応するとき、政策カードを2枚まで使える',
+        co: '地震を受けた時、山札から1枚カードを引くことができる。',
+      },
+      new_orleans: {
+        vs: ['攻撃を受けるとき、対応カードを使う前の手札が2枚以下ならば以下の効力を発揮する。', '', '・ダメージを10追加で受ける。', '・山札から1枚カードを引く。'],
+        co: ['攻撃を受けた時手札が2枚以下ならば以下の効力を発揮する。', '', '・ダメージを10追加で受ける。', '・山札から1枚カードを引くことができる。'],
+      },
+    };
+    /** 名称の文字サイズ（cqw）と、名称が使える最大の幅（cqw。アイコンとコスト円の間）。長い名称（ハザードマップ整備・イスタンブールなど）は幅に合わせて縮める */
+    const CARD_FACE_NAME_FS = 9.4, CARD_FACE_NAME_MAXW = 43.5;
+    /** 効果文の最大・最小の文字サイズ（cqw）。枠に入らないときは最大から 0.1 ずつ縮め、最小でも入らなければ行数を切る */
+    const CARD_FACE_FS_MAX = 4.6, CARD_FACE_FS_MIN = 3.6;
+    /** 途中で改行させないゲーム用語（文節分けの区切りより優先）。npm run seg が読む */
+    const CARD_TEXT_KEEP = [
+      '捨て札', '山札', '手札', '洪水・津波', '地震・大火災', '政策カード', '対応フェーズ', '広域避難指示', 'テロ攻撃', '特殊効果',
+      '内陸都市', '海岸都市', '山間部都市', '防災庁', '予算', 'ダメージ', 'シールド', 'ドロー', 'コスト', 'スキップ', 'ターン', '効果なし', 'ことができる', '軽減する', '回復する', '無効に', 'ターン終了時',
+      '地震・大火災 −30', '洪水・津波 −25', 'HP +10', 'HP +20', 'HP +30', 'HP+10', 'HP+20',
+      '対応時+10', '対応時+15', '−10', '−15', '−20', '−25', '−30', '+10', '+15', '+20', '+30',
+    ];
+    // @ts-check
+    // ⚠️ 自動生成ファイル。直接編集しない。面の文（data/070_card-face.js の CARD_FACE_TEXT）を変えたら npm run seg で作り直す。
+    // 生成元は tools/gen-text-seg.mjs（BudouX の文節分割＋ data/070_card-face.js の CARD_TEXT_KEEP）。
+    // 値の | は改行してよい位置。cardFaceHtml() が <wbr> に置き換える。エントリが無い文は区切りなしの平文で出る（落ちはしない）。
+    /** @type {{ [text: string]: string }} */
+    const CARD_TEXT_SEG = {
+      "このターン中、自身が次に使う自然災害カードへの対応フェーズをスキップさせる。ただし相手が広域避難指示を設置済みならば無効となる。": "この|ターン中、|自身が|次に|使う|自然災害カードへの|対応フェーズを|スキップさせる。|ただし|相手が|広域避難指示を|設置済みならば|無効と|なる。",
+      "シールド（1回）": "シールド|（1回）",
+      "シールド（2回）": "シールド|（2回）",
+      "メインフェーズ：HPを+20回復": "メインフェーズ：HPを|+20回復",
+      "メインフェーズ：HPを+30回復": "メインフェーズ：HPを|+30回復",
+      "・ダメージを10追加で受ける。": "・ダメージを|10追加で|受ける。",
+      "・山札から1枚カードを引く。": "・山札から|1枚カードを|引く。",
+      "・山札から1枚カードを引くことができる。": "・山札から|1枚カードを|引く|ことができる。",
+      "内陸都市に対してダメージ+10追加（計40）。": "内陸都市に|対して|ダメージ+10追加|（計40）。",
+      "即時適用": "即時適用",
+      "受ける攻撃2回のダメージを、それぞれ15軽減する。": "受ける|攻撃2回の|ダメージを、|それぞれ15軽減する。",
+      "同じターンに2枚目の災害を受ける時、ダメージを20軽減する。": "同じターンに|2枚目の|災害を|受ける|時、|ダメージを|20軽減する。",
+      "土砂崩れのダメージを20軽減する。": "土砂崩れの|ダメージを|20軽減する。",
+      "地震を受けたターンの終わりにHP+10。捨て札2枚を山札に戻す": "地震を|受けた|ターンの|終わりに|HP+10。|捨て札2枚を|山札に|戻す",
+      "地震を受けたターンの終了時にHPが10回復する。": "地震を|受けた|ターンの|終了時に|HPが|10回復する。",
+      "地震を受けた時、山札から1枚カードを引くことができる。": "地震を|受けた|時、|山札から|1枚カードを|引く|ことができる。",
+      "地震・大火災のダメージを20軽減する。": "地震・大火災の|ダメージを|20軽減する。",
+      "地震・大火災の次の1回のダメージを30軽減する。対応する種類の攻撃が来たときのみ消費される。": "地震・大火災の|次の|1回の|ダメージを|30軽減する。|対応する|種類の|攻撃が|来た|ときのみ|消費される。",
+      "地震・大火災を受けるとき、ダメージを30軽減する。": "地震・大火災を|受ける|とき、|ダメージを|30軽減する。",
+      "対応フェーズ：HPを+10回復": "対応フェーズ：HPを|+10回復",
+      "対応フェーズ：HPを+15回復": "対応フェーズ：HPを|+15回復",
+      "山札から2枚カードを引くことができる。": "山札から|2枚カードを|引く|ことができる。",
+      "山間部都市に対してダメージ+10追加（計30）。": "山間部都市に|対して|ダメージ+10追加|（計30）。",
+      "手札を好きな枚数選び、同じ枚数を山札から引いたあと、選んだカードを山札に戻す。引ける枚数は山札の残りまで。": "手札を|好きな|枚数選び、|同じ|枚数を|山札から|引いた|あと、|選んだ|カードを|山札に|戻す。|引ける|枚数は|山札の|残りまで。",
+      "攻撃を受けた時手札が2枚以下ならば以下の効力を発揮する。": "攻撃を|受けた|時手札が|2枚以下ならば|以下の|効力を|発揮する。",
+      "攻撃を受けるとき、対応カードを使う前の手札が2枚以下ならば以下の効力を発揮する。": "攻撃を|受ける|とき、|対応カードを|使う|前の|手札が|2枚以下ならば|以下の|効力を|発揮する。",
+      "次に受ける攻撃2回のダメージを各15軽減する。1回の攻撃に対する軽減は15が上限。有効中に重ねて使用しても軽減できる攻撃回数は増えない。": "次に|受ける|攻撃2回の|ダメージを|各15軽減する。|1回の|攻撃に|対する|軽減は|15が|上限。|有効中に|重ねて|使用しても|軽減できる|攻撃回数は|増えない。",
+      "次のターン相手の使えるコストが1下がる。": "次の|ターン相手の|使える|コストが|1下がる。",
+      "次の攻撃の特殊効果を無効にし、ダメージを10軽減する。事前に設置すると、複合災害・テロ攻撃のスキップも防ぐ。": "次の|攻撃の|特殊効果を|無効にし、|ダメージを|10軽減する。|事前に|設置すると、|複合災害・テロ攻撃の|スキップも|防ぐ。",
+      "次の災害の特殊効果を無効化し、ダメージを10軽減する。事前設置済みの場合のみ、複合災害の対応フェーズ強制スキップを防げる。": "次の|災害の|特殊効果を|無効化し、|ダメージを|10軽減する。|事前設置済みの|場合のみ、|複合災害の|対応フェーズ強制スキップを|防げる。",
+      "毎ターンの予算が+1（計4pt）。": "毎ターンの|予算が|+1|（計4pt）。",
+      "洪水・津波のダメージを15軽減する。": "洪水・津波の|ダメージを|15軽減する。",
+      "洪水・津波の次の1回のダメージを25軽減する。対応する種類の攻撃が来たときのみ消費される。": "洪水・津波の|次の|1回の|ダメージを|25軽減する。|対応する|種類の|攻撃が|来た|ときのみ|消費される。",
+      "洪水・津波を一度受けると、以後の洪水・津波は−20": "洪水・津波を|一度|受けると、|以後の|洪水・津波は|−20",
+      "洪水・津波を受けた時、山札から1枚カードを引くことができる。": "洪水・津波を|受けた|時、|山札から|1枚カードを|引く|ことができる。",
+      "洪水・津波を受けた次のターン、予算が +2 される。": "洪水・津波を|受けた|次の|ターン、|予算が| +2 される。",
+      "洪水・津波を受けるとき、ダメージを25軽減する。": "洪水・津波を|受ける|とき、|ダメージを|25軽減する。",
+      "海岸都市に対してダメージ+10追加（計40）。": "海岸都市に|対して|ダメージ+10追加|（計40）。",
+      "海岸都市に対してダメージ+10追加（計50）。": "海岸都市に|対して|ダメージ+10追加|（計50）。",
+      "特殊効果：なし": "特殊効果：なし",
+      "相手が設置中のシールド（耐震補強・堤防建設・広域避難指示・防災庁）を1つ選んで破壊する。防災庁は残りの回数ごと破壊される。シールドがなければ効果なし。": "相手が|設置中の|シールド|（耐震補強・堤防建設・|広域避難指示・防災庁）を|1つ|選んで|破壊する。|防災庁は|残りの|回数ごと|破壊される。|シールドが|なければ|効果なし。",
+      "相手の地震に対応するとき、政策カードを2枚まで使える": "相手の|地震に|対応する|とき、|政策カードを|2枚まで|使える",
+      "相手の対応フェーズを強制的にスキップさせる。相手が広域避難指示を事前設置済みの場合のみ無効化される。": "相手の|対応フェーズを|強制的に|スキップさせる。|相手が|広域避難指示を|事前設置済みの|場合のみ|無効化される。",
+      "相手の手札から1枚ランダムで捨てさせる。相手の手札が0枚の時は効果なし": "相手の|手札から|1枚ランダムで|捨てさせる。|相手の|手札が|0枚の|時は|効果なし",
+      "相手の手札を見て1枚選び、奪って自分の山札の一番上に置く": "相手の|手札を|見て|1枚選び、|奪って|自分の|山札の|一番上に|置く",
+      "相手の有効シールドを1つ選んで無効にする。防災庁の2回分のシールドも対象内である。": "相手の|有効シールドを|1つ|選んで|無効に|する。|防災庁の|2回分の|シールドも|対象内である。",
+      "相手の次のターンの予算を1減らす。重ねて使っても減るのは1まで。": "相手の|次の|ターンの|予算を|1減らす。|重ねて|使っても|減るのは|1まで。",
+      "自分のターン終了時にHPが5回復する。": "自分の|ターン終了時に|HPが|5回復する。",
+      "自分の手札を好きな枚数分だけ捨てその枚数分だけ山札からカードを引くことができる。": "自分の|手札を|好きな|枚数分だけ捨て|その|枚数分だけ山札から|カードを|引く|ことができる。",
+      "複合災害のダメージを20軽減する。": "複合災害の|ダメージを|20軽減する。",
+    };
+    // @ts-check
+    // ═══════════════════════════════════════
     // DAMAGE CALCULATION（対戦モードのダメージ計算の唯一の正）
     // ═══════════════════════════════════════
     // 純粋関数。引数以外（グローバル状態・DOM・乱数・ログ）には一切触れない。resolveDamage（実際の解決）・
@@ -5795,6 +6069,13 @@
     let _specPresRef = null;
     let db = null;
     let myLastPush = null;   // 自分のpushが返ってきたとき無視する用
+    // 対戦のデッキ構築を両者が同時に行うための端末ローカルの状態（G には入れない。060_ の「同時構築」節を参照）
+    /** @type {any} 編集中のデッキ（VersusDeckBuildState と同じ形）。新しい版どうしのオンライン対戦の構築中だけ持つ */
+    let _vsLocalDeckBuild = null;
+    /** @type {{ [pi: number]: any }} rooms/{roomId}/deckReady の写し。確定済みなら { counts, loadedDeckId, locked? } */
+    let _vsDeckReady = { 0: null, 1: null };
+    let _vsDeckMerging = false;  // ホストが2人分を G へ組み込んでいる最中（この間は組み直せない）
+    let _vsPeerProto = 0;        // 相手の端末の版数（rooms/{roomId}/proto/{p1|p2}）。0＝古い版または未確認
 
     // ── リモート受信のみをデバウンスする描画スケジューラ（5.1.1・5.1.3：画面フリーズ・チカチカ対策） ──
     // 自分の操作起点のrender()/renderCoop()呼び出しはこれを経由しない（即時のまま・操作感を維持）。
@@ -5980,6 +6261,373 @@
       } catch (e) { /* 非対応環境は無視 */ }
     }
 
+    // @ts-check
+    // ═══════════════════════════════════════
+    // カード面：文字なし画像＋文字をコードで描く表示（設定は data/070_card-face.js、文節分けは data/075_card-text-seg.js）。
+    //  ・カード画像を出す全箇所は cardFaceHtml() を通す。文字なし画像を持つカード（CARD_FACE_NT）は組み立てた面を返し、
+    //    持たないカードは従来どおりの <img>（images/cards/<id>.webp）を返す。
+    //  ・効果文の箱の幅と文字サイズの調整（fitCardFace）は描画と切り離し、MutationObserver＋ResizeObserver で後から行う。
+    //    保存値は cqw（カード面の幅の1/100）なので、カードが拡大縮小されても崩れない。差分描画（協力）にも干渉しない。
+    // ═══════════════════════════════════════
+    /** 都市か（都市の定義には type が無く abilityType がある）
+     * @param {any} card */
+    function cardFaceIsCity(card) { return !!card && card.type === undefined && card.abilityType !== undefined; }
+    /** id（またはカード・都市の定義）からカード・都市の定義を引く。無ければ null
+     * @param {any} cardOrId */
+    function cardFaceFind(cardOrId) {
+      if (typeof cardOrId !== 'string') return cardOrId || null;
+      return ALL_CARDS.find((c) => c.id === cardOrId) || CITIES.find((c) => c.id === cardOrId) || null;
+    }
+    /** 種類ごとの文字配置のキー。無ければ空文字（＝文字なし画像を使わない）
+     * @param {any} card */
+    function cardFaceLayoutKey(card) {
+      if (!card) return '';
+      if (cardFaceIsCity(card)) return 'city';
+      if (card.type === 'disaster') return 'nature';
+      if (card.type === 'jinzai') return 'human';
+      if (card.type === 'policy') return card.color === 'green' ? 'policy_green' : 'policy_gold';
+      return '';
+    }
+    /** 文字なし画像で描くカード・都市か
+     * @param {any} card */
+    function cardFaceEnabled(card) {
+      return !!card && CARD_FACE_NT.indexOf(card.id) >= 0 && !!CARD_FACE_LAYOUT[cardFaceLayoutKey(card)];
+    }
+    /** 種類のラベル（自然・人為・即時・シールド、都市は地形）
+     * @param {any} card */
+    function cardFaceTypeLabel(card) {
+      if (cardFaceIsCity(card)) return card.isCoastal ? '海岸都市' : card.isMountain ? '山間部都市' : '内陸都市';
+      if (card.type === 'policy') return card.color === 'green' ? 'シールド' : '即時';
+      return cardTypeLabel(card);
+    }
+    /** 面に出す効果文（文字列、または行の配列）。CARD_FACE_TEXT の vs（対戦）／co（それ以外）。無ければ短い説明文に落ちる
+     * @param {any} card @param {boolean} [versus] @returns {string | string[]} */
+    function cardFaceDesc(card, versus) {
+      const t = CARD_FACE_TEXT[card.id];
+      if (cardFaceIsCity(card)) return versus ? ((t && (t.vs || t.co)) || card.abilityDesc) : ((t && t.co) || card.abilityDesc);
+      return versus ? ((t && t.vs) || versusCardDesc(card)) : ((t && t.co) || card.desc);
+    }
+    /** 効果文を文節ごとに <wbr> で区切った HTML にする。分割データが無い文は平文のまま
+     * @param {string} text */
+    function cardFaceWrapText(text) {
+      const seg = (typeof CARD_TEXT_SEG !== 'undefined' && Object.prototype.hasOwnProperty.call(CARD_TEXT_SEG, text)) ? CARD_TEXT_SEG[text] : '';
+      return seg ? seg.split('|').map(_escHtml).join('<wbr>') : _escHtml(text);
+    }
+    /** 効果文（文字列または行の配列）の HTML。配列は1行ずつ block にし、'' は行間の空きにする
+     * @param {string | string[]} text */
+    function cardFaceTextHtml(text) {
+      if (!Array.isArray(text)) return cardFaceWrapText(text);
+      return text.map((l) => l === '' ? '<span class="cface-gap"></span>' : `<span class="cface-l">${cardFaceWrapText(l)}</span>`).join('');
+    }
+    /** @type {{ [k: string]: string }} */
+    const CARD_FACE_ERR = {
+      fail: `this.closest('.card').classList.add('img-fail')`,
+      hide: `this.style.display='none'`,
+      dim: `this.style.opacity='.3'`,
+    };
+    /** 焼き込み済み画像の <img>（文字なし画像を持たないカード・都市の表示。従来のマークアップと同じ要素・属性）
+     * @param {string} id @param {any} o */
+    function cardFaceBakedHtml(id, o) {
+      return `<img${o.cls ? ` class="${o.cls}"` : ''}${o.drag ? ' draggable="false"' : ''} src="images/${o.dir || 'cards'}/${id}.webp" alt="${o.alt || ''}"${o.lazy ? ' loading="lazy"' : ''}${o.style ? ` style="${o.style}"` : ''}${o.err && CARD_FACE_ERR[o.err] ? ` onerror="${CARD_FACE_ERR[o.err]}"` : ''}>`;
+    }
+    /**
+     * カード・都市の画像の表示（全箇所共通の入口）。
+     * @param {any} cardOrId カード・都市の定義、またはその id
+     * @param {{ cls?: string, style?: string, alt?: string, drag?: boolean, lazy?: boolean, err?: 'fail'|'hide'|'dim', versus?: boolean, sq?: number, dir?: 'cards'|'cities' }} [opts]
+     *   cls/style/alt/drag/lazy/err：従来の <img> に付けていた属性（面にも cls・style を引き継ぐ）。
+     *   versus：効果文を対戦用にする。
+     *   sq：px 指定の正方形に中央で切り抜く（小さなサムネイル用。従来の object-fit:cover 相当）。文字なし画像を持たないものでは無視し、
+     *       従来どおり cls/style の <img> を返す（sq のときの style は面ではなく外側の枠には付かない）。
+     *   dir：定義が無く id だけのとき、焼き込み画像のフォルダ（既定 cards。定義が見つかれば都市は自動で cities）
+     */
+    function cardFaceHtml(cardOrId, opts) {
+      const o = Object.assign({}, opts || {});
+      const card = cardFaceFind(cardOrId);
+      const id = card ? card.id : String(cardOrId);
+      if (card && !o.dir) o.dir = cardFaceIsCity(card) ? 'cities' : 'cards';
+      const baked = cardFaceBakedHtml(id, o);
+      if (!cardFaceEnabled(card)) return baked;
+      const L = CARD_FACE_LAYOUT[cardFaceLayoutKey(card)];
+      const pct = (/** @type {number} */ v) => (v * 100).toFixed(2) + '%';
+      /** 要素1つ：位置（中心）・必要なら文字サイズと字間
+       * @param {string} cls @param {any} v @param {string} html */
+      const el = (cls, v, html) => {
+        const p = Array.isArray(v) ? { at: v } : v;
+        return `<div class="cface-t ${cls}" style="left:${pct(p.at[0])};top:${pct(p.at[1])}${p.fs ? `;font-size:${p.fs}cqw` : ''}${p.ls ? `;letter-spacing:${p.ls}` : ''}">${html}</div>`;
+      };
+      const [rx0, ry0, rx1, ry1] = L.fxRect;
+      const cy = (ry0 + ry1) / 2, cx = (rx0 + rx1) / 2;
+      // 縦に使える高さ（cqw）。枠の中心から上下の近い方までを2倍し、縁取り・影の分を引く（プロトタイプ proto_c と同じ式）
+      const avail = 2 * Math.min(cy - ry0, ry1 - cy) * 100 * (450 / 288) - 1.6;
+      const dy = CARD_FACE_DY[id] || 0;
+      const text = cardFaceDesc(card, !!o.versus);
+      const power = card.baseDamage != null ? card.baseDamage : '';
+      const vars = `--sh:${L.sh[0]};--sh2:${L.sh[1]};--fx:${L.fx}`;
+      const styleAttr = ` style="${vars}${!o.sq && o.style ? ';' + o.style : ''}"`;
+      const face = `<div class="cface${o.cls ? ' ' + o.cls : ''}" data-cface="${id}"${o.versus ? ' data-versus="1"' : ''} data-bake="${_escHtml(baked)}"${styleAttr} role="img" aria-label="${_escHtml(card.name)}">`
+        + `<img class="cface-art" src="images/${o.dir}/nt/${id}.webp" alt="" draggable="false" onload="cardFaceReady(this)" onerror="cardFaceFallback(this)">`
+        + el('cface-nm cface-sh', L.name, _escHtml(card.name))
+        + el('cface-ty cface-sh', L.type, _escHtml(cardFaceTypeLabel(card)))
+        + (L.cost ? el('cface-cl', L.costLabel, 'コスト') + el('cface-cn cface-num', L.cost, String(card.cost)) : '')
+        + (L.pow ? el('cface-pl cface-sh', L.powLabel, '威力') + el('cface-pn cface-num cface-sh', L.pow, String(power)) : '')
+        + (L.hp ? el('cface-hp cface-num cface-sh', L.hp, 'HP ' + card.hp) : '')
+        + `<div class="cface-t cface-fx ${L.fxDark ? 'cface-fx-dark' : 'cface-sh'}" data-avail="${avail.toFixed(2)}" data-maxw="${L.fxMax || 77}"${L.fxOneLine ? ' data-oneline="1"' : ''} style="left:${pct(cx)};top:calc(${pct(cy)} + ${dy}cqw);max-width:${L.fxMax || 77}cqw">${cardFaceTextHtml(text)}</div>`
+        + `</div>`;
+      return o.sq ? `<span class="cface-sqwrap" style="width:${o.sq}px;height:${o.sq}px">${face}</span>` : face;
+    }
+    /** 小さな正方形サムネイル用：src が images/cards/<id>.webp または images/cities/<id>.webp の形ならカード面（または従来の img）、それ以外は従来の <img>
+     * @param {string} src @param {number} px @param {string} imgStyle */
+    function cardFaceThumbHtml(src, px, imgStyle) {
+      const m = /^images\/(cards|cities)\/(\w+)\.webp$/.exec(src);
+      return m ? cardFaceHtml(m[2], { style: imgStyle, err: 'hide', sq: px, dir: /** @type {'cards'|'cities'} */ (m[1]) })
+        : `<img src="${src}" alt="" style="${imgStyle}" onerror="this.style.display='none'">`;
+    }
+    /** 文字なし画像が読み込まれて描画できる状態になったら面に cface-ready を付け、文字を出す（それまで文字は隠す。絵より先に文字だけ見えるのを防ぐ）
+     * @param {any} artImg */
+    function cardFaceReady(artImg) {
+      const face = artImg && artImg.closest ? artImg.closest('.cface') : null;
+      if (!face || face.classList.contains('cface-ready')) return;
+      const on = () => face.classList.add('cface-ready');
+      if (typeof artImg.decode === 'function') artImg.decode().then(on, on); else on();
+    }
+    /** 文字なし画像の読み込みに失敗したとき、面ごと焼き込み済み画像に差し替える
+     * @param {Element} artImg */
+    function cardFaceFallback(artImg) {
+      const face = artImg && artImg.closest ? artImg.closest('.cface') : null;
+      if (!face || !face.parentNode) return;
+      const tpl = document.createElement('template');
+      tpl.innerHTML = face.getAttribute('data-bake') || '';
+      face.replaceWith(tpl.content);
+    }
+    /** 長押し・拡大プレビュー用：手札などにある面から、同じ内容の新しい面（card-img クラスなし）を作る
+     * @param {Element} faceEl */
+    function cardFacePreviewHtml(faceEl) {
+      return cardFaceHtml(faceEl.getAttribute('data-cface') || '', { versus: faceEl.getAttribute('data-versus') === '1' });
+    }
+
+    // ─── 効果文の箱の調整（描画と切り離す） ───
+    // 測定は画面外の「変形のない測定用の面」（.cface-measure）で行う。実物の面は、非表示（display:none）・拡大縮小や回転の
+    // アニメーション中・まだ配置前のことがあり、そこで測ると幅が 0 や歪んだ値になって、箱の幅が反映されないまま
+    // （max-width のまま左に寄って見える）になるため。測定結果は cqw なので、実物の大きさが分からない（0）ときは基準幅で測って
+    // 先に反映し、実際に表示されて大きさが付いたとき ResizeObserver が実寸で測り直す。
+    const CARD_FACE_REF_W = 288;
+    /** @type {Map<string, { fs: number, lines: number, w: number, ox?: number } | null>} */
+    const _cardFaceMemo = new Map();
+    /**
+     * 効果文1つを画面外の測定用の面で測る：文字を最大から 0.1cqw ずつ縮め、下限でも入らなければ行数を切る。そのあと
+     * 箱の幅を折り返し後の最長行に縮めた値（cqw）を返す。
+     * @param {HTMLElement} el 実物の効果文要素（内容と avail・位置の指定だけを写す）
+     * @param {number} W 面の幅（px）
+     */
+    function cardFaceMeasure(el, W) {
+      const unit = W / 100;
+      const host = document.createElement('div');
+      host.className = 'cface cface-measure cface-ready';
+      host.style.cssText = `position:fixed;left:-10000px;top:0;width:${W}px;visibility:hidden;pointer-events:none;transform:none;animation:none;`;
+      const c = /** @type {HTMLElement} */ (el.cloneNode(true));
+      c.classList.remove('cface-clamped');
+      c.removeAttribute('data-fit');
+      c.style.width = '';
+      c.style.webkitLineClamp = '';
+      if (el.dataset.maxw) c.style.maxWidth = el.dataset.maxw + 'cqw';
+      host.appendChild(c);
+      document.body.appendChild(host);
+      try {
+        const limit = parseFloat(el.dataset.avail || '0') * unit;
+        let fs = CARD_FACE_FS_MAX;
+        c.style.setProperty('--fs', String(fs));
+        // 明るい枠（都市・政策。CARD_FACE_LAYOUT の fxOneLine）：1行ずつの文（見出し行つきを含む）が最大の文字サイズで折り返されるときは、
+        // 文字を縮めてどの行も折り返さずに済む（下限以上の）サイズがあればそれにする。焼き込み画像はこの枠の短い文を1行に収めているため。
+        // 縮めても折り返しが残る文は最大のまま。自然・人為の枠は焼き込み画像も折り返しているので対象外
+        const blocks = Math.max(1, c.querySelectorAll('.cface-l').length);
+        if (el.dataset.oneline && cardFaceRowCount(c) > blocks) {
+          for (let s = Math.round((fs - 0.1) * 10) / 10; s >= CARD_FACE_FS_MIN - 1e-9; s = Math.round((s - 0.1) * 10) / 10) {
+            c.style.setProperty('--fs', String(s));
+            if (cardFaceRowCount(c) <= blocks) { fs = s; break; }
+          }
+          c.style.setProperty('--fs', String(fs));
+        }
+        const heightOf = () => c.getBoundingClientRect().height;
+        while (heightOf() > limit + 0.5 && fs > CARD_FACE_FS_MIN) {
+          fs = Math.round((fs - 0.1) * 10) / 10;
+          c.style.setProperty('--fs', String(fs));
+        }
+        let lines = 0;
+        if (heightOf() > limit + 0.5) {
+          lines = Math.max(1, Math.floor(limit / (fs * 1.3 * unit)));
+          c.classList.add('cface-clamped');
+          c.style.webkitLineClamp = String(lines);
+        }
+        const wPx = cardFaceWidestLine(c);
+        if (!(wPx > 0)) return null;
+        return { fs, lines, w: Math.ceil(wPx + 1) / unit, ox: cardFacePunctShift(c) / unit };
+      } finally {
+        host.remove();
+      }
+    }
+    /** 行末の句読点（。、）は字面が字の枠の左半分にしかなく、右に空きが見えるため、文章のかたまりが左に寄って見える。
+     * 各行の見かけの幅（行末が句読点なら、その字の幅の半分を引いた幅）のうち最も長いものと、箱の幅（最長行の実幅）との差の半分だけ
+     * 右へずらす量（px）を返す。いちばん長い行が句読点で終わらなければ 0（変形のない測定用の面で使う）
+     * @param {HTMLElement} el */
+    function cardFacePunctShift(el) {
+      /** @type {Map<number, {l: number, r: number, cut: number}>} */
+      const rows = new Map();
+      for (const b of cardFaceTextRects(el)) {
+        const k = Math.round(b.top / 2);
+        const v = rows.get(k) || { l: Infinity, r: -Infinity, cut: 0 };
+        v.l = Math.min(v.l, b.left); v.r = Math.max(v.r, b.right); rows.set(k, v);
+      }
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        const t = n.textContent || '';
+        for (let i = 0; i < t.length; i++) {
+          if (t[i] !== '。' && t[i] !== '、') continue;
+          const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1);
+          const b = r.getBoundingClientRect();
+          const row = rows.get(Math.round(b.top / 2));
+          if (row && b.width && Math.abs(b.right - row.r) < 1) row.cut = b.width / 2;
+        }
+      }
+      let raw = 0, vis = 0;
+      rows.forEach((v) => { raw = Math.max(raw, v.r - v.l); vis = Math.max(vis, v.r - v.l - v.cut); });
+      return raw > 0 ? (raw - vis) / 2 : 0;
+    }
+    /** 文字（テキストノード）が置かれた矩形を集める。行の箱（block の span）の矩形は含めない（箱は行の幅いっぱいで、文字の幅を表さないため）
+     * @param {HTMLElement} el @returns {DOMRect[]} */
+    function cardFaceTextRects(el) {
+      /** @type {DOMRect[]} */
+      const out = [];
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        const r = document.createRange();
+        r.selectNodeContents(n);
+        for (const b of Array.from(r.getClientRects())) { if (b.width) out.push(b); }
+      }
+      return out;
+    }
+    /** 折り返した行の数（変形のない測定用の面で使う）
+     * @param {HTMLElement} el */
+    function cardFaceRowCount(el) {
+      /** @type {Set<number>} */
+      const rows = new Set();
+      for (const b of cardFaceTextRects(el)) rows.add(Math.round(b.top / 2));
+      return rows.size;
+    }
+    /** 折り返した各行の実幅を測って、いちばん長い行の幅（px）を返す（変形のない測定用の面で使う）
+     * @param {HTMLElement} el */
+    function cardFaceWidestLine(el) {
+      /** @type {Map<number, number[]>} */
+      const rows = new Map();
+      for (const b of cardFaceTextRects(el)) {
+        const k = Math.round(b.top / 2);
+        const v = rows.get(k) || [Infinity, -Infinity];
+        rows.set(k, [Math.min(v[0], b.left), Math.max(v[1], b.right)]);
+      }
+      let w = 0;
+      rows.forEach((v) => { w = Math.max(w, v[1] - v[0]); });
+      return w;
+    }
+    /**
+     * 効果文1つを枠に収め、箱の幅を折り返し後の最長行に縮めて文章のかたまりを枠の中央に寄せる。結果は cqw で保存する。
+     * 実物の大きさが 0（非表示）でも基準幅で測って反映する。
+     * @param {HTMLElement} el
+     */
+    function fitCardFaceText(el) {
+      const face = /** @type {HTMLElement | null} */ (el.closest('.cface'));
+      if (!face || face.classList.contains('cface-measure') || typeof document === 'undefined' || !document.body) return;
+      const W = Math.round(face.clientWidth) || CARD_FACE_REF_W;
+      const key = el.innerHTML + '|' + (el.dataset.avail || '') + '|' + W;
+      if (el.dataset.fit === key) return;
+      let r = _cardFaceMemo.get(key);
+      if (r === undefined) { r = cardFaceMeasure(el, W); if (r) _cardFaceMemo.set(key, r); }
+      if (!r) return;   // 測れなかった（書体の読み込み前など）。印を付けないので、次の機会（再描画・大きさの変化・フォント読み込み）に測り直す
+      el.style.setProperty('--fs', String(r.fs));
+      el.classList.toggle('cface-clamped', r.lines > 0);
+      el.style.webkitLineClamp = r.lines > 0 ? String(r.lines) : '';
+      el.style.width = r.w.toFixed(2) + 'cqw';
+      el.style.setProperty('--ox', (r.ox || 0).toFixed(2) + 'cqw');   // 行末の句読点の空き分だけ右へ（cardFacePunctShift）
+      // 既定の max-width（77cqw）ちょうどまで使う文は、実物と測定用の面で字形の幅がわずかに違うだけで折り返しが変わる（アニメーション中の合成レイヤーなど）。
+      // 測った幅より狭く切らないよう、上限を測った幅の少し外まで広げる（箱の幅は測った幅のまま。中央に寄せる計算は変わらない）
+      el.style.maxWidth = Math.max(parseFloat(el.dataset.maxw || '77'), r.w + 1.5).toFixed(2) + 'cqw';
+      el.dataset.fit = key;
+    }
+    /** 名称の幅（cqw）を、基準の文字サイズで画面外の測定用の面で測る
+     * @param {HTMLElement} el @param {number} W */
+    function cardFaceMeasureName(el, W) {
+      const host = document.createElement('div');
+      host.className = 'cface cface-measure cface-ready';
+      host.style.cssText = `position:fixed;left:-10000px;top:0;width:${W}px;visibility:hidden;pointer-events:none;transform:none;animation:none;`;
+      const c = /** @type {HTMLElement} */ (el.cloneNode(true));
+      c.style.fontSize = '';
+      host.appendChild(c);
+      document.body.appendChild(host);
+      try { return c.getBoundingClientRect().width / (W / 100); } finally { host.remove(); }
+    }
+    /** 名称が使える幅（CARD_FACE_NAME_MAXW）を超えるときだけ、文字サイズを縮めて収める。実物の大きさが 0 でも基準幅で測る
+     * @param {HTMLElement} el */
+    function fitCardFaceName(el) {
+      const face = /** @type {HTMLElement | null} */ (el.closest('.cface'));
+      if (!face || face.classList.contains('cface-measure') || typeof document === 'undefined' || !document.body) return;
+      const W = Math.round(face.clientWidth) || CARD_FACE_REF_W;
+      const key = (el.textContent || '') + '|nm|' + W;
+      if (el.dataset.fit === key) return;
+      let r = _cardFaceMemo.get(key);
+      if (r === undefined) { const w = cardFaceMeasureName(el, W); r = w > 0 ? { fs: Math.min(CARD_FACE_NAME_FS, Math.floor(CARD_FACE_NAME_FS * CARD_FACE_NAME_MAXW / w * 20) / 20), lines: 0, w } : null; if (r) _cardFaceMemo.set(key, r); }
+      if (!r) return;
+      el.style.fontSize = r.fs < CARD_FACE_NAME_FS ? r.fs + 'cqw' : '';
+      el.dataset.fit = key;
+    }
+    /** 面の中の効果文をすべて調整する
+     * @param {Element} face */
+    function fitCardFace(face) {
+      if (face.classList.contains('cface-measure')) return;
+      face.querySelectorAll('.cface-nm').forEach((el) => fitCardFaceName(/** @type {HTMLElement} */ (el)));
+      face.querySelectorAll('.cface-fx').forEach((el) => fitCardFaceText(/** @type {HTMLElement} */ (el)));
+    }
+    /** 面があれば（要素自身・祖先・子孫のいずれか）調整対象に集める
+     * @param {any} node @param {Set<any>} out */
+    function cardFaceCollect(node, out) {
+      if (!node || node.nodeType !== 1) return;
+      if (node.classList && node.classList.contains('cface-measure')) return;
+      if (node.classList && node.classList.contains('cface')) out.add(node);
+      else if (node.closest) { const up = node.closest('.cface'); if (up) out.add(up); }
+      if (node.querySelectorAll) node.querySelectorAll('.cface').forEach((/** @type {any} */ f) => out.add(f));
+    }
+    /** @type {any} */
+    let _cardFaceRo = null;
+    const _cardFaceSeen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+    /** @param {Element} face */
+    function cardFaceObserve(face) {
+      const art = /** @type {HTMLImageElement | null} */ (face.querySelector('.cface-art'));
+      if (art && art.complete && art.naturalWidth) cardFaceReady(art);   // 読み込み済み（キャッシュ・再利用した img）は load を待たない
+      if (_cardFaceRo && _cardFaceSeen && !_cardFaceSeen.has(face)) { _cardFaceSeen.add(face); _cardFaceRo.observe(face); }
+    }
+    function cardFaceFitAll() {
+      document.querySelectorAll('.cface:not(.cface-measure)').forEach((f) => {
+        f.querySelectorAll('.cface-fx, .cface-nm').forEach((e) => { delete /** @type {any} */ (e).dataset.fit; });
+        cardFaceObserve(f);
+        fitCardFace(f);
+      });
+    }
+    function initCardFaceFit() {
+      if (typeof MutationObserver === 'undefined' || typeof document === 'undefined' || !document.body) return;
+      if (typeof ResizeObserver !== 'undefined') {
+        _cardFaceRo = new ResizeObserver((/** @type {any[]} */ entries) => {
+          for (const en of entries) { if (en.target.isConnected) fitCardFace(en.target); }
+        });
+      }
+      // 差分描画などで追加された面だけを、描画の直後（ペイント前）に調整する。属性の変更は見ない（自分の書き込みで再入しない）
+      new MutationObserver((muts) => {
+        /** @type {Set<any>} */
+        const faces = new Set();
+        for (const m of muts) m.addedNodes.forEach((n) => cardFaceCollect(n, faces));
+        faces.forEach((f) => { if (!f.isConnected || f.classList.contains('cface-measure')) return; cardFaceObserve(f); fitCardFace(f); });
+      }).observe(document.body, { childList: true, subtree: true });
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(cardFaceFitAll);
+      if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', cardFaceFitAll);
+      cardFaceFitAll();
+    }
+    initCardFaceFit();
     // ════════════════════════════════════════════════════════════════════
     // UI第3弾（試験実装・2026-07-10）：A2 ボトムタブバー（design_system.md §9 A2）
     // 無効化する場合は UI_TABBAR を false にするだけで完全に旧動作へ戻る（レンダリングは
@@ -6134,6 +6782,9 @@
       const descEl = cardEl.querySelector('.card-desc');
       const badgeEl = cardEl.querySelector('.card-type-badge');
       const src = imgEl ? imgEl.getAttribute('src') : '';
+      // 文字なし画像＋コード描画の面は <img> ではないので、同じ内容の面を作り直して差し込む（cardFacePreviewHtml）
+      const faceEl = cardEl.querySelector('.cface');
+      const imgHtml = faceEl ? cardFacePreviewHtml(faceEl) : `<img src="${src}" alt="" draggable="false">`;
       const name = nameEl ? nameEl.textContent.replace(/\u200B/g, '') : '';
       const desc = descEl ? descEl.textContent : '';
       const badge = badgeEl ? badgeEl.textContent : '';
@@ -6142,7 +6793,7 @@
       if (interactive) {
         // 虫眼鏡ボタン経由：pointer-events:autoの操作可能モーダル。＋－で段階ズーム、閉じるボタン／背景クリックで閉じる
         ov.className = 'ui-card-preview-overlay ui-lp-interactive';
-        ov.innerHTML = `<div class="ui-card-preview-card" style="width:${UI_LP_ZOOM_WIDTHS[0]}"><button type="button" class="ui-lp-close-btn" aria-label="閉じる" onclick="event.stopPropagation();_lpClosePreview()">${_lpIcoClose()}</button><img src="${src}" alt="" draggable="false"><div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div><div class="ui-lp-zoom-bar"><button type="button" class="ui-lp-zoom-btn" data-lp-zoom="out" aria-label="縮小表示" onclick="event.stopPropagation();_lpZoomStep(-1)">${_lpIcoMinus()}</button><span class="ui-lp-zoom-label">${UI_LP_ZOOM_LABELS[0]}</span><button type="button" class="ui-lp-zoom-btn" data-lp-zoom="in" aria-label="拡大表示" onclick="event.stopPropagation();_lpZoomStep(1)">${_lpIcoPlus()}</button></div></div>`;
+        ov.innerHTML = `<div class="ui-card-preview-card" style="width:${UI_LP_ZOOM_WIDTHS[0]}"><button type="button" class="ui-lp-close-btn" aria-label="閉じる" onclick="event.stopPropagation();_lpClosePreview()">${_lpIcoClose()}</button>${imgHtml}<div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div><div class="ui-lp-zoom-bar"><button type="button" class="ui-lp-zoom-btn" data-lp-zoom="out" aria-label="縮小表示" onclick="event.stopPropagation();_lpZoomStep(-1)">${_lpIcoMinus()}</button><span class="ui-lp-zoom-label">${UI_LP_ZOOM_LABELS[0]}</span><button type="button" class="ui-lp-zoom-btn" data-lp-zoom="in" aria-label="拡大表示" onclick="event.stopPropagation();_lpZoomStep(1)">${_lpIcoPlus()}</button></div></div>`;
         document.body.appendChild(ov);
         _lpOverlayEl = ov;
         ov.addEventListener('click', function (e) { if (e.target === ov) _lpClosePreview(); }); // 背景クリックで閉じる（＋－／閉じるボタンはstopPropagation済みでここに来ない）
@@ -6151,7 +6802,7 @@
       } else {
         // 長押し経由：従来通りpointer-events:noneの受動表示
         ov.className = 'ui-card-preview-overlay';
-        ov.innerHTML = `<div class="ui-card-preview-card"><img src="${src}" alt="" draggable="false"><div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div></div>`;
+        ov.innerHTML = `<div class="ui-card-preview-card">${imgHtml}<div class="ui-card-preview-name">${_escHtml(name)}</div>${badge ? `<div class="ui-card-preview-badge">${_escHtml(badge)}</div>` : ''}<div class="ui-card-preview-desc">${_escHtml(desc)}</div></div>`;
         document.body.appendChild(ov);
         _lpOverlayEl = ov;
         document.body.classList.add('ui-lp-noscroll');
@@ -6222,7 +6873,7 @@
       const card = ALL_CARDS.find(c => c.id === cardId);
       if (!card) return;
       const el = document.createElement('div');
-      el.innerHTML = `<img class="card-img" src="images/cards/${card.id}.webp" alt="">${cardNameBarHtml(card.name, cardTypeLabel(card))}<div class="card-desc">${versus ? versusCardDesc(card) : card.desc}</div>`;
+      el.innerHTML = `${cardFaceHtml(card, { cls: 'card-img', versus: !!versus })}${cardNameBarHtml(card.name, cardTypeLabel(card))}<div class="card-desc">${versus ? versusCardDesc(card) : card.desc}</div>`;
       _lpShowPreview(el, interactive);
     }
     if (typeof document !== 'undefined' && document.addEventListener) {
@@ -6842,7 +7493,7 @@
           const oc = isTarget ? `onclick="tutorialAction('discard_demo')"` : '';
           return `<div class="card policy${isTarget ? ' tut-glow' : ' tut-dim'}" data-ctype="${cardCtype(card)}" style="cursor:${isTarget ? 'pointer' : 'default'}" ${oc}>
           <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
-          <div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
+          <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail' })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>
           ${cardTypeBadgeFallback(cardTypeLabel(card))}
         </div>`;
@@ -6906,7 +7557,7 @@
         const tBadge = isResp ? '対応可' : card.color === 'green' ? 'シールド' : '即時';
         return `<div class="card policy${isGlow ? ' tut-glow' : ''}${isDim ? ' tut-dim' : isDimSoft ? ' tut-dim-soft' : ''}" data-ctype="${cardCtype(card)}" style="cursor:pointer" ${oc}>
           <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${isResp ? '無料' : card.cost}</span></div>
-          <div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, tBadge)}</div>
+          <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail' })}${cardNameBarHtml(card.name, tBadge)}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>
           ${cardTypeBadgeFallback(tBadge)}
         </div>`;
@@ -6942,7 +7593,7 @@
         const terrain = cy.isCoastal ? '海岸都市' : cy.isMountain ? '山間部都市' : '内陸都市';
         const terrainNote = cy.isCoastal ? '洪水・津波で +10ダメージ' : cy.isMountain ? '土砂崩れで +10ダメージ' : '地震で +10ダメージ';
         cityOverlay = `<div class="confirm-overlay" onclick="tutorialCloseCityPopup()"><div class="confirm-box" onclick="event.stopPropagation()" style="max-width:300px;max-height:85vh;overflow-y:auto;padding:16px 20px;gap:10px">
-          <img src="images/cities/${cy.id}.webp" alt="" style="width:100%;object-fit:contain;border-radius:10px;display:block" onerror="this.style.display='none'">
+          ${cardFaceHtml(cy, { style: 'width:100%;object-fit:contain;border-radius:10px;display:block', err: 'hide' })}
           <div class="confirm-card-preview"><span>${terrainImg(cy, 20)} ${cy.name}</span></div>
           <div style="background:rgba(56,139,253,.1);border-radius:6px;padding:6px 10px;font-size:.78rem;color:var(--t2);margin:4px 0">
             <div style="color:var(--blue);font-weight:700;margin-bottom:2px">地形：${terrain}</div>
@@ -6969,7 +7620,7 @@
           ? `<div class="confirm-btns"><button class="btn-ok" onclick="tutorialAction('${step.action}')">使用する</button><button class="btn-cancel" onclick="tutorialCancelConfirm()">キャンセル</button></div>`
           : `<div class="confirm-btns"><button class="btn-cancel" style="width:100%" onclick="tutorialCancelConfirm()">閉じる</button></div>`;
         cardOverlay = `<div class="confirm-overlay" onclick="tutorialCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
-          <img class="confirm-card-img" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+          ${cardFaceHtml(card, { cls: 'confirm-card-img', err: 'hide' })}
           <div class="confirm-card-preview" style="display:flex;align-items:center;gap:6px">${cardTypeIconHtml(card.type, card.color)}<span>${card.name}</span></div>
           <div style="font-size:.72rem;color:var(--blue);text-align:center;margin:-4px 0 4px">${typeLabel}　コスト ${isResp ? '無料（対応）' : card.cost + 'pt'}</div>
           <div style="background:rgba(139,148,158,.08);border-radius:6px;padding:5px 10px;font-size:.8rem;color:var(--t2);text-align:center;margin:4px 0">${card.desc}</div>
@@ -7718,11 +8369,21 @@
     // ═══════════════════════════════════════
     // Phase5：対戦モードのデッキ構築
     // ═══════════════════════════════════════
-    // 都市順確定の直後に呼ばれる入口。構築は既存の初期手札ドラフト（startDraft(0)→完了→startDraft(1)）と
-    // 同じ「順番に行う」パターンにする（pushState()はG丸ごと送信で上書きするため、同時に構築・確定すると
-    // 片方のデッキが消えるため）。CPU戦ではプレイヤー（0）だけが構築画面に入り、CPU（1）側は
-    // ここで既定デッキを即時セットして構築画面自体をスキップする（5-A・5-D）。
+    // 都市順確定の直後に呼ばれる入口（呼ぶのは2人目の都市順を確定した端末＝プレイヤー2の端末）。
+    // オンライン（両端末が新しい版）：両者が同時に構築する。編集中のデッキは各端末のローカル（_vsLocalDeckBuild）だけが持ち、
+    // G には「両者が構築中」という段階（G.deckBuildPhase）だけを置く。確定したデッキは G ではなく
+    // rooms/${roomId}/deckReady/p0・p1 に各自が書き、ホスト（プレイヤー1）が2人分そろったところで G へ組み込む
+    // （pushState() は G 丸ごと送信のため、同じ G に2人が書くと後から送った側が先の側を消す。書き込み先を分けて避ける）。
+    // 相手が古い版（_vsPeerProto が足りない）のときと、ルーム無しの検証用は従来の「順番に行う」流れに落とす。
+    // CPU戦ではプレイヤー（0）だけが構築画面に入り、CPU（1）側はここで既定デッキを即時セットして構築画面自体をスキップする（5-A・5-D）。
     function beginVersusDeckBuildPhase() {
+      if (vsSimulDeckBuildOk()) {
+        vsDeckBuildLeave();
+        _vsDeckReady = { 0: null, 1: null };
+        db.ref(`rooms/${roomId}/deckReady`).remove(); // 前の試合の残りを消す（G の送信より先に出るので、相手は消えた状態から始まる）
+        G.deckBuildState = null; G.deckBuildPhase = { proto: VS_DECK_PROTO }; G.screen = 'deckBuild';
+        return;
+      }
       if (isCpuMode) {
         // Phase6：CPU側も都市に合わせた自動生成から始める（既定固定デッキ丸ごとの読み込みは廃止）。
         const _cpuCounts = buildCityAwareDeckCounts(G.players[1].cities);
@@ -7736,9 +8397,9 @@
       // Phase6：空のcountsから始めるのをやめ、都市に合わせて自動生成済みの内訳で入る（6-D本体の回答）。
       // 何も触らず確定を押せば即座に進められるし、気になる所だけ1枚単位で直せる。
       // 2026-10-09：その人が前回使ったデッキ（vsLastDeckLoad。再検証つき）があれば、それで開く。無ければ従来の自動生成。
-      // 前回のデッキは端末の localStorage にあるため、決めるのはそのデッキを組む本人の端末だけ。オンラインでは相手の端末が
-      // この関数を呼ぶ（先攻・後攻の確定の順）ので、ds.initPending を立てておき、本人の端末が受信したときに listenToState が決める。
-      G.deckBuildState = { playerIdx: pi, counts: buildCityAwareDeckCounts(G.players[pi].cities), openedFrom: 'city', initPending: true };
+      // 前回のデッキは端末の localStorage にあるため、決めるのはそのデッキを組む本人の端末だけ。この関数は CPU戦・検証用・
+      // 相手が古い版のオンライン対戦だけが通る（新しい版どうしのオンラインは _vsLocalDeckBuild で各端末が自分で開く）。
+      G.deckBuildState = { playerIdx: pi, counts: buildCityAwareDeckCounts(G.players[pi].cities), openedFrom: 'city' };
       G.screen = 'deckBuild';
       if (isCpuMode || pi === myPlayerIdx) {
         // Phase7②：デッキ編成画面に入った直後、生成根拠を一時ポップで示す（都市が無ければ空文字でno-op）。前回のデッキで開いたときは出さない。
@@ -7750,25 +8411,25 @@
     // 未指定ならVERSUS_DECK_MAX_COPIES（2026-09-24 第1陣A-2）。0のときはcountsからキー自体を削る
     // （deckBuildValidateのfor...ofはALL_CARDS基準で走るため省略しても0扱いになり挙動は同じ）。
     function deckBuildSetCount(cardId, n) {
-      const ds = G.deckBuildState; if (!ds) return;
+      const ds = vsDs(); if (!ds) return;
       const card = ALL_CARDS.find(c => c.id === cardId);
       const max = card?.maxCopies ?? VERSUS_DECK_MAX_COPIES;
       n = Math.max(0, Math.min(max, n | 0));
       if (n === 0) delete ds.counts[cardId]; else ds.counts[cardId] = n;
-      commit();
+      vsDsCommit();
     }
-    function deckBuildInc(cardId) { const ds = G.deckBuildState; if (!ds) return; deckBuildSetCount(cardId, (ds.counts[cardId] || 0) + 1); }
-    function deckBuildDec(cardId) { const ds = G.deckBuildState; if (!ds) return; deckBuildSetCount(cardId, (ds.counts[cardId] || 0) - 1); }
+    function deckBuildInc(cardId) { const ds = vsDs(); if (!ds) return; deckBuildSetCount(cardId, (ds.counts[cardId] || 0) + 1); }
+    function deckBuildDec(cardId) { const ds = vsDs(); if (!ds) return; deckBuildSetCount(cardId, (ds.counts[cardId] || 0) - 1); }
     // Phase7：「既定で埋める」ボタンはUIから廃止した（意味が伝わらない・3ボタンだとスマホで折返す）。
     // 「オススメデッキを作る」＝「都市に合わせて埋める」だけに一本化する。ds.standaloneのとき（クリエイトラボの
     // スタンドアロン編成）は都市を持たないため、cities=[]を渡し標準構成（VERSUS_DEFAULT_DECK_COUNTS）を返す
     // buildCityAwareDeckCountsの既存フォールバックへそのまま乗せる。
     function deckBuildApplyCityAware() {
-      const ds = G.deckBuildState; if (!ds) return;
+      const ds = vsDs(); if (!ds) return;
       const cities = ds.standalone ? [] : G.players[ds.playerIdx].cities;
       ds.counts = buildCityAwareDeckCounts(cities);
       ds.openedFrom = 'city'; ds.loadedDeckId = null; // 組み直したデッキは前回のデッキでも読込済みのデッキでもない
-      commit();
+      vsDsCommit();
       // Phase7②：ボタンを押した直後にも生成根拠を一時ポップで示す（都市が無ければ空文字でno-op）。
       showDeckBuildNote(vsCityAwareNote(cities));
     }
@@ -7879,58 +8540,246 @@
     }
     // デッキ編成画面を開いた直後の初期値を決める。前回のデッキがあればそれで、無ければ都市に合わせた自動生成のまま。
     // 「どちらで開いたか」を ds.openedFrom に残す（画面の表示と組み直しの導線が見る）。
-    // 呼ぶのはそのデッキを組む本人の端末だけ（localStorage は端末ごとのため）。オンラインで相手の端末が startDeckBuild を
-    // 呼んだ場合は ds.initPending を立てておき、本人の端末が受信したときに listenToState から呼ぶ。戻り値＝前回のデッキで開いたか。
+    // 呼ぶのはそのデッキを組む本人の端末だけ（localStorage は端末ごとのため）。戻り値＝前回のデッキで開いたか。
     function vsDeckBuildApplyInitial(ds) {
-      ds.initPending = false;
       const last = ds.standalone ? null : vsLastDeckLoad();
       if (!last) { ds.openedFrom = 'city'; return false; }
       ds.counts = { ...last.counts }; ds.lastCounts = { ...last.counts };
       ds.loadedDeckId = last.loadedDeckId; ds.openedFrom = 'last';
       return true;
     }
+    // ═══════════════════════════════════════
+    // 対戦のデッキ構築を両プレイヤーが同時に行う（新しい版どうしのオンライン対戦）
+    // 編集中のデッキ：各端末の _vsLocalDeckBuild だけが持つ（相手に見せる必要が無く、G にも入れない）。
+    // G が持つのは「両者が構築中」という段階 G.deckBuildPhase = { proto } だけ。
+    // 確定：自分のデッキを rooms/{roomId}/deckReady/p0|p1 に { counts, loadedDeckId } として書く（書き込み先が分かれるので上書きは起きない）。
+    // 組み込み：ホスト（プレイヤー1）が2人分そろったのを見て、ゲストのノードを transaction で locked にしてから G へ組み込み、startDraft(0) へ進めて commit する。
+    //   locked は「組み込みを始めた」印。ゲストの組み直し（ノード削除）も transaction で、locked なら中止される。どちらが先でも
+    //   サーバー側で順序が決まるので、ゲストが組み直したと思っているのに古いデッキが使われることは起きない。
+    // ═══════════════════════════════════════
+    const VS_DECK_PROTO = 2;
+    const RON_VS_DECK_DRAFT_KEY = 'ron_vs_deck_draft_v1';
+    // 構築画面・保存まわりの関数が「今編集しているデッキ」を取る入口。G.deckBuildState（CPU戦・検証用・相手が古い版のとき・スタンドアロン編成）を先に見る
+    function vsDs() { return G.deckBuildState || _vsLocalDeckBuild; }
+    // 編集の締め。G のデッキ（従来）は commit()。端末ローカルのデッキは G を変えていないので送信せず、再読込に備えて下書きだけ残す
+    function vsDsCommit() {
+      if (G.deckBuildState || !_vsLocalDeckBuild) { commit(); return; }
+      vsDeckDraftSave(); render();
+    }
+    // 同時構築を使えるか：オンライン対戦で、相手の端末も新しい版のとき（開始を決める端末が呼ぶ）
+    function vsSimulDeckBuildOk() { return !isCpuMode && !!db && !!roomId && myRole !== 'spectator' && _vsPeerProto >= VS_DECK_PROTO; }
+    function vsDeckBuildSimul() { return G.screen === 'deckBuild' && !!G.deckBuildPhase; }
+    function vsDeckDraftSave() {
+      const ds = _vsLocalDeckBuild; if (!ds || !roomId) return;
+      try { localStorage.setItem(RON_VS_DECK_DRAFT_KEY, JSON.stringify({ roomId, playerIdx: ds.playerIdx, counts: ds.counts, loadedDeckId: ds.loadedDeckId || null, openedFrom: ds.openedFrom || 'manual', lastCounts: ds.lastCounts || null, savedAt: Date.now() })); } catch (e) {}
+    }
+    function vsDeckDraftClear() { try { localStorage.removeItem(RON_VS_DECK_DRAFT_KEY); } catch (e) {} }
+    // counts を18種の整数に整える（端末の下書きや相手が書いた値を信用しない）
+    function vsCleanCounts(raw) {
+      const out = {};
+      for (const c of ALL_CARDS) {
+        const n = raw && raw[c.id]; const max = c.maxCopies ?? VERSUS_DECK_MAX_COPIES;
+        if (Number.isInteger(n) && n > 0) out[c.id] = Math.min(max, n);
+      }
+      return out;
+    }
+    function vsDeckDraftLoad() {
+      try {
+        const raw = localStorage.getItem(RON_VS_DECK_DRAFT_KEY); if (!raw) return null;
+        const d = JSON.parse(raw);
+        if (!d || d.roomId !== roomId || d.playerIdx !== myPlayerIdx || !d.counts || Date.now() - (d.savedAt || 0) > 3 * 60 * 60 * 1000) return null;
+        const counts = vsCleanCounts(d.counts);
+        if (Object.keys(counts).length === 0) return null;
+        const loadedDeckId = (d.loadedDeckId && vsDeckLoadAll().some(x => x.id === d.loadedDeckId)) ? d.loadedDeckId : null;
+        return { counts, loadedDeckId, openedFrom: d.openedFrom === 'last' || d.openedFrom === 'city' ? d.openedFrom : 'manual', lastCounts: d.lastCounts ? vsCleanCounts(d.lastCounts) : null };
+      } catch (e) { return null; }
+    }
+    // 構築の段階を離れたときに端末ローカルの状態を捨てる（ホストが組み込んだとき・受信した G が構築の段階でなくなったとき・リマッチ・退出）
+    function vsDeckBuildLeave() {
+      _vsLocalDeckBuild = null; vsDeckDraftClear();
+    }
+    // 自分の編集用デッキを用意する（描画の頭で呼ぶ。冪等）。確定済みで再接続したときは確定済みの内容で開く。
+    // 下書きがあればそれ、無ければ前回のデッキ、それも無ければ都市に合わせた自動生成
+    function vsDeckBuildEnsureLocal() {
+      if (_vsLocalDeckBuild || myRole === 'spectator') return _vsLocalDeckBuild;
+      const pi = myPlayerIdx; const cities = G.players[pi].cities;
+      const mine = _vsDeckReady[pi];
+      if (mine && mine.counts) {
+        _vsLocalDeckBuild = { playerIdx: pi, counts: vsCleanCounts(mine.counts), openedFrom: 'manual', loadedDeckId: mine.loadedDeckId || null };
+        return _vsLocalDeckBuild;
+      }
+      const draft = vsDeckDraftLoad();
+      if (draft) { _vsLocalDeckBuild = { playerIdx: pi, counts: draft.counts, openedFrom: draft.openedFrom, loadedDeckId: draft.loadedDeckId, lastCounts: draft.lastCounts || undefined }; return _vsLocalDeckBuild; }
+      const ds = { playerIdx: pi, counts: buildCityAwareDeckCounts(cities), openedFrom: 'city' };
+      _vsLocalDeckBuild = ds;
+      if (!vsDeckBuildApplyInitial(ds)) showDeckBuildNote(vsCityAwareNote(cities));
+      return ds;
+    }
+    // rooms/{roomId}/deckReady の値（{ p0, p1 }）を { 0, 1 } に直す
+    function vsDeckReadyFrom(val) {
+      const pick = r => (r && typeof r === 'object' && r.counts) ? r : null;
+      return { 0: pick(val && val.p0), 1: pick(val && val.p1) };
+    }
+    function vsDeckMyReady() { return !!_vsDeckReady[myPlayerIdx]; }
+    function listenDeckReady() {
+      if (!db || !roomId) return;
+      const base = `rooms/${roomId}`;
+      unlistenDeckReady();
+      if (myRole !== 'spectator') {
+        // 版数の交換。相手が古い版なら proto が無い（0）ままなので、開始を決める側は従来の順番に行う流れに落とす
+        const oppKey = myRole === 'p1' ? 'p2' : 'p1';
+        db.ref(`${base}/proto/${myRole}`).set(VS_DECK_PROTO);
+        db.ref(`${base}/proto/${oppKey}`).on('value', snap => { _vsPeerProto = Number(snap.val()) || 0; });
+      }
+      db.ref(`${base}/deckReady`).on('value', snap => {
+        const prev = _vsDeckReady; _vsDeckReady = vsDeckReadyFrom(snap.val());
+        if (!vsDeckBuildSimul()) return;
+        vsDeckBuildHostTryMerge();
+        const mi = myPlayerIdx;
+        const mineChanged = !!prev[mi] !== !!_vsDeckReady[mi] || !!(prev[mi] && prev[mi].locked) !== !!(_vsDeckReady[mi] && _vsDeckReady[mi].locked);
+        // 相手が確定しても編集中の画面は作り直さない（デッキ名の入力などの操作を邪魔しないため、状態表示の要素だけ書き換える）
+        if (myRole === 'spectator' || mineChanged || G.screen !== 'deckBuild') render(); else vsDeckOppStatusUpdate();
+      });
+    }
+    function unlistenDeckReady() {
+      if (!db || !roomId) return;
+      const base = `rooms/${roomId}`;
+      db.ref(`${base}/deckReady`).off();
+      db.ref(`${base}/proto/p1`).off(); db.ref(`${base}/proto/p2`).off();
+    }
+    // 確定（新しい版のオンライン）。自分のデッキだけを deckReady に書く。G は変えない
+    function vsDeckBuildConfirmOnline() {
+      const ds = _vsLocalDeckBuild; if (!ds || !db || !roomId) return;
+      if (!deckBuildValidate(ds.counts).ok || _vsDeckReady[myPlayerIdx]) return;
+      const rec = { counts: { ...ds.counts }, loadedDeckId: ds.loadedDeckId || null };
+      vsLastDeckSave(ds.counts, ds.loadedDeckId);
+      _vsDeckReady[myPlayerIdx] = rec;
+      db.ref(`rooms/${roomId}/deckReady/p${myPlayerIdx}`).set(rec);
+      render();
+      vsDeckBuildHostTryMerge();
+    }
+    // 「組み直す」：自分の deckReady を消して編集に戻る。ホストが組み込みを始めていれば（locked）消えず、待機のまま
+    function vsDeckBuildRetract() {
+      if (!db || !roomId || !_vsDeckReady[myPlayerIdx] || _vsDeckMerging) return;
+      const pi = myPlayerIdx;
+      vsDeckBuildEnsureLocal();
+      db.ref(`rooms/${roomId}/deckReady/p${pi}`).transaction(v => (v && !v.locked) ? null : undefined, (err, committed) => {
+        if (committed) _vsDeckReady[pi] = null;
+        render();
+      }, false);
+    }
+    // ホストだけが呼ぶ。2人分そろっていれば、ゲストのノードを locked にして両者のデッキを G へ組み込み、ドラフトへ進める
+    function vsDeckBuildHostTryMerge() {
+      if (myRole !== 'p1' || _vsDeckMerging || !db || !roomId || !vsDeckBuildSimul()) return;
+      if (!_vsDeckReady[0] || !_vsDeckReady[1]) return;
+      _vsDeckMerging = true;
+      const ref1 = db.ref(`rooms/${roomId}/deckReady/p1`);
+      const unlock = () => ref1.transaction(v => v ? { counts: v.counts, loadedDeckId: v.loadedDeckId || null } : undefined, () => { _vsDeckMerging = false; }, false);
+      ref1.transaction(v => v ? { ...v, locked: true } : undefined, (err, committed, snap) => {
+        const d1 = (committed && snap) ? snap.val() : null; const d0 = _vsDeckReady[0];
+        if (!d1) { _vsDeckMerging = false; return; }
+        if (!d0 || !vsDeckBuildSimul()) { unlock(); return; } // その間に自分が組み直した：ロックを戻す
+        const c0 = vsCleanCounts(d0.counts), c1 = vsCleanCounts(d1.counts);
+        if (!deckBuildValidate(c1).ok) { ref1.remove(); _vsDeckMerging = false; return; } // ルールを満たさないデッキ（古い版・壊れた値）は受け取らず、相手を編集に戻す
+        if (!deckBuildValidate(c0).ok) { db.ref(`rooms/${roomId}/deckReady/p0`).remove(); unlock(); return; }
+        [[c0, d0], [c1, d1]].forEach(([c, d], i) => {
+          G.players[i].deck = buildVersusDeckFromCounts(c); G.players[i].discard = [];
+          G.players[i].deckCounts = { ...c }; G.players[i].deckLoadedId = d.loadedDeckId || null;
+        });
+        _vsDeckResult = null; // 新しい試合が始まる。前の試合の結果画面の一時状態は捨てる
+        G.deckBuildPhase = null; G.deckBuildState = null;
+        vsDeckBuildLeave();
+        _vsDeckMerging = false;
+        startDraft(0);
+        commit();
+      }, false);
+    }
+    // 相手の状態表示（編集中画面・待機画面共通）。相手が確定しても画面を作り直さず、この要素の中身だけ差し替える
+    function vsDeckOppStatusInner(forWait) {
+      const oi = myPlayerIdx === 0 ? 1 : 0;
+      const nm = _escHtml(G.players[oi].name);
+      if (forWait) {
+        return _vsDeckReady[oi]
+          ? `<span class="db-opp-dot db-opp-dot-ready"></span><span>${_wc('相手も', 'デッキを', '確定しました')}</span>`
+          : `<span class="pulse-dot" style="background:var(--blue);min-width:10px;height:10px"></span><span>${_wc('相手が', 'デッキを', '組んでいます')}</span>`;
+      }
+      return _vsDeckReady[oi]
+        ? `<span class="db-opp-dot db-opp-dot-ready"></span><span>${_wc(nm + ' は', 'デッキを', '確定しました')}</span>`
+        : `<span class="db-opp-dot"></span><span>${_wc(nm + ' は', 'デッキを', '編成中です')}</span>`;
+    }
+    function vsDeckOppStatusUpdate() {
+      if (typeof document === 'undefined') return;
+      const el = document.getElementById('db-opp-status'); if (el) el.innerHTML = vsDeckOppStatusInner(el.getAttribute('data-wait') === '1');
+    }
+    // 確定後の待機画面。自分のデッキの要約だけを見せる（相手には中身を見せない）。組み直せるのは、ホストが組み込みを始める前まで
+    function renderDeckBuildWait() {
+      const ds = vsDeckBuildEnsureLocal(); const mine = _vsDeckReady[myPlayerIdx];
+      const counts = (mine && mine.counts) || (ds && ds.counts) || {};
+      const v = deckBuildValidate(counts); const fs = v.frameSums;
+      const locked = _vsDeckMerging || !!(mine && mine.locked);
+      // 自分のデッキの中身（自分だけが見る。相手には見せない）。待機中に画面が空にならないよう、枠ごとに「カード名 ×枚数」を並べる
+      const deckHtml = ['attack', 'defend', 'free'].map(key => {
+        const rows = VERSUS_FRAME_CARDS[key].filter(c => (counts[c.id] || 0) > 0).map(c => `<div class="db-wait-card"><span>${_escHtml(c.name)}</span><b>×${counts[c.id]}</b></div>`).join('');
+        return `<div class="db-frame-section"><div class="db-frame-title" style="border-left-color:${{ attack: 'var(--red)', defend: 'var(--green)', free: 'var(--yellow)' }[key]}">${VERSUS_FRAME_LABEL[key]}枠　${fs[key]}枚</div><div class="db-wait-cards">${rows}</div></div>`;
+      }).join('');
+      return `<div class="screen active ws-editor-screen db-screen">
+        <div class="db-header">
+          <div class="section-title">デッキ編成</div>
+          <div class="db-sub">${_escHtml(G.players[myPlayerIdx].name)} — ${_wc('デッキを', '確定済み')}</div>
+        </div>
+        <div class="db-wait-box">
+          <div class="db-wait-done">${coopIcoCheckCircle(18, '#3fb950')}<span>${_wc('デッキを', '確定しました')}</span><span class="db-wait-total">${v.total}枚</span></div>
+          <div class="db-wait-lead" id="db-opp-status" data-wait="1">${vsDeckOppStatusInner(true)}</div>
+        </div>
+        <div class="db-wait-deck">${deckHtml}</div>
+        <div class="db-confirm-row">
+          ${locked ? `<div class="db-wait-locked">${_wc('対戦を', '始めています')}</div>` : `<button type="button" class="btn-ho db-standalone-back-btn" onclick="vsDeckBuildRetract()">組み直す</button>`}
+        </div>
+      </div>`;
+    }
+
     function vsDeckOpenPopup() {
-      const ds = G.deckBuildState; if (!ds) return;
+      const ds = vsDs(); if (!ds) return;
       ds.myDeckOpen = true; ds.myDeckError = ''; ds.myDeckNameInput = '';
       render();
     }
     function vsDeckClosePopup() {
-      const ds = G.deckBuildState; if (!ds) return;
+      const ds = vsDs(); if (!ds) return;
       ds.myDeckOpen = false;
       render();
     }
     function vsDeckSetNameInput(v) {
-      const ds = G.deckBuildState; if (!ds) return;
+      const ds = vsDs(); if (!ds) return;
       ds.myDeckNameInput = v;
     }
     // 保存：不正なデッキ（deckBuildValidateがok=falseのもの）は保存しても意味がないため拒否する。
     // 上限5件に達している場合も拒否し、理由をds.myDeckErrorへ積んでポップに表示する。
     function vsDeckSaveCurrent() {
-      const ds = G.deckBuildState; if (!ds) return;
+      const ds = vsDs(); if (!ds) return;
       const v = deckBuildValidate(ds.counts);
-      if (!v.ok) { ds.myDeckError = 'このデッキはルールを満たしていないため保存できません。'; commit(); return; }
+      if (!v.ok) { ds.myDeckError = 'このデッキはルールを満たしていないため保存できません。'; vsDsCommit(); return; }
       const arr = vsDeckLoadAll();
-      if (arr.length >= RON_VS_DECKS_MAX) { ds.myDeckError = `保存上限（${RON_VS_DECKS_MAX}件）に達しています。先に既存のデッキを削除してください。`; commit(); return; }
+      if (arr.length >= RON_VS_DECKS_MAX) { ds.myDeckError = `保存上限（${RON_VS_DECKS_MAX}件）に達しています。先に既存のデッキを削除してください。`; vsDsCommit(); return; }
       const name = (ds.myDeckNameInput || '').trim() || `デッキ${arr.length + 1}`;
       const rec = { id: 'vsdeck_' + Date.now() + '_' + (Math.random() * 1e6 | 0), name, counts: { ...ds.counts }, savedAt: Date.now() };
       arr.push(rec);
       vsDeckSaveAll(arr);
       ds.loadedDeckId = rec.id; // 保存したデッキを「読み込み中」として扱う（このあと変えたら上書き保存できる）
       ds.myDeckError = ''; ds.myDeckNameInput = '';
-      commit(); // ds は G の一部なので commit（render だけだと loadedDeckId などが相手に送られない）
+      vsDsCommit(); // 従来は ds が G の一部なので commit（render だけだと loadedDeckId などが相手に送られない）。同時構築では端末ローカルなので render だけになる
     }
     // 上書き保存：読み込んだデッキ（ds.loadedDeckId）の counts を今の構成で置き換える。名前は変えない。
     // 保存先が消えている・ルール未達のときは理由をポップに出して何も書かない。
     function vsDeckOverwriteCurrent() {
-      const ds = G.deckBuildState; if (!ds) return;
+      const ds = vsDs(); if (!ds) return;
       const v = deckBuildValidate(ds.counts);
-      if (!v.ok) { ds.myDeckError = 'このデッキはルールを満たしていないため保存できません。'; commit(); return; }
+      if (!v.ok) { ds.myDeckError = 'このデッキはルールを満たしていないため保存できません。'; vsDsCommit(); return; }
       const arr = vsDeckLoadAll(); const idx = arr.findIndex(d => d.id === ds.loadedDeckId);
-      if (idx < 0) { ds.loadedDeckId = null; ds.myDeckError = '上書き先のデッキが見つかりません。新しく保存してください。'; commit(); return; }
+      if (idx < 0) { ds.loadedDeckId = null; ds.myDeckError = '上書き先のデッキが見つかりません。新しく保存してください。'; vsDsCommit(); return; }
       arr[idx] = { ...arr[idx], counts: { ...ds.counts }, savedAt: Date.now() };
-      if (!vsDeckSaveAll(arr)) { ds.myDeckError = 'この端末では保存できませんでした。'; commit(); return; }
+      if (!vsDeckSaveAll(arr)) { ds.myDeckError = 'この端末では保存できませんでした。'; vsDsCommit(); return; }
       ds.myDeckError = '';
-      commit();
+      vsDsCommit();
     }
     // Phase7：クリエイトラボ「Myデッキを作る」（スタンドアロン編成）専用の「保存して戻る」。
     // 保存処理そのものはvsDeckSaveCurrent()をそのまま使い、二重管理しない。myDeckErrorが立たなかった
@@ -7958,7 +8807,7 @@
     // 上限超過が1枚も無いのにそれ以外の理由（総枚数・枠の範囲）で無効な保存データは、これまでどおり
     // 読み込まず理由だけを表示する（将来ルールが変わって別物になった保存データを誤って使わせないため）。
     function vsDeckLoadInto(id) {
-      const ds = G.deckBuildState; if (!ds) return;
+      const ds = vsDs(); if (!ds) return;
       const rec = vsDeckLoadAll().find(d => d.id === id);
       if (!rec) return;
       const rawCounts = rec.counts || {};
@@ -7975,18 +8824,19 @@
         ds.counts = trimmed; ds.loadedDeckId = id; ds.openedFrom = 'manual';
         ds.myDeckError = `カードごとの上限を超えていたため自動で減らして読み込みました（${trimNotes.join('、')}）。`
           + (v.ok ? '' : `このため${v.reasons.join('、')}となり、確定できません。`);
-        commit(); return;
+        vsDsCommit(); return;
       }
       const v = deckBuildValidate(rawCounts);
       if (!v.ok) { ds.myDeckError = `このマイデッキは現在のルールに合わず読み込めません（${v.reasons.join('、')}）。`; render(); return; }
       ds.counts = { ...rawCounts }; ds.loadedDeckId = id; ds.openedFrom = 'manual';
       ds.myDeckOpen = false; ds.myDeckError = '';
-      commit();
+      vsDsCommit();
     }
     function vsDeckDelete(id) {
       const arr = vsDeckLoadAll().filter(d => d.id !== id);
       vsDeckSaveAll(arr);
-      if (G.deckBuildState && G.deckBuildState.loadedDeckId === id) { G.deckBuildState.loadedDeckId = null; commit(); return; }
+      const _ds = vsDs();
+      if (_ds && _ds.loadedDeckId === id) { _ds.loadedDeckId = null; vsDsCommit(); return; }
       render();
     }
     // ═══════════════════════════════════════
@@ -8086,6 +8936,7 @@
     // 確定後はcountsからデッキ実体を作り必ずシャッフルしてG.players[pi].deckへ入れる（5-F）。
     // 両者の構築が終わったらstartDraft(0)へ進む（既存の初期手札配布フローへ合流）。
     function confirmDeckBuild() {
+      if (!G.deckBuildState && _vsLocalDeckBuild && vsDeckBuildSimul()) { vsDeckBuildConfirmOnline(); return; }
       const ds = G.deckBuildState; if (!ds) return;
       const v = deckBuildValidate(ds.counts);
       if (!v.ok) return;
@@ -8103,7 +8954,8 @@
       commit();
     }
     function renderDeckBuild() {
-      const ds = G.deckBuildState;
+      if (!G.deckBuildState && vsDeckBuildSimul()) { vsDeckBuildEnsureLocal(); if (vsDeckMyReady()) return renderDeckBuildWait(); }
+      const ds = vsDs();
       const pi = ds.playerIdx;
       const p = G.players[pi];
       const counts = ds.counts;
@@ -8193,11 +9045,14 @@
           </div>`
         : `<div class="db-confirm-row"><button type="button" class="btn-ho db-confirm-btn" ${v.ok ? '' : 'disabled style="opacity:.45;cursor:default"'} onclick="confirmDeckBuild()">${v.ok ? '確定' : '確定できません'}</button></div>`;
 
+      // 同時構築のとき：相手が確定したかを常時1行で示す（中身は見せない）。確定の瞬間は要素の中身だけ差し替わる
+      const oppStatusHtml = (!G.deckBuildState && _vsLocalDeckBuild) ? `<div class="db-opp-status" id="db-opp-status">${vsDeckOppStatusInner()}</div>` : '';
       return `<div class="screen active ws-editor-screen db-screen">
         <div class="db-header">
           <div class="section-title">デッキ編成</div>
           <div class="db-sub">${ds.standalone ? 'Myデッキ' : _escHtml(p.name)} — ${VERSUS_DECK_SIZE}枚ちょうど・同名${VERSUS_DECK_MAX_COPIES}枚まで</div>
         </div>
+        ${oppStatusHtml}
         ${citiesHtml}
         ${gaugesHtml}
         ${lastStripHtml}
@@ -8249,7 +9104,7 @@
       const c0 = p.cities[0], c1 = p.cities[1];
       function cityCard(c, idx) {
         return `<div class="gacha-card-box" onclick="selectCityOrder(${pi},${idx})" style="cursor:pointer;width:200px;transition:.2s;flex-shrink:0;border:2px solid var(--blue);box-shadow:0 0 20px rgba(56,139,253,.25);scroll-snap-align:center" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform=''">
-        <img class="cityorder-city-img" src="images/cities/${c.id}.webp" alt="" onerror="this.style.display='none'">
+        ${cardFaceHtml(c, { cls: 'cityorder-city-img', err: 'hide', versus: true })}
         <div style="height:40px;display:flex;align-items:center;justify-content:center">${terrainImg(c, 40)}</div>
         <div style="font-weight:700;font-size:1rem;margin:6px 0">${c.name}</div>
         <div class="terrain-badge">(${c.isCoastal ? '海岸' : c.isMountain ? '山間部' : '内陸'})</div>
@@ -8647,7 +9502,8 @@
           card.appendChild(m);
         }
         const mask = card.querySelector('.gal-mask');
-        const img = card.querySelector('img');
+        // 文字なし画像＋コード描画の面（.cface）は、画像だけでなく文字ごと動かす（面の中の img だけ動かすと文字が先に見える）
+        const img = card.querySelector('.cface') || card.querySelector('img');
         img.style.opacity = '0';
         img.style.transform = 'scale(1.12)';
         const delay = i * 75;
@@ -8870,7 +9726,7 @@
       _presenceOppRef = db.ref(`rooms/${roomId}/presence/${oppKey}`);
       _presenceOppRef.on('value', snap => {
         const connected = snap.val();
-        const inGame = ['gacha','cityOrder','draft','turnDraw','turnSummary','main','response','discard','recycle'].includes(G.screen);
+        const inGame = ['gacha','cityOrder','deckBuild','draft','turnDraw','turnSummary','main','response','discard','recycle'].includes(G.screen);
         if (connected === false && inGame) {
           showDisconnectOverlay();
         } else if (connected === true) {
@@ -8918,6 +9774,7 @@
       // 同一ルームへの再入室（再接続等）でlistenToState()が複数回呼ばれても
       // リスナーが多重登録されないよう、登録前に既存分を解除する
       db.ref(`rooms/${roomId}/state`).off();
+      listenDeckReady();
       db.ref(`rooms/${roomId}/state`).on('value', snap => {
         const data = snap.val(); if (!data || data === myLastPush) return;
         const prevScreen = G.screen;
@@ -8958,12 +9815,9 @@
           setTimeout(() => showTurnSplash(true, true), 120);
         }
         _prevActivePlayer = newAp; _prevGScreen = newScreen;
-        // デッキ編成の初期値は、そのデッキを組む本人の端末が決める（前回のデッキは端末ごとの localStorage にあるため。startDeckBuild を参照）
-        const _dbs = G.deckBuildState;
-        if (myRole !== 'spectator' && newScreen === 'deckBuild' && _dbs && _dbs.initPending && _dbs.playerIdx === myPlayerIdx) {
-          if (!vsDeckBuildApplyInitial(_dbs)) showDeckBuildNote(vsCityAwareNote(G.players[_dbs.playerIdx].cities));
-          pushState();
-        }
+        // 同時構築：構築の段階を離れたら端末ローカルの編集中デッキを捨てる。段階の中なら、受信が遅れて2人分がそろっていた場合に備えてホストが組み込みを試す
+        if (newScreen === 'deckBuild' && G.deckBuildPhase) vsDeckBuildHostTryMerge();
+        else if (_vsLocalDeckBuild) vsDeckBuildLeave();
         _scheduleRemoteRenderVS(); // 5.1.1・5.1.3：受信のたびの即時全量renderをデバウンス（自分操作の即時renderは別経路のため影響なし）
       });
     }
@@ -9108,7 +9962,7 @@
       const mi = myPlayerIdx;
       switch (G.screen) {
         case 'cityOrder': return G.cityOrderState?.playerIdx === mi ? 'cityOrder' : 'waiting';
-        case 'deckBuild': return G.deckBuildState?.playerIdx === mi ? 'deckBuild' : 'waiting';
+        case 'deckBuild': return (G.deckBuildPhase || G.deckBuildState?.playerIdx === mi) ? 'deckBuild' : 'waiting'; // 同時構築（G.deckBuildPhase）は両者が構築画面。従来は順番に行うので構築する本人だけ
         case 'gacha': return G.gachaCurrent?.playerIdx === mi ? 'gacha' : 'waiting';
         case 'draft': return G.draftState?.playerIdx === mi ? 'draft' : 'waiting';
         case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx; return pi === mi ? 'turnDraw' : 'waiting'; }
@@ -9373,7 +10227,7 @@
     }
     function coopTutMkCard(card, glow, disabled) {
       const click = disabled ? '' : `coopTutCardTap('${card.uid}')`;
-      return `<div class="card ${card.type} ${disabled ? 'card-disabled' : 'card-usable'}${glow ? ' tut-glow' : ''}" onclick="${click}" style="cursor:${disabled ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div></div>`;
+      return `<div class="card ${card.type} ${disabled ? 'card-disabled' : 'card-usable'}${glow ? ' tut-glow' : ''}" onclick="${click}" style="cursor:${disabled ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail' })}${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div></div>`;
     }
     function coopTutStatusBar() {
       const ts = coopTutorialState;
@@ -9960,6 +10814,21 @@
       dailyOpenCalendar();
     }
 
+    // 図鑑の対戦／協力の切替。lobbyState.galleryVs（真偽値）が無ければ保存値、それも無ければ対戦（true）。保存は viewer ごとの localStorage（無くても動く）
+    const RON_GALLERY_VS_KEY = 'ron_gallery_vs';
+    function galleryVsGet() {
+      if (typeof lobbyState.galleryVs === 'boolean') return lobbyState.galleryVs;
+      let v = true;
+      try { if (typeof localStorage !== 'undefined' && localStorage.getItem(RON_GALLERY_VS_KEY) === 'co') v = false; } catch (e) { /* 保存が使えなくても既定の対戦で動く */ }
+      lobbyState.galleryVs = v;
+      return v;
+    }
+    /** @param {boolean} v */
+    function gallerySetVs(v) {
+      lobbyState.galleryVs = !!v;
+      try { if (typeof localStorage !== 'undefined') localStorage.setItem(RON_GALLERY_VS_KEY, v ? 'vs' : 'co'); } catch (e) { /* 保存できなくても切替は効く */ }
+      render();
+    }
     function renderLobby() {
       const nv = lobbyState.nameInput.replace(/"/g, '&quot;'); const jv = lobbyState.joinCodeInput.replace(/"/g, '&quot;');
       const err = lobbyState.error ? `<div class="lobby-error">${coopIcoWarnTriangle(14,'var(--yellow)')} ${lobbyState.error}</div>` : '';
@@ -9967,6 +10836,8 @@
 
       // ── ギャラリーモード ──
       if (lobbyState.mode === 'gallery') {
+        const _gv = galleryVsGet();   // true＝対戦／false＝協力（面の文とコラムを切り替える）
+        const modeSegHtml = `<div class="gallery-mode-seg" role="group" aria-label="表示するモード"><button type="button" class="gms-btn${_gv ? ' active' : ''}" aria-pressed="${_gv}" onclick="gallerySetVs(true)">対戦</button><button type="button" class="gms-btn${_gv ? '' : ' active'}" aria-pressed="${!_gv}" onclick="gallerySetVs(false)">協力</button></div>`;
         const tabs = [
           { key: 'city',    icons: ['images/icons/icon_city.webp'], label: '都市カード' },
           { key: 'policy',  icons: ['images/icons/icon_policy_yellow.webp', 'images/icons/icon_policy_green.webp'], label: '政策カード' },
@@ -9993,13 +10864,13 @@
               if (card.type === 'policy') {
                 infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${card.name}</div><div style="font-size:.72rem;color:var(--t1);text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">対応する現実概念</div><div style="font-size:.83rem;color:var(--t1);line-height:1.7;background:var(--bg2);border-radius:10px;padding:12px 14px">${card.realConcept}</div>`;
               } else {
-                // 図鑑はモードに属さない画面。対戦だけ効果が違うカード（VERSUS_CARD_TEXT）は、共通のコラム（協力・デイリー）と
-                // 対戦のコラムを欄を分けて並べる（どちらかをモード共通の文言として出さない）。
+                // 図鑑の対戦／協力の切替（_gv）で、対戦だけ効果が違うカード（VERSUS_CARD_TEXT）のコラムを、選んだモードの欄だけ出す。
+                // 違いが無いカードのコラムは従来どおり1つ。
                 const vtx = VERSUS_CARD_TEXT[card.id];
                 const colBlock = (label, title, text) => `<div style="font-size:.72rem;font-weight:700;color:var(--yellow);margin-bottom:6px;letter-spacing:.04em">${label}：${title}</div><div style="font-size:.83rem;color:var(--t1);line-height:1.7">${text}</div>`;
                 const colHtml = card.column
                   ? (vtx && vtx.column
-                    ? colBlock('コラム（協力・デイリー）', card.columnTitle, card.column) + `<div style="border-top:1px solid rgba(139,148,158,.25);margin:12px 0"></div>` + colBlock('コラム（対戦）', vtx.columnTitle || card.columnTitle, vtx.column)
+                    ? (_gv ? colBlock('コラム（対戦）', vtx.columnTitle || card.columnTitle, vtx.column) : colBlock('コラム（協力・デイリー）', card.columnTitle, card.column))
                     : colBlock('コラム', card.columnTitle, card.column))
                   : `<div style="font-size:.82rem;color:var(--t1);text-align:center;padding:8px 0">コラムなし</div>`;
                 infoHtml = `<div style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:4px">${card.name}</div><div style="background:var(--bg2);border-radius:10px;padding:12px 14px">${colHtml}</div>`;
@@ -10021,18 +10892,18 @@
             return _zc.color === 'green' ? 'var(--green)' : 'var(--yellow)';
           })();
           const _posLabel = _zi >= 0 ? `<div style="text-align:center;font-size:.74rem;color:var(--t2);font-family:'Roboto Condensed',sans-serif;letter-spacing:.04em">${_zi + 1} / ${_order.length}</div>` : '';
-          const _imgRow = `<div style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%">${_navArrows ? `<button class="gallery-nav-arrow" style="color:${_navColor}" onclick="galleryZoomNav(-1)" aria-label="前のカード">${_chevL}</button>` : ''}<img class="gallery-zoom-img" src="${src}" alt="${z.name}" draggable="false" style="max-height:260px;max-width:min(200px,70vw);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.6);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none" onerror="this.style.opacity='.3'">${_navArrows ? `<button class="gallery-nav-arrow" style="color:${_navColor}" onclick="galleryZoomNav(1)" aria-label="次のカード">${_chevR}</button>` : ''}</div>`;
+          const _imgRow = `<div style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%">${_navArrows ? `<button class="gallery-nav-arrow" style="color:${_navColor}" onclick="galleryZoomNav(-1)" aria-label="前のカード">${_chevL}</button>` : ''}${cardFaceHtml(z.id, { cls: 'gallery-zoom-img', alt: z.name, drag: true, err: 'dim', versus: _gv, style: 'max-height:260px;max-width:min(200px,70vw);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.6);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none' })}${_navArrows ? `<button class="gallery-nav-arrow" style="color:${_navColor}" onclick="galleryZoomNav(1)" aria-label="次のカード">${_chevR}</button>` : ''}</div>`;
           contentHtml = `<button class="lobby-btn-back" style="width:auto;padding:8px 16px;margin:0;align-self:flex-start" onclick="lobbyState.galleryZoom=null;render()">← 一覧に戻る</button><div style="display:flex;flex-direction:column;align-items:center;gap:10px">${_imgRow}${_posLabel}<div style="width:100%;display:flex;flex-direction:column;gap:8px">${infoHtml}</div></div>`;
         } else if (lobbyState.galleryTab) {
           let gridHtml = '';
           if (lobbyState.galleryTab === 'city') {
-            gridHtml = CITIES.map(c => `<div class="gallery-card" onclick="openGalleryZoom('city','${c.id}','${c.name}')"><img src="images/cities/${c.id}.webp" alt="${c.name}" loading="lazy" draggable="false"></div>`).join('');
+            gridHtml = CITIES.map(c => `<div class="gallery-card" onclick="openGalleryZoom('city','${c.id}','${c.name}')">${cardFaceHtml(c, { alt: c.name, lazy: true, drag: true, versus: _gv })}</div>`).join('');
           } else if (lobbyState.galleryTab === 'policy') {
-            const yellows = POLICY_CARDS.filter(c => c.color === 'yellow').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy" draggable="false"></div>`).join('');
-            const greens  = POLICY_CARDS.filter(c => c.color === 'green').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy" draggable="false"></div>`).join('');
+            const yellows = POLICY_CARDS.filter(c => c.color === 'yellow').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')">${cardFaceHtml(c, { alt: c.name, lazy: true, drag: true, versus: _gv })}</div>`).join('');
+            const greens  = POLICY_CARDS.filter(c => c.color === 'green').map(c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')">${cardFaceHtml(c, { alt: c.name, lazy: true, drag: true, versus: _gv })}</div>`).join('');
             contentHtml = `<div class="gallery-grid">${yellows}${greens}</div>`;
           } else if (lobbyState.galleryTab === 'disaster') {
-            const mkG = c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')"><img src="images/cards/${c.id}.webp" alt="${c.name}" loading="lazy" draggable="false"></div>`;
+            const mkG = c => `<div class="gallery-card" onclick="openGalleryZoom('card','${c.id}','${c.name}')">${cardFaceHtml(c, { alt: c.name, lazy: true, drag: true, versus: _gv })}</div>`;
             const nat = DISASTER_CARDS.map(mkG).join('');
             const jin = JINZAI_DISASTER_CARDS.map(mkG).join('');
             contentHtml = `<div class="gallery-section-label"><img class="gallery-section-icon" src="images/icons/icon_disaster.webp" alt="">自然災害</div><div class="gallery-grid">${nat}</div><div class="gallery-section-divider"></div><div class="gallery-section-label gallery-section-label-jinzai"><img class="gallery-section-icon" src="images/icons/icon_jinzai.webp" alt="">人為災害</div><div class="gallery-grid">${jin}</div>`;
@@ -10043,6 +10914,7 @@
         }
         return `<div class="screen active"><div class="gallery-wrap"><div class="gallery-box">
     <div class="gallery-header"><button class="gallery-btn-back" onclick="galleryBack()">＜</button><span class="gallery-title">カード一覧</span><span style="width:40px;flex-shrink:0"></span></div>
+    ${modeSegHtml}
     <div class="gallery-tabs">${tabHtml}</div>
     ${contentHtml}
   </div></div></div>`;
@@ -10539,7 +11411,7 @@
           <div class="section-title" style="margin-bottom:0">${p.name}｜引いた都市 <span style="font-size:.7rem;font-weight:400;color:var(--t2)">2枚</span></div>
           <div style="flex:1;display:flex;align-items:center;justify-content:center">
             <div class="gacha-city-duo">
-              ${(_gachaAllCities||[]).map((c,i) => `<div class="gacha-city-duo-item" style="animation-delay:${i*120}ms"><div class="gacha-city-duo-card"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><div class="gacha-city-duo-label">${c.name}</div></div>`).join('')}
+              ${(_gachaAllCities||[]).map((c,i) => `<div class="gacha-city-duo-item" style="animation-delay:${i*120}ms"><div class="gacha-city-duo-card">${cardFaceHtml(c, { err: 'dim', versus: true })}</div><div class="gacha-city-duo-label">${c.name}</div></div>`).join('')}
             </div>
           </div>
           <div style="display:flex;justify-content:center;padding:6px 0"><button class="btn-ho draft-confirm-appear" onclick="proceedToCityOrder()" style="padding:13px 44px;font-size:1rem">${uiIcoSwords(16)} 先攻を選ぶ</button></div>
@@ -10554,14 +11426,14 @@
           return `<div class="draft-reveal-overlay"><div class="draft-neon-bg"><img class="draft-neon-icon-pos" id="gcni-0" src="images/icons/neon_city.webp" alt="" style="top:50%;left:50%;transform:translate(-50%,-50%);width:min(55vw,180px);filter:brightness(0.04)"></div></div>`;
         }
         if (_gachaAnimState === 'revealing_card') {
-          return `<div class="draft-reveal-overlay"><div class="draft-large-card"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="draft-large-flash"></div><div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div></div>`;
+          return `<div class="draft-reveal-overlay"><div class="draft-large-card">${cardFaceHtml(city, { err: 'dim', versus: true })}<div class="draft-large-flash"></div><div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div></div>`;
         }
         if (_gachaAnimState === 'card_paused') {
           const advBtn = _gachaBulkMode ? '' : `<button class="draft-advance-btn" onclick="advanceGachaCard()">›</button>`;
-          return `<div class="draft-reveal-overlay"><div class="draft-large-card" style="animation:none"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div>${advBtn}</div>`;
+          return `<div class="draft-reveal-overlay"><div class="draft-large-card" style="animation:none">${cardFaceHtml(city, { err: 'dim', versus: true })}<div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div>${advBtn}</div>`;
         }
         if (_gachaAnimState === 'card_exiting') {
-          return `<div class="draft-reveal-overlay"><div class="draft-large-card exiting"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div></div>`;
+          return `<div class="draft-reveal-overlay"><div class="draft-large-card exiting">${cardFaceHtml(city, { err: 'dim', versus: true })}<div class="draft-card-label">${cardTypeIconHtml('city',null,22)}<span>${city.name}</span></div></div></div>`;
         }
         return '';
       })();
@@ -10599,13 +11471,13 @@
       let ca = '';
       if (gc.candidates && gc.candidates.length) {
         const cols = gc.candidates.length === 2 ? 'repeat(2,1fr)' : 'repeat(3,1fr)';
-        const cards = gc.candidates.map(c => `<div class="gacha-candidate-card" onclick="acceptGachaCandidate('${c.id}')"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="gacha-cand-info"><div style="font-weight:700;font-size:.85rem;line-height:1.2">${c.name}</div><div style="font-size:.7rem;color:var(--t2);margin-top:2px">${c.isCoastal ? '<img src="images/icons/terrain_coastal.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 海岸' : c.isMountain ? '<img src="images/icons/terrain_mountain.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 山間部' : '<img src="images/icons/terrain_inland.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 内陸'} · HP ${c.hp}</div><div style="font-size:.65rem;color:var(--t3);margin-top:3px;line-height:1.3">${c.abilityDesc}</div></div></div>`).join('');
+        const cards = gc.candidates.map(c => `<div class="gacha-candidate-card" onclick="acceptGachaCandidate('${c.id}')">${cardFaceHtml(c, { err: 'dim', versus: true })}<div class="gacha-cand-info"><div style="font-weight:700;font-size:.85rem;line-height:1.2">${c.name}</div><div style="font-size:.7rem;color:var(--t2);margin-top:2px">${c.isCoastal ? '<img src="images/icons/terrain_coastal.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 海岸' : c.isMountain ? '<img src="images/icons/terrain_mountain.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 山間部' : '<img src="images/icons/terrain_inland.webp" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:-2px"> 内陸'} · HP ${c.hp}</div><div style="font-size:.65rem;color:var(--t3);margin-top:3px;line-height:1.3">${c.abilityDesc}</div></div></div>`).join('');
         ca = `<div class="gacha-candidates" style="grid-template-columns:${cols}">${cards}</div><div style="text-align:center;color:var(--t3);font-size:.75rem;margin-top:10px">都市をタップして選択</div>`;
       } else if (!gc.revealed) {
         const btnLabel = cpuDifficulty === 'easy' ? `${uiIcoDice(15)} 3枚から選ぶ` : `${uiIcoDice(15)} 2枚から選ぶ`;
         ca = `<div class="gacha-card-reveal-area" onclick="pullGacha()"><img src="images/cities/back.webp" alt=""></div><button class="btn-gacha" onclick="pullGacha()">${btnLabel}</button>`;
       } else {
-        const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cities/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptGachaCity()">${coopIcoCheckCircle(15,'currentColor')} この都市で進む</button>`;
+        const c = gc.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal">${cardFaceHtml(c, { err: 'dim', versus: true })}</div><button class="btn-accept" onclick="acceptGachaCity()">${coopIcoCheckCircle(15,'currentColor')} この都市で進む</button>`;
       }
       return `<div class="screen active">${overlay}<div class="section-title" style="margin-bottom:0">${p.name}｜都市ガチャ <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${pickLabel}</span></div>${firstPickInfo}<div class="gacha-stage">${ca}</div></div>`;
     }
@@ -10676,7 +11548,7 @@
         const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
         const _isNew = card.uid === _lastDrawnCardUid;
         const _isPlaying = card.uid === _playingCardUid;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}${cardZoomBtnHtml()}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}${cardZoomBtnHtml()}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -10690,7 +11562,7 @@
 
     // ─── 手札描画（読み取り専用：自分のターン外） ───
     function renderPlayerHandReadOnly(p) {
-      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`; }
+      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`; }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
       const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => a.cost - b.cost);
@@ -10705,7 +11577,7 @@
     function renderPlayerHandSpectator(p) {
       function mkCard(card) {
         const isNew = card.uid === _lastDrawnCardUid;
-        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`;
+        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis  = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -10742,7 +11614,7 @@
         // ④ カードごとのHP予測をバッジに表示
         const hpBand = (!dis && atkCard) ? `<div class="card-hp-band" style="white-space:nowrap">予測HP<strong>${Math.max(0, curHp - computeResponseEst(atkCard, mi, card, priorResponses))}</strong></div>` : '';
         const bLabel = dis ? `${card.type === 'jinzai' ? '人為' : '自然'}（使用不可）` : '対応';
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}${cardZoomBtnHtml()}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}${cardZoomBtnHtml()}</div>`;
       }
       const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
       const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
@@ -10970,7 +11842,7 @@
       const _ccard = G.players[_cpi]?.hand.find(cd => cd.uid === c.uid);
       const _cIcon = cardTypeIconHtml(c.cardType, _ccard?.color);
       return `<div class="confirm-overlay" onclick="cancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">
-    <img class="confirm-card-img" src="images/cards/${cardId}.webp" alt="" onerror="this.style.display='none'">
+    ${cardFaceHtml(cardId, { cls: 'confirm-card-img', err: 'hide', versus: true })}
     <div class="confirm-card-preview" style="display:flex;align-items:center;gap:6px">${_cIcon}<span>${c.name}</span></div>
     ${hint}<p>${tl}を<strong style="color:${c.danger ? 'var(--red)' : 'var(--blue)'}">${c.actionLabel}</strong>しますか？</p>
     <div class="confirm-btns"><button class="btn-ok${c.danger ? ' danger' : ''}" onclick="confirmWithAnim()" aria-label="${c.name}を${c.actionLabel}する">はい</button><button class="btn-cancel" onclick="cancelConfirm()" aria-label="${c.actionLabel}をキャンセル">キャンセル</button></div>
@@ -10980,7 +11852,7 @@
     // ─── 捨て札選択 ───
     function renderDiscard() {
       const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi]; const excess = p.hand.length - 5;
-      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`).join('');
+      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`).join('');
       return `<div class="screen active"><div class="section-title">${uiIcoUpload(15)} ${p.name} — 捨てるカードを選んでください</div>
     <div class="discard-info"><strong style="color:var(--red)">${excess}枚</strong>を捨ててください</div>
     <div style="font-size:.8rem;color:var(--t2);text-align:center">現在の手札：<strong style="color:var(--yellow)">${p.hand.length}枚</strong>　→　目標：5枚</div>
@@ -10994,7 +11866,7 @@
       const pips = Array(ts.target).fill(0).map((_, i) => { const cls = i < ts.drawn ? 'done' : i === ts.drawn ? 'current' : ''; return `<div class="draft-pip ${cls}"></div>`; }).join('');
       let ca = '';
       if (!ts.revealed) { ca = `<div class="gacha-card-reveal-area" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt=""></div><button class="btn-gacha" onclick="pullTurnCard()"><img src="images/cards/back.webp" alt="" style="width:16px;height:16px;object-fit:cover;border-radius:2px;vertical-align:-3px;margin-right:2px">カードを引く！</button>`; }
-      else { const c = ts.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="acceptTurnCard()">${coopIcoCheckCircle(15,'currentColor')} 手札に加える</button>`; }
+      else { const c = ts.revealed; ca = `<div class="gacha-card-reveal-area revealed gacha-reveal">${cardFaceHtml(c, { err: 'dim', versus: true })}</div><button class="btn-accept" onclick="acceptTurnCard()">${coopIcoCheckCircle(15,'currentColor')} 手札に加える</button>`; }
       const titleLabel = ts.isHazardMap ? 'ハザードマップ整備' : ts.isRecycle ? 'ローリングストック' : 'ターン開始ドロー';
       return `<div class="screen active"><div class="section-title" style="margin-bottom:0">${p.name}｜${titleLabel} <span style="font-size:.7rem;font-weight:400;color:var(--t2)">${ts.drawn + 1}／${ts.target}枚</span></div>
     <div class="draft-progress"><div><span style="font-size:.8rem;color:var(--t1)">ドロー </span><strong style="color:var(--yellow)">${ts.drawn} / ${ts.target}</strong><span style="font-size:.8rem;color:var(--t1)"> 枚</span></div><div class="draft-pips">${pips}</div></div>
@@ -11025,7 +11897,7 @@
         if (ds.animState === 'revealing_card') {
           return `<div class="draft-reveal-overlay">
             <div class="draft-large-card">
-              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              ${cardFaceHtml(rc, { err: 'dim', versus: true })}
               <div class="draft-large-flash"></div>
               <div class="draft-card-label">${cardTypeIconHtml(rc.type, rc.color, 22)}<span>${rc.name}</span></div>
             </div>
@@ -11034,7 +11906,7 @@
         if (ds.animState === 'card_paused') {
           return `<div class="draft-reveal-overlay">
             <div class="draft-large-card" style="animation:none">
-              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              ${cardFaceHtml(rc, { err: 'dim', versus: true })}
               <div class="draft-card-label">${cardTypeIconHtml(rc.type, rc.color, 22)}<span>${rc.name}</span></div>
             </div>
             <button class="draft-advance-btn" onclick="advanceDraftCard()">›</button>
@@ -11043,7 +11915,7 @@
         if (ds.animState === 'card_exiting') {
           return `<div class="draft-reveal-overlay">
             <div class="draft-large-card exiting">
-              <img src="images/cards/${rc.id}.webp" alt="" onerror="this.style.opacity='.3'">
+              ${cardFaceHtml(rc, { err: 'dim', versus: true })}
               <div class="draft-card-label">${cardTypeIconHtml(rc.type, rc.color, 22)}<span>${rc.name}</span></div>
             </div>
           </div>`;
@@ -11074,7 +11946,7 @@
           ...ds.dealtCards.filter(c => c.type === 'jinzai'),
         ];
         return `<div class="draft-all-revealed">${ordered.map((c, i) =>
-          `<div class="draft-all-card" style="animation-delay:${i * 85}ms"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div>`
+          `<div class="draft-all-card" style="animation-delay:${i * 85}ms">${cardFaceHtml(c, { err: 'dim', versus: true })}</div>`
         ).join('')}</div>`;
       })();
 
@@ -11083,7 +11955,7 @@
       const thumbsHtml = flipped.map(c => {
         const isNew = c.uid === ds.lastFlippedUid;
         return `<div class="draft-thumb-card" style="${isNew ? '' : 'animation:none'}">
-          <img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'">
+          ${cardFaceHtml(c, { err: 'dim', versus: true })}
         </div>`;
       }).join('');
 
@@ -11114,7 +11986,7 @@
         const sel = _recycleSelected.includes(card.uid);
         return `<div class="card ${card.type}${sel ? ' card-usable' : ''}" onclick="toggleRecycleCard('${card.uid}')" style="cursor:pointer;${sel ? 'box-shadow:0 0 0 3px var(--red) inset,0 0 10px rgba(248,81,73,.4);opacity:.88' : ''}">
           <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
-          <div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
+          <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}
           ${sel ? `<div style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}
         </div>`;
@@ -11193,7 +12065,7 @@
         const name = pc ? pc.name : s.label;
         const remain = s.key === 'damageReduceHits' ? `<div style="font-size:.73rem;color:var(--t2)">残${def.effects.damageReduceHits}回</div>` : '';
         return `<div class="peek-card-big" style="flex-shrink:0;border-color:var(--green);cursor:pointer;opacity:.95" onclick="destroyPollutionShield('${s.key}')">
-        <img src="images/cards/${s.cardId}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'">
+        ${cardFaceHtml(s.cardId, { style: 'width:72px;border-radius:6px', err: 'hide', versus: true })}
         <div class="pk-icon">${cardTypeIconHtml(pc ? pc.type : 'policy', pc ? pc.color : 'green', 32)}</div><div class="pk-name">${name}</div>
         <div class="pk-cost" style="color:var(--green)">${s.desc}</div>
         ${remain}
@@ -11221,7 +12093,7 @@
         const on = card.uid === _typhoonSelUid;
         return `<div class="card ${card.type}${on ? ' card-usable' : ''}" data-ctype="${cardCtype(card)}" onclick="toggleTyphoonCard('${card.uid}')" style="cursor:pointer;${on ? 'box-shadow:0 0 0 3px var(--yellow) inset,0 0 10px rgba(227,179,65,.45)' : ''}">
           <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
-          <div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
+          <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}
           ${on ? `<div style="position:absolute;top:4px;right:4px;background:var(--yellow);color:#0d1117;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}
         </div>`;
@@ -11374,6 +12246,11 @@
         else if (screen === 'draft') { drawMsg = _wc(`${G.players[G.draftState?.playerIdx ?? ap].name} が`, '初期手札を', '引いています'); }
         else if (screen === 'gacha') { drawMsg = _wc(`${G.players[G.gachaCurrent?.playerIdx ?? ap].name} が`, '都市を', '選んでいます'); }
         else if (screen === 'cityOrder') { drawMsg = _wc(`${G.players[G.cityOrderState?.playerIdx ?? ap].name} が`, '先攻を', '選んでいます'); }
+        else if (screen === 'deckBuild' && G.deckBuildPhase) {
+          // 同時構築：両者の確定状況だけを示す（デッキの中身は _vsDeckReady にあっても参照しない）
+          const st = pi => `${_wc(`${_escHtml(G.players[pi].name)}：`, _vsDeckReady[pi] ? '確定済み' : '編成中')}`;
+          drawMsg = `${_wc('両者が', 'デッキを', '編成しています')}<br><span style="font-size:.78em;color:var(--t2)">${st(0)}　${st(1)}</span>`;
+        }
         else if (screen === 'deckBuild') { drawMsg = _wc(`${G.players[G.deckBuildState?.playerIdx ?? ap].name} が`, 'デッキを', '編成しています'); }
         const _SICONS = [{src:'images/icons/neon_disaster.webp'},{src:'images/icons/neon_jinzai.webp'},{src:'images/icons/neon_policy_instant.webp'},{src:'images/icons/neon_policy_shield.webp'},{src:'images/icons/neon_city.webp'}];
         const _sNeonHtml = `<div class="lobby-neon-icons">${_SICONS.map((ic,i) => `<img class="lobby-neon-icon" id="sni-${i}" src="${ic.src}" alt="" style="filter:brightness(0.04)">`).join('')}</div>`;
@@ -11515,7 +12392,7 @@
         const counterCard = worst ? POLICY_CARDS.find(c=>c.id===(COUNTER_MAP[worst.cardId]||[])[0]) : null;
         if (counterCard && worst) {
           const ctColor = counterCard.color==='green'?'var(--green)':'var(--yellow)';
-          counterHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label"><img src="images/icons/neon_policy_shield.webp" style="width:20px;height:20px;object-fit:contain"> 次はこのカードで備えよう</div><div class="go-counter-trigger"><span style="font-size:1.1rem">${cardIconSvg(worst.cardIcon,18)}</span><span class="go-counter-arrow">→</span><span style="font-size:.82rem;color:var(--t1)">${worst.cardName} ${worst.damage}ダメージへの対策</span></div><div class="go-mvp-card-row" style="margin-top:10px"><img class="go-mvp-img" src="images/cards/${counterCard.id}.webp" alt="" onerror="this.style.display='none'"><div class="go-mvp-info"><div class="go-mvp-name" style="color:${ctColor}">${cardIconSvg(counterCard.icon,16,ctColor)} ${counterCard.name}</div><div class="go-mvp-type">${counterCard.desc}</div><div class="go-mvp-desc">${counterCard.realConcept}</div></div></div></div>`;
+          counterHtml = `<div class="go-inview go-counter-wrap"><div class="go-mvp-label"><img src="images/icons/neon_policy_shield.webp" style="width:20px;height:20px;object-fit:contain"> 次はこのカードで備えよう</div><div class="go-counter-trigger"><span style="font-size:1.1rem">${cardIconSvg(worst.cardIcon,18)}</span><span class="go-counter-arrow">→</span><span style="font-size:.82rem;color:var(--t1)">${worst.cardName} ${worst.damage}ダメージへの対策</span></div><div class="go-mvp-card-row" style="margin-top:10px">${cardFaceHtml(counterCard, { cls: 'go-mvp-img', err: 'hide', versus: true })}<div class="go-mvp-info"><div class="go-mvp-name" style="color:${ctColor}">${cardIconSvg(counterCard.icon,16,ctColor)} ${counterCard.name}</div><div class="go-mvp-type">${counterCard.desc}</div><div class="go-mvp-desc">${counterCard.realConcept}</div></div></div></div>`;
         }
       }
 
@@ -11645,7 +12522,7 @@
           const art = `<div style="width:100%;max-width:72px;aspect-ratio:288/450;border-radius:8px;overflow:hidden;margin:0 auto">${cwCardImage(cardLike, 'full', 'cw-cimg-go-' + key)}</div>`;
           return `<div class="go-city-badge" style="cursor:default">${art}<div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name">${city.name}</div></div>`;
         }
-        return `<div class="go-city-badge" onclick="goGalleryFromResult('city','${city.id}','${city.name}','city')"><img src="images/cities/${city.id}.webp" alt="" onerror="this.style.opacity='.3'"><div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name">${city.name}</div></div>`;
+        return `<div class="go-city-badge" onclick="goGalleryFromResult('city','${city.id}','${city.name}','city')">${cardFaceHtml(city, { err: 'dim', versus: true })}<div class="go-city-badge-playerlabel">${label}</div><div class="go-city-badge-name">${city.name}</div></div>`;
       };
       const hasCity2 = !!(myCity2 || oppCity2);
       const _page1 = `<div class="go-city-badges-page">${_mkCityBadge(myCity,'あなた','p1a')}<div class="go-city-badge-vs">VS</div>${_mkCityBadge(oppCity,'相手','p1b')}</div>`;
@@ -11731,7 +12608,7 @@
               <span style="font-size:.82rem;color:var(--t1)">${worst.cardName} ${worst.damage}ダメージへの対策</span>
             </div>
             <div class="go-mvp-card-row" style="margin-top:10px">
-              <img class="go-mvp-img" src="images/cards/${counterCard.id}.webp" alt="" onerror="this.style.display='none'">
+              ${cardFaceHtml(counterCard, { cls: 'go-mvp-img', err: 'hide', versus: true })}
               <div class="go-mvp-info">
                 <div class="go-mvp-name" style="color:${ctColor}">${cardIconSvg(counterCard.icon,16,ctColor)} ${counterCard.name}</div>
                 <div class="go-mvp-type">${counterCard.desc}</div>
@@ -11809,7 +12686,7 @@
       // カード工房のcanvas合成一枚絵（cwCardImage）で代替する。実在都市（custom未設定）は既存の<img>のまま無改修。
       const cityArtHtml = c.custom
         ? `<div style="display:flex;justify-content:center;margin-bottom:6px">${cwCardImage({ id: c.id, name: c.name, terrain: c.isMountain ? 'mountain' : (c.isCoastal ? 'coastal' : 'inland'), abilityId: c.abilityId, flavor: c.flavor, art: c.art }, 'sm', 'cw-cimg-cityinfo-' + idx)}</div>`
-        : `<img src="images/cities/${c.id}.webp" style="width:120px;border-radius:10px;display:block;margin:0 auto 6px" alt="" onerror="this.style.display='none'">`;
+        : `${cardFaceHtml(c, { style: 'width:120px;border-radius:10px;display:block;margin:0 auto 6px', err: 'hide', versus: true })}`;
       return `<div class="city-info-overlay" onclick="hideCityInfo()">
         <div class="city-info-box" onclick="event.stopPropagation()">
           ${cityArtHtml}
@@ -12000,7 +12877,9 @@
         db.ref(`rooms/${roomId}/rematch`).remove();
         db.ref(`rooms/${roomId}/rematchRequest`).off();
         db.ref(`rooms/${roomId}/rematchRequest`).remove();
+        db.ref(`rooms/${roomId}/deckReady`).remove(); // 前の試合で確定したデッキが次のデッキ構築に残らないようにする
       }
+      _vsDeckReady = { 0: null, 1: null }; vsDeckBuildLeave();
       hideRematchRequestPopup();
       _rematchListenerSet = false; _rematchRequested = false;
       const p0name = G.players[0].name; const p1name = G.players[1].name;
@@ -12089,8 +12968,11 @@
           db.ref(`rooms/${roomId}/state`).off();
           db.ref(`rooms/${roomId}/rematchRequest`).off();
           db.ref(`rooms/${roomId}/rematch`).off();
+          unlistenDeckReady();
           if (myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
+          else if (myRole === 'p2') db.ref(`rooms/${roomId}/deckReady/p1`).remove(); // 部屋に残る側の対戦に自分の確定デッキを残さない
         }
+        _vsDeckReady = { 0: null, 1: null }; _vsPeerProto = 0; vsDeckBuildLeave();
         myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
         _rematchListenerSet = false; _rematchRequested = false;
         hideRematchRequestPopup();
@@ -12518,8 +13400,8 @@
     let _idlePreloadStarted = false;
     function _idlePreloadImages() {
       const paths = [
-        ...ALL_CARDS.map(c => `images/cards/${c.id}.webp`),
-        ...CITIES.map(c => `images/cities/${c.id}.webp`),
+        ...ALL_CARDS.map(c => CARD_FACE_NT.indexOf(c.id) >= 0 ? `images/cards/nt/${c.id}.webp` : `images/cards/${c.id}.webp`),
+        ...CITIES.map(c => CARD_FACE_NT.indexOf(c.id) >= 0 ? `images/cities/nt/${c.id}.webp` : `images/cities/${c.id}.webp`),
       ];
       let i = 0;
       const BATCH = 4;
@@ -12706,7 +13588,7 @@
       const ov = document.createElement('div');
       ov.className = 'co-draw-reveal';
       const tiles = cards.map((c, i) => `<div class="co-draw-card" style="animation-delay:${i * 130}ms">
-        <img src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'">
+        ${cardFaceHtml(c, { err: 'hide' })}
       </div>`).join('');
       ov.innerHTML = `<div class="co-draw-label">${cards.length}枚 引きました</div><div class="co-draw-row">${tiles}</div>`;
       ov.addEventListener('click', _coCloseDrawReveal);
@@ -14898,7 +15780,7 @@
       const _roExtra = (isEnded || isSpec) ? ';pointer-events:none' : ''; // 'ended'・'spec'はクリック自体を無効化（タップ導線が不要なため）
       const previewing = mode === 'resp' && _coRespPreviewUid === card.uid;
       // 実装3：新しく手札に入ったカードを短時間パルスさせる（発生源を問わず手札差分検出で一律にマーク。coopHandParts参照）
-      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}${isNew ? ' coop-hand-new-pulse' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${reason}${cardZoomBtnHtml()}</div>`;
+      return `<div class="card ${card.type} ${stateCls}${previewing ? ' resp-previewing' : ''}${isNew ? ' coop-hand-new-pulse' : ''}" data-ctype="${cardCtype(card)}" data-uid="${card.uid}" onclick="${click}" style="cursor:${cursor}${_roExtra}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost"${mode === 'resp' ? ' style="font-size:.6rem"' : ''}>${costLabel}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail' })}${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${card.desc}</div>${reason}${cardZoomBtnHtml()}</div>`;
     }
     function coopCardEffectHint(card, resp) {
       switch (card.effectType) {
@@ -14942,7 +15824,7 @@
           ? '次のターンに効きます（相手の予算が下がる）'
           : 'このターンにすぐ効きます';
         const _feLeft = Math.max(0, ((CO.eventPool || []).length) - 1);
-        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()" style="border:1px solid rgba(192,132,252,.5)"><img class="confirm-card-img" src="images/cards/${_fe.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${cardIconSvg(_fe.icon, 18)}<span>${_fe.name}</span></div><p style="margin:6px 0;color:var(--t0);font-size:.82rem;line-height:1.6">${_fe.effectNature || _fe.desc}<br><span style="color:#e2b6ff;font-weight:700">${_feWhen}</span><br><span style="font-size:.74rem;color:rgba(var(--t0-rgb),.7)">発動すると戻せません。残りは${_feLeft}つになります</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopNatureFireEvent('${CO.confirm.fireEvent}')">発動する</button><button class="btn-cancel" onclick="coopCancelConfirm()">やめる</button></div></div></div>`;
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()" style="border:1px solid rgba(192,132,252,.5)">${cardFaceHtml(_fe, { cls: 'confirm-card-img', err: 'hide' })}<div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${cardIconSvg(_fe.icon, 18)}<span>${_fe.name}</span></div><p style="margin:6px 0;color:var(--t0);font-size:.82rem;line-height:1.6">${_fe.effectNature || _fe.desc}<br><span style="color:#e2b6ff;font-weight:700">${_feWhen}</span><br><span style="font-size:.74rem;color:rgba(var(--t0-rgb),.7)">発動すると戻せません。残りは${_feLeft}つになります</span></p><div class="confirm-btns"><button class="btn-ok" onclick="coopNatureFireEvent('${CO.confirm.fireEvent}')">発動する</button><button class="btn-cancel" onclick="coopCancelConfirm()">やめる</button></div></div></div>`;
       }
       if (CO.confirm.forceAdvance) {
         // 2026-07-27（P0修正・仕様(e)）：ホストの強制進行。未操作の都市を自動でready/ack/skip扱いにして進めるため、
@@ -15011,7 +15893,7 @@
         if (_follow) _comboHint = `<div style="font-size:.7rem;color:#ffd9a0;margin-top:6px;line-height:1.45">${coopZapIco(12)} 同じ都市に ${_follow.map(f => `${_chainCondLabel[f.cond]}で${_nm(f.cardId)}`).join('・')} を続けて撃つと <b>連鎖増幅 +${COOP_COMBO_BONUS}</b></div>`;
         else if (_asSecondary) _comboHint = `<div style="font-size:.7rem;color:#ffd9a0;margin-top:6px;line-height:1.45">${coopZapIco(12)} ${_chainCondLabel[_asSecondary.cond]}の都市で <b>${_nm(_asSecondary.trigger)}</b> に重ねて撃つと <b>連鎖増幅 +${COOP_COMBO_BONUS}</b></div>`;
         const chainInfoHtml = (_chainDefs || _comboHint) ? `<div style="margin:6px 0 8px;padding:8px 10px;background:rgba(255,184,77,.07);border:1px solid rgba(255,184,77,.26);border-radius:8px"><div style="display:flex;align-items:center;gap:5px;font-size:.74rem;font-weight:800;color:#ffb84d">${coopZapIco(15)}二次災害（連鎖）</div>${_chainDefs ? `<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:6px">${_chainDefs.map(ch => `<span style="${cChain}">${_chainCondLabel[ch.cond]}の都市 → ${ch.label} +${ch.dmg}</span>`).join('')}</div>` : ''}${_comboHint}</div>` : '';
-        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><img class="confirm-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div><div style="margin:4px 0;padding:6px 10px;background:rgba(248,81,73,.12);border-radius:6px;font-size:.8rem;color:var(--t0);text-align:center">${c.desc}</div>${chainInfoHtml}<p style="margin:6px 0;color:var(--t0)">どの都市を攻撃しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button></div></div>`;
+        return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">${cardFaceHtml(c, { cls: 'confirm-card-img', err: 'hide' })}<div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div><div style="margin:4px 0;padding:6px 10px;background:rgba(248,81,73,.12);border-radius:6px;font-size:.8rem;color:var(--t0);text-align:center">${c.desc}</div>${chainInfoHtml}<p style="margin:6px 0;color:var(--t0)">どの都市を攻撃しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button></div></div>`;
       }
       const c = CO.hand.find(x => x.uid === CO.confirm.uid); if (!c) return '';
       const resp = !!CO.confirm.resp;
@@ -15044,7 +15926,7 @@
             // innerHTML置換によるカード画像の再読込＝ちらつきを避ける）ための目印。_coApplyRecyclePickLocalUpdate 参照
             return `<div class="recycle-tile${sel ? ' is-selected' : ''}" data-uid="${x.uid}" onclick="coopToggleRecyclePick('${x.uid}')">
               <div class="rt-check"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg></div>
-              <img src="images/cards/${x.id}.webp" alt="" onerror="this.style.display='none'">
+              ${cardFaceHtml(x, { err: 'hide' })}
               <div class="rt-name">${x.name}</div><div class="rt-cost">コスト:${x.cost}</div>
             </div>`;
           }).join('');
@@ -15062,7 +15944,7 @@
         }).join('');
         actions = `<p style="margin:6px 0;color:var(--t0)">どちらの都市に適用しますか？</p>${cityBtns}<button style="${cancelBtn}" onclick="coopCancelConfirm()">キャンセル</button>`;
       }
-      return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><img class="confirm-card-img" src="images/cards/${c.id}.webp" alt="" onerror="this.style.display='none'"><div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div>${hintHtml}${actions}</div></div>`;
+      return `<div class="confirm-overlay" onclick="coopCancelConfirm()"><div class="confirm-box" onclick="event.stopPropagation()">${cardFaceHtml(c, { cls: 'confirm-card-img', err: 'hide' })}<div class="confirm-card-preview" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon}<span>${c.name}</span></div>${hintHtml}${actions}</div></div>`;
     }
     // 社会的脆弱性イベント（人為災害）のターン開始ポップ
     function coopRenderEventPopup() {
@@ -15070,7 +15952,7 @@
       const tiles = (CO.eventPopup || []).map(id => {
         const info = COOP_EVENT_INFO[id]; if (!info) return '';
         const effect = natureMode ? info.effectNature : info.effectCity;
-        return `<div class="peek-card-big" style="flex-shrink:0;border-color:#c084fc"><img src="images/cards/${info.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'"><div class="pk-icon">${cardTypeIconHtml('jinzai', null, 32)}</div><div class="pk-name">${cardIconSvg(info.icon,16)} ${info.name}</div><div class="pk-desc" style="color:#ffb3f0">${effect}</div><div class="pk-desc" style="font-size:.66rem;opacity:.8;margin-top:3px">${info.desc}</div></div>`;
+        return `<div class="peek-card-big" style="flex-shrink:0;border-color:#c084fc">${cardFaceHtml(info.id, { style: 'width:72px;border-radius:6px', err: 'hide' })}<div class="pk-icon">${cardTypeIconHtml('jinzai', null, 32)}</div><div class="pk-name">${cardIconSvg(info.icon,16)} ${info.name}</div><div class="pk-desc" style="color:#ffb3f0">${effect}</div><div class="pk-desc" style="font-size:.66rem;opacity:.8;margin-top:3px">${info.desc}</div></div>`;
       }).join('');
       const canAdv = !CO.online || coopMyPhase(); // 都市側がターン開始を進める
       const evBtn = canAdv ? `<button class="btn-ok" onclick="coopDismissEventPopup()">確認</button>` : `<button class="btn-ok" disabled style="opacity:.5;cursor:default">${_wc('都市側の', '確認を', '待っています…')}</button>`;
@@ -15102,7 +15984,7 @@
         const c = ds.revealed;
         // C-1: 公開直後の1回だけフリップ演出。同一カードの再描画（MP再描画）では多重発火させない
         const justDrawn = _coFxDrawnUid !== c.uid; _coFxDrawnUid = c.uid;
-        ca = `<div class="gacha-card-reveal-area revealed gacha-reveal${justDrawn ? ' card-just-drawn' : ''}"><img src="images/cards/${c.id}.webp" alt="" onerror="this.style.opacity='.3'"></div><button class="btn-accept" onclick="coopAcceptDrawCard()">${coopIcoCheckCircle(16,'currentColor')} 手札に加える</button>`;
+        ca = `<div class="gacha-card-reveal-area revealed gacha-reveal${justDrawn ? ' card-just-drawn' : ''}">${cardFaceHtml(c, { err: 'dim' })}</div><button class="btn-accept" onclick="coopAcceptDrawCard()">${coopIcoCheckCircle(16,'currentColor')} 手札に加える</button>`;
       }
       const isRs = ds.source === 'rolling_stock';
       const titleIcon = isRs ? cardIconSvg('rolling_stock', 15) : uiIcoMap(15);
@@ -15670,7 +16552,7 @@
       const click = !dis ? `coopSelectAttackType('${c.id}')` : '';
       const cntCol = usedType ? 'var(--yellow,#d29922)' : (n > 0 ? '#fff' : 'var(--t3,#8b949e)');
       const cntLabel = usedType ? '今ターン使用済' : `残り ${n}`;
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="card ${c.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="disaster" data-atk-id="${c.id}" onclick="${click}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(c.icon,16)}</span><span class="card-cost">${c.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${c.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(c.name, '自然')}</div><div class="card-name card-text-fallback">${c.name}</div><div class="card-desc card-text-fallback">${c.desc}</div>${cardTypeBadgeFallback('自然')}</div><div style="font-size:.74rem;font-weight:800;color:${cntCol}">${cntLabel}</div></div>`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="card ${c.type} ${dis ? 'card-disabled' : 'card-usable'}" data-ctype="disaster" data-atk-id="${c.id}" onclick="${click}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(c.icon,16)}</span><span class="card-cost">${c.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(c, { cls: 'card-img', drag: true, err: 'fail' })}${cardNameBarHtml(c.name, '自然')}</div><div class="card-name card-text-fallback">${c.name}</div><div class="card-desc card-text-fallback">${c.desc}</div>${cardTypeBadgeFallback('自然')}</div><div style="font-size:.74rem;font-weight:800;color:${cntCol}">${cntLabel}</div></div>`;
     }
     /* §E：自然側が社会的脆弱性イベントを撃つパネル（HARDのみ）。
        ⚠️ 絵文字は使わない。既存のneon UIトーン（rgbaの枠＋淡い面）に合わせる。
@@ -15712,7 +16594,7 @@
     }
     // CPU都市が置いた政策カードの確認画面（自然側が戦略を練るため）
     function coopRenderCpuReview() {
-      const tiles = (CO.cpuReview || []).map(p => { const bc = p.card.color === 'green' ? 'var(--green)' : 'var(--yellow)'; return `<div class="peek-card-big" style="flex-shrink:0;border-color:${bc}"><img src="images/cards/${p.card.id}.webp" style="width:72px;border-radius:6px" alt="" onerror="this.style.display='none'"><div class="pk-icon">${cardTypeIconHtml('policy', p.card.color, 32)}</div><div class="pk-name">${p.card.name}</div><div class="pk-desc">${p.target ? '→ ' + p.target : p.card.desc}</div></div>`; }).join('');
+      const tiles = (CO.cpuReview || []).map(p => { const bc = p.card.color === 'green' ? 'var(--green)' : 'var(--yellow)'; return `<div class="peek-card-big" style="flex-shrink:0;border-color:${bc}">${cardFaceHtml(p.card, { style: 'width:72px;border-radius:6px', err: 'hide' })}<div class="pk-icon">${cardTypeIconHtml('policy', p.card.color, 32)}</div><div class="pk-name">${p.card.name}</div><div class="pk-desc">${p.target ? '→ ' + p.target : p.card.desc}</div></div>`; }).join('');
       return `<div class="screen active"><div class="turn-summary-box"><div class="ts-title"><img src="images/icons/icon_city.webp" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;display:inline-block"> CPU都市の防衛（ターン ${CO.turn}）</div><div style="text-align:center;color:var(--t0);font-size:.82rem;margin:6px 0 12px">CPUが置いた備えを確認して、攻め方を組み立てよう</div><div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:center;padding-bottom:6px">${tiles}</div><div style="text-align:center;margin-top:14px"><button class="btn-ho" onclick="coopDismissCpuReview()">攻撃を始める ▶</button></div></div></div>`;
     }
     // 対応フェーズ：攻撃行のダメージ表示。プレビュー中の対応カードが無ければ従来通り「約Xダメージ」。
@@ -16188,7 +17070,7 @@
         const cc = counterIds.length ? POLICY_CARDS.find(c => c.id === counterIds[0]) : null;
         if (cc) {
           const ctColor = cc.color === 'green' ? 'var(--green)' : 'var(--yellow)';
-          out += `<div class="go-inview go-counter-wrap"><div class="go-mvp-label"><img src="images/icons/neon_policy_shield.webp" style="width:20px;height:20px;object-fit:contain"> 次はこのカードで備えよう</div><div class="go-counter-trigger"><span style="font-size:1.1rem">${cardIconSvg(worst.cardIcon,18)}</span><span class="go-counter-arrow">→</span><span style="font-size:.82rem;color:var(--t1)">${worst.cardName} ${worst.damage}ダメージへの対策</span></div><div class="go-mvp-card-row" style="margin-top:10px"><img class="go-mvp-img" src="images/cards/${cc.id}.webp" alt="" onerror="this.style.display='none'"><div class="go-mvp-info"><div class="go-mvp-name" style="color:${ctColor}">${cardIconSvg(cc.icon,16,ctColor)} ${cc.name}</div><div class="go-mvp-type">${cc.desc}</div><div class="go-mvp-desc">${cc.realConcept}</div></div></div><button class="go-gallery-btn" onclick="coopGalleryFromOver('card','${cc.id}','${cc.name}','policy')">カード図鑑で詳しく見る</button></div>`;
+          out += `<div class="go-inview go-counter-wrap"><div class="go-mvp-label"><img src="images/icons/neon_policy_shield.webp" style="width:20px;height:20px;object-fit:contain"> 次はこのカードで備えよう</div><div class="go-counter-trigger"><span style="font-size:1.1rem">${cardIconSvg(worst.cardIcon,18)}</span><span class="go-counter-arrow">→</span><span style="font-size:.82rem;color:var(--t1)">${worst.cardName} ${worst.damage}ダメージへの対策</span></div><div class="go-mvp-card-row" style="margin-top:10px">${cardFaceHtml(cc, { cls: 'go-mvp-img', err: 'hide' })}<div class="go-mvp-info"><div class="go-mvp-name" style="color:${ctColor}">${cardIconSvg(cc.icon,16,ctColor)} ${cc.name}</div><div class="go-mvp-type">${cc.desc}</div><div class="go-mvp-desc">${cc.realConcept}</div></div></div><button class="go-gallery-btn" onclick="coopGalleryFromOver('card','${cc.id}','${cc.name}','policy')">カード図鑑で詳しく見る</button></div>`;
         }
       }
       return out;
@@ -17297,7 +18179,7 @@
     // バッジは.card（overflow:hidden）の外に置く必要があるため.dd-card-order-wrapで包み、画像の上ではなく
     // カードの外側（上）に配置する（design_system.md §10 実機フィードバック②）。タップで効果ポップも追加。
     function ddMkDisasterCard(card, order) {
-      const inner = `<div class="card disaster card-spectator" data-ctype="disaster" onclick="_lpTapPreview(this)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}${cardZoomBtnHtml()}</div>`;
+      const inner = `<div class="card disaster card-spectator" data-ctype="disaster" onclick="_lpTapPreview(this)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail' })}${cardNameBarHtml(card.name, '自然')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${cardTypeBadgeFallback('自然')}${cardZoomBtnHtml()}</div>`;
       if (!order) return inner;
       return `<div class="dd-card-order-wrap"><div class="dd-order-chip">${order}</div>${inner}</div>`;
     }
@@ -17312,7 +18194,7 @@
       let click = '', cursor = 'default';
       if (!clickable && opts.previewOnTap) { click = ` onclick="_lpTapPreview(this)"`; cursor = 'pointer'; }
       const reason = dis ? '<div class="card-disabled-reason">予算不足</div>' : '';
-      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap"><img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.closest('.card').classList.add('img-fail')">${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${reason}${cardZoomBtnHtml()}</div>`;
+      return `<div class="${cls}" data-ctype="${cardCtype(card)}" data-uid="${_escHtml(card.uid)}"${click} style="cursor:${cursor}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail' })}${cardNameBarHtml(card.name, '')}</div><div class="card-name card-text-fallback">${_escHtml(card.name)}</div><div class="card-desc card-text-fallback">${_escHtml(card.desc)}</div>${reason}${cardZoomBtnHtml()}</div>`;
     }
     // 対応表の災害列（左側）：画像（object-fit:containで全体表示・欠けなし）→名前（下）。
     // 画像タップで効果ポップ（_lpTapPreview、実機フィードバック③）。来襲順バッジは2026-07-18再改修で
@@ -17320,7 +18202,7 @@
     function _ddDisasterCol(d) {
       return `<div class="dd-disaster-col">
         <div class="dd-mini-imgbox" onclick="_lpTapPreview(this.parentElement)">
-          <img class="card-img" draggable="false" src="images/cards/${d.id}.webp" alt="" onerror="this.style.display='none'">
+          ${cardFaceHtml(d, { cls: 'card-img', drag: true, err: 'hide' })}
         </div>
         <div class="dd-mini-name card-name">${_escHtml(d.name)}</div>
         <div class="card-desc" style="display:none">${_escHtml(d.desc)}</div>
@@ -17335,7 +18217,7 @@
         <span class="dd-mini-cost">${card.cost}</span>
         <button type="button" class="dd-mini-remove" aria-label="外す" onclick="event.stopPropagation();dailyUnassignCard('${card.uid}')">${_pzIcoRemoveCircle(15,'#f85149')}</button>
         <div class="dd-mini-imgbox" onclick="_lpTapPreview(this.parentElement)">
-          <img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+          ${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'hide' })}
         </div>
         <div class="dd-mini-name card-name">${_escHtml(card.name)}</div>
         <div class="card-desc" style="display:none">${_escHtml(card.desc)}</div>
@@ -17501,7 +18383,7 @@
       // 枠が正方形でなくなった分、横幅はやや小さくなる（56→48px）。
       const cityThumb = c.custom
         ? `<div style="width:48px;aspect-ratio:288/450;border-radius:8px;overflow:hidden;position:relative;flex-shrink:0">${cwRenderArt(c)}</div>`
-        : `<img src="images/cities/${c.id}.webp" alt="" style="width:44px;aspect-ratio:288/450;object-fit:contain;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">`;
+        : `${cardFaceHtml(c, { style: 'width:44px;aspect-ratio:288/450;object-fit:contain;border-radius:8px;flex-shrink:0', err: 'hide' })}`;
       // C4：予報フェーズ限定・マイ都市がある場合のみ「マイ都市で挑戦」、既にマイ都市プレイ中なら「公式の都市に戻す」を出す（柱4：問題工房プレイ中は対象外）
       const myCityControl = (DD.isArchive || DD.isPuzzle) ? '' : DD.isCustomCity
         ? `<button onclick="dailyStart()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:transparent;border:1px solid #388bfd;color:#388bfd;font-size:.78rem;font-weight:700;cursor:pointer">公式の都市に戻す</button>`
@@ -17640,7 +18522,7 @@
       </div></div>` : '';
       // 改修3：今日の防災知識（シナリオ連動・シード決定）
       const tip = DD.tip;
-      const tipBox = tip ? `<div style="text-align:left;display:flex;gap:10px;align-items:flex-start;background:var(--bg2,#161b22);border:1px solid #388bfd;border-radius:10px;padding:10px;margin:12px 0"><img src="${tip.thumb}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'"><div><div style="font-size:.68rem;font-weight:700;color:#388bfd;margin-bottom:3px">今日の防災知識・${_escHtml(tip.label)}</div><div style="font-size:.74rem;color:var(--t0);line-height:1.5">${_escHtml(tip.text)}</div></div></div>` : '';
+      const tipBox = tip ? `<div style="text-align:left;display:flex;gap:10px;align-items:flex-start;background:var(--bg2,#161b22);border:1px solid #388bfd;border-radius:10px;padding:10px;margin:12px 0">${cardFaceThumbHtml(tip.thumb, 40, 'width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0')}<div><div style="font-size:.68rem;font-weight:700;color:#388bfd;margin-bottom:3px">今日の防災知識・${_escHtml(tip.label)}</div><div style="font-size:.74rem;color:var(--t0);line-height:1.5">${_escHtml(tip.text)}</div></div></div>` : '';
       return `<div class="screen active" style="padding:20px;max-width:520px;margin:0 auto;text-align:center;width:100%">
         <div style="font-size:.8rem;color:var(--t2);margin-bottom:4px">デイリー防災 結果</div>
         <div style="font-size:1.8rem;font-weight:900;color:${DD.evalColor}">${DD.evalLabel}</div>
@@ -17924,7 +18806,7 @@
     function _ddSolCardThumb(card) {
       return `<span class="dd-sol-card" onclick="_lpTapPreview(this)">
         <span class="dd-sol-card-thumb">
-          <img class="card-img" draggable="false" src="images/cards/${card.id}.webp" alt="" onerror="this.style.display='none'">
+          ${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'hide' })}
         </span>
         <span class="dd-sol-card-name">${_escHtml(card.name)}</span>
         <span class="card-name" style="display:none">${_escHtml(card.name)}</span>
@@ -18047,7 +18929,7 @@
         if (outcome && outcome.hpAfter === outcome.hpBefore) healWarn = `<div class="dd-picker-row-heal-warn">HP満タン（回復なし）</div>`;
       }
       return `<div class="${cls}"${click}>
-        <img src="images/cards/${card.id}.webp" alt="" draggable="false" onerror="this.style.display='none'">
+        ${cardFaceHtml(card, { drag: true, err: 'hide', sq: 40 })}
         <div style="flex:1;min-width:0">
           <div class="dd-picker-row-name">${_escHtml(card.name)}</div>
           <div class="dd-picker-row-desc">${_escHtml(card.desc)}</div>
@@ -19287,7 +20169,7 @@
         const cardLike = { id: c.id, name: c.name, terrain: c.isMountain ? 'mountain' : (c.isCoastal ? 'coastal' : 'inland'), abilityId: c.abilityId, flavor: c.flavor, art: c.art };
         return cwCardImage(cardLike, 'full', 'cw-cimg-coop-' + (c.id || idx || cwNameHash(c.name)));
       }
-      return `<img src="images/cities/${c.id}.webp" alt="${_escHtml(c.name)}" style="width:100%;border-radius:8px;display:block;margin-bottom:6px" onerror="this.style.display='none'">`;
+      return `${cardFaceHtml(c, { alt: _escHtml(c.name), style: 'width:100%;border-radius:8px;display:block;margin-bottom:6px', err: 'hide' })}`;
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -20902,7 +21784,7 @@
         </div>` : '';
         return `<div style="background:var(--bg2,#161b22);border:1px solid var(--bg3,#30363d);border-radius:10px;padding:10px;margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:10px">
-            <img src="images/cities/${city ? city.id : ''}.webp" alt="" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">
+            ${cardFaceHtml(city || '', { dir: 'cities', lazy: true, style: 'width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0', err: 'hide', sq: 44 })}
             <div style="flex:1;min-width:0">
               <div class="ws-no-tag">NO.${String(i + 1).padStart(2, '0')}</div>
               <div style="font-weight:800;color:var(--t0);font-size:.86rem">${_escHtml(p.title)}</div>
