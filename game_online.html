@@ -6458,8 +6458,12 @@
           c.classList.add('cface-clamped');
           c.style.webkitLineClamp = String(lines);
         }
-        const wPx = cardFaceWidestLine(c);
+        let wPx = cardFaceWidestLine(c);
         if (!(wPx > 0)) return null;
+        // 安全装置：測った幅に縮めると行数が増える（測り損ね）なら、縮めずに上限の幅のまま使う
+        const rowsBefore = cardFaceRowCount(c);
+        c.style.width = Math.ceil(wPx + 1) + 'px';
+        if (cardFaceRowCount(c) > rowsBefore) { c.style.width = ''; wPx = c.getBoundingClientRect().width; }
         return { fs, lines, w: Math.ceil(wPx + 1) / unit, ox: cardFacePunctShift(c) / unit };
       } finally {
         host.remove();
@@ -6470,27 +6474,37 @@
      * 右へずらす量（px）を返す。いちばん長い行が句読点で終わらなければ 0（変形のない測定用の面で使う）
      * @param {HTMLElement} el */
     function cardFacePunctShift(el) {
-      /** @type {Map<number, {l: number, r: number, cut: number}>} */
-      const rows = new Map();
-      for (const b of cardFaceTextRects(el)) {
-        const k = Math.round(b.top / 2);
-        const v = rows.get(k) || { l: Infinity, r: -Infinity, cut: 0 };
-        v.l = Math.min(v.l, b.left); v.r = Math.max(v.r, b.right); rows.set(k, v);
-      }
+      const rows = cardFaceRows(el).map((v) => ({ ...v, cut: 0 }));
       const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       for (let n = w.nextNode(); n; n = w.nextNode()) {
         const t = n.textContent || '';
-        for (let i = 0; i < t.length; i++) {
-          if (t[i] !== '。' && t[i] !== '、') continue;
-          const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1);
-          const b = r.getBoundingClientRect();
-          const row = rows.get(Math.round(b.top / 2));
+        for (let k = 0; k < t.length; k++) {
+          if (t[k] !== '。' && t[k] !== '、') continue;
+          const r = document.createRange(); r.setStart(n, k); r.setEnd(n, k + 1);
+          const b = r.getBoundingClientRect(); const cy = (b.top + b.bottom) / 2;
+          const row = rows.find((v) => cy >= v.t && cy <= v.b);
           if (row && b.width && Math.abs(b.right - row.r) < 1) row.cut = b.width / 2;
         }
       }
       let raw = 0, vis = 0;
-      rows.forEach((v) => { raw = Math.max(raw, v.r - v.l); vis = Math.max(vis, v.r - v.l - v.cut); });
+      for (const v of rows) { raw = Math.max(raw, v.r - v.l); vis = Math.max(vis, v.r - v.l - v.cut); }
       return raw > 0 ? (raw - vis) / 2 : 0;
+    }
+    /** 文字の矩形を行ごとにまとめる。上端の座標ではなく「縦の中心が同じ行の上下の範囲に入るか」でまとめる。
+     * 数字・英字と漢字・かなで使う書体が違う端末（iPhone など）では、同じ行でも矩形の上端が数px ずれ、上端で分けると1行が複数に割れて
+     * 行幅を短く測ってしまう（箱が狭くなり、文が細切れに折り返す）ため
+     * @param {HTMLElement} el @returns {{l: number, r: number, t: number, b: number}[]} */
+    function cardFaceRows(el) {
+      const rects = cardFaceTextRects(el).sort((a, b) => (a.top + a.bottom) - (b.top + b.bottom));
+      /** @type {{l: number, r: number, t: number, b: number}[]} */
+      const rows = [];
+      for (const b of rects) {
+        const cy = (b.top + b.bottom) / 2;
+        const row = rows.find((v) => cy >= v.t && cy <= v.b);
+        if (row) { row.l = Math.min(row.l, b.left); row.r = Math.max(row.r, b.right); row.t = Math.min(row.t, b.top); row.b = Math.max(row.b, b.bottom); }
+        else rows.push({ l: b.left, r: b.right, t: b.top, b: b.bottom });
+      }
+      return rows;
     }
     /** 文字（テキストノード）が置かれた矩形を集める。行の箱（block の span）の矩形は含めない（箱は行の幅いっぱいで、文字の幅を表さないため）
      * @param {HTMLElement} el @returns {DOMRect[]} */
@@ -6507,24 +6521,12 @@
     }
     /** 折り返した行の数（変形のない測定用の面で使う）
      * @param {HTMLElement} el */
-    function cardFaceRowCount(el) {
-      /** @type {Set<number>} */
-      const rows = new Set();
-      for (const b of cardFaceTextRects(el)) rows.add(Math.round(b.top / 2));
-      return rows.size;
-    }
+    function cardFaceRowCount(el) { return cardFaceRows(el).length; }
     /** 折り返した各行の実幅を測って、いちばん長い行の幅（px）を返す（変形のない測定用の面で使う）
      * @param {HTMLElement} el */
     function cardFaceWidestLine(el) {
-      /** @type {Map<number, number[]>} */
-      const rows = new Map();
-      for (const b of cardFaceTextRects(el)) {
-        const k = Math.round(b.top / 2);
-        const v = rows.get(k) || [Infinity, -Infinity];
-        rows.set(k, [Math.min(v[0], b.left), Math.max(v[1], b.right)]);
-      }
       let w = 0;
-      rows.forEach((v) => { w = Math.max(w, v[1] - v[0]); });
+      for (const v of cardFaceRows(el)) w = Math.max(w, v.r - v.l);
       return w;
     }
     /**
