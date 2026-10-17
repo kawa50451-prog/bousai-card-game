@@ -3514,15 +3514,19 @@
     .cface .cface-pn  { font-size:10.6cqw; font-weight:700; letter-spacing:-.02em; }
     .cface .cface-hp  { font-size:9.8cqw; font-weight:700; }
     .cface .cface-num { font-family:'Arial', 'Helvetica Neue', var(--cface-font) !important; }
-    /* 効果文：左揃え・文節で改行・細い同色の縁取り。箱の幅は fitCardFace() が折り返し後の最長行に合わせる（cqw で保存） */
-    .cface .cface-fx  { transform:translate(calc(-50% + var(--ox, 0cqw)), -50%); font-size:calc(var(--fs, 4.6) * 1cqw); font-weight:700; line-height:1.3; letter-spacing:.01em; white-space:normal; width:max-content; max-width:77cqw; text-align:left;
-                        word-break:keep-all; overflow-wrap:anywhere; text-wrap:pretty; -webkit-text-stroke:calc(var(--fs, 4.6) * .025cqw) currentColor; paint-order:stroke fill; color:var(--fx, #fff6f2); }
+    /* 効果文：測らない。fxbox＝パネルの内側いっぱい（位置・大きさは cardFaceHtml が CARD_FACE_LAYOUT の fxRect から％で付ける）を flex で縦横中央に寄せる。
+       中の fx は width:max-content・white-space:nowrap・左揃え。行はあらかじめ <span> で分けてあるので、幅は最長行そのものになり、flex が真ん中に置く。
+       文字の大きさは style の font-size（cqw。標準 4.4、収まらない文だけ小さい段）。字間は 0（幅の見積りと一致させる） */
+    .cface .cface-fxbox { position:absolute; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+    .cface .cface-fx  { width:max-content; flex:none; white-space:nowrap; text-align:left; font-weight:700; line-height:1.3; letter-spacing:0;
+                        -webkit-text-stroke:.11cqw currentColor; paint-order:stroke fill; color:var(--fx, #fff6f2); }
+    /* 最も幅の広い行が 。、 で終わるとき：全角の句読点の右半分の空きの分（0.25em）だけ右へ寄せ、見かけの中央に置く（生成時に決める） */
+    .cface .cface-fx-pr { transform:translateX(.25em); }
     /* 明るい枠（都市・政策）の上は暗い文字に白い光彩（proto_c の .tx.dark） */
     .cface .cface-fx-dark { text-shadow:0 0 .6cqw rgba(255,255,255,.45); }
     /* 複数行（見出し行など）は1行ずつ block。'' の行は空き */
     .cface .cface-l { display:block; }
-    .cface .cface-gap { display:block; height:.6em; }
-    .cface .cface-fx.cface-clamped { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; }
+    .cface .cface-gap { display:block; height:.6em; }  /* 空行の高さ。CARD_FACE_FX.gap と同じ */
     /* 小さな正方形サムネイル（cardFaceHtml の sq 指定）：面を中央で切り抜く。従来の img の object-fit:cover と同じ見え方 */
     .cface-sqwrap { display:block; position:relative; overflow:hidden; border-radius:6px; flex-shrink:0; }
     .cface-sqwrap > .cface { position:absolute; left:0; top:50%; width:100%; transform:translateY(-50%); }
@@ -3535,7 +3539,7 @@
     .gallery-card .cface, .gacha-card-reveal-area .cface, .co-draw-card .cface { height:100%; }
     .cface.gallery-zoom-img { width:min(166px, 70vw); flex-shrink:0; }
     /* 文字なし画像が描画できるまで文字は隠す（絵より先に文字だけ出ない）。ready は cardFaceReady() が付ける */
-    .cface:not(.cface-ready) .cface-t { visibility:hidden; }
+    .cface:not(.cface-ready) .cface-t, .cface:not(.cface-ready) .cface-fxbox { visibility:hidden; }
     /* ── 1. Usable card glow ── */
     .card.card-usable.policy { box-shadow: 0 0 10px rgba(56,139,253,.32), 0 0 0 1px rgba(56,139,253,.2) }
     .card.card-usable.disaster { box-shadow: 0 0 10px rgba(248,81,73,.32), 0 0 0 1px rgba(248,81,73,.2) }
@@ -5411,8 +5415,7 @@
     /**
      * 種類ごとの文字の位置・色。キーは cardFaceLayoutKey() が返す値（nature 自然／human 人為／policy_gold 即時の政策／policy_green シールドの政策／city 都市）。
      *   name・type・costLabel・cost・powLabel・pow・hp は [x, y]、または { at: [x, y], fs（cqw）, ls（letter-spacing） }。無い要素は出さない。
-     *   fxMax＝効果文の箱の最大幅（cqw。既定の枠より広い明るい枠は 80）、fxOneLine＝短い文は文字を縮めて1行に収める（都市・政策）
-     *   fxRect＝効果文の枠 [左, 上, 右, 下]（文章はこの枠の中心に置き、高さは枠の高さに収める）
+     *   fxRect＝効果文を置くパネルの内側 [左, 上, 右, 下]。文章のかたまりはこの枠の真ん中（縦横とも）に置く（CSS の flex 中央寄せ。測定しない）
      *   sh＝名称などの文字の縁の影の色（RGB。濃い縁／ずらし影）、fx＝効果文の文字色、fxDark＝明るい枠の上の暗い文字（白い光彩）にする
      */
     const CARD_FACE_LAYOUT = {
@@ -5420,35 +5423,28 @@
         name: [0.485, 0.106], type: [0.485, 0.175],
         costLabel: [0.836, 0.084], cost: [0.836, 0.137],
         powLabel: [0.193, 0.622], pow: [0.193, 0.678],
-        fxRect: [0.0953, 0.745, 0.9012, 0.9181], fxMax: 77, sh: ['20,0,0', '15,0,0'], fx: '#fff6f2', fxDark: false,
+        fxRect: [0.095, 0.748, 0.905, 0.928], sh: ['20,0,0', '15,0,0'], fx: '#fff6f2', fxDark: false,
       },
       human: {
         name: [0.492, 0.105], type: [0.4965, 0.175],
         costLabel: [0.836, 0.084], cost: [0.836, 0.137],
-        fxRect: [0.0988, 0.6907, 0.8942, 0.9203], fxMax: 77, sh: ['22,0,28', '16,0,22'], fx: '#fef6fe', fxDark: false,
+        fxRect: [0.098, 0.678, 0.896, 0.922], sh: ['22,0,28', '16,0,22'], fx: '#fef6fe', fxDark: false,
       },
       policy_gold: {
         name: [0.507, 0.107], type: [0.5025, 0.1745],
         costLabel: [0.8445, 0.085], cost: [0.84, 0.1385],
-        fxRect: [0.0988, 0.6884, 0.8977, 0.9203], fxMax: 80, fxOneLine: true, sh: ['40,22,0', '30,16,0'], fx: '#23190b', fxDark: true,
+        fxRect: [0.098, 0.676, 0.899, 0.922], sh: ['40,22,0', '30,16,0'], fx: '#23190b', fxDark: true,
       },
       policy_green: {
         name: [0.5, 0.112], type: [0.494, 0.1855],
         costLabel: [0.8345, 0.0925], cost: [0.8365, 0.148],
-        fxRect: [0.0953, 0.6878, 0.9012, 0.927], fxMax: 80, fxOneLine: true, sh: ['0,25,5', '0,18,3'], fx: '#181d0e', fxDark: true,
+        fxRect: [0.095, 0.687, 0.903, 0.928], sh: ['0,25,5', '0,18,3'], fx: '#181d0e', fxDark: true,
       },
       city: {
         name: [0.502, 0.114], type: { at: [0.499, 0.187], fs: 4.2, ls: '.06em' },
         hp: [0.3905, 0.6655],
-        fxRect: [0.0988, 0.73, 0.8977, 0.927], fxMax: 80, fxOneLine: true, sh: ['0,15,40', '0,10,30'], fx: '#121b24', fxDark: true,
+        fxRect: [0.098, 0.72, 0.899, 0.928], sh: ['0,15,40', '0,10,30'], fx: '#121b24', fxDark: true,
       },
-    };
-    /** カードごとの効果文の縦位置の微調整（cqw。下が正）。焼き込み画像の文字の位置（枠の中心からのずれ）に合わせる。必要になったカードだけ書く */
-    /** @type {{ [cardId: string]: number }} */
-    const CARD_FACE_DY = {
-      earthquake: -2.2, flood: -2.2, tsunami: -2.2, landslide: -2.2, wildfire: -6.4, pollution: -1.5,
-      drill: -2.2, hazard_map: -2.9, agreement: -1.2, rolling_stock: -1.6,
-      quake_wall: -1.3, dam: -1.3, evacuation: -1.6,
     };
     /**
      * カード面に出す文（カード画像に印字する文。カードの desc・VERSUS_CARD_TEXT.desc・都市の abilityDesc は画面の説明文・ログ用の短い文で、面には使わない）。
@@ -5498,7 +5494,7 @@
         vs: '相手が設置中のシールド（耐震補強・堤防建設・広域避難指示・防災庁）を1つ選んで破壊する。防災庁は残りの回数ごと破壊される。シールドがなければ効果なし。',
         co: '相手の有効シールドを1つ選んで無効にする。防災庁の2回分のシールドも対象内である。',
       },
-      terror: { co: 'このターン中、自身が次に使う自然災害カードへの対応フェーズをスキップさせる。ただし相手が広域避難指示を設置済みならば無効となる。' },
+      terror: { co: ['このターン中、自身が次に使う自然災害カードへの対応フェーズをスキップさせる。', 'ただし相手が広域避難指示を設置済みならば無効となる。'] },
       rumor: {
         vs: '相手の次のターンの予算を1減らす。重ねて使っても減るのは1まで。',
         co: '次のターン相手の使えるコストが1下がる。',
@@ -5531,71 +5527,73 @@
     };
     /** 名称の文字サイズ（cqw）と、名称が使える最大の幅（cqw。アイコンとコスト円の間）。長い名称（ハザードマップ整備・イスタンブールなど）は幅に合わせて縮める */
     const CARD_FACE_NAME_FS = 9.4, CARD_FACE_NAME_MAXW = 43.5;
-    /** 効果文の最大・最小の文字サイズ（cqw）。枠に入らないときは最大から 0.1 ずつ縮め、最小でも入らなければ行数を切る */
-    const CARD_FACE_FS_MAX = 4.6, CARD_FACE_FS_MIN = 3.6;
+    /**
+     * 効果文の組み方（すべて tools/gen-text-seg.mjs が使い、結果を data/075_card-text-lines.js の行に焼く。実行時に測らない）。
+     *   fs＝文字サイズ（cqw）の段。先頭が標準（全カード共通）、2つ目は標準では枠の高さに収まらない文だけが使う小さい段
+     *   lineMaxW＝1行の最大幅（cqw）。最も狭いパネル（約 79.5）から、左右の余白と縁取り・字形の差の安全分を引いた値
+     *   lh＝行の高さ（文字サイズの倍率）、gap＝空行の高さ（同）、padY＝枠の上下に残す余白（cqw）
+     *   全角＝1、半角の数字・英字・記号＝charW.half、空白＝charW.space、マイナス（−）＝charW.minus（文字サイズに対する倍率）
+     */
+    const CARD_FACE_FX = {
+      fs: [4.4, 4.0], lineMaxW: 76, lh: 1.3, gap: 0.6, padY: 1.2,
+      charW: { half: 0.6, space: 0.35, minus: 0.7 },
+    };
     /** 途中で改行させないゲーム用語（文節分けの区切りより優先）。npm run seg が読む */
     const CARD_TEXT_KEEP = [
       '捨て札', '山札', '手札', '洪水・津波', '地震・大火災', '政策カード', '対応フェーズ', '広域避難指示', 'テロ攻撃', '特殊効果',
-      '内陸都市', '海岸都市', '山間部都市', '防災庁', '予算', 'ダメージ', 'シールド', 'ドロー', 'コスト', 'スキップ', 'ターン', '効果なし', 'ことができる', '軽減する', '回復する', '無効に', 'ターン終了時',
+      '内陸都市', '海岸都市', '山間部都市', '防災庁', '予算', 'ダメージ', 'シールド', 'ドロー', 'コスト', 'スキップ', 'ターン', '効果なし', 'ことができる', '受ける時、', '軽減する', '回復する', '無効に', 'ターン終了時',
       '地震・大火災 −30', '洪水・津波 −25', 'HP +10', 'HP +20', 'HP +30', 'HP+10', 'HP+20',
       '対応時+10', '対応時+15', '−10', '−15', '−20', '−25', '−30', '+10', '+15', '+20', '+30',
     ];
     // @ts-check
-    // ⚠️ 自動生成ファイル。直接編集しない。面の文（data/070_card-face.js の CARD_FACE_TEXT）を変えたら npm run seg で作り直す。
-    // 生成元は tools/gen-text-seg.mjs（BudouX の文節分割＋ data/070_card-face.js の CARD_TEXT_KEEP）。
-    // 値の | は改行してよい位置。cardFaceHtml() が <wbr> に置き換える。エントリが無い文は区切りなしの平文で出る（落ちはしない）。
-    /** @type {{ [text: string]: string }} */
-    const CARD_TEXT_SEG = {
-      "このターン中、自身が次に使う自然災害カードへの対応フェーズをスキップさせる。ただし相手が広域避難指示を設置済みならば無効となる。": "この|ターン中、|自身が|次に|使う|自然災害カードへの|対応フェーズを|スキップさせる。|ただし|相手が|広域避難指示を|設置済みならば|無効と|なる。",
-      "シールド（1回）": "シールド|（1回）",
-      "シールド（2回）": "シールド|（2回）",
-      "メインフェーズ：HPを+20回復": "メインフェーズ：HPを|+20回復",
-      "メインフェーズ：HPを+30回復": "メインフェーズ：HPを|+30回復",
-      "・ダメージを10追加で受ける。": "・ダメージを|10追加で|受ける。",
-      "・山札から1枚カードを引く。": "・山札から|1枚カードを|引く。",
-      "・山札から1枚カードを引くことができる。": "・山札から|1枚カードを|引く|ことができる。",
-      "内陸都市に対してダメージ+10追加（計40）。": "内陸都市に|対して|ダメージ+10追加|（計40）。",
-      "即時適用": "即時適用",
-      "受ける攻撃2回のダメージを、それぞれ15軽減する。": "受ける|攻撃2回の|ダメージを、|それぞれ15軽減する。",
-      "同じターンに2枚目の災害を受ける時、ダメージを20軽減する。": "同じターンに|2枚目の|災害を|受ける|時、|ダメージを|20軽減する。",
-      "土砂崩れのダメージを20軽減する。": "土砂崩れの|ダメージを|20軽減する。",
-      "地震を受けたターンの終わりにHP+10。捨て札2枚を山札に戻す": "地震を|受けた|ターンの|終わりに|HP+10。|捨て札2枚を|山札に|戻す",
-      "地震を受けたターンの終了時にHPが10回復する。": "地震を|受けた|ターンの|終了時に|HPが|10回復する。",
-      "地震を受けた時、山札から1枚カードを引くことができる。": "地震を|受けた|時、|山札から|1枚カードを|引く|ことができる。",
-      "地震・大火災のダメージを20軽減する。": "地震・大火災の|ダメージを|20軽減する。",
-      "地震・大火災の次の1回のダメージを30軽減する。対応する種類の攻撃が来たときのみ消費される。": "地震・大火災の|次の|1回の|ダメージを|30軽減する。|対応する|種類の|攻撃が|来た|ときのみ|消費される。",
-      "地震・大火災を受けるとき、ダメージを30軽減する。": "地震・大火災を|受ける|とき、|ダメージを|30軽減する。",
-      "対応フェーズ：HPを+10回復": "対応フェーズ：HPを|+10回復",
-      "対応フェーズ：HPを+15回復": "対応フェーズ：HPを|+15回復",
-      "山札から2枚カードを引くことができる。": "山札から|2枚カードを|引く|ことができる。",
-      "山間部都市に対してダメージ+10追加（計30）。": "山間部都市に|対して|ダメージ+10追加|（計30）。",
-      "手札を好きな枚数選び、同じ枚数を山札から引いたあと、選んだカードを山札に戻す。引ける枚数は山札の残りまで。": "手札を|好きな|枚数選び、|同じ|枚数を|山札から|引いた|あと、|選んだ|カードを|山札に|戻す。|引ける|枚数は|山札の|残りまで。",
-      "攻撃を受けた時手札が2枚以下ならば以下の効力を発揮する。": "攻撃を|受けた|時手札が|2枚以下ならば|以下の|効力を|発揮する。",
-      "攻撃を受けるとき、対応カードを使う前の手札が2枚以下ならば以下の効力を発揮する。": "攻撃を|受ける|とき、|対応カードを|使う|前の|手札が|2枚以下ならば|以下の|効力を|発揮する。",
-      "次に受ける攻撃2回のダメージを各15軽減する。1回の攻撃に対する軽減は15が上限。有効中に重ねて使用しても軽減できる攻撃回数は増えない。": "次に|受ける|攻撃2回の|ダメージを|各15軽減する。|1回の|攻撃に|対する|軽減は|15が|上限。|有効中に|重ねて|使用しても|軽減できる|攻撃回数は|増えない。",
-      "次のターン相手の使えるコストが1下がる。": "次の|ターン相手の|使える|コストが|1下がる。",
-      "次の攻撃の特殊効果を無効にし、ダメージを10軽減する。事前に設置すると、複合災害・テロ攻撃のスキップも防ぐ。": "次の|攻撃の|特殊効果を|無効にし、|ダメージを|10軽減する。|事前に|設置すると、|複合災害・テロ攻撃の|スキップも|防ぐ。",
-      "次の災害の特殊効果を無効化し、ダメージを10軽減する。事前設置済みの場合のみ、複合災害の対応フェーズ強制スキップを防げる。": "次の|災害の|特殊効果を|無効化し、|ダメージを|10軽減する。|事前設置済みの|場合のみ、|複合災害の|対応フェーズ強制スキップを|防げる。",
-      "毎ターンの予算が+1（計4pt）。": "毎ターンの|予算が|+1|（計4pt）。",
-      "洪水・津波のダメージを15軽減する。": "洪水・津波の|ダメージを|15軽減する。",
-      "洪水・津波の次の1回のダメージを25軽減する。対応する種類の攻撃が来たときのみ消費される。": "洪水・津波の|次の|1回の|ダメージを|25軽減する。|対応する|種類の|攻撃が|来た|ときのみ|消費される。",
-      "洪水・津波を一度受けると、以後の洪水・津波は−20": "洪水・津波を|一度|受けると、|以後の|洪水・津波は|−20",
-      "洪水・津波を受けた時、山札から1枚カードを引くことができる。": "洪水・津波を|受けた|時、|山札から|1枚カードを|引く|ことができる。",
-      "洪水・津波を受けた次のターン、予算が +2 される。": "洪水・津波を|受けた|次の|ターン、|予算が| +2 される。",
-      "洪水・津波を受けるとき、ダメージを25軽減する。": "洪水・津波を|受ける|とき、|ダメージを|25軽減する。",
-      "海岸都市に対してダメージ+10追加（計40）。": "海岸都市に|対して|ダメージ+10追加|（計40）。",
-      "海岸都市に対してダメージ+10追加（計50）。": "海岸都市に|対して|ダメージ+10追加|（計50）。",
-      "特殊効果：なし": "特殊効果：なし",
-      "相手が設置中のシールド（耐震補強・堤防建設・広域避難指示・防災庁）を1つ選んで破壊する。防災庁は残りの回数ごと破壊される。シールドがなければ効果なし。": "相手が|設置中の|シールド|（耐震補強・堤防建設・|広域避難指示・防災庁）を|1つ|選んで|破壊する。|防災庁は|残りの|回数ごと|破壊される。|シールドが|なければ|効果なし。",
-      "相手の地震に対応するとき、政策カードを2枚まで使える": "相手の|地震に|対応する|とき、|政策カードを|2枚まで|使える",
-      "相手の対応フェーズを強制的にスキップさせる。相手が広域避難指示を事前設置済みの場合のみ無効化される。": "相手の|対応フェーズを|強制的に|スキップさせる。|相手が|広域避難指示を|事前設置済みの|場合のみ|無効化される。",
-      "相手の手札から1枚ランダムで捨てさせる。相手の手札が0枚の時は効果なし": "相手の|手札から|1枚ランダムで|捨てさせる。|相手の|手札が|0枚の|時は|効果なし",
-      "相手の手札を見て1枚選び、奪って自分の山札の一番上に置く": "相手の|手札を|見て|1枚選び、|奪って|自分の|山札の|一番上に|置く",
-      "相手の有効シールドを1つ選んで無効にする。防災庁の2回分のシールドも対象内である。": "相手の|有効シールドを|1つ|選んで|無効に|する。|防災庁の|2回分の|シールドも|対象内である。",
-      "相手の次のターンの予算を1減らす。重ねて使っても減るのは1まで。": "相手の|次の|ターンの|予算を|1減らす。|重ねて|使っても|減るのは|1まで。",
-      "自分のターン終了時にHPが5回復する。": "自分の|ターン終了時に|HPが|5回復する。",
-      "自分の手札を好きな枚数分だけ捨てその枚数分だけ山札からカードを引くことができる。": "自分の|手札を|好きな|枚数分だけ捨て|その|枚数分だけ山札から|カードを|引く|ことができる。",
-      "複合災害のダメージを20軽減する。": "複合災害の|ダメージを|20軽減する。",
+    // ⚠️ 自動生成ファイル。直接編集しない。面の文（data/070_card-face.js の CARD_FACE_TEXT）や行の組み方の定数（CARD_FACE_FX・CARD_TEXT_KEEP・fxRect）を変えたら npm run seg で作り直す。
+    // 生成元は tools/gen-text-seg.mjs（BudouX の文節分けを1行の最大幅に詰めた行）。キーは 'id.vs'（対戦）／'id.co'（それ以外）。vs が無い id は co を使う。
+    // fs＝その文の文字サイズ（cqw）、lines＝行（空文字は空行）、pr＝いちばん幅の広い行が 。、 で終わるので右へ 0.25em ずらす。
+    // エントリが無い文（工房の自作など）は、行に分けない平文で出る（落ちはしない）。
+    /** @type {{ [key: string]: { fs: number, lines: string[], pr: boolean } }} */
+    const CARD_FACE_LINES = {
+      "quake_wall.vs": { fs: 4.4, lines: ["シールド（1回）","地震・大火災を受けるとき、","ダメージを30軽減する。"], pr: true },
+      "quake_wall.co": { fs: 4.4, lines: ["シールド（1回）","地震・大火災の次の1回のダメージを","30軽減する。対応する種類の攻撃が","来たときのみ消費される。"], pr: false },
+      "dam.vs": { fs: 4.4, lines: ["シールド（1回）","洪水・津波を受けるとき、","ダメージを25軽減する。"], pr: true },
+      "dam.co": { fs: 4.4, lines: ["シールド（1回）","洪水・津波の次の1回のダメージを","25軽減する。対応する種類の攻撃が","来たときのみ消費される。"], pr: false },
+      "drill.co": { fs: 4.4, lines: ["即時適用","メインフェーズ：HPを+20回復","対応フェーズ：HPを+10回復"], pr: false },
+      "hazard_map.co": { fs: 4.4, lines: ["即時適用","山札から2枚カードを","引くことができる。"], pr: false },
+      "agreement.co": { fs: 4.4, lines: ["即時適用","メインフェーズ：HPを+30回復","対応フェーズ：HPを+15回復"], pr: false },
+      "evacuation.vs": { fs: 4.4, lines: ["シールド（1回）","次の攻撃の特殊効果を無効にし、","ダメージを10軽減する。事前に","設置すると、複合災害・テロ攻撃の","スキップも防ぐ。"], pr: false },
+      "evacuation.co": { fs: 4.4, lines: ["シールド（1回）","次の災害の特殊効果を無効化し、","ダメージを10軽減する。","事前設置済みの場合のみ、複合災害の","対応フェーズ強制スキップを防げる。"], pr: false },
+      "bousai_cho.vs": { fs: 4.4, lines: ["シールド（2回）","受ける攻撃2回のダメージを、","それぞれ15軽減する。"], pr: true },
+      "bousai_cho.co": { fs: 4.4, lines: ["シールド（2回）","次に受ける攻撃2回のダメージを","各15軽減する。1回の攻撃に対する","軽減は15が上限。有効中に重ねて","使用しても軽減できる","攻撃回数は増えない。"], pr: false },
+      "rolling_stock.vs": { fs: 4.4, lines: ["即時適用","手札を好きな枚数選び、同じ枚数を","山札から引いたあと、選んだカードを","山札に戻す。引ける枚数は","山札の残りまで。"], pr: false },
+      "rolling_stock.co": { fs: 4.4, lines: ["即時適用","自分の手札を好きな枚数分だけ捨て","その枚数分だけ山札からカードを","引くことができる。"], pr: false },
+      "earthquake.co": { fs: 4.4, lines: ["内陸都市に対して","ダメージ+10追加（計40）。"], pr: true },
+      "flood.co": { fs: 4.4, lines: ["海岸都市に対して","ダメージ+10追加（計40）。"], pr: true },
+      "typhoon.vs": { fs: 4.4, lines: ["相手の手札を見て1枚選び、奪って","自分の山札の一番上に置く"], pr: false },
+      "typhoon.co": { fs: 4.4, lines: ["相手の手札から1枚ランダムで","捨てさせる。相手の手札が","0枚の時は効果なし"], pr: false },
+      "tsunami.co": { fs: 4.4, lines: ["海岸都市に対して","ダメージ+10追加（計50）。"], pr: true },
+      "landslide.co": { fs: 4.4, lines: ["山間部都市に対して","ダメージ+10追加（計30）。"], pr: true },
+      "wildfire.co": { fs: 4.4, lines: ["特殊効果：なし"], pr: false },
+      "compound.co": { fs: 4.4, lines: ["相手の対応フェーズを強制的に","スキップさせる。相手が","広域避難指示を事前設置済みの","場合のみ無効化される。"], pr: false },
+      "pollution.vs": { fs: 4.4, lines: ["相手が設置中のシールド","（耐震補強・堤防建設・","広域避難指示・防災庁）を1つ選んで","破壊する。防災庁は残りの回数ごと","破壊される。シールドが","なければ効果なし。"], pr: false },
+      "pollution.co": { fs: 4.4, lines: ["相手の有効シールドを1つ選んで","無効にする。防災庁の2回分の","シールドも対象内である。"], pr: false },
+      "terror.co": { fs: 4.4, lines: ["このターン中、自身が次に使う","自然災害カードへの対応フェーズを","スキップさせる。","ただし相手が広域避難指示を","設置済みならば無効となる。"], pr: false },
+      "rumor.vs": { fs: 4.4, lines: ["相手の次のターンの予算を1減らす。","重ねて使っても減るのは1まで。"], pr: true },
+      "rumor.co": { fs: 4.4, lines: ["次のターン相手の使える","コストが1下がる。"], pr: false },
+      "tokyo.co": { fs: 4.4, lines: ["地震・大火災の","ダメージを20軽減する。"], pr: true },
+      "osaka.co": { fs: 4.4, lines: ["自分のターン終了時に","HPが5回復する。"], pr: false },
+      "kobe.co": { fs: 4.4, lines: ["毎ターンの予算が+1（計4pt）。"], pr: true },
+      "hiroshima.co": { fs: 4.4, lines: ["土砂崩れのダメージを20軽減する。"], pr: true },
+      "nagoya.vs": { fs: 4.4, lines: ["洪水・津波を一度受けると、以後の","洪水・津波は−20"], pr: false },
+      "nagoya.co": { fs: 4.4, lines: ["洪水・津波を受けた時、山札から","1枚カードを引くことができる。"], pr: false },
+      "sendai.co": { fs: 4.4, lines: ["洪水・津波のダメージを15軽減する。"], pr: true },
+      "kumamoto.co": { fs: 4.4, lines: ["同じターンに2枚目の災害を","受ける時、ダメージを20軽減する。"], pr: true },
+      "niigata.vs": { fs: 4.4, lines: ["地震を受けたターンの終わりに","HP+10。捨て札2枚を山札に戻す"], pr: false },
+      "niigata.co": { fs: 4.4, lines: ["地震を受けたターンの終了時に","HPが10回復する。"], pr: false },
+      "kagoshima.co": { fs: 4.4, lines: ["複合災害のダメージを20軽減する。"], pr: true },
+      "rotterdam.co": { fs: 4.4, lines: ["洪水・津波を受けた次のターン、","予算が +2 される。"], pr: true },
+      "istanbul.vs": { fs: 4.4, lines: ["相手の地震に対応するとき、","政策カードを2枚まで使える"], pr: true },
+      "istanbul.co": { fs: 4.4, lines: ["地震を受けた時、山札から","1枚カードを引くことができる。"], pr: true },
+      "new_orleans.vs": { fs: 4, lines: ["攻撃を受けるとき、対応カードを使う前の","手札が2枚以下ならば","以下の効力を発揮する。","","・ダメージを10追加で受ける。","・山札から1枚カードを引く。"], pr: false },
+      "new_orleans.co": { fs: 4, lines: ["攻撃を受けた時手札が2枚以下ならば","以下の効力を発揮する。","","・ダメージを10追加で受ける。","・山札から1枚カードを","引くことができる。"], pr: false },
     };
     // @ts-check
     // ═══════════════════════════════════════
@@ -6266,8 +6264,8 @@
     // カード面：文字なし画像＋文字をコードで描く表示（設定は data/070_card-face.js、文節分けは data/075_card-text-seg.js）。
     //  ・カード画像を出す全箇所は cardFaceHtml() を通す。文字なし画像を持つカード（CARD_FACE_NT）は組み立てた面を返し、
     //    持たないカードは従来どおりの <img>（images/cards/<id>.webp）を返す。
-    //  ・効果文の箱の幅と文字サイズの調整（fitCardFace）は描画と切り離し、MutationObserver＋ResizeObserver で後から行う。
-    //    保存値は cqw（カード面の幅の1/100）なので、カードが拡大縮小されても崩れない。差分描画（協力）にも干渉しない。
+    //  ・効果文は測らない。行はあらかじめ決めてあり（tools/gen-text-seg.mjs → data/075_card-text-lines.js）、CSS の flex でパネルの真ん中に置く。
+    //    文字の大きさ・位置はすべて cqw/%（カード面の幅・高さの割合）なので、どの大きさ・どの端末でも同じ見た目になる。
     // ═══════════════════════════════════════
     /** 都市か（都市の定義には type が無く abilityType がある）
      * @param {any} card */
@@ -6307,17 +6305,29 @@
       if (cardFaceIsCity(card)) return versus ? ((t && (t.vs || t.co)) || card.abilityDesc) : ((t && t.co) || card.abilityDesc);
       return versus ? ((t && t.vs) || versusCardDesc(card)) : ((t && t.co) || card.desc);
     }
-    /** 効果文を文節ごとに <wbr> で区切った HTML にする。分割データが無い文は平文のまま
-     * @param {string} text */
-    function cardFaceWrapText(text) {
-      const seg = (typeof CARD_TEXT_SEG !== 'undefined' && Object.prototype.hasOwnProperty.call(CARD_TEXT_SEG, text)) ? CARD_TEXT_SEG[text] : '';
-      return seg ? seg.split('|').map(_escHtml).join('<wbr>') : _escHtml(text);
+    /**
+     * 面に出す効果文の行。data/075_card-text-lines.js（npm run seg で生成）の行をそのまま使う。測らない。
+     * エントリが無い文（工房の自作など）は、行に分けない平文（標準の文字サイズ）で出る（落ちはしない）。
+     * @param {any} card @param {boolean} versus @returns {{ fs: number, lines: string[], pr: boolean }}
+     */
+    function cardFaceLinesFor(card, versus) {
+      const tx = CARD_FACE_TEXT[card.id];
+      const mode = versus && tx && tx.vs !== undefined ? 'vs' : 'co';
+      const e = (typeof CARD_FACE_LINES !== 'undefined' && Object.prototype.hasOwnProperty.call(CARD_FACE_LINES, card.id + '.' + mode)) ? CARD_FACE_LINES[card.id + '.' + mode] : null;
+      if (e) return e;
+      return { fs: CARD_FACE_FX.fs[0], lines: /** @type {string[]} */ ([]).concat(cardFaceDesc(card, versus)), pr: false };
     }
-    /** 効果文（文字列または行の配列）の HTML。配列は1行ずつ block にし、'' は行間の空きにする
-     * @param {string | string[]} text */
-    function cardFaceTextHtml(text) {
-      if (!Array.isArray(text)) return cardFaceWrapText(text);
-      return text.map((l) => l === '' ? '<span class="cface-gap"></span>' : `<span class="cface-l">${cardFaceWrapText(l)}</span>`).join('');
+    /** 効果文の行の HTML。1行ずつ block の span（white-space:nowrap）。空行は空きの span
+     * @param {string[]} lines */
+    function cardFaceLinesHtml(lines) {
+      return lines.map((l) => l === '' ? '<span class="cface-gap"></span>' : `<span class="cface-l">${_escHtml(l)}</span>`).join('');
+    }
+    /** 名称の文字サイズ（cqw）。標準より長い名称だけ、名称の最大幅に収まるよう文字数から決める（測らない。字間 .04em ぶんを含める）
+     * @param {string} name */
+    function cardFaceNameFs(name) {
+      const n = [...String(name)].length;
+      const fs = Math.floor(CARD_FACE_NAME_MAXW / (n * 1.04) * 20) / 20;
+      return fs < CARD_FACE_NAME_FS ? fs : 0;
     }
     /** @type {{ [k: string]: string }} */
     const CARD_FACE_ERR = {
@@ -6356,22 +6366,20 @@
         return `<div class="cface-t ${cls}" style="left:${pct(p.at[0])};top:${pct(p.at[1])}${p.fs ? `;font-size:${p.fs}cqw` : ''}${p.ls ? `;letter-spacing:${p.ls}` : ''}">${html}</div>`;
       };
       const [rx0, ry0, rx1, ry1] = L.fxRect;
-      const cy = (ry0 + ry1) / 2, cx = (rx0 + rx1) / 2;
-      // 縦に使える高さ（cqw）。枠の中心から上下の近い方までを2倍し、縁取り・影の分を引く（プロトタイプ proto_c と同じ式）
-      const avail = 2 * Math.min(cy - ry0, ry1 - cy) * 100 * (450 / 288) - 1.6;
-      const dy = CARD_FACE_DY[id] || 0;
-      const text = cardFaceDesc(card, !!o.versus);
+      const fxl = cardFaceLinesFor(card, !!o.versus);
+      const nameFs = cardFaceNameFs(card.name);
       const power = card.baseDamage != null ? card.baseDamage : '';
       const vars = `--sh:${L.sh[0]};--sh2:${L.sh[1]};--fx:${L.fx}`;
       const styleAttr = ` style="${vars}${!o.sq && o.style ? ';' + o.style : ''}"`;
       const face = `<div class="cface${o.cls ? ' ' + o.cls : ''}" data-cface="${id}"${o.versus ? ' data-versus="1"' : ''} data-bake="${_escHtml(baked)}"${styleAttr} role="img" aria-label="${_escHtml(card.name)}">`
         + `<img class="cface-art" src="images/${o.dir}/nt/${id}.webp" alt="" draggable="false" onload="cardFaceReady(this)" onerror="cardFaceFallback(this)">`
-        + el('cface-nm cface-sh', L.name, _escHtml(card.name))
+        + el('cface-nm cface-sh', nameFs ? { at: L.name, fs: nameFs } : L.name, _escHtml(card.name))
         + el('cface-ty cface-sh', L.type, _escHtml(cardFaceTypeLabel(card)))
         + (L.cost ? el('cface-cl', L.costLabel, 'コスト') + el('cface-cn cface-num', L.cost, String(card.cost)) : '')
         + (L.pow ? el('cface-pl cface-sh', L.powLabel, '威力') + el('cface-pn cface-num cface-sh', L.pow, String(power)) : '')
         + (L.hp ? el('cface-hp cface-num cface-sh', L.hp, 'HP ' + card.hp) : '')
-        + `<div class="cface-t cface-fx ${L.fxDark ? 'cface-fx-dark' : 'cface-sh'}" data-avail="${avail.toFixed(2)}" data-maxw="${L.fxMax || 77}"${L.fxOneLine ? ' data-oneline="1"' : ''} style="left:${pct(cx)};top:calc(${pct(cy)} + ${dy}cqw);max-width:${L.fxMax || 77}cqw">${cardFaceTextHtml(text)}</div>`
+        // 効果文：パネルの内側いっぱいの箱を flex で縦横中央に寄せる。行はあらかじめ分けてあり、中身の幅は最長行そのもの（測らない）
+        + `<div class="cface-fxbox" style="left:${pct(rx0)};top:${pct(ry0)};width:${pct(rx1 - rx0)};height:${pct(ry1 - ry0)}"><div class="cface-fx ${L.fxDark ? 'cface-fx-dark' : 'cface-sh'}${fxl.pr ? ' cface-fx-pr' : ''}" style="font-size:${fxl.fs}cqw">${cardFaceLinesHtml(fxl.lines)}</div></div>`
         + `</div>`;
       return o.sq ? `<span class="cface-sqwrap" style="width:${o.sq}px;height:${o.sq}px">${face}</span>` : face;
     }
@@ -6405,231 +6413,32 @@
       return cardFaceHtml(faceEl.getAttribute('data-cface') || '', { versus: faceEl.getAttribute('data-versus') === '1' });
     }
 
-    // ─── 効果文の箱の調整（描画と切り離す） ───
-    // 測定は画面外の「変形のない測定用の面」（.cface-measure）で行う。実物の面は、非表示（display:none）・拡大縮小や回転の
-    // アニメーション中・まだ配置前のことがあり、そこで測ると幅が 0 や歪んだ値になって、箱の幅が反映されないまま
-    // （max-width のまま左に寄って見える）になるため。測定結果は cqw なので、実物の大きさが分からない（0）ときは基準幅で測って
-    // 先に反映し、実際に表示されて大きさが付いたとき ResizeObserver が実寸で測り直す。
-    const CARD_FACE_REF_W = 288;
-    /** @type {Map<string, { fs: number, lines: number, w: number, ox?: number } | null>} */
-    const _cardFaceMemo = new Map();
-    /**
-     * 効果文1つを画面外の測定用の面で測る：文字を最大から 0.1cqw ずつ縮め、下限でも入らなければ行数を切る。そのあと
-     * 箱の幅を折り返し後の最長行に縮めた値（cqw）を返す。
-     * @param {HTMLElement} el 実物の効果文要素（内容と avail・位置の指定だけを写す）
-     * @param {number} W 面の幅（px）
-     */
-    function cardFaceMeasure(el, W) {
-      const unit = W / 100;
-      const host = document.createElement('div');
-      host.className = 'cface cface-measure cface-ready';
-      host.style.cssText = `position:fixed;left:-10000px;top:0;width:${W}px;visibility:hidden;pointer-events:none;transform:none;animation:none;`;
-      const c = /** @type {HTMLElement} */ (el.cloneNode(true));
-      c.classList.remove('cface-clamped');
-      c.removeAttribute('data-fit');
-      c.style.width = '';
-      c.style.webkitLineClamp = '';
-      if (el.dataset.maxw) c.style.maxWidth = el.dataset.maxw + 'cqw';
-      host.appendChild(c);
-      document.body.appendChild(host);
-      try {
-        const limit = parseFloat(el.dataset.avail || '0') * unit;
-        let fs = CARD_FACE_FS_MAX;
-        c.style.setProperty('--fs', String(fs));
-        // 明るい枠（都市・政策。CARD_FACE_LAYOUT の fxOneLine）：1行ずつの文（見出し行つきを含む）が最大の文字サイズで折り返されるときは、
-        // 文字を縮めてどの行も折り返さずに済む（下限以上の）サイズがあればそれにする。焼き込み画像はこの枠の短い文を1行に収めているため。
-        // 縮めても折り返しが残る文は最大のまま。自然・人為の枠は焼き込み画像も折り返しているので対象外
-        const blocks = Math.max(1, c.querySelectorAll('.cface-l').length);
-        if (el.dataset.oneline && cardFaceRowCount(c) > blocks) {
-          for (let s = Math.round((fs - 0.1) * 10) / 10; s >= CARD_FACE_FS_MIN - 1e-9; s = Math.round((s - 0.1) * 10) / 10) {
-            c.style.setProperty('--fs', String(s));
-            if (cardFaceRowCount(c) <= blocks) { fs = s; break; }
-          }
-          c.style.setProperty('--fs', String(fs));
-        }
-        const heightOf = () => c.getBoundingClientRect().height;
-        while (heightOf() > limit + 0.5 && fs > CARD_FACE_FS_MIN) {
-          fs = Math.round((fs - 0.1) * 10) / 10;
-          c.style.setProperty('--fs', String(fs));
-        }
-        let lines = 0;
-        if (heightOf() > limit + 0.5) {
-          lines = Math.max(1, Math.floor(limit / (fs * 1.3 * unit)));
-          c.classList.add('cface-clamped');
-          c.style.webkitLineClamp = String(lines);
-        }
-        let wPx = cardFaceWidestLine(c);
-        if (!(wPx > 0)) return null;
-        // 安全装置：測った幅に縮めると行数が増える（測り損ね）なら、縮めずに上限の幅のまま使う
-        const rowsBefore = cardFaceRowCount(c);
-        c.style.width = Math.ceil(wPx + 1) + 'px';
-        if (cardFaceRowCount(c) > rowsBefore) { c.style.width = ''; wPx = c.getBoundingClientRect().width; }
-        return { fs, lines, w: Math.ceil(wPx + 1) / unit, ox: cardFacePunctShift(c) / unit };
-      } finally {
-        host.remove();
-      }
-    }
-    /** 行末の句読点（。、）は字面が字の枠の左半分にしかなく、右に空きが見えるため、文章のかたまりが左に寄って見える。
-     * 各行の見かけの幅（行末が句読点なら、その字の幅の半分を引いた幅）のうち最も長いものと、箱の幅（最長行の実幅）との差の半分だけ
-     * 右へずらす量（px）を返す。いちばん長い行が句読点で終わらなければ 0（変形のない測定用の面で使う）
-     * @param {HTMLElement} el */
-    function cardFacePunctShift(el) {
-      const rows = cardFaceRows(el).map((v) => ({ ...v, cut: 0 }));
-      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      for (let n = w.nextNode(); n; n = w.nextNode()) {
-        const t = n.textContent || '';
-        for (let k = 0; k < t.length; k++) {
-          if (t[k] !== '。' && t[k] !== '、') continue;
-          const r = document.createRange(); r.setStart(n, k); r.setEnd(n, k + 1);
-          const b = r.getBoundingClientRect(); const cy = (b.top + b.bottom) / 2;
-          const row = rows.find((v) => cy >= v.t && cy <= v.b);
-          if (row && b.width && Math.abs(b.right - row.r) < 1) row.cut = b.width / 2;
-        }
-      }
-      let raw = 0, vis = 0;
-      for (const v of rows) { raw = Math.max(raw, v.r - v.l); vis = Math.max(vis, v.r - v.l - v.cut); }
-      return raw > 0 ? (raw - vis) / 2 : 0;
-    }
-    /** 文字の矩形を行ごとにまとめる。上端の座標ではなく「縦の中心が同じ行の上下の範囲に入るか」でまとめる。
-     * 数字・英字と漢字・かなで使う書体が違う端末（iPhone など）では、同じ行でも矩形の上端が数px ずれ、上端で分けると1行が複数に割れて
-     * 行幅を短く測ってしまう（箱が狭くなり、文が細切れに折り返す）ため
-     * @param {HTMLElement} el @returns {{l: number, r: number, t: number, b: number}[]} */
-    function cardFaceRows(el) {
-      const rects = cardFaceTextRects(el).sort((a, b) => (a.top + a.bottom) - (b.top + b.bottom));
-      /** @type {{l: number, r: number, t: number, b: number}[]} */
-      const rows = [];
-      for (const b of rects) {
-        const cy = (b.top + b.bottom) / 2;
-        const row = rows.find((v) => cy >= v.t && cy <= v.b);
-        if (row) { row.l = Math.min(row.l, b.left); row.r = Math.max(row.r, b.right); row.t = Math.min(row.t, b.top); row.b = Math.max(row.b, b.bottom); }
-        else rows.push({ l: b.left, r: b.right, t: b.top, b: b.bottom });
-      }
-      return rows;
-    }
-    /** 文字（テキストノード）が置かれた矩形を集める。行の箱（block の span）の矩形は含めない（箱は行の幅いっぱいで、文字の幅を表さないため）
-     * @param {HTMLElement} el @returns {DOMRect[]} */
-    function cardFaceTextRects(el) {
-      /** @type {DOMRect[]} */
-      const out = [];
-      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      for (let n = w.nextNode(); n; n = w.nextNode()) {
-        const r = document.createRange();
-        r.selectNodeContents(n);
-        for (const b of Array.from(r.getClientRects())) { if (b.width) out.push(b); }
-      }
-      return out;
-    }
-    /** 折り返した行の数（変形のない測定用の面で使う）
-     * @param {HTMLElement} el */
-    function cardFaceRowCount(el) { return cardFaceRows(el).length; }
-    /** 折り返した各行の実幅を測って、いちばん長い行の幅（px）を返す（変形のない測定用の面で使う）
-     * @param {HTMLElement} el */
-    function cardFaceWidestLine(el) {
-      let w = 0;
-      for (const v of cardFaceRows(el)) w = Math.max(w, v.r - v.l);
-      return w;
-    }
-    /**
-     * 効果文1つを枠に収め、箱の幅を折り返し後の最長行に縮めて文章のかたまりを枠の中央に寄せる。結果は cqw で保存する。
-     * 実物の大きさが 0（非表示）でも基準幅で測って反映する。
-     * @param {HTMLElement} el
-     */
-    function fitCardFaceText(el) {
-      const face = /** @type {HTMLElement | null} */ (el.closest('.cface'));
-      if (!face || face.classList.contains('cface-measure') || typeof document === 'undefined' || !document.body) return;
-      const W = Math.round(face.clientWidth) || CARD_FACE_REF_W;
-      const key = el.innerHTML + '|' + (el.dataset.avail || '') + '|' + W;
-      if (el.dataset.fit === key) return;
-      let r = _cardFaceMemo.get(key);
-      if (r === undefined) { r = cardFaceMeasure(el, W); if (r) _cardFaceMemo.set(key, r); }
-      if (!r) return;   // 測れなかった（書体の読み込み前など）。印を付けないので、次の機会（再描画・大きさの変化・フォント読み込み）に測り直す
-      el.style.setProperty('--fs', String(r.fs));
-      el.classList.toggle('cface-clamped', r.lines > 0);
-      el.style.webkitLineClamp = r.lines > 0 ? String(r.lines) : '';
-      el.style.width = r.w.toFixed(2) + 'cqw';
-      el.style.setProperty('--ox', (r.ox || 0).toFixed(2) + 'cqw');   // 行末の句読点の空き分だけ右へ（cardFacePunctShift）
-      // 既定の max-width（77cqw）ちょうどまで使う文は、実物と測定用の面で字形の幅がわずかに違うだけで折り返しが変わる（アニメーション中の合成レイヤーなど）。
-      // 測った幅より狭く切らないよう、上限を測った幅の少し外まで広げる（箱の幅は測った幅のまま。中央に寄せる計算は変わらない）
-      el.style.maxWidth = Math.max(parseFloat(el.dataset.maxw || '77'), r.w + 1.5).toFixed(2) + 'cqw';
-      el.dataset.fit = key;
-    }
-    /** 名称の幅（cqw）を、基準の文字サイズで画面外の測定用の面で測る
-     * @param {HTMLElement} el @param {number} W */
-    function cardFaceMeasureName(el, W) {
-      const host = document.createElement('div');
-      host.className = 'cface cface-measure cface-ready';
-      host.style.cssText = `position:fixed;left:-10000px;top:0;width:${W}px;visibility:hidden;pointer-events:none;transform:none;animation:none;`;
-      const c = /** @type {HTMLElement} */ (el.cloneNode(true));
-      c.style.fontSize = '';
-      host.appendChild(c);
-      document.body.appendChild(host);
-      try { return c.getBoundingClientRect().width / (W / 100); } finally { host.remove(); }
-    }
-    /** 名称が使える幅（CARD_FACE_NAME_MAXW）を超えるときだけ、文字サイズを縮めて収める。実物の大きさが 0 でも基準幅で測る
-     * @param {HTMLElement} el */
-    function fitCardFaceName(el) {
-      const face = /** @type {HTMLElement | null} */ (el.closest('.cface'));
-      if (!face || face.classList.contains('cface-measure') || typeof document === 'undefined' || !document.body) return;
-      const W = Math.round(face.clientWidth) || CARD_FACE_REF_W;
-      const key = (el.textContent || '') + '|nm|' + W;
-      if (el.dataset.fit === key) return;
-      let r = _cardFaceMemo.get(key);
-      if (r === undefined) { const w = cardFaceMeasureName(el, W); r = w > 0 ? { fs: Math.min(CARD_FACE_NAME_FS, Math.floor(CARD_FACE_NAME_FS * CARD_FACE_NAME_MAXW / w * 20) / 20), lines: 0, w } : null; if (r) _cardFaceMemo.set(key, r); }
-      if (!r) return;
-      el.style.fontSize = r.fs < CARD_FACE_NAME_FS ? r.fs + 'cqw' : '';
-      el.dataset.fit = key;
-    }
-    /** 面の中の効果文をすべて調整する
-     * @param {Element} face */
-    function fitCardFace(face) {
-      if (face.classList.contains('cface-measure')) return;
-      face.querySelectorAll('.cface-nm').forEach((el) => fitCardFaceName(/** @type {HTMLElement} */ (el)));
-      face.querySelectorAll('.cface-fx').forEach((el) => fitCardFaceText(/** @type {HTMLElement} */ (el)));
-    }
-    /** 面があれば（要素自身・祖先・子孫のいずれか）調整対象に集める
+    // ─── 面が画面に追加されたとき、絵が読み込み済みなら文字を出す（絵より先に文字だけ見えないようにする） ───
+    // 効果文の幅・位置は測らない（行はあらかじめ分けてあり、CSS だけで中央に寄る）。ここは cface-ready の付与だけ。
+    /** 面があれば（要素自身・祖先・子孫のいずれか）集める
      * @param {any} node @param {Set<any>} out */
     function cardFaceCollect(node, out) {
       if (!node || node.nodeType !== 1) return;
-      if (node.classList && node.classList.contains('cface-measure')) return;
       if (node.classList && node.classList.contains('cface')) out.add(node);
       else if (node.closest) { const up = node.closest('.cface'); if (up) out.add(up); }
       if (node.querySelectorAll) node.querySelectorAll('.cface').forEach((/** @type {any} */ f) => out.add(f));
     }
-    /** @type {any} */
-    let _cardFaceRo = null;
-    const _cardFaceSeen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
     /** @param {Element} face */
-    function cardFaceObserve(face) {
+    function cardFaceCheckReady(face) {
       const art = /** @type {HTMLImageElement | null} */ (face.querySelector('.cface-art'));
       if (art && art.complete && art.naturalWidth) cardFaceReady(art);   // 読み込み済み（キャッシュ・再利用した img）は load を待たない
-      if (_cardFaceRo && _cardFaceSeen && !_cardFaceSeen.has(face)) { _cardFaceSeen.add(face); _cardFaceRo.observe(face); }
     }
-    function cardFaceFitAll() {
-      document.querySelectorAll('.cface:not(.cface-measure)').forEach((f) => {
-        f.querySelectorAll('.cface-fx, .cface-nm').forEach((e) => { delete /** @type {any} */ (e).dataset.fit; });
-        cardFaceObserve(f);
-        fitCardFace(f);
-      });
-    }
-    function initCardFaceFit() {
+    function initCardFaceReady() {
       if (typeof MutationObserver === 'undefined' || typeof document === 'undefined' || !document.body) return;
-      if (typeof ResizeObserver !== 'undefined') {
-        _cardFaceRo = new ResizeObserver((/** @type {any[]} */ entries) => {
-          for (const en of entries) { if (en.target.isConnected) fitCardFace(en.target); }
-        });
-      }
-      // 差分描画などで追加された面だけを、描画の直後（ペイント前）に調整する。属性の変更は見ない（自分の書き込みで再入しない）
       new MutationObserver((muts) => {
         /** @type {Set<any>} */
         const faces = new Set();
         for (const m of muts) m.addedNodes.forEach((n) => cardFaceCollect(n, faces));
-        faces.forEach((f) => { if (!f.isConnected || f.classList.contains('cface-measure')) return; cardFaceObserve(f); fitCardFace(f); });
+        faces.forEach((f) => { if (f.isConnected) cardFaceCheckReady(f); });
       }).observe(document.body, { childList: true, subtree: true });
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(cardFaceFitAll);
-      if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', cardFaceFitAll);
-      cardFaceFitAll();
+      document.querySelectorAll('.cface').forEach(cardFaceCheckReady);
     }
-    initCardFaceFit();
+    initCardFaceReady();
     // ════════════════════════════════════════════════════════════════════
     // UI第3弾（試験実装・2026-07-10）：A2 ボトムタブバー（design_system.md §9 A2）
     // 無効化する場合は UI_TABBAR を false にするだけで完全に旧動作へ戻る（レンダリングは
