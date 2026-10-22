@@ -5144,6 +5144,10 @@
     //    このフィールドをそのまま「ドロー枚数」として読むため、意味を変えると協力モードの挙動が変わってしまう
     //    （2に変えると協力モードのドロー枚数が2枚になる誤りを一度実装しかけて気づいた）。対応フェーズで使える
     //    上限枚数（2枚）はresolveDamage側の定数VERSUS_ISTANBUL_RESPONSE_MAXとして別に持つ。
+    //  ・istanbul（2026-10-22、WORKTRACK.md §20-5）：対戦の能力を response_double から 'type_learn'（自分の都市が受けたことのある種類の
+    //    自然災害は、イスタンブールへのダメージ −VERSUS_ISTANBUL_LEARN_REDUCE）へ差し替えた。協力は上の response_double と同じく
+    //    「地震被弾時1枚ドロー」のまま（type_learn も同じ扱い）。response_double と対応フェーズの2枚使用の仕組みは休眠コードとして残し、
+    //    実在都市は使わない。abilityValue は協力のドロー枚数なので1のまま。
     /** @type {City[]} */
     const CITIES = [
       { id: 'tokyo', name: '東京', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'resist_quake_fire', abilityValue: 20, abilityDesc: '地震・大火災 −20', concept: '首都への集中投資。対策が進んだ都市の強さと限界。', learn: '首都への集中投資により地震・大火災への対策が最も進んだ都市。ただし首都機能の集中そのものがリスクでもある。対策の進んだ都市の「強さと限界」を体現する。' },
@@ -5156,7 +5160,7 @@
       { id: 'niigata', name: '新潟', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'quake_regen', abilityValue: 10, abilityDesc: '地震を受けたターン終了時 +10／捨て札2枚を山札へ', concept: '1964年新潟地震。液状化研究の原点。', learn: '1964年新潟地震（M7.5）で液状化現象が大規模に初めて記録され、防災学の重要な研究対象となった。地震を受けたターン後のHP回復は科学的蓄積と学習を象徴する。使った札を山札へ戻すことは、その蓄積が次の備えとして再び活きることを表す。' },
       { id: 'kagoshima', name: '鹿児島', icon: 'city_mountain', hp: 60, isCoastal: false, isMountain: true, abilityType: 'resist_compound', abilityValue: 20, abilityDesc: '複合災害 −20', concept: '桜島と共生。土砂崩れリスクを受け入れつつ複合災害に備える防災哲学。', learn: '日本有数の活火山・桜島と共生する都市。「ゼロリスクを目指さない」防災哲学のもと、日常的な火山活動への対応力が複合災害への耐性として表れている。' },
       { id: 'rotterdam', name: 'ロッテルダム', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'flood_budget', abilityValue: 2, abilityDesc: '洪水・津波被弾時、次ターン予算+2', concept: '水と共存するオランダ型防災哲学。', learn: '国土の4分の1が海面以下のオランダの港湾都市。「水を制御するのではなく水と共存する」防災哲学を世界に発信。洪水・津波を受けた後に次ターンの予算が2増えるのはその強靭な復旧力を示す。' },
-      { id: 'istanbul', name: 'イスタンブール', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'response_double', abilityValue: 1, abilityDesc: '相手の地震への対応フェーズで政策カードを2枚まで使用可能', concept: '北アナトリア断層直上。事後学習型防災。', learn: '北アナトリア断層直上に位置し高確率でM7超の地震が予測されるが、耐震化は遅れている。事前の備えは薄いが、地震を受けた後の対応フェーズでは政策カードを2枚まで使える。「被災して初めて学ぶ事後学習型防災」の現実を示す。' },
+      { id: 'istanbul', name: 'イスタンブール', icon: 'city_inland', hp: 60, isCoastal: false, isMountain: false, abilityType: 'type_learn', abilityValue: 1, abilityDesc: '受けたことのある種類の自然災害 −20', concept: '北アナトリア断層直上。事後学習型防災。', learn: '北アナトリア断層直上に位置し高確率でM7超の地震が予測されるが、耐震化は遅れている。事前の備えは薄いが、一度受けた種類の自然災害は、次からイスタンブールへの被害が20減る。「被災して初めて学ぶ事後学習型防災」の現実を示す。' },
       { id: 'new_orleans', name: 'ニューオーリンズ', icon: 'city_coastal', hp: 60, isCoastal: true, isMountain: false, abilityType: 'vulnerability_draw', abilityValue: 10, abilityDesc: '手札≤2枚のとき +10被害・1枚ドロー', concept: '社会的脆弱性と地域の底力。打たれるほどに立ち上がるコミュニティの力。', learn: '2005年ハリケーン・カトリーナで被害が社会的弱者に集中したことが「社会的脆弱性」概念を世界に知らしめた。手札が少ない（準備不足の）状態でさらに被害が増える。' },
     ];
     // ── カード工房：都市能力パラメータ化の共通ヘルパー ──
@@ -5227,14 +5231,14 @@
     /** @type {Record<'coastal' | 'mountain' | 'inland', PolicyId>} */
     const VERSUS_TERRAIN_SHIELD = { coastal: 'dam', mountain: 'bousai_cho', inland: 'quake_wall' };
     // 都市能力がすでにカバーしている領域に対応する守る枠カード＝薄くする側（重複投資を避ける）。
-    // ここに無いabilityType（regen・extra_budget・vulnerability_draw）は守る枠に対応が無いためフォールバックを使う。
+    // ここに無いabilityType（regen・extra_budget・vulnerability_draw・type_learn）は守る枠に対応が無いためフォールバックを使う。
     /** @type {Partial<Record<CityAbilityType, PolicyId>>} */
     const VERSUS_ABILITY_COVER = {
       resist_quake_fire: 'quake_wall', quake_regen: 'quake_wall', quake_draw: 'quake_wall',
       resist_flood: 'dam', flood_draw: 'dam', flood_budget: 'dam',
       resist_landslide: 'bousai_cho', resist_compound: 'bousai_cho', second_hit_reduce: 'bousai_cho',
-      // 2026-09-24 第2陣：istanbulのabilityTypeがquake_draw→response_doubleへ改名されたため、
-      // 従来と同じ「内陸＝耐震補強を薄くする」判定結果を保つには対応するエントリが必要（WORKTRACK.md §15 B-2）。
+      // response_double は休眠中（実在都市は持たない）。2026-10-22 から istanbul は type_learn になり、地震専用の能力ではなくなったため
+      // type_learn にはエントリを置かない（regen・extra_budget と同じくフォールバックの drill を薄くする）。
       response_double: 'quake_wall',
     };
     const VERSUS_THIN_FALLBACK = 'drill';
@@ -5270,6 +5274,11 @@
     // 上限枚数（WORKTRACK.md §15 B-2）。city.abilityValueを流用しなかった理由はCITIES定義側のコメント参照
     // （協力モードのcoopDraw(city.abilityValue)がドロー枚数として同じフィールドを読むため）。
     const VERSUS_ISTANBUL_RESPONSE_MAX = 2;
+    // 2026-10-22：イスタンブールの能力を response_double から type_learn（自分の都市が受けたことのある種類の自然災害は
+    // イスタンブールへのダメージ −この値。WORKTRACK.md §20-5）へ差し替えた。上の VERSUS_ISTANBUL_RESPONSE_MAX と対応フェーズの2枚使用の
+    // 仕組みは、abilityType が 'response_double' の都市が将来現れたときのために休眠コードとして残している（現在の実在都市は持たない）。
+    // 種類＝カードid単位（洪水と津波は別。地形は種類ではない）。同じ種類を何度受けても累積せず1回の攻撃につきこの値だけ軽減する。
+    const VERSUS_ISTANBUL_LEARN_REDUCE = 20;
     // @ts-check
     // 難易度は「人間にとっての難しさ」で統一。都市側／自然側で立場が逆なので side ごとに設定を分ける。
     const _COOP_EVENTS_ALL = [{ t: 2, id: 'rumor' }, { t: 5, id: 'pollution' }, { t: 7, id: 'terror' }];
@@ -5517,7 +5526,7 @@
       kagoshima: { co: '複合災害のダメージを20軽減する。' },
       rotterdam: { co: '洪水・津波を受けた次のターン、予算が +2 される。' },
       istanbul: {
-        vs: '相手の地震に対応するとき、政策カードを2枚まで使える',
+        vs: '自分の都市が受けたことのある種類の自然災害は、イスタンブールへのダメージ −20',
         co: '地震を受けた時、山札から1枚カードを引くことができる。',
       },
       new_orleans: {
@@ -5590,7 +5599,7 @@
       "niigata.co": { fs: 4.4, lines: ["地震を受けたターンの終了時に","HPが10回復する。"], pr: false },
       "kagoshima.co": { fs: 4.4, lines: ["複合災害のダメージを20軽減する。"], pr: true },
       "rotterdam.co": { fs: 4.4, lines: ["洪水・津波を受けた次のターン、","予算が +2 される。"], pr: true },
-      "istanbul.vs": { fs: 4.4, lines: ["相手の地震に対応するとき、","政策カードを2枚まで使える"], pr: true },
+      "istanbul.vs": { fs: 4.4, lines: ["自分の都市が受けたことのある種類の","自然災害は、イスタンブールへの","ダメージ −20"], pr: false },
       "istanbul.co": { fs: 4.4, lines: ["地震を受けた時、山札から","1枚カードを引くことができる。"], pr: true },
       "new_orleans.vs": { fs: 4, lines: ["攻撃を受けるとき、対応カードを使う前の","手札が2枚以下ならば","以下の効力を発揮する。","","・ダメージを10追加で受ける。","・山札から1枚カードを引く。"], pr: false },
       "new_orleans.co": { fs: 4, lines: ["攻撃を受けた時手札が2枚以下ならば","以下の効力を発揮する。","","・ダメージを10追加で受ける。","・山札から1枚カードを","引くことができる。"], pr: false },
@@ -5757,7 +5766,7 @@
         daily:  { incoming: (c) => hit(c) ? [{ t: `${c.city.name}の都市対策：${label(c.city)}`, delta: -c.city.abilityValue }] : [] },
       };
     }
-    // 協力の「被災後の学習ドロー」（名古屋 flood_draw ／ イスタンブール response_double ／ カード工房 quake_draw で共通）
+    // 協力の「被災後の学習ドロー」（名古屋 flood_draw ／ イスタンブール type_learn ／ 休眠の response_double ／ カード工房 quake_draw で共通）
     /**
      * @param {CityAbilityType} trigger
      * @returns {AbilityMode<CoopAbilityItem>}
@@ -5800,11 +5809,23 @@
         daily:  null,
       },
 
-      // イスタンブール。差：対戦はダメージ計算では何もしない（対応フェーズで政策カード2枚まで使える。範囲外: 110_ 107行付近の可否判定）／
-      // 協力は地震被弾で abilityValue 枚ドロー（quake_draw と同じ）／デイリーは効果なし
+      // 休眠中（2026-10-22 から実在都市は持たない。以前はイスタンブール）。差：対戦はダメージ計算では何もしない（対応フェーズで政策カード2枚まで使える。
+      // 範囲外: 110_ 107行付近の可否判定）／協力は地震被弾で abilityValue 枚ドロー（quake_draw と同じ）／デイリーは効果なし
       response_double: {
-        name: 'イスタンブール：対応2枚（協力は地震で学習ドロー）',
+        name: '（休眠）対応2枚（協力は地震で学習ドロー）',
         versus: null,
+        coop:   cityAbilCoopLearnDraw('quake_draw'),
+        daily:  null,
+      },
+
+      // イスタンブール。差：対戦は「自分のどちらかの都市が受けたことのある種類の自然災害」を −VERSUS_ISTANBUL_LEARN_REDUCE
+      // （effects.receivedTypes に今回より前に記録済みの種類のみ。初回は素通し。累積しない。記録本体は 050_ resolveDamage）／
+      // 協力は地震被弾で abilityValue 枚ドロー（quake_draw と同じ）／デイリーは効果なし
+      type_learn: {
+        name: 'イスタンブール：被災の経験（協力は地震で学習ドロー）',
+        versus: { incoming: (c) => (c.atk.type === 'disaster' && (c.effects.receivedTypes || []).includes(c.atk.id))
+          ? [{ kind: 'mod', cat: 'city_policy', delta: -VERSUS_ISTANBUL_LEARN_REDUCE, label: '都市', text: `${c.city.name}の都市対策：${c.atk.name}の学習軽減（被災の経験） −${VERSUS_ISTANBUL_LEARN_REDUCE}` }]
+          : [] },
         coop:   cityAbilCoopLearnDraw('quake_draw'),
         daily:  null,
       },
@@ -6074,6 +6095,12 @@
     let _vsDeckReady = { 0: null, 1: null };
     let _vsDeckMerging = false;  // ホストが2人分を G へ組み込んでいる最中（この間は組み直せない）
     let _vsPeerProto = 0;        // 相手の端末の版数（rooms/{roomId}/proto/{p1|p2}）。0＝古い版または未確認
+    // 対戦の初期手札ドラフトを両者が同時に行うための端末ローカルの状態（G には入れない。060_ の「同時ドラフト」節を参照）
+    /** @type {any} 自分のドラフト（G.draftState と同じ形）。新しい版どうしのオンライン対戦のドラフト中だけ持つ */
+    let _vsLocalDraft = null;
+    /** @type {{ [pi: number]: any }} rooms/{roomId}/draftReady の写し。確定済みなら { uids, locked? } */
+    let _vsDraftReady = { 0: null, 1: null };
+    let _vsDraftMerging = false; // ホストが2人分を G へ組み込んでいる最中
 
     // ── リモート受信のみをデバウンスする描画スケジューラ（5.1.1・5.1.3：画面フリーズ・チカチカ対策） ──
     // 自分の操作起点のrender()/renderCoop()呼び出しはこれを経由しない（即時のまま・操作感を維持）。
@@ -6785,7 +6812,7 @@
           '<span class="hint-tag green">緑 シールド型政策</span>：事前に設置しておくと、相手の攻撃を自動で軽減します。',
           '<span class="hint-tag yellow">黄 即時型政策</span>：使った瞬間に効果が発動します（HP回復・ドローなど）。',
           '<span class="hint-tag red">自然災害カード</span>：相手の都市を攻撃します。コストが高いほど威力大。',
-          '政策2枚と自然災害1枚が保証されます。残り1枚は自然災害か人為災害のどちらかが入ります。',
+          '自分の山札の上から4枚がそのまま手札になります。',
         ]
       },
       main: {
@@ -7153,7 +7180,7 @@
 
     const TUT_STEPS = [
       { title: 'ゲーム開始：都市カードを選ぼう', body: `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px"><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:var(--t0);flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">01.</div><div><div style="font-weight:700;color:var(--blue);font-size:1.05rem">都市ガチャ</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">引いた2枚の都市で戦うことになります</div></div></div><div style="text-align:center;font-size:.9rem;color:var(--t3);line-height:1.2">↓</div><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:var(--t0);flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">02.</div><div><div style="font-weight:700;color:var(--yellow);font-size:1.05rem">初期手札のドロー</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">政策2枚＋災害2枚を引く</div></div></div><div style="text-align:center;font-size:.9rem;color:var(--t3);line-height:1.2">↓</div><div style="background:var(--bg3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px"><div style="font-size:1.1rem;font-weight:700;color:var(--t0);flex-shrink:0;min-width:2.6rem;text-align:center;letter-spacing:.02em">03.</div><div><div style="font-weight:700;color:var(--green);font-size:1.05rem">バトル開始！</div><div style="font-size:.78rem;color:var(--t1);margin-top:2px">相手の都市HPを0にしたら勝利</div></div></div></div><div style="font-size:.88rem;color:var(--t1);line-height:1.8">都市ごとに<strong>地形</strong>と<strong>固有能力</strong>が異なります。<br><img src="images/icons/terrain_coastal.webp" style="width:18px;height:18px;vertical-align:middle;object-fit:contain"> <strong class="tneon-blue" style="color:var(--blue)">海岸</strong> — 洪水・津波 +10追加ダメージ<br><img src="images/icons/terrain_mountain.webp" style="width:18px;height:18px;vertical-align:middle;object-fit:contain"> <strong class="tneon-white">山間部</strong> — 土砂崩れ +10追加ダメージ<br><img src="images/icons/terrain_inland.webp" style="width:18px;height:18px;vertical-align:middle;object-fit:contain"> <strong class="tneon-yellow" style="color:var(--yellow)">内陸</strong> — 地震 +10追加ダメージ</div><div style="font-size:.82rem;color:var(--t1);margin-top:6px">このチュートリアルは <strong>仙台（海岸）</strong> vs <strong>東京（内陸）</strong> で進みます。</div>`, highlight: null, btnLabel: '次へ →', action: 'next' },
-      { title: '初期手札のドロー', body: `都市選択後、山札から<strong>4枚の手札</strong>を引きます（政策2枚＋自然災害1枚を保証、残り1枚は自然災害か人為災害）。<br><br><div style="display:flex;flex-direction:column;gap:10px"><div class="tut-panel-0" style="background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_policy_green.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--green);font-weight:700;font-size:.88rem;margin-bottom:4px">政策カード（緑）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">事前に<strong>設置</strong>するシールド型の守備カード。相手の特定攻撃を受けたとき自動で軽減・防御する。</div></div></div><div class="tut-panel-1" style="background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_policy_yellow.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--yellow);font-weight:700;font-size:.88rem;margin-bottom:4px">政策カード（黄）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">タップした瞬間に<strong>即発動</strong>する守備・回復カード。HP回復・ドロー・特殊効果を即時適用する。</div></div></div><div class="tut-panel-2" style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_disaster.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--red);font-weight:700;font-size:.88rem;margin-bottom:4px">自然災害カード（赤）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">相手の都市にダメージを与える攻撃カード。地形が一致すると<strong>+10追加ダメージ</strong>！</div></div></div><div class="tut-panel-3" style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_jinzai.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:#c084fc;font-weight:700;font-size:.88rem;margin-bottom:4px">人為災害カード（紫）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">直接ダメージは与えず、相手の<strong>シールド破壊・対応封じ・予算減少</strong>で妨害する妨害カード。初期手札に入ることもあり、ターン中のドローでも入手する。</div></div></div></div><div style="font-size:.72rem;color:var(--t1);margin-top:8px">毎ターン最大2枚ドロー。手札上限5枚。</div>`, highlight: null, btnLabel: 'バトルへ →', action: 'next' },
+      { title: '初期手札のドロー', body: `都市選択後、自分の山札の上から<strong>4枚の手札</strong>を引きます。<br><br><div style="display:flex;flex-direction:column;gap:10px"><div class="tut-panel-0" style="background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_policy_green.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--green);font-weight:700;font-size:.88rem;margin-bottom:4px">政策カード（緑）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">事前に<strong>設置</strong>するシールド型の守備カード。相手の特定攻撃を受けたとき自動で軽減・防御する。</div></div></div><div class="tut-panel-1" style="background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_policy_yellow.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--yellow);font-weight:700;font-size:.88rem;margin-bottom:4px">政策カード（黄）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">タップした瞬間に<strong>即発動</strong>する守備・回復カード。HP回復・ドロー・特殊効果を即時適用する。</div></div></div><div class="tut-panel-2" style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.28);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_disaster.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:var(--red);font-weight:700;font-size:.88rem;margin-bottom:4px">自然災害カード（赤）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">相手の都市にダメージを与える攻撃カード。地形が一致すると<strong>+10追加ダメージ</strong>！</div></div></div><div class="tut-panel-3" style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:10px;padding:12px;display:flex;align-items:flex-start;gap:12px"><img src="images/icons/icon_jinzai.webp" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;object-fit:cover"><div><div style="color:#c084fc;font-weight:700;font-size:.88rem;margin-bottom:4px">人為災害カード（紫）</div><div style="font-size:.78rem;color:var(--t1);line-height:1.6">直接ダメージは与えず、相手の<strong>シールド破壊・対応封じ・予算減少</strong>で妨害する妨害カード。初期手札に入ることもあり、ターン中のドローでも入手する。</div></div></div></div><div style="font-size:.72rem;color:var(--t1);margin-top:8px">毎ターン最大2枚ドロー。手札上限5枚。</div>`, highlight: null, btnLabel: 'バトルへ →', action: 'next' },
       { title: 'バトル開始！', body: '<strong>上が相手ゾーン、下があなたのゾーン</strong>です。HPバーで残り体力が分かります。<br>・<strong>都市名（ⓘ）</strong>をタップ → 地形・都市能力を確認できます<br>・地形（海岸 / 内陸 / 山間部）によって特定の災害で追加ダメージを受けます<br>・下の手札の<strong>カードをタップ</strong>すると効果の詳細を確認できます<br>予算 <strong>3pt</strong> でカードを使えます。', highlight: null, btnLabel: '次へ →', action: 'next' },
       { title: '緑カードを設置しよう', body: '<strong>堤防建設（コスト2）</strong> をタップして設置。相手が洪水・津波を使ったとき、自動で <strong>-25軽減</strong> します。', highlight: 'dam', btnLabel: null, action: 'play_dam' },
       { title: '黄カードで即時回復', body: '<strong>避難訓練（コスト1）</strong> をタップ。タップした瞬間に <strong>HP +20</strong> 回復します。', highlight: 'drill', btnLabel: null, action: 'play_drill' },
@@ -7905,6 +7932,13 @@
         if (m.cat === 'heal') { healAmt += -m.delta; healNames.push(m.rc.name); }
         if (!m.noLog) log.push({ cat: m.cat, text: m.text, delta: m.delta, running: m.running });
       }
+      // イスタンブールの学習軽減用の記録（effects.receivedTypes。mkEffects には持たせず、ここで遅延生成する）。軽減の判定（calcDamage）は済んでいるので、
+      // 今回の種類はここで初めて記録する（初回は軽減されない）。記録が効くのはイスタンブールを持つプレイヤーだけなので、その場合のみ残す。
+      // どちらの都市が前に出ているかに関わらず、このプレイヤーが受けた自然災害の種類を残す（ダメージ0でも記録。人為災害は記録しない）。
+      if (attackCard.type === 'disaster' && def.cities.some(c => c.abilityType === 'type_learn')) {
+        const rt = def.effects.receivedTypes || (def.effects.receivedTypes = []);
+        if (!rt.includes(attackCard.id)) rt.push(attackCard.id);
+      }
       const healName = healNames.join('・');
       // ダメージ確定
       const dmg = calc.total; def.cityHps[def.activeCityIdx] -= dmg;
@@ -8192,6 +8226,7 @@
         vsDeckBuildLeave();
         _vsDeckReady = { 0: null, 1: null };
         db.ref(`rooms/${roomId}/deckReady`).remove(); // 前の試合の残りを消す（G の送信より先に出るので、相手は消えた状態から始まる）
+        vsDraftLeave(); db.ref(`rooms/${roomId}/draftReady`).remove(); // 同時ドラフトの確定も同じ扱い
         G.deckBuildState = null; G.deckBuildPhase = { proto: VS_DECK_PROTO }; G.screen = 'deckBuild';
         return;
       }
@@ -8368,7 +8403,11 @@
     //   locked は「組み込みを始めた」印。ゲストの組み直し（ノード削除）も transaction で、locked なら中止される。どちらが先でも
     //   サーバー側で順序が決まるので、ゲストが組み直したと思っているのに古いデッキが使われることは起きない。
     // ═══════════════════════════════════════
-    const VS_DECK_PROTO = 2;
+    // 端末の版数（rooms/{roomId}/proto/{p1|p2} に書いて相手に伝える）。2＝同時デッキ構築に対応、3＝同時ドラフトにも対応。
+    // 相手の版数が足りない機能だけを従来の「順番に行う」流れに落とす（デッキ構築は 2 以上、ドラフトは 3 以上で同時）。
+    const VS_DECK_PROTO_MIN = 2;
+    const VS_DRAFT_PROTO = 3;
+    const VS_DECK_PROTO = VS_DRAFT_PROTO;
     const RON_VS_DECK_DRAFT_KEY = 'ron_vs_deck_draft_v1';
     // 構築画面・保存まわりの関数が「今編集しているデッキ」を取る入口。G.deckBuildState（CPU戦・検証用・相手が古い版のとき・スタンドアロン編成）を先に見る
     function vsDs() { return G.deckBuildState || _vsLocalDeckBuild; }
@@ -8378,7 +8417,7 @@
       vsDeckDraftSave(); render();
     }
     // 同時構築を使えるか：オンライン対戦で、相手の端末も新しい版のとき（開始を決める端末が呼ぶ）
-    function vsSimulDeckBuildOk() { return !isCpuMode && !!db && !!roomId && myRole !== 'spectator' && _vsPeerProto >= VS_DECK_PROTO; }
+    function vsSimulDeckBuildOk() { return !isCpuMode && !!db && !!roomId && myRole !== 'spectator' && _vsPeerProto >= VS_DECK_PROTO_MIN; }
     function vsDeckBuildSimul() { return G.screen === 'deckBuild' && !!G.deckBuildPhase; }
     function vsDeckDraftSave() {
       const ds = _vsLocalDeckBuild; if (!ds || !roomId) return;
@@ -8451,11 +8490,19 @@
         // 相手が確定しても編集中の画面は作り直さない（デッキ名の入力などの操作を邪魔しないため、状態表示の要素だけ書き換える）
         if (myRole === 'spectator' || mineChanged || G.screen !== 'deckBuild') render(); else vsDeckOppStatusUpdate();
       });
+      db.ref(`${base}/draftReady`).on('value', snap => {
+        const prev = _vsDraftReady; _vsDraftReady = vsDraftReadyFrom(snap.val());
+        if (!vsDraftSimul()) return;
+        vsDraftHostTryMerge();
+        // 相手が確定しても自分の画面は変わらない。自分の確定状況が変わったとき（再接続・ノードが消された）と観戦者だけ描き直す
+        if (myRole === 'spectator' || !!prev[myPlayerIdx] !== !!_vsDraftReady[myPlayerIdx]) render();
+      });
     }
     function unlistenDeckReady() {
       if (!db || !roomId) return;
       const base = `rooms/${roomId}`;
       db.ref(`${base}/deckReady`).off();
+      db.ref(`${base}/draftReady`).off();
       db.ref(`${base}/proto/p1`).off(); db.ref(`${base}/proto/p2`).off();
     }
     // 確定（新しい版のオンライン）。自分のデッキだけを deckReady に書く。G は変えない
@@ -8501,7 +8548,77 @@
         G.deckBuildPhase = null; G.deckBuildState = null;
         vsDeckBuildLeave();
         _vsDeckMerging = false;
-        startDraft(0);
+        vsDraftBegin();
+        commit();
+      }, false);
+    }
+    // ═══════════════════════════════════════
+    // 初期手札のドラフトを両プレイヤーが同時に行う（新しい版どうしのオンライン対戦）
+    // デッキ構築の同時化と同じ方式。各自のドラフトは各端末の _vsLocalDraft だけが持つ（G.draftState は使わない）。
+    // 配る4枚は G に入っている自分の山札の先頭4枚そのもの（山札の順は組み込み時に決まっていて両端末で同じ）なので、
+    // 端末は山札を動かさずに先頭から写し取るだけでよい。G が持つのは「両者がドラフト中」という段階 G.draftPhase = { proto } だけ。
+    // 確定：自分が引いた4枚の uid を rooms/{roomId}/draftReady/p0|p1 に { uids } として書く（書き込み先が分かれるので上書きは起きない）。
+    // 組み込み：ホスト（プレイヤー1）が2人分そろったのを見て、ゲストのノードを transaction で locked にしてから、
+    //   各自の山札の先頭から手札へ移して先攻の1ターン目（main）へ進め、commit する。書かれた uid が山札の先頭と食い違えば（前の試合の残りなど）
+    //   そのノードを消して受け取らない（本人は確定ボタンから出し直せる）。
+    // ═══════════════════════════════════════
+    // 同時ドラフトを使えるか：オンライン対戦で、相手の端末も新しい版のとき（組み込みの段階に進める端末＝ホストが呼ぶ）
+    function vsSimulDraftOk() { return !isCpuMode && !!db && !!roomId && myRole !== 'spectator' && _vsPeerProto >= VS_DRAFT_PROTO; }
+    function vsDraftSimul() { return G.screen === 'draft' && !!G.draftPhase; }
+    // ドラフト画面・操作の関数が「今のドラフト」を取る入口。G.draftState（CPU戦・相手が古い版のとき）を先に見る
+    function vsDraftDs() { return G.draftState || _vsLocalDraft; }
+    function vsDraftMyReady() { return !!_vsDraftReady[myPlayerIdx]; }
+    // 端末ローカルのドラフトの更新の締め。G のドラフト（従来）は commit()、ローカルは G を変えていないので送らず描画だけ
+    function vsDraftCommit() { if (G.draftState) commit(); else render(); }
+    function vsDraftNew(pi, cards) {
+      return { playerIdx: pi, picksDone: 0, picksTarget: 4, revealed: null, dealtCards: cards, flippedUids: [], lastFlippedUid: null, animState: 'idle', revealingCard: null };
+    }
+    // 自分のドラフトを用意する（描画の頭で呼ぶ。冪等）。再接続したときも山札の先頭から作り直せる（手札はまだ G に入っていない）
+    function vsDraftEnsureLocal() {
+      if (_vsLocalDraft || myRole === 'spectator' || !vsDraftSimul()) return _vsLocalDraft;
+      _vsLocalDraft = vsDraftNew(myPlayerIdx, G.players[myPlayerIdx].deck.slice(0, 4));
+      return _vsLocalDraft;
+    }
+    // ドラフトの段階を離れたときに端末ローカルの状態を捨てる（ホストが組み込んだとき・受信した G がドラフトの段階でなくなったとき・リマッチ・退出）
+    function vsDraftLeave() { _vsLocalDraft = null; _vsDraftReady = { 0: null, 1: null }; }
+    function vsDraftReadyFrom(val) {
+      const pick = r => (r && typeof r === 'object' && Array.isArray(r.uids)) ? r : null;
+      return { 0: pick(val && val.p0), 1: pick(val && val.p1) };
+    }
+    // デッキ構築の組み込みの最後に呼ぶ（ホストだけ）。同時にできるなら両者のドラフトの段階へ、できなければ従来どおり startDraft(0)
+    function vsDraftBegin() {
+      if (!vsSimulDraftOk()) { startDraft(0); return; }
+      vsDraftLeave();
+      db.ref(`rooms/${roomId}/draftReady`).remove(); // 前の試合の残りを消す（G の送信より先に出るので、相手は消えた状態から始まる）
+      G.draftState = null; G.draftPhase = { proto: VS_DRAFT_PROTO }; G.screen = 'draft';
+    }
+    // 手札の確定（新しい版のオンライン）。自分が引いた4枚の uid だけを draftReady に書く。G は変えない
+    function vsDraftConfirmOnline() {
+      const ds = _vsLocalDraft; if (!ds || !db || !roomId || _vsDraftReady[myPlayerIdx]) return;
+      const rec = { uids: ds.dealtCards.map(c => c.uid) };
+      _vsDraftReady[myPlayerIdx] = rec;
+      db.ref(`rooms/${roomId}/draftReady/p${myPlayerIdx}`).set(rec);
+      render();
+      vsDraftHostTryMerge();
+    }
+    // ホストだけが呼ぶ。2人分そろっていれば、ゲストのノードを locked にして両者の手札を G へ組み込み、メインへ進める
+    function vsDraftHostTryMerge() {
+      if (myRole !== 'p1' || _vsDraftMerging || !db || !roomId || !vsDraftSimul()) return;
+      if (!_vsDraftReady[0] || !_vsDraftReady[1]) return;
+      _vsDraftMerging = true;
+      const ref1 = db.ref(`rooms/${roomId}/draftReady/p1`);
+      ref1.transaction(v => v ? { ...v, locked: true } : undefined, (err, committed, snap) => {
+        const d1 = (committed && snap) ? snap.val() : null; const d0 = _vsDraftReady[0];
+        if (!d1 || !d0 || !vsDraftSimul()) { _vsDraftMerging = false; return; }
+        const top = pi => G.players[pi].deck.slice(0, 4).map(c => c.uid);
+        const match = (pi, d) => { const t = top(pi); return d.uids.length === t.length && d.uids.every((u, i) => u === t[i]); };
+        if (!match(1, d1)) { ref1.remove(); _vsDraftMerging = false; return; }
+        if (!match(0, d0)) { db.ref(`rooms/${roomId}/draftReady/p0`).remove(); _vsDraftMerging = false; return; }
+        for (const pi of [0, 1]) { const p = G.players[pi]; const n = Math.min(4, p.deck.length); p.hand.push(...p.deck.splice(0, n)); }
+        G.draftPhase = null; G.draftState = null;
+        vsDraftLeave();
+        _vsDraftMerging = false;
+        G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main';
         commit();
       }, false);
     }
@@ -8951,7 +9068,7 @@
     }
 
     function flipDraftCard(uid) {
-      const ds = G.draftState;
+      const ds = vsDraftDs();
       if (!ds || !ds.dealtCards || ds.flippedUids.includes(uid) || _draftAnimBusy) return;
       const card = ds.dealtCards.find(c => c.uid === uid);
       if (!card) return;
@@ -8994,14 +9111,14 @@
 
     // 右矢印ボタン押下（1枚ずつモード）
     function advanceDraftCard() {
-      const ds = G.draftState;
+      const ds = vsDraftDs();
       if (!ds || ds.animState !== 'card_paused') return;
       _exitDraftCard();
     }
 
     // カードを右へ流して消す（手動・一括共通）
     function _exitDraftCard() {
-      const ds = G.draftState;
+      const ds = vsDraftDs();
       if (!ds || !ds.revealingCard) return;
       const exitedUid = ds.revealingCard.uid;
       ds.animState = 'card_exiting';
@@ -9012,8 +9129,8 @@
         ds.revealingCard = null;
         ds.lastFlippedUid = exitedUid;
         _draftAnimBusy = false;
-        commit();
-        setTimeout(() => { if (G.draftState) G.draftState.lastFlippedUid = null; }, 500);
+        vsDraftCommit();
+        setTimeout(() => { const d = vsDraftDs(); if (d) d.lastFlippedUid = null; }, 500);
 
         // 次の未開封カードを自動スタート
         const next = ds.dealtCards.find(c => !ds.flippedUids.includes(c.uid));
@@ -9022,7 +9139,7 @@
     }
 
     function flipAllDraftCards() {
-      const ds = G.draftState;
+      const ds = vsDraftDs();
       if (!ds || !ds.dealtCards) return;
       const btn = document.getElementById('draft-flip-all-btn');
       if (btn) btn.disabled = true;
@@ -9033,8 +9150,9 @@
     }
 
     function finalizeAllDraftCards() {
-      const ds = G.draftState;
+      const ds = vsDraftDs();
       if (!ds || !ds.dealtCards) return;
+      if (!G.draftState && _vsLocalDraft && vsDraftSimul()) { vsDraftConfirmOnline(); return; }
       ds.dealtCards.forEach(c => G.players[ds.playerIdx].hand.push(c));
       if (ds.playerIdx === 0) { startDraft(1); commit(); }
       else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; commit(); }
@@ -9629,6 +9747,9 @@
         // 同時構築：構築の段階を離れたら端末ローカルの編集中デッキを捨てる。段階の中なら、受信が遅れて2人分がそろっていた場合に備えてホストが組み込みを試す
         if (newScreen === 'deckBuild' && G.deckBuildPhase) vsDeckBuildHostTryMerge();
         else if (_vsLocalDeckBuild) vsDeckBuildLeave();
+        // 同時ドラフトも同じ。ドラフトの段階を離れたら端末ローカルのドラフトを捨てる。段階の中なら、受信が遅れて2人分がそろっていた場合に備えてホストが組み込みを試す
+        if (newScreen === 'draft' && G.draftPhase) vsDraftHostTryMerge();
+        else if (_vsLocalDraft) vsDraftLeave();
         _scheduleRemoteRenderVS(); // 5.1.1・5.1.3：受信のたびの即時全量renderをデバウンス（自分操作の即時renderは別経路のため影響なし）
       });
     }
@@ -9775,7 +9896,7 @@
         case 'cityOrder': return G.cityOrderState?.playerIdx === mi ? 'cityOrder' : 'waiting';
         case 'deckBuild': return (G.deckBuildPhase || G.deckBuildState?.playerIdx === mi) ? 'deckBuild' : 'waiting'; // 同時構築（G.deckBuildPhase）は両者が構築画面。従来は順番に行うので構築する本人だけ
         case 'gacha': return G.gachaCurrent?.playerIdx === mi ? 'gacha' : 'waiting';
-        case 'draft': return G.draftState?.playerIdx === mi ? 'draft' : 'waiting';
+        case 'draft': return G.draftPhase ? (vsDraftMyReady() ? 'waiting' : 'draft') : G.draftState?.playerIdx === mi ? 'draft' : 'waiting'; // 同時ドラフト（G.draftPhase）は両者がドラフト画面で、確定したら相手を待つ
         case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx; return pi === mi ? 'turnDraw' : 'waiting'; }
         case 'turnSummary':
           if (G.activePlayer === mi) return 'turnSummary';
@@ -10411,8 +10532,8 @@
         }
         if (lobbyState.mode === 'gallery' && lobbyState.galleryTab && !lobbyState.galleryZoom) setTimeout(initGalleryAnim, 30);
       }
-      if (view === 'draft' && G.draftState?.animState === 'revealing_neon' && G.draftState?.revealingCard) {
-        setTimeout(() => _initDraftNeonIcons(G.draftState.revealingCard), 20);
+      if (view === 'draft' && vsDraftDs()?.animState === 'revealing_neon' && vsDraftDs()?.revealingCard) {
+        setTimeout(() => _initDraftNeonIcons(vsDraftDs().revealingCard), 20);
       }
       if (view === 'gacha' && _gachaAnimState === 'revealing_neon') {
         setTimeout(() => _initGachaNeonIcons(), 20);
@@ -11132,7 +11253,7 @@
         case 'cityOrder': msg = _wc(`${G.players[G.cityOrderState?.playerIdx ?? 0].name} が`, '先攻を', '選んでいます'); break;
         case 'deckBuild': msg = _wc(`${G.players[G.deckBuildState?.playerIdx ?? 0].name} が`, 'デッキを', '編成しています'); break;
         case 'gacha': msg = _wc(`${G.players[G.gachaCurrent?.playerIdx ?? 0].name} が`, '都市を', '選んでいます'); break;
-        case 'draft': msg = _wc(`${G.players[G.draftState?.playerIdx ?? 0].name} が`, '手札を', '引いています'); break;
+        case 'draft': msg = G.draftPhase ? _wc('相手が', '手札を', '引いています') : _wc(`${G.players[G.draftState?.playerIdx ?? 0].name} が`, '手札を', '引いています'); break;
         case 'turnDraw': { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? 0; msg = G.turnDrawState?.isHazardMap ? `${_wc(`${G.players[pi].name} が`, 'ハザードマップ', '整備で')}<br>${_wc('カードを', '引いています')}` : G.turnDrawState?.isRecycle ? `${_wc(`${G.players[pi].name} が`, 'ローリングストックで')}<br>${_wc('カードを', '交換しています')}` : _wc(`${G.players[pi].name} が`, 'カードを', '引いています'); } break;
         case 'turnSummary': msg = _wc(`${G.players[G.activePlayer].name} が`, 'ターンサマリーを', '確認しています'); break;
         case 'response': msg = _wc(`${G.players[G.pendingAttack?.defenderIdx ?? 0].name} が`, '対応カードを', '選んでいます'); break;
@@ -11340,6 +11461,12 @@
     }
     function renderEffectBadges(eff, pi) {
       const b = [_shieldBadgesHtml(eff)];
+      // イスタンブール（type_learn）を自分の都市に持つプレイヤーには、受けた自然災害の種類を出す（相手は未記録の種類を狙える）。
+      if (pi != null && G.players[pi] && G.players[pi].cities.some(c => c.abilityType === 'type_learn')) {
+        const rt = eff.receivedTypes || [];
+        const names = DISASTER_CARDS.filter(d => rt.includes(d.id)).map(d => d.name).join('・');
+        b.push(`<span class="eff-badge eff-blue">学習済み：${names || 'なし'}</span>`);
+      }
       if (eff.floodBonusTurns > 0) { const _fc = pi != null ? getActiveCity(pi) : null; const _fa = _fc?.abilityValue ?? 1; b.push(`<span class="eff-badge eff-blue">${uiIcoDroplet(13)} 予算+${_fa}</span>`); }
       if (eff.terrorNextDisaster) b.push(`<span class="eff-badge eff-red">${uiIcoAlertOctagon(13)} テロ準備</span>`);
       if (eff.debtBudget > 0) b.push(`<span class="eff-badge eff-red">${uiIcoTrendDown(13)} 予算−${eff.debtBudget}</span>`);
@@ -11686,7 +11813,8 @@
 
     // ─── 初期ドラフト ───
     function renderDraft() {
-      const ds = G.draftState; const p = G.players[ds.playerIdx];
+      if (!G.draftState) vsDraftEnsureLocal();
+      const ds = vsDraftDs(); const p = G.players[ds.playerIdx];
       if (!ds.dealtCards || !ds.dealtCards.length) return `<div class="screen active"><div style="text-align:center;padding:40px;color:var(--t2);font-size:.9rem">読み込み中…</div></div>`;
       const allFlipped = ds.flippedUids.length >= ds.picksTarget;
 
@@ -12054,7 +12182,7 @@
       if (drawingScreens.includes(screen) || !p0.cities || p0.cities.length === 0) {
         let drawMsg = `${p0.name} vs ${p1.name} — 対戦準備中...`;
         if (screen === 'turnDraw') { const pi = G.turnDrawState?.pi ?? G.turnDrawState?.playerIdx ?? ap; drawMsg = _wc(`${G.players[pi].name} が`, 'カードを', '引いています'); }
-        else if (screen === 'draft') { drawMsg = _wc(`${G.players[G.draftState?.playerIdx ?? ap].name} が`, '初期手札を', '引いています'); }
+        else if (screen === 'draft') { drawMsg = G.draftPhase ? _wc('両者が', '初期手札を', '引いています') : _wc(`${G.players[G.draftState?.playerIdx ?? ap].name} が`, '初期手札を', '引いています'); }
         else if (screen === 'gacha') { drawMsg = _wc(`${G.players[G.gachaCurrent?.playerIdx ?? ap].name} が`, '都市を', '選んでいます'); }
         else if (screen === 'cityOrder') { drawMsg = _wc(`${G.players[G.cityOrderState?.playerIdx ?? ap].name} が`, '先攻を', '選んでいます'); }
         else if (screen === 'deckBuild' && G.deckBuildPhase) {
@@ -12689,8 +12817,9 @@
         db.ref(`rooms/${roomId}/rematchRequest`).off();
         db.ref(`rooms/${roomId}/rematchRequest`).remove();
         db.ref(`rooms/${roomId}/deckReady`).remove(); // 前の試合で確定したデッキが次のデッキ構築に残らないようにする
+        db.ref(`rooms/${roomId}/draftReady`).remove(); // 同時ドラフトの確定も同じ
       }
-      _vsDeckReady = { 0: null, 1: null }; vsDeckBuildLeave();
+      _vsDeckReady = { 0: null, 1: null }; vsDeckBuildLeave(); vsDraftLeave();
       hideRematchRequestPopup();
       _rematchListenerSet = false; _rematchRequested = false;
       const p0name = G.players[0].name; const p1name = G.players[1].name;
@@ -12781,9 +12910,9 @@
           db.ref(`rooms/${roomId}/rematch`).off();
           unlistenDeckReady();
           if (myRole === 'p1') db.ref(`rooms/${roomId}`).remove();
-          else if (myRole === 'p2') db.ref(`rooms/${roomId}/deckReady/p1`).remove(); // 部屋に残る側の対戦に自分の確定デッキを残さない
+          else if (myRole === 'p2') { db.ref(`rooms/${roomId}/deckReady/p1`).remove(); db.ref(`rooms/${roomId}/draftReady/p1`).remove(); } // 部屋に残る側の対戦に自分の確定デッキ・確定手札を残さない
         }
-        _vsDeckReady = { 0: null, 1: null }; _vsPeerProto = 0; vsDeckBuildLeave();
+        _vsDeckReady = { 0: null, 1: null }; _vsPeerProto = 0; vsDeckBuildLeave(); vsDraftLeave();
         myRole = null; myPlayerIdx = 0; roomId = null; myLastPush = null;
         _rematchListenerSet = false; _rematchRequested = false;
         hideRematchRequestPopup();
