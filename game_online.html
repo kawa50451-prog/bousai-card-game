@@ -5223,6 +5223,24 @@
       quake_wall: 2, dam: 2, drill: 2, agreement: 2, evacuation: 1, bousai_cho: 1,
       hazard_map: 2, rolling_stock: 2,
     };
+    // デッキの型（開発者モード第2段a）。CPU がどの型のデッキで戦うかを選ぶための、人それぞれの組み方のデータ。
+    // 枚数は対戦の規則（24枚・同名3枚まで・複合災害1枚まで・攻める6〜18・守る6〜18・自由0〜6）を満たす。
+    // 後から型を足すときは、ここに1項目足すだけでよい。recommended（オススメデッキ）は都市で変わるため表には持たない。
+    // beginner と standard は設計者が置いた案で、メンバーの記録で直す。kawamata と katano は 2026-10-23 の本人たちのデッキ。
+    /** @type {Record<'beginner' | 'standard' | 'kawamata' | 'katano', { label: string, counts: Partial<Record<CardId, number>> }>} */
+    const VERSUS_DECK_ARCHETYPES = {
+      beginner: { label: '初心者', counts: { earthquake: 2, flood: 2, typhoon: 1, tsunami: 2, landslide: 1, wildfire: 2, compound: 1, pollution: 1, terror: 1, rumor: 1, quake_wall: 1, dam: 1, drill: 1, agreement: 2, evacuation: 1, bousai_cho: 2, hazard_map: 2 } },
+      standard: { label: '標準', counts: { earthquake: 2, flood: 2, typhoon: 2, tsunami: 1, landslide: 2, wildfire: 2, compound: 1, pollution: 1, quake_wall: 2, dam: 2, drill: 1, agreement: 2, evacuation: 1, bousai_cho: 1, rolling_stock: 2 } },
+      kawamata: { label: '川又型', counts: { earthquake: 3, flood: 1, landslide: 3, wildfire: 2, compound: 1, pollution: 1, terror: 1, quake_wall: 2, dam: 1, drill: 3, agreement: 2, evacuation: 1, bousai_cho: 1, rolling_stock: 2 } },
+      katano: { label: '片野型', counts: { earthquake: 3, flood: 3, typhoon: 3, tsunami: 3, wildfire: 3, compound: 1, quake_wall: 1, dam: 1, agreement: 3, bousai_cho: 3 } },
+    };
+    /** 型の名前からデッキの枚数表を返す。recommended は都市に合わせたオススメデッキ、他は型の写し
+     * @param {'recommended' | 'beginner' | 'standard' | 'kawamata' | 'katano'} type @param {any[]} cities @returns {Partial<Record<CardId, number>>} */
+    function vsArchetypeCounts(type, cities) {
+      if (type === 'recommended') return buildCityAwareDeckCounts(cities);
+      const a = VERSUS_DECK_ARCHETYPES[type];
+      return a ? { ...a.counts } : buildCityAwareDeckCounts(cities);
+    }
     // Phase6：都市に合わせたデッキ自動生成。崩すのは「守る枠」10枚の内訳だけ（攻める枠・自由枠・総枚数は不変）。
     // 12都市ぶんの補正表はハードコードせず、CITIESの isCoastal/isMountain/abilityType から機械的に導出する
     // （表を手で持つと都市追加時の更新漏れにつながるため）。
@@ -6181,6 +6199,9 @@
     let isCpuMode = false;
     let cpuDifficulty = 'normal'; // 'easy' | 'normal' | 'hard'
     let _cpuTimer = null;
+    /** 席ごとの CPU 設定（null は人）。G には入れない。cpuSeatCfg(pi) で読む */
+    /** @type {Array<null | {deck: string, skill: string, cities?: string[]}>} */
+    let cpuSeats = [null, null];
     // ══ 協力モード（ソロ：人間=都市側 / CPU=自然側）状態。対戦エンジン(G)とは完全独立 ══
     /** @type {CoopState | null} */
     let CO = null;
@@ -7604,7 +7625,25 @@
     // ═══════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════
-    function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0;[arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+    // 対戦の進行と CPU の判断で使う乱数は、すべてこの関数を通す（開発者モードの第2段a）。
+    // 試合の状態 G に _rng（種と状態）があるときだけ mulberry32 で決まった並びを返し、無ければ Math.random のまま。
+    // 種を指定しない試合では G に何も足さない（オンラインの同期の中身を変えないため）。
+    // 対象外：演出の揺れ、部屋番号・デッキ保存の番号、CPU の待ち時間。
+    /** @returns {number} 0 以上 1 未満 */
+    function vsRand() {
+      if (G && G._rng) {
+        const r = G._rng;
+        let t = (r.s = (r.s + 0x6D2B79F5) >>> 0);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+      return Math.random();
+    }
+    /** 今の試合の乱数を種で固定する（G を作り直したら呼び直す）
+     * @param {number} seed */
+    function vsSeedRng(seed) { G._rng = { seed, s: seed >>> 0 }; }
+    function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = vsRand() * (i + 1) | 0;[arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
     function getActiveCity(pi) { const p = G.players[pi]; return p.cities[p.activeCityIdx]; }
     function getActiveCityHp(pi) { const p = G.players[pi]; return p.cityHps[p.activeCityIdx]; }
     function getActiveMaxHp(pi) { return G.players[pi].cities[G.players[pi].activeCityIdx].hp; }
@@ -8177,14 +8216,14 @@
       const gc = G.gachaCurrent;
       if (_gachaAnimState) return;
       const rem = CITIES.filter(c => !G.gachaPickedIds.includes(c.id));
-      if (isCpuMode && gc.playerIdx === 0 && cpuDifficulty !== 'hard') {
+      if (isCpuMode && !cpuIsSeat(gc.playerIdx) && cpuDifficulty !== 'hard') {
         const n = cpuDifficulty === 'easy' ? 3 : 2;
         gc.candidates = shuffle([...rem]).slice(0, Math.min(n, rem.length));
         gc.revealed = null;
         commit();
       } else {
         // Random mode (online or CPU HARD): animated reveal
-        const city = rem[Math.random() * rem.length | 0];
+        const city = rem[vsRand() * rem.length | 0];
         _startCityReveal(city);
       }
     }
@@ -8214,7 +8253,7 @@
         // 2026-08-15追加：対戦CPU戦・設定ON・マイ都市が1枚以上のときだけ、都市ガチャの直後に
         // 「マイ都市に差し替える」任意画面を挟む。isCpuMode限定のためオンライン対戦・協力・2人対戦の
         // 挙動は一切変わらない（この分岐自体に到達しない）。CPU（playerIdx 1）側のガチャ・ドラフトは無改修。
-        if (isCpuMode && ronGetSettings().cwCpu && cwLoadAll().length > 0) {
+        if (isCpuMode && !cpuIsSeat(0) && ronGetSettings().cwCpu && cwLoadAll().length > 0) {
           G._cwMatchOriginal = [p.cities[0], p.cities[1]];
           G._cwMatchPicks = [null, null];
           G.screen = 'cwMatchSwap';
@@ -8249,11 +8288,21 @@
       }
       if (isCpuMode) {
         // Phase6：CPU側も都市に合わせた自動生成から始める（既定固定デッキ丸ごとの読み込みは廃止）。
-        const _cpuCounts = buildCityAwareDeckCounts(G.players[1].cities);
-        G.players[1].deck = buildVersusDeckFromCounts(_cpuCounts);
-        G.players[1].deckCounts = { ..._cpuCounts };
-        plEvent('deck', { pi: 1, counts: { ..._cpuCounts }, recommended: { ..._cpuCounts }, usedRecommendedAsIs: true, ms: 0 });
-        G.players[1].discard = [];
+        // 開発者モード第2段a：CPU の席ごとにデッキの型（cpuSeatCfg(pi).deck）で組む。型が recommended なら従来の自動生成と同じ。
+        for (const pi of [0, 1]) {
+          const cfg = cpuSeatCfg(pi); if (!cfg) continue;
+          const _cpuCounts = vsArchetypeCounts(/** @type {any} */ (cfg.deck), G.players[pi].cities);
+          const _recommended = buildCityAwareDeckCounts(G.players[pi].cities);
+          G.players[pi].deck = buildVersusDeckFromCounts(_cpuCounts);
+          G.players[pi].deckCounts = { ..._cpuCounts };
+          plEvent('deck', { pi, counts: { ..._cpuCounts }, recommended: { ..._recommended }, usedRecommendedAsIs: cfg.deck === 'recommended' ? true : vsDeckSameCounts(_cpuCounts, _recommended), ms: 0 });
+          G.players[pi].discard = [];
+        }
+        // 人の席がなければ（CPU どうしの対戦）構築画面を飛ばして初期手札の配布へ進む
+        const humanPi = [0, 1].find(pi => !cpuIsSeat(pi));
+        if (humanPi === undefined) { startDraft(0); return; }
+        startDeckBuild(humanPi);
+        return;
       }
       startDeckBuild(0);
     }
@@ -8641,6 +8690,7 @@
         vsDraftLeave();
         _vsDraftMerging = false;
         G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main';
+        plTurnStart(0, []); // 最初の手番はドローが無いが、手番の始めは記録する
         commit();
       }, false);
     }
@@ -9179,7 +9229,7 @@
       plEvent('draft', { pi: ds.playerIdx, hand: plHand(ds.dealtCards) });
       ds.dealtCards.forEach(c => G.players[ds.playerIdx].hand.push(c));
       if (ds.playerIdx === 0) { startDraft(1); commit(); }
-      else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; commit(); }
+      else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; plTurnStart(0, []); commit(); } // 最初の手番はドローが無いが、手番の始めは記録する
     }
 
     function pullTurnCard() {
@@ -10968,6 +11018,7 @@
     ${err}
     <div style="text-align:center;color:var(--t2);font-size:.82rem;margin:4px 0 10px">CPUと一人で対戦できます。難易度を選んでください。</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${_diffBtns}</div>
+    ${devCpuPanelHtml()}
     <button class="sq-btn-r" style="margin-top:8px" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.error=''},'back')" aria-label="ロビーに戻る">＜ ロビーに戻る</button>`;
       } else if (lobbyState.mode === 'coop') {
         // ── ステップ式ウィザード：1画面に1つの問いだけを出す（bigCard等の共通部品は対戦Layer2と兼用のため上でホイスト済み） ──
@@ -12824,10 +12875,10 @@
       if (!atk.responses) atk.responses = [];
       atk.responses.push(card);
       atk.secondChoicePending = false;
-      // CPU（対戦モードのCPU対戦。isCpuMode&&defIdx===1）が守備側のときは、2枚目を選ばせる判断ロジックを
+      // CPU（対戦モードのCPU対戦。CPUの席が守備側）のときは、2枚目を選ばせる判断ロジックを
       // 別途作らない方針（WORKTRACK.md §15 B-2「E. CPU」）。_cpuDoResponseは単純な決め打ちの1枚選択しか
       // 行わないため、CPU側にこの選択UIを出さず必ず1枚で解決する。
-      const isCpuDefender = isCpuMode && defIdx === 1;
+      const isCpuDefender = cpuIsSeat(defIdx);
       const canOfferSecond = atk.responses.length < VERSUS_ISTANBUL_RESPONSE_MAX
         && istanbulDoubleActive(atk, defIdx)
         && def.hand.some(c => c.type === 'policy')
@@ -12993,7 +13044,24 @@
     // ═══════════════════════════════════════
     // CPU SOLO PLAY
     // ═══════════════════════════════════════
+    // 開発者モード第2段a：CPU はどちらの席でも打てる。席ごとの設定は cpuSeats（モジュール変数・G には入れない）。
+    //   cpuSeats[pi] = null（人）または { deck: デッキの型, skill: 'easy'|'normal'|'hard', cities?: [都市id, 都市id] }
+    // 判断の関数は最初の引数に自分の席 me を取り、打ち方は席の設定から読む。
+    // 一般の CPU 戦は cpuSeats = [null, { deck: 'recommended', skill: 難易度 }]（人が席0・CPU が席1）で、動きは従来と同じ。
     function _cpuCancelTimer() { if (_cpuTimer) { clearTimeout(_cpuTimer); _cpuTimer = null; } }
+
+    /** 席 pi の CPU 設定（人の席・CPU 戦でないときは null）
+     * @param {number} pi @returns {{deck: string, skill: string, cities?: string[]} | null} */
+    function cpuSeatCfg(pi) {
+      if (!isCpuMode) return null;
+      // cpuSeats が未設定のまま isCpuMode だけが立つ経路（画面ジャンプ・検証用）は、従来どおり席1が CPU（打ち方は cpuDifficulty）
+      if (!cpuSeats[0] && !cpuSeats[1]) return pi === 1 ? { deck: 'recommended', skill: cpuDifficulty } : null;
+      return cpuSeats[pi] || null;
+    }
+    /** @param {number} pi */
+    function cpuIsSeat(pi) { return cpuSeatCfg(pi) !== null; }
+    /** 席 me の CPU の打ち方（設定が無い席では従来のグローバルの難易度） @param {number} me */
+    function _cpuSkill(me) { const c = cpuSeatCfg(me); return c ? c.skill : cpuDifficulty; }
 
     const _CPU_CITY_TIERS = {
       kobe: 'S', tokyo: 'S',
@@ -13008,28 +13076,38 @@
       hard:   { S: 1.0, A: 1.0, B: 1.0, C: 1.0, D: 1.0 }
     };
 
-    function _cpuPullGacha() {
+    function _cpuPullGacha(me = 1) {
       const gc = G.gachaCurrent;
       const rem = CITIES.filter(c => !G.gachaPickedIds.includes(c.id));
-      const wt = _CPU_GACHA_W[cpuDifficulty];
+      // 都市を指定した席（開発者モード・自動対戦）は、その都市を選ぶ（重複したら通常のガチャに戻る）
+      const cfg = cpuSeatCfg(me);
+      const want = cfg && cfg.cities ? rem.find(c => c.id === cfg.cities[gc.pickNum]) : null;
+      if (want) { gc.revealed = want; gc.candidates = null; commit(); return; }
+      const wt = _CPU_GACHA_W[_cpuSkill(me)];
       const pool = rem.map(c => ({ c, w: wt[_CPU_CITY_TIERS[c.id] || 'C'] }));
       const total = pool.reduce((s, x) => s + x.w, 0);
-      let r = Math.random() * total, chosen = rem[0];
+      let r = vsRand() * total, chosen = rem[0];
       for (const { c, w } of pool) { r -= w; if (r <= 0) { chosen = c; break; } }
       gc.revealed = chosen; gc.candidates = null;
       commit();
     }
 
-    function startCpuGame(difficulty) {
-      const name = lobbyState.nameInput.trim() || 'プレイヤー';
-      isCpuMode = true; cpuDifficulty = difficulty;
-      myRole = 'p1'; myPlayerIdx = 0;
-      const cpuNames = { easy: 'CPU（EASY）', normal: 'CPU（NORMAL）', hard: 'CPU（HARD）' };
+    // CPU 戦の1試合を始める（画面の描画はしない）。seats は席ごとの設定（null は人）。
+    //   o.names: 席ごとの表示名、o.seed: 乱数の種（無ければ Math.random のまま）、o.record: 記録の始め方（関数。無ければ記録しない）
+    // 人がいる席を myPlayerIdx にする（人が席1なら 'p2'）。人がいない試合（自動対戦）は席0の視点。
+    /** @param {Array<{deck: string, skill: string, cities?: string[]} | null>} seats @param {{names: string[], seed?: number | null, record?: (() => void) | null}} o */
+    function startCpuMatch(seats, o) {
+      isCpuMode = true;
+      cpuSeats = [seats[0] ? { ...seats[0] } : null, seats[1] ? { ...seats[1] } : null];
+      const firstCpu = cpuSeats.find(Boolean);
+      if (firstCpu) cpuDifficulty = /** @type {any} */ (firstCpu.skill);
+      const human = cpuSeats[0] ? (cpuSeats[1] ? -1 : 1) : 0;
+      myPlayerIdx = human === 1 ? 1 : 0; myRole = human === 1 ? 'p2' : 'p1';
       G = {
         screen: 'gacha', activePlayer: 0, turnsEach: [0, 0],
         players: [
-          { name, cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] },
-          { name: cpuNames[difficulty], cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }
+          { name: o.names[0], cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] },
+          { name: o.names[1], cities: [], cityHps: [], activeCityIdx: 0, hand: [], budgetUsed: 0, effects: mkEffects(), deck: [], discard: [] }
         ],
         log: [], pendingAttack: null, recycleState: null,
         winner: null, _endReason: null, gachaPickedIds: [], gachaCurrent: { playerIdx: 0, pickNum: 0, revealed: null, candidates: null },
@@ -13037,75 +13115,105 @@
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
         usedHistory: { 0: [], 1: [] }
       };
-      localStorage.setItem('ron_lastName', name);
-      plStartCpu(difficulty);
+      if (o.seed != null) vsSeedRng(o.seed); // G を作った後で種を置く（種が無い試合は G に何も足さない）
+      if (o.record) o.record();
       _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
+    }
+
+    function startCpuGame(difficulty) {
+      const name = lobbyState.nameInput.trim() || 'プレイヤー';
+      const cpuNames = { easy: 'CPU（EASY）', normal: 'CPU（NORMAL）', hard: 'CPU（HARD）' };
+      // 開発者モードがオンのときだけ、相手の CPU の設定（devCpuSetup）を使う。オフなら従来どおり（人が席0・オススメデッキ・ガチャ・種なし）
+      const dv = devCpuCfg();
+      const skill = dv && dv.skill ? dv.skill : difficulty;
+      /** @type {{deck: string, skill: string, cities?: string[]}} */
+      const cpuCfg = { deck: dv ? dv.deck : 'recommended', skill };
+      if (dv && dv.cities) cpuCfg.cities = [dv.cities[0], dv.cities[1]];
+      const humanSeat = dv && !dv.humanFirst ? 1 : 0;
+      const seed = dv ? dv.seed : null;
+      startCpuMatch(humanSeat === 1 ? [cpuCfg, null] : [null, cpuCfg], {
+        names: humanSeat === 1 ? [cpuNames[skill], name] : [name, cpuNames[skill]], seed,
+        record: () => plStartCpu(skill, { opponent: { deck: cpuCfg.deck, skill }, seed, seat: humanSeat === 1 ? 'p2' : 'p1' }),
+      });
+      localStorage.setItem('ron_lastName', name);
       render();
+    }
+
+    /** 今の画面で動くべき CPU を返す（無ければ null）。k＝何をするか、me＝動く席
+     * @returns {{k: string, me: number} | null} */
+    function _cpuActor() {
+      if (!isCpuMode) return null;
+      const s = G.screen, ap = G.activePlayer;
+      const gc = G.gachaCurrent, ts = G.turnDrawState, ds = G.draftState, dn = G.discardNeeded;
+      const c = cpuIsSeat;
+      if (s === 'gacha' && c(gc?.playerIdx)) return { k: 'gacha', me: gc.playerIdx };
+      if (s === 'cityOrder' && c(G.cityOrderState?.playerIdx)) return { k: 'cityOrder', me: G.cityOrderState.playerIdx };
+      if (s === 'draft' && c(ds?.playerIdx)) return { k: 'draft', me: ds.playerIdx };
+      if (s === 'turnDraw' && c(ts?.pi ?? ts?.playerIdx)) return { k: 'turnDraw', me: ts.pi ?? ts.playerIdx };
+      if (s === 'turnSummary' && c(ap)) {
+        if (G._atkSummaryConfirmed) return { k: 'turnSummary', me: ap };
+        // 攻めた側も CPU なら、その確認を代わりに行う（人が攻めた場合は、人が確認ボタンを押すのを待つ）
+        if (c(1 - ap)) return { k: 'atkConfirm', me: 1 - ap };
+      }
+      if (s === 'main' && c(ap) && !G.pendingAttack) return { k: 'main', me: ap };
+      if (s === 'main' && c(G.pendingAttack?.attackerIdx) && !G._pendingAutoHandover) return { k: 'handover', me: G.pendingAttack.attackerIdx };
+      if (s === 'response' && c(G.pendingAttack?.defenderIdx)) return { k: 'response', me: G.pendingAttack.defenderIdx };
+      if (s === 'discard' && c(dn?.pi ?? dn?.playerIdx)) return { k: 'discard', me: dn.pi ?? dn.playerIdx };
+      if (s === 'recycle' && c(G.recycleState?.pi)) return { k: 'recycle', me: G.recycleState.pi };
+      if (s === 'pollution' && c(G.pendingPollution?.attackerIdx)) return { k: 'pollution', me: G.pendingPollution.attackerIdx };
+      if (s === 'typhoonPick' && c(G.pendingTyphoon?.attackerIdx)) return { k: 'typhoon', me: G.pendingTyphoon.attackerIdx };
+      return null;
     }
 
     function _triggerCpuIfNeeded() {
       if (!isCpuMode) return;
       _cpuCancelTimer();
-      const s = G.screen, ap = G.activePlayer;
-      const gc = G.gachaCurrent, ts = G.turnDrawState, ds = G.draftState, dn = G.discardNeeded;
-      const needAct =
-        (s === 'gacha' && gc?.playerIdx === 1) ||
-        (s === 'cityOrder' && G.cityOrderState?.playerIdx === 1) ||
-        (s === 'draft' && ds?.playerIdx === 1) ||
-        (s === 'turnDraw' && (ts?.pi ?? ts?.playerIdx) === 1) ||
-        (s === 'turnSummary' && ap === 1 && G._atkSummaryConfirmed) ||
-        (s === 'main' && ap === 1 && !G.pendingAttack) ||
-        (s === 'main' && G.pendingAttack?.attackerIdx === 1 && !G._pendingAutoHandover) ||
-        (s === 'response' && G.pendingAttack?.defenderIdx === 1) ||
-        (s === 'discard' && (dn?.pi ?? dn?.playerIdx) === 1) ||
-        (s === 'recycle' && G.recycleState?.pi === 1) ||
-        (s === 'pollution' && G.pendingPollution?.attackerIdx === 1) ||
-        (s === 'typhoonPick' && G.pendingTyphoon?.attackerIdx === 1);
-      if (!needAct) return;
+      if (!_cpuActor()) return;
       _cpuTimer = setTimeout(_cpuAct, 700 + (Math.random() * 700 | 0));
     }
 
     function _cpuAct() {
       _cpuTimer = null;
       if (!isCpuMode) return;
-      const s = G.screen, ap = G.activePlayer;
-      const gc = G.gachaCurrent, ts = G.turnDrawState, ds = G.draftState, dn = G.discardNeeded;
-      if (s === 'gacha' && gc?.playerIdx === 1) {
-        if (!gc.revealed && !gc.candidates) _cpuPullGacha(); else acceptGachaCity();
-      } else if (s === 'cityOrder' && G.cityOrderState?.playerIdx === 1) {
-        _cpuSelectCityOrder();
-      } else if (s === 'draft' && ds?.playerIdx === 1) {
-        finalizeAllDraftCards();
-      } else if (s === 'turnDraw' && (ts?.pi ?? ts?.playerIdx) === 1) {
-        if (!ts.revealed) pullTurnCard(); else acceptTurnCard();
-      } else if (s === 'turnSummary' && ap === 1 && G._atkSummaryConfirmed) {
-        dismissTurnSummary();
-      } else if (s === 'main' && ap === 1 && !G.pendingAttack) {
-        _cpuDoMainTurn();
-      } else if (s === 'main' && G.pendingAttack?.attackerIdx === 1 && !G._pendingAutoHandover) {
-        G._pendingAutoHandover = true;
-        setTimeout(() => { G._pendingAutoHandover = false; goResponseHandover(); }, 500);
-      } else if (s === 'response' && G.pendingAttack?.defenderIdx === 1) {
-        _cpuDoResponse();
-      } else if (s === 'discard' && (dn?.pi ?? dn?.playerIdx) === 1) {
-        _cpuDoDiscard();
-      } else if (s === 'recycle' && G.recycleState?.pi === 1) {
-        _cpuDoRecycle();
-      } else if (s === 'pollution' && G.pendingPollution?.attackerIdx === 1) {
-        _cpuDoPollution();
-      } else if (s === 'typhoonPick' && G.pendingTyphoon?.attackerIdx === 1) {
-        _cpuDoTyphoon();
-      }
+      cpuStep(false);
     }
 
-    // 相手プレイヤー(0)が設置中のシールドを1つでも持つか
-    function _cpuHasShield() {
-      const e = G.players[0].effects;
+    /** 今の画面で動くべき CPU がいれば、その判断を1回だけ同期で行い true を返す。いなければ false。
+     * sync が true のときは、画面の演出のための待ち（攻撃の受け渡しの 0.5 秒）を置かずにすぐ進める（画面なしの自動対戦用）
+     * @param {boolean} [sync] @returns {boolean} */
+    function cpuStep(sync) {
+      const a = _cpuActor(); if (!a) return false;
+      const me = a.me;
+      const gc = G.gachaCurrent, ts = G.turnDrawState;
+      switch (a.k) {
+        case 'gacha': if (!gc.revealed && !gc.candidates) _cpuPullGacha(me); else acceptGachaCity(); break;
+        case 'cityOrder': _cpuSelectCityOrder(me); break;
+        case 'draft': finalizeAllDraftCards(); break;
+        case 'turnDraw': if (!ts.revealed) pullTurnCard(); else acceptTurnCard(); break;
+        case 'atkConfirm': dismissAttackerSummary(); break;
+        case 'turnSummary': dismissTurnSummary(); break;
+        case 'main': _cpuDoMainTurn(me); break;
+        case 'handover':
+          if (sync) goResponseHandover();
+          else { G._pendingAutoHandover = true; setTimeout(() => { G._pendingAutoHandover = false; goResponseHandover(); }, 500); }
+          break;
+        case 'response': _cpuDoResponse(me); break;
+        case 'discard': _cpuDoDiscard(me); break;
+        case 'recycle': _cpuDoRecycle(me); break;
+        case 'pollution': _cpuDoPollution(me); break;
+        case 'typhoon': _cpuDoTyphoon(me); break;
+      }
+      return true;
+    }
+
+    // 相手プレイヤー(opp)が設置中のシールドを1つでも持つか
+    function _cpuHasShield(opp = 0) {
+      const e = G.players[opp].effects;
       return e.shieldQuakeFire || e.shieldFlood || e.negateSpecial || e.damageReduceHits > 0;
     }
     // 公害で剥がす最適シールド。CPUの最善攻撃を通すものを優先する
-    function _cpuShieldToBreak(bestDisasterId) {
-      const e = G.players[0].effects;
+    function _cpuShieldToBreak(bestDisasterId, opp = 0) {
+      const e = G.players[opp].effects;
       if ((bestDisasterId === 'earthquake' || bestDisasterId === 'wildfire') && e.shieldQuakeFire) return 'shieldQuakeFire';
       if ((bestDisasterId === 'flood' || bestDisasterId === 'tsunami') && e.shieldFlood) return 'shieldFlood';
       if (e.damageReduceHits > 0) return 'damageReduceHits'; // 全ダメ−15×残数。汎用的に価値が高い
@@ -13118,73 +13226,80 @@
     // 台風で奪うカード（CPUが攻撃側のとき）。価値の高い順：回復 > シールド > 防災庁 > 広域避難指示 > その他
     // （その他は CPU_DISCARD_PRIORITY の逆順＝手放したくない順）。easy はランダム。防御側のCPUは何もしない。
     const CPU_TYPHOON_STEAL_PRIORITY = ['agreement', 'drill', 'quake_wall', 'dam', 'bousai_cho', 'evacuation'];
-    function _cpuTyphoonPick(hand) {
-      if (cpuDifficulty === 'easy') return hand[Math.random() * hand.length | 0];
+    function _cpuTyphoonPick(hand, me = 1) {
+      if (_cpuSkill(me) === 'easy') return hand[vsRand() * hand.length | 0];
       for (const id of [...CPU_TYPHOON_STEAL_PRIORITY, ...[...CPU_DISCARD_PRIORITY].reverse()]) { const c = hand.find(x => x.id === id); if (c) return c; }
       return hand[0];
     }
-    function _cpuDoTyphoon() {
+    function _cpuDoTyphoon(me = 1) {
       const pt = G.pendingTyphoon; if (!pt) return;
       const hand = versusTyphoonTargets(pt.defIdx);
       if (hand.length === 0) { G.pendingTyphoon = null; G.screen = 'main'; commit(); return; }
-      pickTyphoonSteal(_cpuTyphoonPick(hand).uid);
+      pickTyphoonSteal(_cpuTyphoonPick(hand, me).uid);
     }
 
-    function _cpuDoPollution() {
-      const cpu = G.players[1];
-      const ranked = cpu.hand.filter(c => c.type === 'disaster').map(c => ({ c, dmg: _cpuEstimateDmg(c, 0) })).sort((a, b) => b.dmg - a.dmg);
+    function _cpuDoPollution(me = 1) {
+      const opp = 1 - me;
+      const cpu = G.players[me];
+      const ranked = cpu.hand.filter(c => c.type === 'disaster').map(c => ({ c, dmg: _cpuEstimateDmg(c, opp, me) })).sort((a, b) => b.dmg - a.dmg);
       const bestId = ranked.length ? ranked[0].c.id : null;
-      const key = _cpuShieldToBreak(bestId);
+      const key = _cpuShieldToBreak(bestId, opp);
       if (key) { destroyPollutionShield(key); return; }
       destroyPollutionShield('none');
     }
 
-    function _cpuSelectCityOrder() {
-      const p = G.players[1]; const c0 = p.cities[0], c1 = p.cities[1];
-      if (cpuDifficulty === 'easy') { selectCityOrder(1, Math.random() < 0.5 ? 0 : 1); return; }
-      const prefer2nd = cpuDifficulty === 'hard'
+    function _cpuSelectCityOrder(me = 1) {
+      const p = G.players[me]; const c0 = p.cities[0], c1 = p.cities[1];
+      const skill = _cpuSkill(me);
+      // 都市を指定した席は、指定した順のまま出す
+      const cfg = cpuSeatCfg(me);
+      if (cfg && cfg.cities) { selectCityOrder(me, 0); return; }
+      if (skill === 'easy') { selectCityOrder(me, vsRand() < 0.5 ? 0 : 1); return; }
+      const prefer2nd = skill === 'hard'
         ? ['kobe', 'osaka', 'sendai', 'kagoshima', 'new_orleans']
         : ['kobe'];
-      if (prefer2nd.includes(c0.id)) selectCityOrder(1, 1);
-      else if (prefer2nd.includes(c1.id)) selectCityOrder(1, 0);
-      else if (cpuDifficulty === 'hard') selectCityOrder(1, c0.hp <= c1.hp ? 0 : 1);
-      else selectCityOrder(1, 0);
+      if (prefer2nd.includes(c0.id)) selectCityOrder(me, 1);
+      else if (prefer2nd.includes(c1.id)) selectCityOrder(me, 0);
+      else if (skill === 'hard') selectCityOrder(me, c0.hp <= c1.hp ? 0 : 1);
+      else selectCityOrder(me, 0);
     }
 
     // CPUの手選び用の見積もり。数値は calcDamage（防御側視点の全要素）に任せる。
     // easy だけは防御側の事前効果（避難指示・防災庁・シールド）を見ない（意図的な弱さ）。
-    // CPUは常に後攻（idx1）なので先攻1ターン目の初動補正は対象外。
-    function _cpuEstimateDmg(card, defIdx) {
+    // 先攻（席0）の1ターン目の災害は、実際の解決（versusFirstTurnPenaltyApplies）と同じく初動補正を入れて見積もる。
+    function _cpuEstimateDmg(card, defIdx, me = 1) {
       if (card.type !== 'disaster') return 0;
       const def = G.players[defIdx]; const city = def.cities[def.activeCityIdx];
       if (!city) return 0;
-      return calcDamage({ attackCard: card, defCity: city, defName: def.name, defEffects: def.effects, defHand: def.hand, responses: [], isFirstTurnPenalty: false, view: 'defender', blindDefEffects: cpuDifficulty === 'easy' }).total;
+      return calcDamage({ attackCard: card, defCity: city, defName: def.name, defEffects: def.effects, defHand: def.hand, responses: [], isFirstTurnPenalty: me === 0 && G.turnsEach[0] === 0, view: 'defender', blindDefEffects: _cpuSkill(me) === 'easy' }).total;
     }
 
-    function _cpuDoMainTurn() {
-      if (cpuDifficulty === 'easy') _cpuDoMainEasy();
-      else if (cpuDifficulty === 'normal') _cpuDoMainNormal();
-      else _cpuDoMainHard();
+    function _cpuDoMainTurn(me = 1) {
+      const skill = _cpuSkill(me);
+      if (skill === 'easy') _cpuDoMainEasy(me);
+      else if (skill === 'normal') _cpuDoMainNormal(me);
+      else _cpuDoMainHard(me);
     }
 
-    function _cpuDoMainEasy() {
-      const budget = getBudgetLeft(1);
-      if (budget === 0 || Math.random() < 0.18) { endTurn(); return; }
-      const affordable = G.players[1].hand.filter(c => c.cost <= budget);
+    function _cpuDoMainEasy(me = 1) {
+      const budget = getBudgetLeft(me);
+      if (budget === 0 || vsRand() < 0.18) { endTurn(); return; }
+      const affordable = G.players[me].hand.filter(c => c.cost <= budget);
       if (!affordable.length) { endTurn(); return; }
-      playCard(affordable[Math.random() * affordable.length | 0].uid);
+      playCard(affordable[vsRand() * affordable.length | 0].uid);
     }
 
-    function _cpuDoMainNormal() {
-      const budget = getBudgetLeft(1);
-      const cpu = G.players[1], opp = G.players[0];
+    function _cpuDoMainNormal(me = 1) {
+      const opi = 1 - me;
+      const budget = getBudgetLeft(me);
+      const cpu = G.players[me], opp = G.players[opi];
       const oppHp = opp.cityHps[opp.activeCityIdx];
       const cpuHp = cpu.cityHps[cpu.activeCityIdx];
       if (budget === 0) { endTurn(); return; }
       const affordable = cpu.hand.filter(c => c.cost <= budget);
       if (!affordable.length) { endTurn(); return; }
       const ranked = affordable.filter(c => c.type === 'disaster')
-        .map(c => ({ c, dmg: _cpuEstimateDmg(c, 0) })).sort((a, b) => b.dmg - a.dmg);
+        .map(c => ({ c, dmg: _cpuEstimateDmg(c, opi, me) })).sort((a, b) => b.dmg - a.dmg);
       // 1) とどめ
       if (ranked.length && ranked[0].dmg >= oppHp) { playCard(ranked[0].c.uid); return; }
       // 2) テロ準備済みなら即攻撃してフラグを無駄にしない
@@ -13193,7 +13308,7 @@
       if (cpuHp < 25) { const h = affordable.find(c => c.effectType === 'heal'); if (h) { playCard(h.uid); return; } }
       // 4) 公害：最善攻撃を妨げるシールドを剥がす（公害+攻撃の予算が必要）
       const pollution = affordable.find(c => c.id === 'pollution');
-      if (pollution && _cpuHasShield() && ranked.length) {
+      if (pollution && _cpuHasShield(opi) && ranked.length) {
         const best = ranked[0]; const e = opp.effects;
         const blocked = (e.shieldQuakeFire && (best.c.id === 'earthquake' || best.c.id === 'wildfire'))
                      || (e.shieldFlood && (best.c.id === 'flood' || best.c.id === 'tsunami'))
@@ -13223,9 +13338,10 @@
       endTurn();
     }
 
-    function _cpuDoMainHard() {
-      const budget = getBudgetLeft(1);
-      const cpu = G.players[1], opp = G.players[0];
+    function _cpuDoMainHard(me = 1) {
+      const opi = 1 - me;
+      const budget = getBudgetLeft(me);
+      const cpu = G.players[me], opp = G.players[opi];
       const oppHp = opp.cityHps[opp.activeCityIdx];
       const cpuHp = cpu.cityHps[cpu.activeCityIdx];
       const oppCity = opp.cities[opp.activeCityIdx];
@@ -13233,12 +13349,12 @@
       const affordable = cpu.hand.filter(c => c.cost <= budget);
       if (!affordable.length) { endTurn(); return; }
       const ranked = affordable.filter(c => c.type === 'disaster')
-        .map(c => ({ c, dmg: _cpuEstimateDmg(c, 0) })).sort((a, b) => b.dmg - a.dmg);
+        .map(c => ({ c, dmg: _cpuEstimateDmg(c, opi, me) })).sort((a, b) => b.dmg - a.dmg);
       const terror = affordable.find(c => c.id === 'terror');
       const pollution = affordable.find(c => c.id === 'pollution');
       // ① Killing blow / overkill avoidance (掟⑪)
       if (oppHp <= 20) {
-        const fin = affordable.filter(c => c.type === 'disaster' && _cpuEstimateDmg(c, 0) >= oppHp)
+        const fin = affordable.filter(c => c.type === 'disaster' && _cpuEstimateDmg(c, opi, me) >= oppHp)
           .sort((a, b) => a.cost - b.cost)[0];
         if (fin) { playCard(fin.uid); return; }
       }
@@ -13251,7 +13367,7 @@
         if (big.c.cost + 1 <= budget && big.dmg >= 30 && big.dmg >= oppHp - 15) { playCard(terror.uid); return; }
       }
       // ①c 公害で確殺：シールドを剥がせば最善攻撃が通る場合
-      if (pollution && _cpuHasShield() && ranked.length) {
+      if (pollution && _cpuHasShield(opi) && ranked.length) {
         const best = ranked[0]; const e = opp.effects;
         const blocked = (e.shieldQuakeFire && (best.c.id === 'earthquake' || best.c.id === 'wildfire'))
                      || (e.shieldFlood && (best.c.id === 'flood' || best.c.id === 'tsunami'))
@@ -13259,11 +13375,11 @@
         if (blocked && best.c.cost + 1 <= budget) { playCard(pollution.uid); return; }
       }
       // ② Evacuation proactive (掟⑥, early game only)
-      if (!cpu.effects.negateSpecial && G.turnsEach[1] < 4 && cpu.budgetUsed === 0) {
+      if (!cpu.effects.negateSpecial && G.turnsEach[me] < 4 && cpu.budgetUsed === 0) {
         const ev = affordable.find(c => c.id === 'evacuation'); if (ev) { playCard(ev.uid); return; }
       }
       // ③ bousai_cho early defense
-      if (!cpu.effects.damageReduceHits && G.turnsEach[1] < 5 && cpu.budgetUsed === 0) {
+      if (!cpu.effects.damageReduceHits && G.turnsEach[me] < 5 && cpu.budgetUsed === 0) {
         const bc = affordable.find(c => c.id === 'bousai_cho'); if (bc) { playCard(bc.uid); return; }
       }
       // ④ Heal if HP critical
@@ -13303,36 +13419,38 @@
       endTurn();
     }
 
-    // 2026-09-24 第2陣（WORKTRACK.md §15 B-2「E. CPU」）：CPU（defIdx===1）がイスタンブールで守っていて
-    // 相手（プレイヤー）の地震を受けた場合でも、2枚目を使わせる判断ロジックは実装しない。CPUは常に
-    // 「1枚選ぶ／使わない」の従来どおりの単純な決め打ちのまま。playResponseCard側でisCpuMode&&defIdx===1の
-    // ときは2枚目の選択自体を提示しない（canOfferSecondがfalseになる）ため、この関数を呼ぶだけで必ず1枚で解決する。
-    function _cpuDoResponse() {
+    // 2026-09-24 第2陣（WORKTRACK.md §15 B-2「E. CPU」）：CPU が守備側でイスタンブールを使っていて
+    // 相手の地震を受けた場合でも、2枚目を使わせる判断ロジックは実装しない。CPUは常に
+    // 「1枚選ぶ／使わない」の従来どおりの単純な決め打ちのまま。playResponseCard側でCPUの席が守るときは
+    // 2枚目の選択自体を提示しない（canOfferSecondがfalseになる）ため、この関数を呼ぶだけで必ず1枚で解決する。
+    function _cpuDoResponse(me = 1) {
       const atk = G.pendingAttack.card;
-      const policies = G.players[1].hand.filter(c => c.type === 'policy');
+      const skill = _cpuSkill(me);
+      const policies = G.players[me].hand.filter(c => c.type === 'policy');
       if (!policies.length) { skipResponse(); return; }
-      if (cpuDifficulty === 'easy') {
-        if (Math.random() < 0.55) { skipResponse(); return; }
-        playResponseCard(policies[Math.random() * policies.length | 0].uid); return;
+      if (skill === 'easy') {
+        if (vsRand() < 0.55) { skipResponse(); return; }
+        playResponseCard(policies[vsRand() * policies.length | 0].uid); return;
       }
       let use = null;
       if (atk.id === 'earthquake' || atk.id === 'wildfire') use = policies.find(c => c.id === 'quake_wall');
       else if (atk.id === 'flood' || atk.id === 'tsunami') use = policies.find(c => c.id === 'dam');
       if (!use) use = policies.find(c => c.id === 'agreement');
-      if (!use && cpuDifficulty === 'hard' && atk.baseDamage >= 30) use = policies.find(c => c.id === 'evacuation');
+      if (!use && skill === 'hard' && atk.baseDamage >= 30) use = policies.find(c => c.id === 'evacuation');
       if (use) playResponseCard(use.uid); else skipResponse();
     }
 
     // CPUにとっての価値が低い順（先頭ほど手放しやすい）。手札上限の強制捨て札とローリングストックの
     // 入れ替え選択の両方で共用する（旧pactは同じ位置でrolling_stockに改称）。
     const CPU_DISCARD_PRIORITY = ['drill', 'hazard_map', 'rumor', 'rolling_stock', 'typhoon', 'pollution', 'terror', 'landslide', 'earthquake', 'flood', 'quake_wall', 'dam', 'evacuation', 'agreement', 'bousai_cho', 'compound', 'tsunami', 'wildfire'];
-    function _cpuDoDiscard() {
-      const cpu = G.players[1]; const hand = cpu.hand;
-      const oppCity = G.players[0].cities[G.players[0].activeCityIdx];
-      if (cpuDifficulty === 'easy') { discardCard(hand[Math.random() * hand.length | 0].uid); return; }
+    function _cpuDoDiscard(me = 1) {
+      const cpu = G.players[me]; const hand = cpu.hand;
+      const skill = _cpuSkill(me);
+      const oppCity = G.players[1 - me].cities[G.players[1 - me].activeCityIdx];
+      if (skill === 'easy') { discardCard(hand[vsRand() * hand.length | 0].uid); return; }
       if (cpu.effects.shieldQuakeFire) { const c = hand.find(c => c.id === 'quake_wall'); if (c) { discardCard(c.uid); return; } }
       if (cpu.effects.shieldFlood) { const c = hand.find(c => c.id === 'dam'); if (c) { discardCard(c.uid); return; } }
-      if (cpuDifficulty === 'hard' && oppCity && !oppCity.isMountain) {
+      if (skill === 'hard' && oppCity && !oppCity.isMountain) {
         const ls = hand.find(c => c.id === 'landslide'); if (ls) { discardCard(ls.uid); return; }
       }
       for (const id of CPU_DISCARD_PRIORITY) { const c = hand.find(c => c.id === id); if (c) { discardCard(c.uid); return; } }
@@ -13340,7 +13458,7 @@
     }
     // ローリングストック：捨てるカードの選択（簡易判断）。CPU_DISCARD_PRIORITYの価値が低い順に最大2枚まで入れ替える。
     // 0枚選択でも有効な操作のため、対象が見つからなければ交換なしでconfirmRecycle()する。
-    function _cpuDoRecycle() {
+    function _cpuDoRecycle(me = 1) {
       const rs = G.recycleState; if (!rs) return;
       const p = G.players[rs.pi];
       // Phase5.5：戻すのはドロー完了後のため、山札残量を超えて選ぶとドローが不足する（cap上限）
@@ -21903,8 +22021,9 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = 'c5f9298';
-    const PLAYLOG_VERSION = 1;
+    const BUILD_ID = '6cbecb8';
+    // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
+    const PLAYLOG_VERSION = 2;
     const PL_KEY_PENDING = 'ron_playlog_pending';
     const PL_KEY_CURRENT = 'ron_playlog_current';
 
@@ -21936,7 +22055,7 @@
     function plPending() { return _plPending; }
 
     /** 記録を新しく始める。開発者モードがオフ・テスター未登録なら何もしない
-     * @param {{gameId: string, mode: string, cpuDifficulty?: string, seat: string, build: string}} meta */
+     * @param {{gameId: string, mode: string, cpuDifficulty?: string, seat: string, build: string, opponent?: {deck: string, skill: string} | null, seed?: number | null}} meta */
     function plStart(meta) {
       if (!devLoggingOn()) return;
       if (_plCur) plAbandon(); // 前の試合が終わっていなければ、未完了のまま保留リストへ移す
@@ -21944,6 +22063,7 @@
       _plCur = {
         v: PLAYLOG_VERSION, gameId: meta.gameId, mode: meta.mode,
         cpuDifficulty: meta.mode === 'cpu' ? (meta.cpuDifficulty || null) : null,
+        opponent: meta.opponent || null, seed: meta.seed == null ? null : meta.seed,
         seat: meta.seat, build: meta.build,
         tester: { id: t ? t.id : '', tier: t ? t.tier : '' },
         startedAt: _plDate(), events: [], result: null, complete: false, comment: '',
@@ -22011,13 +22131,14 @@
     let _plDevPick = false;
 
     function _plNewId(prefix) { return prefix + Date.now() + '_' + String(Math.random() * 10000 | 0).padStart(4, '0'); }
-    /** CPU戦の記録を始める（gameId は cpu_ + 時刻 + 乱数4桁）
-     * @param {string} difficulty */
-    function plStartCpu(difficulty) {
+    /** CPU戦の記録を始める（gameId は cpu_ + 時刻 + 乱数4桁）。opts は相手の CPU の設定・乱数の種・人の席（席1なら 'p2'）
+     * @param {string} difficulty @param {{opponent?: {deck: string, skill: string}, seed?: number | null, seat?: string}} [opts] */
+    function plStartCpu(difficulty, opts) {
       if (!devLoggingOn()) return;
       _plDrew = []; _plDeckOpenAt = 0; _plGachaCands = null; _plDevPick = false; _plRecycleEv = null;
       _plLastGameId = _plNewId('cpu_');
-      plStart({ gameId: _plLastGameId, mode: 'cpu', cpuDifficulty: difficulty, seat: 'p1', build: BUILD_ID });
+      const o = opts || {};
+      plStart({ gameId: _plLastGameId, mode: 'cpu', cpuDifficulty: difficulty, seat: o.seat || 'p1', build: BUILD_ID, opponent: o.opponent || { deck: 'recommended', skill: difficulty }, seed: o.seed == null ? null : o.seed });
     }
     /** オンライン対戦の記録を始める（ホスト）。gameId は roomId + _ + 時刻で、rooms/{roomId}/devGameId に置いてゲストへ渡す */
     function plStartOnlineHost() {
@@ -22124,7 +22245,7 @@
     // ═══════════════════════════════════════
     /** @param {any} log */
     function _plMeta(log) {
-      return { v: log.v, mode: log.mode, seat: log.seat, tier: log.tester.tier, testerId: log.tester.id, date: log.startedAt, complete: !!log.complete, build: log.build };
+      return { v: log.v, mode: log.mode, seat: log.seat, tier: log.tester.tier, testerId: log.tester.id, date: log.startedAt, complete: !!log.complete, build: log.build, opponent: log.opponent || null, seed: log.seed == null ? null : log.seed };
     }
     /** 記録を Firebase の playLogs/{gameId}/{seat} へ送る。成功したら保留リストから外す。db が無い・失敗・大きすぎるときは false で、保留リストに残す
      * @param {any} log @returns {Promise<boolean>} */
@@ -22243,6 +22364,72 @@
     }
     /** 記録を取る端末か：開発者モードがオンで、テスター登録がある */
     function devLoggingOn() { return devModeOn() && devTester() !== null; }
+
+    // ═══════════════════════════════════════
+    // CPU 戦の相手の設定（第2段a）。開発者モードがオンのときだけ、CPU 戦の startCpuGame がこれを使う。
+    //   deck：デッキの型（recommended か VERSUS_DECK_ARCHETYPES のキー）／skill：打ち方（'' は難易度ボタンのまま）
+    //   cities：CPU の都市を2つ指定（null ならガチャ）／humanFirst：人が先攻か／seed：乱数の種（null なら固定しない）
+    // ═══════════════════════════════════════
+    const DEV_KEY_CPU = 'ron_dev_cpu';
+    /** @type {{deck: string, skill: string, cities: string[] | null, humanFirst: boolean, seed: number | null}} */
+    let devCpuSetup = { deck: 'recommended', skill: '', cities: null, humanFirst: true, seed: null };
+    function devCpuSave() { try { localStorage.setItem(DEV_KEY_CPU, JSON.stringify(devCpuSetup)); } catch (e) {} }
+    /** 端末に保存した設定を読む。壊れた値は既定のまま */
+    function devCpuLoad() {
+      try {
+        const raw = localStorage.getItem(DEV_KEY_CPU); if (!raw) return;
+        const v = JSON.parse(raw); if (!v || typeof v !== 'object') return;
+        const s = devCpuSetup;
+        if (v.deck === 'recommended' || (typeof v.deck === 'string' && VERSUS_DECK_ARCHETYPES[v.deck])) s.deck = v.deck;
+        if (['', 'easy', 'normal', 'hard'].includes(v.skill)) s.skill = v.skill;
+        if (Array.isArray(v.cities) && v.cities.length === 2 && v.cities[0] !== v.cities[1] && v.cities.every((/** @type {string} */ id) => CITIES.some(c => c.id === id))) s.cities = [v.cities[0], v.cities[1]];
+        if (typeof v.humanFirst === 'boolean') s.humanFirst = v.humanFirst;
+        if (typeof v.seed === 'number' && Number.isFinite(v.seed)) s.seed = Math.trunc(v.seed);
+      } catch (e) {}
+    }
+    /** 今使う設定（開発者モードがオフなら null＝従来どおり） */
+    function devCpuCfg() { return devModeOn() ? devCpuSetup : null; }
+    /** @param {string} v */
+    function devCpuSetDeck(v) { if (v === 'recommended' || VERSUS_DECK_ARCHETYPES[v]) { devCpuSetup.deck = v; devCpuSave(); render(); } }
+    /** @param {string} v */
+    function devCpuSetSkill(v) { if (['', 'easy', 'normal', 'hard'].includes(v)) { devCpuSetup.skill = v; devCpuSave(); render(); } }
+    /** @param {string} v 'gacha' か 'pick' */
+    function devCpuSetCityMode(v) { devCpuSetup.cities = v === 'pick' ? [CITIES[0].id, CITIES[1].id] : null; devCpuSave(); render(); }
+    /** @param {number} slot 0か1 @param {string} id */
+    function devCpuSetCity(slot, id) {
+      const cs = devCpuSetup.cities; if (!cs || !CITIES.some(c => c.id === id)) return;
+      if (cs[1 - slot] === id) cs[1 - slot] = cs[slot]; // 同じ都市を2つにはしない（入れ替える）
+      cs[slot] = id; devCpuSave(); render();
+    }
+    /** @param {string} v */
+    function devCpuSetFirst(v) { devCpuSetup.humanFirst = v === '1'; devCpuSave(); render(); }
+    /** 乱数の種（空欄は固定しない）。入力中に描き直すと文字入力が途切れるので render しない
+     * @param {string} txt */
+    function devCpuSetSeed(txt) {
+      const t = String(txt == null ? '' : txt).trim();
+      const n = /^-?\d{1,9}$/.test(t) ? Number(t) : null;
+      devCpuSetup.seed = n; devCpuSave();
+    }
+    /** CPU 戦の難易度を選ぶ画面の下に出す設定（開発者モードがオンのときだけ） */
+    function devCpuPanelHtml() {
+      if (!devModeOn()) return '';
+      const s = devCpuSetup;
+      /** @param {Array<string[]>} items @param {string} cur @param {string} fn */
+      const seg = (items, cur, fn) => '<div class="settings-seg" style="flex-wrap:wrap">' + items.map(it => '<button type="button" class="settings-seg-btn' + (cur === it[0] ? ' active' : '') + '" onclick="' + fn + '(\'' + it[0] + '\')">' + it[1] + '</button>').join('') + '</div>';
+      const row = (/** @type {string} */ label, /** @type {string} */ body) => '<div style="margin-top:8px"><div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:4px">' + label + '</div>' + body + '</div>';
+      const decks = [['recommended', 'オススメ'], ...Object.keys(VERSUS_DECK_ARCHETYPES).map(k => [k, VERSUS_DECK_ARCHETYPES[k].label])];
+      const skills = [['', '難易度ボタン'], ['easy', 'EASY'], ['normal', 'NORMAL'], ['hard', 'HARD']];
+      const opt = (/** @type {number} */ slot) => '<select onchange="devCpuSetCity(' + slot + ', this.value)" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:4px 6px">' + CITIES.map(c => '<option value="' + c.id + '"' + (s.cities && s.cities[slot] === c.id ? ' selected' : '') + '>' + _escHtml(c.name) + '</option>').join('') + '</select>';
+      const cityBody = seg([['gacha', 'ガチャ'], ['pick', '指定']], s.cities ? 'pick' : 'gacha', 'devCpuSetCityMode') + (s.cities ? '<div style="display:flex;gap:6px;margin-top:6px">' + opt(0) + opt(1) + '</div>' : '');
+      const seedBody = '<input type="text" inputmode="numeric" maxlength="10" placeholder="空欄＝固定しない" value="' + (s.seed == null ? '' : s.seed) + '" oninput="devCpuSetSeed(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:6px 8px">';
+      return '<div id="dev-cpu-panel" style="margin-top:14px;padding:10px 12px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06)"><div style="font-size:.78rem;font-weight:700;color:var(--t1)">相手の CPU の設定（DEV）</div>'
+        + row('デッキの型', seg(decks, s.deck, 'devCpuSetDeck'))
+        + row('打ち方', seg(skills, s.skill, 'devCpuSetSkill'))
+        + row('CPU の都市', cityBody)
+        + row('先攻・後攻', seg([['1', '自分が先攻'], ['0', '自分が後攻']], s.humanFirst ? '1' : '0', 'devCpuSetFirst'))
+        + row('乱数の種（同じ種なら同じ山札の並び）', seedBody)
+        + '</div>';
+    }
 
     // オンのあいだ、画面の右上に小さく DEV と出す（普通の状態と取り違えないため）
     function devApplyBadge() {
@@ -22402,6 +22589,7 @@
       html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">画面へ飛ぶ</span><span class="settings-row-desc">確認用の仮の盤面を開きます（記録されません）。ロビーにいるときだけ使えます</span></div><div class="settings-seg" style="flex-wrap:wrap">' + jumpBtns + '</div></div>';
       return html;
     }
+    devCpuLoad();
     devApplyBadge();
   </script>
 </body>
