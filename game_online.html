@@ -7844,7 +7844,12 @@
           const nxt = p.activeCityIdx + 1;
           if (nxt < p.cities.length && p.cityHps[nxt] > 0) {
             const old = p.cities[p.activeCityIdx];
+            // 都市交代で効果は全てリセットするが、receivedTypes（イスタンブールの学習軽減用の記録）だけは引き継ぐ。
+            // 仕様（WORKTRACK.md §20-5・§20-10）は「両方の都市が試合開始から受けた自然災害の種類」を覚えるため、
+            // 1都市目で受けた種類を、2都市目のイスタンブールが忘れてはならない。無ければ作らない（mkEffectsには持たせない）。
+            const prevReceived = p.effects && p.effects.receivedTypes;
             p.cityHps[p.activeCityIdx] = 0; p.activeCityIdx = nxt; p.effects = mkEffects();
+            if (prevReceived) p.effects.receivedTypes = prevReceived;
             addLog(`${coopIcoWarnTriangle(13,'var(--red)')} ${p.name}の「${old.name}」壊滅！→「${p.cities[nxt].name}」に切り替え！`, 'sys');
             G._nextTurnEvents[i].push({ type: 'city_switch', oldCityName: old.name, newCityIcon: terrainImg(p.cities[nxt], 18), newCityName: p.cities[nxt].name });
             return false;
