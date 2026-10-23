@@ -7122,6 +7122,7 @@
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">モーション</span><span class="settings-row-desc">${motionDesc}</span></div><div class="settings-seg">${motionSeg}</div></div>
         <hr class="hint-divider">
         ${cwCpuRow}
+        ${devSettingsRowHtml()}
       </div></div>`;
     }
 
@@ -7851,12 +7852,14 @@
             p.cityHps[p.activeCityIdx] = 0; p.activeCityIdx = nxt; p.effects = mkEffects();
             if (prevReceived) p.effects.receivedTypes = prevReceived;
             addLog(`${coopIcoWarnTriangle(13,'var(--red)')} ${p.name}の「${old.name}」壊滅！→「${p.cities[nxt].name}」に切り替え！`, 'sys');
+            plEvent('citySwitch', { pi: i, from: old.id, to: p.cities[nxt].id });
             G._nextTurnEvents[i].push({ type: 'city_switch', oldCityName: old.name, newCityIcon: terrainImg(p.cities[nxt], 18), newCityName: p.cities[nxt].name });
             return false;
           } else {
             if (!G._gameHistory) G._gameHistory = [];
             G._gameHistory.push(...(G._nextTurnEvents[i] || []).map(ev => ({ ...ev, playerIdx: i })));
             G.winner = i === 0 ? 1 : 0; G.screen = 'gameover'; G.pendingTyphoon = null;
+            plEndFromG();
             if (G.winner === myPlayerIdx) haptic(HAPTIC.win); // B1：勝利ハプティクス（design_system.md §9.2）
             commit(); return true;
           }
@@ -7888,6 +7891,7 @@
         if (G.winner === myPlayerIdx) haptic(HAPTIC.win); // B1：勝利ハプティクス（design_system.md §9.2）
       }
       G.screen = 'gameover';
+      plEndFromG();
     }
 
     // ═══════════════════════════════════════
@@ -7949,6 +7953,7 @@
       const dmg = calc.total; def.cityHps[def.activeCityIdx] -= dmg;
       let finalHp = def.cityHps[def.activeCityIdx]; const hpAD = finalHp;
       if (fromHp !== finalHp) queueHpAnim(defIdx, fromHp, finalHp);
+      plEvent('resolve', { atk: attackCard.id, defPi: defIdx, mods: calc.mods.filter(m => !m.hidden && m.delta != null).map(m => ({ label: m.label, delta: m.delta })), total: dmg, hpAfter: Math.max(0, finalHp) });
       const aN = G.players[G.pendingAttack.attackerIdx].name;
       addLog(`${coopIcoWarnTriangle(13,'var(--red)')} ${aN}が「${attackCard.name}」→ ${dmg}ダメージ（${def.name}残HP:${Math.max(0, finalHp)}）`, 'dmg');
       for (const l of log) addLog(l.delta != null ? `→ ${l.text}（${l.delta > 0 ? '+' : ''}${l.delta}）` : `→ ${l.text}`);
@@ -7981,6 +7986,7 @@
       const pt = G.pendingTyphoon; if (!pt) return;
       const atk = G.players[pt.attackerIdx]; const def = G.players[pt.defIdx];
       const card = versusTyphoonTargets(pt.defIdx).find(c => c.uid === uid); if (!card) return;
+      plEvent('typhoon', { pi: pt.attackerIdx, stole: card.id, from: plHand(versusTyphoonTargets(pt.defIdx)) });
       def.hand.splice(def.hand.indexOf(card), 1);
       // uid はプレイヤーごとに id+'_'+連番 で振られ、両者が同じ uid（drill_0 など）を持つ。そのまま攻撃側の山札へ入れると
       // 自分の手札・山札に同じ uid が並び、uid で1枚を選ぶ処理（ローリングストック・捨て札・使用）が2枚に反応する。
@@ -8080,6 +8086,7 @@
     function destroyPollutionShield(key) {
       const pp = G.pendingPollution; if (!pp) return;
       const atkIdx = pp.attackerIdx; const defIdx = atkIdx === 0 ? 1 : 0; const def = G.players[defIdx];
+      plEvent('pollution', { pi: atkIdx, shield: String(key) });
       const shieldNames = { shieldQuakeFire: '耐震シールド', shieldFlood: '堤防シールド', negateSpecial: '特殊効果無効', damageReduceHits: '防災庁設置' };
       let broken = false;
       if (key === 'damageReduceHits') {
@@ -8108,6 +8115,7 @@
       if (target === 0) {
         const reason = wanted === 0 ? '手札満杯のためドローなし' : '山札が尽きているためドローなし';
         addLog(`─── ${p.name}のターン開始（予算${getBudget(pi)}・${reason}）`, 'sys');
+        if (plMine(pi)) plTurnStart(pi, []);
         G.screen = 'main';
       }
       else { G.turnDrawState = { pi, drawn: 0, target, revealed: null }; G.screen = 'turnDraw'; }
@@ -8115,6 +8123,7 @@
 
     function endTurn() {
       const p = G.players[G.activePlayer]; const city = getActiveCity(G.activePlayer);
+      plEvent('turnEnd', plMine(G.activePlayer) ? { pi: G.activePlayer, budgetLeft: getBudgetLeft(G.activePlayer), hand: plHand(p.hand) } : { pi: G.activePlayer, budgetLeft: getBudgetLeft(G.activePlayer) });
       if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`${coopIcoHeart(12,'#3fb950')} ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
       if (city && city.abilityType === 'quake_regen' && p.effects.quakeHitThisTurn) {
         const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, city.hp);
@@ -8184,6 +8193,7 @@
       const gc = G.gachaCurrent;
       const chosen = gc.candidates.find(c => c.id === cityId);
       if (!chosen) return;
+      plNoteCands(gc.candidates.map(c => c.id));
       gc.revealed = chosen; gc.candidates = null;
       acceptGachaCity();
     }
@@ -8191,6 +8201,7 @@
     function acceptGachaCity() {
       const gc = G.gachaCurrent; const city = gc.revealed; const p = G.players[gc.playerIdx];
       p.cities.push(city); p.cityHps.push(city.hp); G.gachaPickedIds.push(city.id);
+      plGacha(gc.playerIdx, city);
       if (gc.pickNum === 0) { gc.pickNum = 1; gc.revealed = null; commit(); }
       else { G.screen = 'cityOrder'; G.cityOrderState = { playerIdx: gc.playerIdx }; commit(); }
     }
@@ -8198,6 +8209,7 @@
     function selectCityOrder(playerIdx, firstIdx) {
       const p = G.players[playerIdx];
       if (firstIdx === 1) { [p.cities[0], p.cities[1]] = [p.cities[1], p.cities[0]]; [p.cityHps[0], p.cityHps[1]] = [p.cityHps[1], p.cityHps[0]]; }
+      plEvent('cityOrder', { pi: playerIdx, order: p.cities.map(c => c.id) });
       if (playerIdx === 0) {
         // 2026-08-15追加：対戦CPU戦・設定ON・マイ都市が1枚以上のときだけ、都市ガチャの直後に
         // 「マイ都市に差し替える」任意画面を挟む。isCpuMode限定のためオンライン対戦・協力・2人対戦の
@@ -8240,6 +8252,7 @@
         const _cpuCounts = buildCityAwareDeckCounts(G.players[1].cities);
         G.players[1].deck = buildVersusDeckFromCounts(_cpuCounts);
         G.players[1].deckCounts = { ..._cpuCounts };
+        plEvent('deck', { pi: 1, counts: { ..._cpuCounts }, recommended: { ..._cpuCounts }, usedRecommendedAsIs: true, ms: 0 });
         G.players[1].discard = [];
       }
       startDeckBuild(0);
@@ -8251,6 +8264,7 @@
       // 前回のデッキは端末の localStorage にあるため、決めるのはそのデッキを組む本人の端末だけ。この関数は CPU戦・検証用・
       // 相手が古い版のオンライン対戦だけが通る（新しい版どうしのオンラインは _vsLocalDeckBuild で各端末が自分で開く）。
       G.deckBuildState = { playerIdx: pi, counts: buildCityAwareDeckCounts(G.players[pi].cities), openedFrom: 'city' };
+      plMarkDeckOpen();
       G.screen = 'deckBuild';
       if (isCpuMode || pi === myPlayerIdx) {
         // Phase7②：デッキ編成画面に入った直後、生成根拠を一時ポップで示す（都市が無ければ空文字でno-op）。前回のデッキで開いたときは出さない。
@@ -8465,6 +8479,7 @@
       }
       const draft = vsDeckDraftLoad();
       if (draft) { _vsLocalDeckBuild = { playerIdx: pi, counts: draft.counts, openedFrom: draft.openedFrom, loadedDeckId: draft.loadedDeckId, lastCounts: draft.lastCounts || undefined }; return _vsLocalDeckBuild; }
+      plMarkDeckOpen();
       const ds = { playerIdx: pi, counts: buildCityAwareDeckCounts(cities), openedFrom: 'city' };
       _vsLocalDeckBuild = ds;
       if (!vsDeckBuildApplyInitial(ds)) showDeckBuildNote(vsCityAwareNote(cities));
@@ -8515,6 +8530,7 @@
       const ds = _vsLocalDeckBuild; if (!ds || !db || !roomId) return;
       if (!deckBuildValidate(ds.counts).ok || _vsDeckReady[myPlayerIdx]) return;
       const rec = { counts: { ...ds.counts }, loadedDeckId: ds.loadedDeckId || null };
+      plDeck(myPlayerIdx, ds.counts);
       vsLastDeckSave(ds.counts, ds.loadedDeckId);
       _vsDeckReady[myPlayerIdx] = rec;
       db.ref(`rooms/${roomId}/deckReady/p${myPlayerIdx}`).set(rec);
@@ -8601,6 +8617,7 @@
     function vsDraftConfirmOnline() {
       const ds = _vsLocalDraft; if (!ds || !db || !roomId || _vsDraftReady[myPlayerIdx]) return;
       const rec = { uids: ds.dealtCards.map(c => c.uid) };
+      plEvent('draft', { pi: myPlayerIdx, hand: plHand(ds.dealtCards) });
       _vsDraftReady[myPlayerIdx] = rec;
       db.ref(`rooms/${roomId}/draftReady/p${myPlayerIdx}`).set(rec);
       render();
@@ -8874,6 +8891,7 @@
       const v = deckBuildValidate(ds.counts);
       if (!v.ok) return;
       const pi = ds.playerIdx;
+      plDeck(pi, ds.counts);
       G.players[pi].deck = buildVersusDeckFromCounts(ds.counts);
       G.players[pi].discard = [];
       // その試合で使ったデッキ。結果画面の「このデッキを保存」と、次回の「前回のデッキで開く」が使う。
@@ -9158,6 +9176,7 @@
       const ds = vsDraftDs();
       if (!ds || !ds.dealtCards) return;
       if (!G.draftState && _vsLocalDraft && vsDraftSimul()) { vsDraftConfirmOnline(); return; }
+      plEvent('draft', { pi: ds.playerIdx, hand: plHand(ds.dealtCards) });
       ds.dealtCards.forEach(c => G.players[ds.playerIdx].hand.push(c));
       if (ds.playerIdx === 0) { startDraft(1); commit(); }
       else { G.activePlayer = 0; G.players[0].budgetUsed = 0; addLog(`─── ${G.players[0].name}のターン開始（予算${getBudget(0)}）`, 'sys'); G.screen = 'main'; commit(); }
@@ -9176,6 +9195,7 @@
       const ts = G.turnDrawState; if (!ts.revealed) return;
       const pi = ts.pi ?? ts.playerIdx;
       _lastDrawnCardUid = ts.revealed.uid;
+      plNoteDrawn(ts.revealed);
       G.players[pi].hand.push(ts.revealed); ts.drawn++; ts.revealed = null;
       if (ts.drawn >= ts.target) {
         // Phase5.5：ローリングストックで手札から抜いたカード（ts.recycled）は、ここでドローが
@@ -9185,6 +9205,7 @@
         // 挙動は変えていない（cards空なら何もしない・push+shuffleの順序も同じ）。
         const recycledN = returnCardsToDeck(G.players[pi].deck, ts.recycled);
         G.turnDrawState = null;
+        plOnDrawDone(pi, ts);
         if (ts.isHazardMap) addLog(`${uiIcoMap(13)} ${G.players[pi].name}：ハザードマップ整備で${ts.target}枚ドロー完了`, 'policy');
         else if (ts.isRecycle) addLog(`${uiIcoUpload(13)} ${G.players[pi].name}：ローリングストックで${ts.target}枚を交換完了（戻した${recycledN}枚は山札へ）`, 'policy');
         else addLog(`─── ${G.players[pi].name}のターン開始（予算${getBudget(pi)}・${ts.target}枚ドロー）`, 'sys');
@@ -9570,6 +9591,7 @@
     // ─── 切断オーバーレイ ───
     function showDisconnectOverlay() {
       if (document.getElementById('disconnect-overlay')) return;
+      plCheckpoint();
       const ov = document.createElement('div'); ov.id = 'disconnect-overlay'; ov.className = 'disconnect-overlay';
       const _warnSvg = `<svg style="width:52px;height:52px;color:var(--yellow)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
       const _svgLinkD = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
@@ -9712,6 +9734,7 @@
       db.ref(`rooms/${roomId}/state`).on('value', snap => {
         const data = snap.val(); if (!data || data === myLastPush) return;
         const prevScreen = G.screen;
+        const _plPrevAtk = G.pendingAttack;
         // 観戦者: 手札フリップ検出 & ターンサマリー解除時HPアニメキュー
         if (myRole === 'spectator') {
           const prevUids = [0, 1].map(pi => new Set((G.players[pi].hand || []).map(c => c.uid)));
@@ -9739,6 +9762,7 @@
           }
         }
         G = { ...JSON.parse(data), confirm: null };
+        plOnRemoteState(prevScreen, _plPrevAtk);
         const newAp = G.activePlayer; const newScreen = G.screen;
         // メインフェーズ ターン切り替え
         if (myRole !== 'spectator' && _prevActivePlayer !== null && _prevActivePlayer !== newAp && (newScreen === 'main' || newScreen === 'turnDraw') && prevScreen !== 'turnSummary') {
@@ -9775,6 +9799,7 @@
               listenToState();
               setupPresence();
               G.gachaPickedIds = []; G.gachaCurrent = { playerIdx: 0, pickNum: 0, revealed: null }; G.screen = 'gacha';
+              plStartOnlineHost();
               commit();
             });
           }
@@ -9822,6 +9847,7 @@
                   G.players[1].name = s2.val() || 'プレイヤー2';
                   listenToState(); setupPresence();
                   G.gachaPickedIds = []; G.gachaCurrent = { playerIdx: 0, pickNum: 0, revealed: null }; G.screen = 'gacha';
+                  plStartOnlineHost();
                   commit();
                 });
               }
@@ -11339,7 +11365,7 @@
     }
 
     // ─── ガチャ ───
-    function renderGacha() {
+    function _renderGachaBase() {
       const gc = G.gachaCurrent; const p = G.players[gc.playerIdx];
 
       // All revealed: show 2 picked cities side by side
@@ -11971,6 +11997,7 @@
       const recycled = [];
       picks.forEach(uid => { const idx = p.hand.findIndex(c => c.uid === uid); if (idx >= 0) recycled.push(p.hand.splice(idx, 1)[0]); });
       _recycleSelected = []; G.recycleState = null;
+      plRecycle(pi, recycled);
       if (n > 0) {
         addLog(`${uiIcoUpload(13)} ${p.name}：ローリングストックで${n}枚を山札へ戻し`, 'sys');
         // Phase4：山札切れは引けるだけ引く（再シャッフル廃止）。B・Cの制限によりn<=p.deck.lengthのはずだが、
@@ -12595,6 +12622,7 @@
     <div class="go-inview go-turns-badge">総手番数 <strong>${totalTurns}</strong></div>
     ${cityBadgesHtml}
     ${vsDeckResultHtml()}
+    ${devCommentHtml()}
     ${karte}
     ${jinzaiKarte}
     ${terrainStat}
@@ -12704,6 +12732,7 @@
     function playCard(uid) {
       const p = G.players[G.activePlayer]; const idx = p.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = p.hand[idx];
       if (getBudgetLeft(G.activePlayer) < card.cost) return;
+      plEvent('play', { pi: G.activePlayer, card: card.id, options: plPlayableIds(G.activePlayer) });
       p.hand.splice(idx, 1); p.discard.push(card); p.budgetUsed += card.cost;
       pushUsedHistory(G.activePlayer, card);
       showBudgetToast(card.cost, getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
@@ -12753,6 +12782,7 @@
     }
 
     function skipResponse() {
+      plRespond(G.pendingAttack.defenderIdx, null, G.pendingAttack.card);
       resolveDamage(G.pendingAttack.card, G.pendingAttack.defenderIdx, null); G.pendingAttack = null;
       if (checkWin()) return; G.screen = versusScreenAfterResolve(); commit();
     }
@@ -12789,6 +12819,7 @@
     function playResponseCard(uid) {
       const atk = G.pendingAttack; const defIdx = atk.defenderIdx; const def = G.players[defIdx];
       const idx = def.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = def.hand[idx]; if (card.type !== 'policy') return;
+      plRespond(defIdx, card, atk.card);
       def.hand.splice(idx, 1); def.discard.push(card); pushUsedHistory(defIdx, card); addLog(`${uiIcoShield(13)} ${def.name}が「${cardIconSvg(card.icon,13)} ${card.name}」で対応！`, 'policy');
       if (!atk.responses) atk.responses = [];
       atk.responses.push(card);
@@ -12808,6 +12839,7 @@
     function discardCard(uid) {
       const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi];
       const idx = p.hand.findIndex(c => c.uid === uid); if (idx === -1) return;
+      plEvent('discard', { pi, card: p.hand[idx].id });
       const card = p.hand.splice(idx, 1)[0]; p.discard.push(card); addLog(`${uiIcoUpload(13)} ${p.name}がカードを1枚捨てた`, 'sys');
       if (p.hand.length <= 5) { G.discardNeeded = null; G.screen = dn.returnTo; }
       commit();
@@ -12841,6 +12873,7 @@
         _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [],
         usedHistory: { 0: [], 1: [] },
       };
+      if (db && roomId) plStartOnlineHost();
       commit();
     }
 
@@ -12901,6 +12934,7 @@
 
     function restartGame() {
       _lobbyEnter = true;
+      plAbandon();
       isCpuMode = false; _cpuCancelTimer();
       cleanupPresence();
       const _rApp = document.getElementById('app');
@@ -12934,6 +12968,7 @@
     }
 
     function replayCpuGame() {
+      plAbandon();
       _lobbyEnter = true;
       _cpuCancelTimer();
       const _rApp = document.getElementById('app');
@@ -13003,6 +13038,7 @@
         usedHistory: { 0: [], 1: [] }
       };
       localStorage.setItem('ron_lastName', name);
+      plStartCpu(difficulty);
       _cityEnterAnimPi = -1; _pendingCityEnterAnim = false; _pendingMainHpAnims.length = 0; _hpQ.length = 0; _draftAnimBusy = false; _gachaAnimState = null; _gachaRevealingCity = null; _gachaAllCities = null; _gachaBulkMode = false;
       render();
     }
@@ -21859,6 +21895,514 @@
       if (now - _lastTouchEnd <= 300) e.preventDefault();
       _lastTouchEnd = now;
     }, { passive: false });
+    // ═══════════════════════════════════════
+    // プレイ記録（開発者モード 第1段）
+    // 対戦1試合の行動を、イベントの列として端末のモジュール変数に持つ。
+    // ⚠️ 記録を G に入れてはならない（G は手を打つたびに丸ごと rooms/{id}/state へ送られる）。
+    // 開発者モードがオフ、またはテスター未登録の端末では、plStart が何もしないので記録は一切作られない。
+    // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
+    // ═══════════════════════════════════════
+    // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
+    const BUILD_ID = 'c5f9298';
+    const PLAYLOG_VERSION = 1;
+    const PL_KEY_PENDING = 'ron_playlog_pending';
+    const PL_KEY_CURRENT = 'ron_playlog_current';
+
+    /** 記録中の試合（無ければ null） @type {any} */
+    let _plCur = null;
+    let _plT0 = 0;
+    /** 送信待ち・未送信の記録 @type {any[]} */
+    let _plPending = [];
+    /** 直近に終えた記録（ゲームオーバー画面の一言の送り先） @type {{gameId: string, seat: string} | null} */
+    let _plLastEnded = null;
+
+    function _plDate() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function _plSavePending() {
+      try { localStorage.setItem(PL_KEY_PENDING, JSON.stringify(_plPending)); } catch (e) {}
+    }
+    function _plSaveCurrent() {
+      try {
+        if (_plCur) localStorage.setItem(PL_KEY_CURRENT, JSON.stringify(_plCur));
+        else localStorage.removeItem(PL_KEY_CURRENT);
+      } catch (e) {}
+    }
+
+    /** @returns {any} */
+    function plCurrent() { return _plCur; }
+    /** @returns {any[]} */
+    function plPending() { return _plPending; }
+
+    /** 記録を新しく始める。開発者モードがオフ・テスター未登録なら何もしない
+     * @param {{gameId: string, mode: string, cpuDifficulty?: string, seat: string, build: string}} meta */
+    function plStart(meta) {
+      if (!devLoggingOn()) return;
+      if (_plCur) plAbandon(); // 前の試合が終わっていなければ、未完了のまま保留リストへ移す
+      const t = devTester();
+      _plCur = {
+        v: PLAYLOG_VERSION, gameId: meta.gameId, mode: meta.mode,
+        cpuDifficulty: meta.mode === 'cpu' ? (meta.cpuDifficulty || null) : null,
+        seat: meta.seat, build: meta.build,
+        tester: { id: t ? t.id : '', tier: t ? t.tier : '' },
+        startedAt: _plDate(), events: [], result: null, complete: false, comment: '',
+      };
+      _plT0 = Date.now();
+    }
+
+    /** 今の記録にイベントを足す。記録が無い、または画面へ飛ぶための仮の盤面のときは何もしない
+     * @param {string} type @param {any} [data] @returns {any} */
+    function plEvent(type, data) {
+      if (!_plCur) return null;
+      if (G && G._devPreview) return null;
+      const ev = { t: type, turn: [G.turnsEach[0], G.turnsEach[1]], at: Date.now() - _plT0, ...(data || {}) };
+      _plCur.events.push(ev);
+      if (type === 'turnEnd') _plSaveCurrent(); // 切断・タブを閉じたときに備えて、手番の終わりごとに端末へ書く
+      return ev;
+    }
+
+    /** 記録を閉じて保留リストへ移す（送信は plUpload が行う）
+     * @param {{winner: number | null, endReason: string, turns: number[], hpSum: number[]}} result */
+    function plEnd(result) {
+      if (!_plCur) return;
+      const log = _plCur;
+      log.result = result; log.complete = true;
+      _plCur = null; _plSaveCurrent();
+      _plPending.push(log); _plSavePending();
+      _plLastEnded = { gameId: log.gameId, seat: log.seat };
+      plUpload(log).catch(() => {}); // 送信は待たない。失敗しても画面は進み、記録は保留リストに残る
+    }
+
+    /** 記録中の試合を、未完了のまま保留リストへ移す（pagehide・ロビーへ戻る・次の試合の開始時に呼ぶ） */
+    function plAbandon() {
+      if (!_plCur) return;
+      const log = _plCur;
+      log.complete = false; log.result = null;
+      _plCur = null; _plSaveCurrent();
+      _plPending.push(log); _plSavePending();
+    }
+
+    /** カードを id の列にする（uid や表示名は入れない）
+     * @param {{id: string}[]} cards @returns {string[]} */
+    function plHand(cards) { return (cards || []).map(c => c.id); }
+
+    /** そのとき自分の手番で出せたカードの id（予算以内のもの。playCard の使用可否の判定と同じ）
+     * @param {number} pi @returns {string[]} */
+    function plPlayableIds(pi) {
+      const left = getBudgetLeft(pi);
+      return G.players[pi].hand.filter(c => left >= c.cost).map(c => c.id);
+    }
+
+    // ═══════════════════════════════════════
+    // 記録を取る場所から呼ぶ関数（呼ぶ側に条件分岐を書かないため、記録の有無の判定はここで済ませる）
+    // ═══════════════════════════════════════
+    /** 自分（またはCPU戦）の手札などを記録に入れてよいか：オンラインでは相手の手札・山札の中身は入れない
+     * @param {number} pi */
+    function plMine(pi) { return isCpuMode || pi === myPlayerIdx; }
+    /** @param {any} v */
+    function _plClone(v) { return JSON.parse(JSON.stringify(v)); }
+    /** 直近に使った gameId（ゲストが、前の試合の古い devGameId を読んで使い回さないための印） */
+    let _plLastGameId = '';
+    /** @type {any} */ let _plRecycleEv = null;
+    /** @type {string[]} */ let _plDrew = [];
+    let _plDeckOpenAt = 0;
+    /** @type {string[] | null} */ let _plGachaCands = null;
+    let _plDevPick = false;
+
+    function _plNewId(prefix) { return prefix + Date.now() + '_' + String(Math.random() * 10000 | 0).padStart(4, '0'); }
+    /** CPU戦の記録を始める（gameId は cpu_ + 時刻 + 乱数4桁）
+     * @param {string} difficulty */
+    function plStartCpu(difficulty) {
+      if (!devLoggingOn()) return;
+      _plDrew = []; _plDeckOpenAt = 0; _plGachaCands = null; _plDevPick = false; _plRecycleEv = null;
+      _plLastGameId = _plNewId('cpu_');
+      plStart({ gameId: _plLastGameId, mode: 'cpu', cpuDifficulty: difficulty, seat: 'p1', build: BUILD_ID });
+    }
+    /** オンライン対戦の記録を始める（ホスト）。gameId は roomId + _ + 時刻で、rooms/{roomId}/devGameId に置いてゲストへ渡す */
+    function plStartOnlineHost() {
+      if (!devLoggingOn() || !roomId || myRole === 'spectator') return;
+      _plDrew = []; _plDeckOpenAt = 0; _plGachaCands = null; _plDevPick = false; _plRecycleEv = null;
+      const hostId = roomId + '_' + Date.now();
+      _plLastGameId = hostId === _plLastGameId ? hostId + 'b' : hostId; // 同じミリ秒に続けて始めても前と同じ番号にしない
+      try { if (db) Promise.resolve(db.ref('rooms/' + roomId + '/devGameId').set(_plLastGameId)).catch(() => {}); } catch (e) {}
+      plStart({ gameId: _plLastGameId, mode: 'online', seat: myRole === 'p2' ? 'p2' : 'p1', build: BUILD_ID });
+    }
+    /** オンライン対戦の記録を始める（ゲスト）。ホストが決めた gameId を読む。ホストが開発者モードでなければ自前の番号にする
+     * @returns {Promise<void>} */
+    function plStartOnlineGuest() {
+      if (!devLoggingOn() || !roomId || myRole === 'spectator') return Promise.resolve();
+      _plDrew = []; _plDeckOpenAt = 0; _plGachaCands = null; _plDevPick = false; _plRecycleEv = null;
+      const rid = roomId, seat = myRole === 'p2' ? 'p2' : 'p1';
+      const begin = (/** @type {any} */ hostId) => {
+        const id = (typeof hostId === 'string' && hostId && hostId !== _plLastGameId) ? hostId : rid + '_g' + Date.now();
+        _plLastGameId = id;
+        plStart({ gameId: id, mode: 'online', seat, build: BUILD_ID });
+      };
+      try {
+        if (!db) { begin(null); return Promise.resolve(); }
+        return Promise.resolve(db.ref('rooms/' + rid + '/devGameId').get()).then(snap => begin(snap && snap.val ? snap.val() : null), () => begin(null));
+      } catch (e) { begin(null); return Promise.resolve(); }
+    }
+    /** 相手側の端末が進めた状態を受け取ったときに呼ぶ（listenToState）。ガチャの開始・相手の攻撃宣言・決着を拾う
+     * @param {string} prevScreen @param {any} prevAtk */
+    function plOnRemoteState(prevScreen, prevAtk) {
+      if (myRole === 'spectator') return;
+      if (myRole === 'p2' && G.screen === 'gacha' && prevScreen !== 'gacha') plStartOnlineGuest();
+      if (!_plCur) return;
+      const atk = G.pendingAttack;
+      if (atk && !prevAtk && atk.attackerIdx !== myPlayerIdx) plEvent('play', { pi: atk.attackerIdx, card: atk.card.id });
+      if (G.screen === 'gameover' && prevScreen !== 'gameover') plEndFromG();
+    }
+    /** 決着した盤面 G から結果を作って記録を閉じる（checkWin・finishByTurnLimit・相手の決着を受け取ったとき） */
+    function plEndFromG() {
+      if (!_plCur) return;
+      const hpSum = G.players.map((/** @type {any} */ p) => p.cityHps.reduce((/** @type {number} */ s, /** @type {number} */ h) => s + Math.max(0, h), 0));
+      plEnd({ winner: G.winner == null ? null : G.winner, endReason: G._endReason || 'destroyed', turns: [G.turnsEach[0], G.turnsEach[1]], hpSum });
+    }
+    /** 切断オーバーレイが出たとき：記録中のデータを端末へ書いておく（試合はまだ続けられるので、保留リストへは移さない） */
+    function plCheckpoint() { _plSaveCurrent(); }
+
+    // ── ガチャ・順番・デッキ・初期手札 ──
+    /** @param {string[]} ids */
+    function plNoteCands(ids) { _plGachaCands = ids; }
+    function plNoteDevPick() { _plGachaCands = null; _plDevPick = true; }
+    /** @param {number} pi @param {{id: string}} city */
+    function plGacha(pi, city) {
+      if (!_plCur) { _plGachaCands = null; _plDevPick = false; return; }
+      plEvent('gacha', { pi, candidates: _plGachaCands || [city.id], picked: city.id, dev: _plDevPick });
+      _plGachaCands = null; _plDevPick = false;
+    }
+    function plMarkDeckOpen() { if (_plCur && !_plDeckOpenAt) _plDeckOpenAt = Date.now(); }
+    /** @param {number} pi @param {Object<string, number>} counts */
+    function plDeck(pi, counts) {
+      if (!_plCur) return;
+      const recommended = buildCityAwareDeckCounts(G.players[pi].cities);
+      plEvent('deck', { pi, counts: { ...counts }, recommended, usedRecommendedAsIs: vsDeckSameCounts(counts, recommended), ms: _plDeckOpenAt ? Date.now() - _plDeckOpenAt : null });
+      _plDeckOpenAt = 0;
+    }
+
+    // ── 手番の始め・ドロー ──
+    /** @param {{id: string}} card */
+    function plNoteDrawn(card) { if (_plCur && card) _plDrew.push(card.id); }
+    /** @param {number} pi @param {string[]} drew */
+    function plTurnStart(pi, drew) {
+      if (!_plCur) return;
+      /** @type {any} */
+      const d = {
+        pi, drew,
+        hp: G.players.map((/** @type {any} */ p) => p.cityHps[p.activeCityIdx]),
+        budget: getBudget(pi),
+        deck: [G.players[0].deck.length, G.players[1].deck.length],
+        discard: [G.players[0].discard.length, G.players[1].discard.length],
+        effects: _plClone(G.players.map((/** @type {any} */ p) => p.effects)),
+      };
+      if (plMine(pi)) d.hand = plHand(G.players[pi].hand);
+      plEvent('turnStart', d);
+    }
+    /** ドローが終わったとき（acceptTurnCard）。ローリングストックの引いた札を埋め、通常のドローなら turnStart を足す
+     * @param {number} pi @param {any} ts */
+    function plOnDrawDone(pi, ts) {
+      const drew = _plDrew; _plDrew = [];
+      if (!_plCur) return;
+      if (ts.isRecycle) { if (_plRecycleEv) { _plRecycleEv.drew = drew; _plRecycleEv = null; } return; }
+      if (ts.isHazardMap) return;
+      plTurnStart(pi, drew);
+    }
+    /** @param {number} pi @param {{id: string}[]} recycled */
+    function plRecycle(pi, recycled) { _plRecycleEv = plEvent('recycle', { pi, returned: plHand(recycled), drew: [] }); }
+
+    // ── 行動 ──
+    /** @param {number} pi @returns {string[]} */
+    function plPolicyIds(pi) { return G.players[pi].hand.filter((/** @type {any} */ c) => c.type === 'policy').map((/** @type {any} */ c) => c.id); }
+    /** 対応の決定（card が null なら使わなかった）
+     * @param {number} pi @param {{id: string} | null} card @param {{id: string}} atkCard */
+    function plRespond(pi, card, atkCard) { plEvent('respond', { pi, card: card ? card.id : null, options: plPolicyIds(pi), attack: atkCard.id }); }
+
+    // ═══════════════════════════════════════
+    // 送信・保存・一言
+    // ═══════════════════════════════════════
+    /** @param {any} log */
+    function _plMeta(log) {
+      return { v: log.v, mode: log.mode, seat: log.seat, tier: log.tester.tier, testerId: log.tester.id, date: log.startedAt, complete: !!log.complete, build: log.build };
+    }
+    /** 記録を Firebase の playLogs/{gameId}/{seat} へ送る。成功したら保留リストから外す。db が無い・失敗・大きすぎるときは false で、保留リストに残す
+     * @param {any} log @returns {Promise<boolean>} */
+    async function plUpload(log) {
+      try {
+        if (!db || !log) return false;
+        const json = JSON.stringify(log);
+        if (json.length >= 1000000) return false; // Firebase のルールの上限。ファイル保存で逃がす
+        await db.ref('playLogs/' + log.gameId + '/' + log.seat).set({ meta: _plMeta(log), json });
+        _plPending = _plPending.filter(l => !(l.gameId === log.gameId && l.seat === log.seat));
+        _plSavePending();
+        return true;
+      } catch (e) { return false; }
+    }
+    /** 保留リストの記録をまとめて送り直す
+     * @returns {Promise<{ok: number, ng: number}>} */
+    async function plUploadPending() {
+      let ok = 0, ng = 0;
+      for (const log of _plPending.slice()) { if (await plUpload(log)) ok++; else ng++; }
+      return { ok, ng };
+    }
+    /** ファイルに保存する中身：保留リストと記録中の試合 */
+    function plDownloadData() {
+      const logs = _plPending.slice();
+      if (_plCur) logs.push(_plCur);
+      const t = devTester();
+      const d = new Date(); const z = (/** @type {number} */ n) => String(n).padStart(2, '0');
+      const stamp = d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes());
+      return { name: 'playlog_' + (t ? t.id : 'unknown') + '_' + stamp + '.json', text: JSON.stringify({ v: PLAYLOG_VERSION, exportedAt: d.toISOString(), logs }) };
+    }
+    function plDownload() {
+      try {
+        const data = plDownloadData();
+        const url = URL.createObjectURL(new Blob([data.text], { type: 'application/json' }));
+        const a = document.createElement('a'); a.href = url; a.download = data.name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {}
+    }
+    /** 試合後の一言。保留リストにあればそこに（送り直す）、送信済みなら playLogs/{gameId}/{seat}/comment に書く
+     * @param {string} gameId @param {string} text */
+    function plSetComment(gameId, text) {
+      const t = String(text == null ? '' : text).slice(0, 1000);
+      const pend = _plPending.find(l => l.gameId === gameId);
+      if (pend) { pend.comment = t; _plSavePending(); plUpload(pend).catch(() => {}); return; }
+      if (_plCur && _plCur.gameId === gameId) { _plCur.comment = t; return; }
+      const seat = (_plLastEnded && _plLastEnded.gameId === gameId) ? _plLastEnded.seat : (myRole === 'p2' ? 'p2' : 'p1');
+      try { if (db) Promise.resolve(db.ref('playLogs/' + gameId + '/' + seat + '/comment').set(t)).catch(() => {}); } catch (e) {}
+    }
+    /** @returns {{gameId: string, seat: string} | null} */
+    function plLastEnded() { return _plLastEnded; }
+
+    // 画面を閉じる・離れるとき：記録中の試合を未完了のまま保留リストへ移す
+    (function plBindPageHide() {
+      try { window.addEventListener('pagehide', () => plAbandon()); } catch (e) {}
+    })();
+
+    // 起動時：端末に残った保留リストを読み、途中で終わった記録中のデータは未完了として保留リストへ移す
+    (function plInit() {
+      try {
+        const raw = localStorage.getItem(PL_KEY_PENDING);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(arr)) _plPending = arr;
+        const cur = localStorage.getItem(PL_KEY_CURRENT);
+        if (cur) {
+          const log = JSON.parse(cur);
+          if (log && log.gameId) { log.complete = false; log.result = null; _plPending.push(log); }
+          localStorage.removeItem(PL_KEY_CURRENT); _plSavePending();
+        }
+      } catch (e) {}
+    })();
+    // ═══════════════════════════════════════
+    // 開発者モード（第1段：入口・テスター登録）
+    // 入口を出すのは GitHub 版のホスト名と file: だけ（localhost はアプリ版が使うため含めない）。
+    // 開発者モードがオフの端末では、ゲームの挙動・画面・同期の中身を一切変えない。
+    // 記録の本体は 245_playlog.js。ここは「入れるか」「誰が遊んでいるか」「設定画面の行」だけを持つ。
+    // ═══════════════════════════════════════
+    const DEV_HOSTS = ['kawa50451-prog.github.io'];
+    const DEV_TIERS = ['初心者', '標準', '設計者'];
+    const DEV_KEY_ON = 'ron_dev_on';
+    const DEV_KEY_TESTER = 'ron_dev_tester';
+
+    /** @param {{protocol?: string, hostname?: string} | null | undefined} loc */
+    function devModeAvailable(loc) {
+      if (!loc) return false;
+      if (loc.protocol === 'file:') return true;
+      return DEV_HOSTS.includes(loc.hostname || '');
+    }
+    function devModeOn() {
+      try {
+        if (!devModeAvailable(window.location)) return false;
+        return localStorage.getItem(DEV_KEY_ON) === '1';
+      } catch (e) { return false; }
+    }
+    /** @param {boolean} on */
+    function devSetOn(on) {
+      try { if (on) localStorage.setItem(DEV_KEY_ON, '1'); else localStorage.removeItem(DEV_KEY_ON); } catch (e) {}
+      devApplyBadge();
+    }
+    /** @returns {{id: string, tier: string} | null} */
+    function devTester() {
+      try {
+        const raw = localStorage.getItem(DEV_KEY_TESTER); if (!raw) return null;
+        const t = JSON.parse(raw);
+        if (t && typeof t.id === 'string' && t.id && typeof t.tier === 'string') return { id: t.id, tier: t.tier };
+      } catch (e) {}
+      return null;
+    }
+    /** @param {string} id @param {string} tier */
+    function devSetTester(id, tier) {
+      const cleanId = String(id == null ? '' : id).trim().slice(0, 20);
+      try {
+        if (!cleanId) { localStorage.removeItem(DEV_KEY_TESTER); return; }
+        localStorage.setItem(DEV_KEY_TESTER, JSON.stringify({ id: cleanId, tier: DEV_TIERS.includes(tier) ? tier : DEV_TIERS[0] }));
+      } catch (e) {}
+    }
+    /** 記録を取る端末か：開発者モードがオンで、テスター登録がある */
+    function devLoggingOn() { return devModeOn() && devTester() !== null; }
+
+    // オンのあいだ、画面の右上に小さく DEV と出す（普通の状態と取り違えないため）
+    function devApplyBadge() {
+      try {
+        if (typeof document === 'undefined' || !document.createElement || !document.body) return;
+        const old = document.getElementById('dev-badge');
+        if (!devModeOn()) { if (old) old.remove(); return; }
+        if (old) return;
+        const el = document.createElement('div'); el.id = 'dev-badge'; el.textContent = 'DEV';
+        el.style.cssText = 'position:fixed;top:6px;right:6px;z-index:9999;padding:1px 7px;border-radius:8px;font:700 .62rem/1.5 "Roboto Condensed",sans-serif;letter-spacing:.1em;color:#fff;background:rgba(248,81,73,.85);pointer-events:none';
+        document.body.appendChild(el);
+      } catch (e) {}
+    }
+
+    // ═══════════════════════════════════════
+    // 都市を自由に選ぶ（対戦のガチャの代わり）
+    // 開発者モードの端末が、自分のガチャの番のときだけ働く。相手が開発者モードでなければ、相手は今までどおりガチャを引く。
+    // 選んだ都市は既存の acceptGachaCity() に渡すので、重複の規則（同じ都市は選べない）も以降の流れも変わらない。
+    // ═══════════════════════════════════════
+    /** @param {string} cityId */
+    function devPickCity(cityId) {
+      if (!devModeOn()) return;
+      const gc = G.gachaCurrent;
+      if (!gc || G.screen !== 'gacha' || gc.playerIdx !== myPlayerIdx) return;
+      if (typeof _gachaAnimState !== 'undefined' && _gachaAnimState) return; // 開封演出の最中は受け付けない
+      if (G.gachaPickedIds.includes(cityId)) return;
+      const city = CITIES.find(c => c.id === cityId);
+      if (!city) return;
+      plNoteDevPick();
+      gc.candidates = null; gc.revealed = city;
+      acceptGachaCity();
+    }
+    /** ガチャ画面の下に出す選択パネル（開発者モードで、自分のガチャの番のときだけ） */
+    function devGachaPanelHtml() {
+      const gc = G.gachaCurrent;
+      if (!devModeOn() || !gc || G.screen !== 'gacha' || gc.playerIdx !== myPlayerIdx || gc.revealed) return '';
+      if (typeof _gachaAnimState !== 'undefined' && _gachaAnimState) return '';
+      const btns = CITIES.map(c => {
+        const taken = G.gachaPickedIds.includes(c.id);
+        return '<button type="button" class="settings-seg-btn" ' + (taken ? 'disabled style="opacity:.35"' : '') + ' onclick="devPickCity(\'' + c.id + '\')">' + _escHtml(c.name) + '</button>';
+      }).join('');
+      return '<div id="dev-gacha-panel" style="position:fixed;left:0;right:0;bottom:0;z-index:60;max-height:42vh;overflow:auto;padding:8px 10px;background:rgba(13,17,23,.94);border-top:1px solid var(--bg3)"><div style="font-size:.72rem;font-weight:700;color:var(--t1);margin-bottom:6px">都市を選ぶ（DEV）</div><div style="display:flex;flex-wrap:wrap;gap:6px">' + btns + '</div></div>';
+    }
+    function renderGacha() { return _renderGachaBase() + devGachaPanelHtml(); }
+
+    // ═══════════════════════════════════════
+    // 見たい画面へ飛ぶ（結果画面・都市の交代・ターンのまとめ）
+    // オフラインの仮の G を組み立てて render() する。仮の G には _devPreview: true を付け、
+    // plEvent はこの印があれば何も足さない。isCpuMode を true にするので pushState は何も送らない（roomId も外す）。
+    // 対戦の途中（lobby 以外）では飛ばない。
+    // ═══════════════════════════════════════
+    const DEV_JUMP_KINDS = [
+      ['win_destroyed', '勝利（全壊）'], ['lose_destroyed', '敗北（全壊）'],
+      ['win_deckout', '勝利（山札切れ）'], ['lose_deckout', '敗北（山札切れ）'],
+      ['win_maxturn', '勝利（18ターン）'], ['lose_maxturn', '敗北（18ターン）'],
+      ['citySwitch', '都市の交代'], ['turnSummary', 'ターンのまとめ'],
+    ];
+    /** @param {string} kind */
+    function _devFakeG(kind) {
+      const city = (/** @type {string} */ id, /** @type {number} */ i) => CITIES.find(c => c.id === id) || CITIES[i];
+      const mkP = (/** @type {string} */ name, /** @type {any[]} */ cities, /** @type {number[]} */ hps) => ({ name, cities, cityHps: hps, activeCityIdx: 0, hand: /** @type {any[]} */ ([]), budgetUsed: 0, effects: mkEffects(), deck: /** @type {any[]} */ ([]), discard: /** @type {any[]} */ ([]) });
+      const me = mkP('あなた', [city('tokyo', 0), city('sendai', 1)], [60, 60]);
+      const cpu = mkP('CPU（NORMAL）', [city('osaka', 2), city('kobe', 3)], [60, 60]);
+      me.hand = ALL_CARDS.filter(c => c.type === 'policy').slice(0, 3).map((c, i) => ({ ...c, uid: c.id + '_dev' + i }));
+      /** @type {any} */
+      const g = {
+        screen: 'main', activePlayer: 0, turnsEach: [3, 3], players: [me, cpu], log: [],
+        pendingAttack: null, recycleState: null, pendingPollution: null, pendingTyphoon: null, stealSeq: 0, winner: null, _endReason: null,
+        gachaPickedIds: [], gachaCurrent: null, draftState: null, discardNeeded: null, confirm: null, turnDrawState: null, cityOrderState: null, deckBuildState: null,
+        _nextTurnEvents: { 0: [], 1: [] }, _turnSummary: null, _gameHistory: [], usedHistory: { 0: [], 1: [] }, _devPreview: true,
+      };
+      const m = /^(win|lose)_(destroyed|deckout|maxturn)$/.exec(kind);
+      if (m) {
+        const win = m[1] === 'win', reason = m[2];
+        const loser = win ? cpu : me, winner = win ? me : cpu;
+        g.screen = 'gameover'; g.winner = win ? 0 : 1;
+        g._endReason = reason === 'destroyed' ? null : reason; // 全壊のときは本物の checkWin と同じく _endReason を立てない
+        if (reason === 'destroyed') { loser.cityHps = [0, 0]; loser.activeCityIdx = 1; winner.cityHps = [40, 55]; g.turnsEach = [8, 8]; }
+        else { winner.cityHps = [30, 60]; loser.cityHps = [20, 10]; g.turnsEach = reason === 'deckout' ? [14, 14] : [18, 18]; }
+      } else if (kind === 'turnSummary') {
+        const eq = ALL_CARDS.find(c => c.id === 'earthquake') || ALL_CARDS[0];
+        g.screen = 'turnSummary'; g._atkSummaryConfirmed = true;
+        g._turnSummary = [{ type: 'damage', cardId: eq.id, cardIcon: eq.icon, cardName: eq.name, baseDamage: 40, details: [{ cat: 'exposure', text: '地形リスク（+10）', delta: 10, running: 50 }, { cat: 'shield_pre', text: '耐震シールド（−30）', delta: -30, running: 20 }], damage: 20, hpBefore: 60, hpAfterDamage: 40, hpAfter: 40, healAmount: 0, healCardName: '' }];
+      } else if (kind === 'citySwitch') {
+        g.screen = 'turnSummary'; g._atkSummaryConfirmed = true;
+        me.cityHps = [0, 60]; me.activeCityIdx = 1;
+        g._turnSummary = [{ type: 'city_switch', oldCityName: me.cities[0].name, newCityIcon: terrainImg(me.cities[1], 18), newCityName: me.cities[1].name }];
+      }
+      return g;
+    }
+    /** @param {string} kind */
+    function devJump(kind) {
+      if (!devModeOn()) return;
+      if (G.screen !== 'lobby' && !G._devPreview) return; // 対戦の途中では飛ばない
+      if (!DEV_JUMP_KINDS.some(k => k[0] === kind)) return;
+      _cpuCancelTimer();
+      isCpuMode = true; cpuDifficulty = 'normal'; myRole = 'p1'; myPlayerIdx = 0; roomId = null;
+      G = _devFakeG(kind);
+      _settingsOpen = false;
+      render();
+    }
+    /** @param {string} kind */
+    function devUiJump(kind) { devJump(kind); }
+
+    // ── 設定画面の「開発者モード」の行（入口が出る場所でだけ描く） ──
+    let _devUiTier = null;
+    function _devApplyUi() { devApplyBadge(); _ronAfterSettingChange(); }
+    function devUiToggle(on) { devSetOn(!!on); _devApplyUi(); }
+    function devUiApplyTester() {
+      /** @type {HTMLInputElement | null} */
+      const el = (typeof document !== 'undefined' && document.getElementById) ? /** @type {HTMLInputElement | null} */ (document.getElementById('dev-tester-id')) : null;
+      const cur = devTester();
+      const id = el ? el.value : (cur ? cur.id : '');
+      devSetTester(id, _devUiTier || (cur ? cur.tier : DEV_TIERS[0]));
+      _devApplyUi();
+    }
+    /** @param {number} i DEV_TIERS の添字 */
+    function devUiSetTier(i) { _devUiTier = DEV_TIERS[i] || DEV_TIERS[0]; devUiApplyTester(); }
+    // ── ゲームオーバー画面の「意識したこと（任意）」 ──
+    let _devCommentDraft = '';
+    let _devCommentSentFor = '';
+    /** @param {string} v */
+    function devCommentInput(v) { _devCommentDraft = v; }
+    function devCommentSend() {
+      const le = plLastEnded(); if (!le) return;
+      plSetComment(le.gameId, _devCommentDraft);
+      _devCommentSentFor = le.gameId; render();
+    }
+    function devCommentHtml() {
+      const le = plLastEnded();
+      if (!devLoggingOn() || !le || G._devPreview) return '';
+      if (_devCommentSentFor === le.gameId) return '<div class="go-inview go-stats-table go-deck-save"><div class="go-stats-section-header go-karte-header">意識したこと</div><div style="padding:10px 14px;font-size:.82rem;color:var(--t1)">送りました</div></div>';
+      return '<div class="go-inview go-stats-table go-deck-save"><div class="go-stats-section-header go-karte-header">意識したこと（任意）</div><div style="display:flex;gap:8px;padding:10px 14px"><input type="text" maxlength="200" value="' + _escHtml(_devCommentDraft) + '" oninput="devCommentInput(this.value)" placeholder="一言" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:.85rem"><button type="button" class="go-deck-mini go-deck-mini-green" onclick="devCommentSend()">' + uiIcoUpload(13) + ' 送る</button></div></div>';
+    }
+
+    // ── 設定画面の開発者モード：記録のファイル保存と送り直し ──
+    let _devUiMsg = '';
+    async function devUiSendPending() {
+      _devUiMsg = '送信中…'; _devApplyUi();
+      const r = await plUploadPending();
+      _devUiMsg = '送信 ' + r.ok + '件・失敗 ' + r.ng + '件'; _devApplyUi();
+    }
+    function devSettingsRowHtml() {
+      if (!devModeAvailable(window.location)) return '';
+      const on = devModeOn();
+      const sw = on ? 'ios-switch on' : 'ios-switch';
+      let html = '<hr class="hint-divider"><div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">開発者モード</span><span class="settings-row-desc">開発側の確認用です。テスター登録をすると、対戦の記録が取られます</span></div><div class="' + sw + '" onclick="devUiToggle(!devModeOn())" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>';
+      if (!on) return html;
+      const t = devTester();
+      const tierNow = _devUiTier || (t ? t.tier : DEV_TIERS[0]);
+      const tierSeg = DEV_TIERS.map((x, i) => '<button class="settings-seg-btn' + (tierNow === x ? ' active' : '') + '" onclick="devUiSetTier(' + i + ')">' + x + '</button>').join('');
+      html += '<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">テスター番号</span><span class="settings-row-desc">' + (t ? '登録済み：' + _escHtml(t.id) + '（' + _escHtml(t.tier) + '）。この端末の対戦を記録します' : '番号を入れると記録が始まります（例：T01）') + '</span></div><input type="text" id="dev-tester-id" maxlength="20" value="' + (t ? _escHtml(t.id) : '') + '" placeholder="T01" onchange="devUiApplyTester()" style="width:5.5rem;flex-shrink:0;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:.85rem"></div>';
+      html += '<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">区分</span></div><div class="settings-seg">' + tierSeg + '</div></div>';
+      const pend = plPending().length;
+      html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">プレイ記録</span><span class="settings-row-desc">未送信 ' + pend + '件' + (plCurrent() ? '（記録中の試合あり）' : '') + (_devUiMsg ? '　' + _devUiMsg : '') + '</span></div><button class="copy-url-btn" style="font-size:.78rem" onclick="plDownload()">記録をファイルに保存</button><button class="copy-url-btn" style="font-size:.78rem" onclick="devUiSendPending()">未送信の記録を送る（' + pend + '件）</button></div>';
+      const jumpBtns = DEV_JUMP_KINDS.map(k => '<button class="settings-seg-btn" onclick="devUiJump(\'' + k[0] + '\')">' + k[1] + '</button>').join('');
+      html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">画面へ飛ぶ</span><span class="settings-row-desc">確認用の仮の盤面を開きます（記録されません）。ロビーにいるときだけ使えます</span></div><div class="settings-seg" style="flex-wrap:wrap">' + jumpBtns + '</div></div>';
+      return html;
+    }
+    devApplyBadge();
   </script>
 </body>
 
