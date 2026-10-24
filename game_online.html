@@ -5241,6 +5241,78 @@
       const a = VERSUS_DECK_ARCHETYPES[type];
       return a ? { ...a.counts } : buildCityAwareDeckCounts(cities);
     }
+    // 使えないカード（開発者モード第5段）。デッキの枚数表から使えないカードを抜き、抜いた枚数を同じ枠のほかのカードに、元の比率で配り直す。
+    //   配り先は、その枠で上限（同名3枚・複合災害1枚）に届いていないカード。元の枚数が1枚以上のカードを比率で優先し、全部埋まったときだけ、元が0枚のカードに均等に配る。
+    //   端数は元の枚数の多い順に1枚ずつ（同じ枚数ならカード定義の並び順）。同じ入力なら必ず同じ結果になる。
+    //   同じ枠に配り切れない分（例：自由枠は2種しかなく、1種を抜くと残りの1種は上限で埋まる）は、枠の下限（攻める・守る6枚）を割らない範囲で、
+    //   ほかの枠の上限までに回す（自由枠から守る枠、守る枠から攻める枠、攻める枠から守る枠の順）。それでも配れない、または下限を割るときは、何も配らず理由を返す。
+    //   元の枚数表は書き換えない。
+    /** @param {Partial<Record<CardId, number>>} counts @param {string[]} ban
+     * @returns {{ok: boolean, counts: Partial<Record<CardId, number>>, reasons: string[]}} ok のとき counts が配り直した枚数表（reasons は空）。ok でないとき counts は元のまま、reasons に理由 */
+    function vsApplyBan(counts, ban) {
+      /** @type {string[]} */ const reasons = [];
+      const banned = [...new Set(Array.isArray(ban) ? ban : [])];
+      for (const id of banned) if (!ALL_CARDS.some(c => c.id === id)) reasons.push('知らないカード「' + id + '」は使えないカードにできない');
+      if (reasons.length) return { ok: false, counts: { ...counts }, reasons };
+      if (!banned.length) return { ok: true, counts: { ...counts }, reasons: [] };
+      /** @type {Record<string, number>} */ const out = {};
+      for (const c of ALL_CARDS) { const n = counts[c.id] || 0; if (n > 0 && !banned.includes(c.id)) out[c.id] = n; }
+      /** @type {CardFrame[]} */ const FRAMES = ['attack', 'defend', 'free'];
+      const cardsOf = (/** @type {CardFrame} */ f) => ALL_CARDS.filter(c => c.frame === f && !banned.includes(c.id));
+      const room = (/** @type {{id: string, maxCopies?: number}} */ c) => (c.maxCopies ?? VERSUS_DECK_MAX_COPIES) - (out[c.id] || 0);
+      const sumOf = (/** @type {CardFrame} */ f) => ALL_CARDS.reduce((s, c) => s + (c.frame === f ? (out[c.id] || 0) : 0), 0);
+      /** cand のカードに amount 枚を元の比率で配り、配れなかった枚数を返す */
+      const place = (/** @type {any[]} */ cand, /** @type {number} */ amount) => {
+        let left = amount;
+        while (left > 0) {
+          const open = cand.filter(c => room(c) > 0);
+          if (!open.length) break;
+          const pos = open.filter(c => (counts[c.id] || 0) > 0);
+          const pool = pos.length ? pos : open;
+          const w = (/** @type {{id: string}} */ c) => pos.length ? (counts[c.id] || 0) : 1;
+          const sum = pool.reduce((s, c) => s + w(c), 0);
+          /** @type {Record<string, number>} */ const give = {};
+          let given = 0;
+          for (const c of pool) { const g = Math.min(room(c), Math.floor(left * w(c) / sum)); give[c.id] = g; given += g; }
+          let rest = left - given;
+          for (const c of [...pool].sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0))) {
+            if (rest <= 0) break;
+            if (give[c.id] < room(c)) { give[c.id]++; rest--; given++; }
+          }
+          if (given === 0) break;
+          for (const c of pool) if (give[c.id] > 0) out[c.id] = (out[c.id] || 0) + give[c.id];
+          left -= given;
+        }
+        return left;
+      };
+      /** @type {Record<CardFrame, CardFrame[]>} */
+      const SPILL = { free: ['defend', 'attack'], defend: ['attack'], attack: ['defend'] };
+      /** @type {Record<string, number>} */ const removed = {}, spill = {};
+      for (const f of FRAMES) {
+        removed[f] = ALL_CARDS.reduce((s, c) => s + (c.frame === f && banned.includes(c.id) ? (counts[c.id] || 0) : 0), 0);
+        spill[f] = removed[f] ? place(cardsOf(f), removed[f]) : 0;
+      }
+      for (const f of FRAMES) {
+        if (!spill[f]) continue;
+        const rule = VERSUS_FRAME_RULES[f];
+        if (sumOf(f) < rule.min) {
+          reasons.push(VERSUS_FRAME_LABEL[f] + '枠から使えないカードを' + removed[f] + '枚抜くと、同じ枠の残り' + cardsOf(f).length + '種には' + sumOf(f) + '枚しか入らず、下限' + rule.min + '枚を割る');
+          continue;
+        }
+        let left = spill[f];
+        for (const d of SPILL[f]) {
+          const cap = VERSUS_FRAME_RULES[d].max - sumOf(d);
+          if (left <= 0 || cap <= 0) continue;
+          const take = Math.min(left, cap);
+          left -= take - place(cardsOf(d), take);
+        }
+        if (left > 0) reasons.push(VERSUS_FRAME_LABEL[f] + '枠から使えないカードを' + removed[f] + '枚抜いたが、' + left + '枚の配り先が無い');
+      }
+      if (reasons.length) return { ok: false, counts: { ...counts }, reasons };
+      const v = deckBuildValidate(out);
+      if (!v.ok) return { ok: false, counts: { ...counts }, reasons: v.reasons.slice() };
+      return { ok: true, counts: out, reasons: [] };
+    }
     // Phase6：都市に合わせたデッキ自動生成。崩すのは「守る枠」10枚の内訳だけ（攻める枠・自由枠・総枚数は不変）。
     // 12都市ぶんの補正表はハードコードせず、CITIESの isCoastal/isMountain/abilityType から機械的に導出する
     // （表を手で持つと都市追加時の更新漏れにつながるため）。
@@ -6230,7 +6302,7 @@
     let cpuDifficulty = 'normal'; // 'easy' | 'normal' | 'hard'
     let _cpuTimer = null;
     /** 席ごとの CPU 設定（null は人）。G には入れない。cpuSeatCfg(pi) で読む */
-    /** @type {Array<null | {deck: string, skill: string, cities?: string[]}>} */
+    /** @type {Array<null | {deck: string, skill: string, cities?: string[], ban?: string[]}>} */
     let cpuSeats = [null, null];
     // ══ 協力モード（ソロ：人間=都市側 / CPU=自然側）状態。対戦エンジン(G)とは完全独立 ══
     /** @type {CoopState | null} */
@@ -7560,6 +7632,7 @@
         if (n < rule.min) reasons.push(`${VERSUS_FRAME_LABEL[key]}枠が${n}枚（${rule.min}枚以上必要）`);
         else if (n > rule.max) reasons.push(`${VERSUS_FRAME_LABEL[key]}枠が${n}枚（${rule.max}枚以下）`);
       }
+      for (const r of devBanReasons(counts)) reasons.push(r); // 開発者モードで使えないカードを設定した CPU 戦のときだけ増える（それ以外は空）
       return { ok: reasons.length === 0, reasons, total, frameSums };
     }
     // 都市（主城[0]・予備都市[1]）に合わせて「守る枠」10枚の内訳だけを既定デッキから調整する。
@@ -8321,11 +8394,16 @@
         // 開発者モード第2段a：CPU の席ごとにデッキの型（cpuSeatCfg(pi).deck）で組む。型が recommended なら従来の自動生成と同じ。
         for (const pi of [0, 1]) {
           const cfg = cpuSeatCfg(pi); if (!cfg) continue;
-          const _cpuCounts = vsArchetypeCounts(/** @type {any} */ (cfg.deck), G.players[pi].cities);
+          let _cpuCounts = vsArchetypeCounts(/** @type {any} */ (cfg.deck), G.players[pi].cities);
           const _recommended = buildCityAwareDeckCounts(G.players[pi].cities);
+          // 開発者モード第5段：使えないカードを抜いて、同じ枠のほかのカードに配り直す（組めないときは抜かず、記録に残す）
+          if (cfg.ban && cfg.ban.length) {
+            const _banned = vsApplyBan(_cpuCounts, cfg.ban);
+            if (_banned.ok) _cpuCounts = _banned.counts; else plEvent('banIgnored', { pi, reasons: _banned.reasons });
+          }
           G.players[pi].deck = buildVersusDeckFromCounts(_cpuCounts);
           G.players[pi].deckCounts = { ..._cpuCounts };
-          plEvent('deck', { pi, counts: { ..._cpuCounts }, recommended: { ..._recommended }, usedRecommendedAsIs: cfg.deck === 'recommended' ? true : vsDeckSameCounts(_cpuCounts, _recommended), ms: 0 });
+          plEvent('deck', { pi, counts: { ..._cpuCounts }, recommended: { ..._recommended }, usedRecommendedAsIs: (cfg.deck === 'recommended' && !(cfg.ban && cfg.ban.length)) ? true : vsDeckSameCounts(_cpuCounts, _recommended), ms: 0 });
           G.players[pi].discard = [];
         }
         // 人の席がなければ（CPU どうしの対戦）構築画面を飛ばして初期手札の配布へ進む
@@ -8342,7 +8420,7 @@
       // 2026-10-09：その人が前回使ったデッキ（vsLastDeckLoad。再検証つき）があれば、それで開く。無ければ従来の自動生成。
       // 前回のデッキは端末の localStorage にあるため、決めるのはそのデッキを組む本人の端末だけ。この関数は CPU戦・検証用・
       // 相手が古い版のオンライン対戦だけが通る（新しい版どうしのオンラインは _vsLocalDeckBuild で各端末が自分で開く）。
-      G.deckBuildState = { playerIdx: pi, counts: buildCityAwareDeckCounts(G.players[pi].cities), openedFrom: 'city' };
+      G.deckBuildState = { playerIdx: pi, counts: devBanFilterCounts(buildCityAwareDeckCounts(G.players[pi].cities)), openedFrom: 'city' }; // 使えないカードの設定は、開発者モードの CPU 戦だけ効く
       plMarkDeckOpen();
       G.screen = 'deckBuild';
       if (isCpuMode || pi === myPlayerIdx) {
@@ -8359,6 +8437,7 @@
       const card = ALL_CARDS.find(c => c.id === cardId);
       const max = card?.maxCopies ?? VERSUS_DECK_MAX_COPIES;
       n = Math.max(0, Math.min(max, n | 0));
+      if (n > 0 && devCardBanned(cardId)) return; // 使えないカード（開発者モード）は0から増やせない
       if (n === 0) delete ds.counts[cardId]; else ds.counts[cardId] = n;
       vsDsCommit();
     }
@@ -8371,7 +8450,7 @@
     function deckBuildApplyCityAware() {
       const ds = vsDs(); if (!ds) return;
       const cities = ds.standalone ? [] : G.players[ds.playerIdx].cities;
-      ds.counts = buildCityAwareDeckCounts(cities);
+      ds.counts = devBanFilterCounts(buildCityAwareDeckCounts(cities));
       ds.openedFrom = 'city'; ds.loadedDeckId = null; // 組み直したデッキは前回のデッキでも読込済みのデッキでもない
       vsDsCommit();
       // Phase7②：ボタンを押した直後にも生成根拠を一時ポップで示す（都市が無ければ空文字でno-op）。
@@ -9033,13 +9112,13 @@
         return `<div class="db-card-row">
           <button type="button" class="db-card-icon-btn" onclick="event.stopPropagation();_lpShowCardById('${c.id}',true,true)" aria-label="${_escHtml(c.name)}の詳細を見る">${cardIconSvg(c.icon, 18)}</button>
           <div class="db-card-text">
-            <div class="db-card-name">${_escHtml(c.name)}<span class="db-card-cost">COST ${c.cost}</span></div>
+            <div class="db-card-name">${_escHtml(c.name)}<span class="db-card-cost">COST ${c.cost}</span>${devCardBanned(c.id) ? '<span class="db-card-cost">使えない</span>' : ''}</div>
             <div class="db-card-desc">${_escHtml(versusCardDesc(c))}</div>
           </div>
           <div class="db-card-stepper">
             <button type="button" class="db-step-btn" onclick="event.stopPropagation();deckBuildDec('${c.id}')" ${n <= 0 ? 'disabled' : ''} aria-label="${_escHtml(c.name)}を1枚減らす">−</button>
             <span class="db-step-num">${n}${isCustomMax ? `<small>/${cardMax}</small>` : ''}</span>
-            <button type="button" class="db-step-btn" onclick="event.stopPropagation();deckBuildInc('${c.id}')" ${n >= cardMax ? 'disabled' : ''} aria-label="${_escHtml(c.name)}を1枚増やす">＋</button>
+            <button type="button" class="db-step-btn" onclick="event.stopPropagation();deckBuildInc('${c.id}')" ${(n >= cardMax || devCardBanned(c.id)) ? 'disabled' : ''} aria-label="${_escHtml(c.name)}を1枚増やす">＋</button>
           </div>
         </div>`;
       }
@@ -13081,7 +13160,7 @@
     function _cpuCancelTimer() { if (_cpuTimer) { clearTimeout(_cpuTimer); _cpuTimer = null; } }
 
     /** 席 pi の CPU 設定（人の席・CPU 戦でないときは null）
-     * @param {number} pi @returns {{deck: string, skill: string, cities?: string[]} | null} */
+     * @param {number} pi @returns {{deck: string, skill: string, cities?: string[], ban?: string[]} | null} */
     function cpuSeatCfg(pi) {
       if (!isCpuMode) return null;
       // cpuSeats が未設定のまま isCpuMode だけが立つ経路（画面ジャンプ・検証用）は、従来どおり席1が CPU（打ち方は cpuDifficulty）
@@ -13137,7 +13216,7 @@
     // CPU 戦の1試合を始める（画面の描画はしない）。seats は席ごとの設定（null は人）。
     //   o.names: 席ごとの表示名、o.seed: 乱数の種（無ければ Math.random のまま）、o.record: 記録の始め方（関数。無ければ記録しない）
     // 人がいる席を myPlayerIdx にする（人が席1なら 'p2'）。人がいない試合（自動対戦）は席0の視点。
-    /** @param {Array<{deck: string, skill: string, cities?: string[]} | null>} seats @param {{names: string[], seed?: number | null, record?: (() => void) | null}} o */
+    /** @param {Array<{deck: string, skill: string, cities?: string[], ban?: string[]} | null>} seats @param {{names: string[], seed?: number | null, record?: (() => void) | null}} o */
     function startCpuMatch(seats, o) {
       isCpuMode = true;
       cpuSeats = [seats[0] ? { ...seats[0] } : null, seats[1] ? { ...seats[1] } : null];
@@ -13168,14 +13247,18 @@
       // 開発者モードがオンのときだけ、相手の CPU の設定（devCpuSetup）を使う。オフなら従来どおり（人が席0・オススメデッキ・ガチャ・種なし）
       const dv = devCpuCfg();
       const skill = dv && dv.skill ? dv.skill : difficulty;
-      /** @type {{deck: string, skill: string, cities?: string[]}} */
+      /** @type {{deck: string, skill: string, cities?: string[], ban?: string[]}} */
       const cpuCfg = { deck: dv ? dv.deck : 'recommended', skill };
       if (dv && dv.cities) cpuCfg.cities = [dv.cities[0], dv.cities[1]];
+      if (dv && dv.ban.length) {
+        if (!devBanStartOk(cpuCfg.deck, dv.ban)) { render(); return; } // 組めない指定のまま始めない（理由は CPU の設定パネルに出る）
+        cpuCfg.ban = dv.ban.slice();
+      }
       const humanSeat = dv && !dv.humanFirst ? 1 : 0;
       const seed = dv ? dv.seed : null;
       startCpuMatch(humanSeat === 1 ? [cpuCfg, null] : [null, cpuCfg], {
         names: humanSeat === 1 ? [cpuNames[skill], name] : [name, cpuNames[skill]], seed,
-        record: () => plStartCpu(skill, { opponent: { deck: cpuCfg.deck, skill }, seed, seat: humanSeat === 1 ? 'p2' : 'p1' }),
+        record: () => plStartCpu(skill, { opponent: { deck: cpuCfg.deck, skill }, seed, seat: humanSeat === 1 ? 'p2' : 'p1', ban: cpuCfg.ban }),
       });
       localStorage.setItem('ron_lastName', name);
       render();
@@ -23131,7 +23214,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '35f10db';
+    const BUILD_ID = 'aa09030';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 2;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -23165,7 +23248,7 @@
     function plPending() { return _plPending; }
 
     /** 記録を新しく始める。開発者モードがオフ・テスター未登録なら何もしない
-     * @param {{gameId: string, mode: string, cpuDifficulty?: string, seat: string, build: string, opponent?: {deck: string, skill: string} | null, seed?: number | null}} meta */
+     * @param {{gameId: string, mode: string, cpuDifficulty?: string, seat: string, build: string, opponent?: {deck: string, skill: string} | null, seed?: number | null, startFrom?: string | null, ban?: string[] | null}} meta */
     function plStart(meta) {
       if (!devLoggingOn()) return;
       if (_plCur) plAbandon(); // 前の試合が終わっていなければ、未完了のまま保留リストへ移す
@@ -23178,6 +23261,8 @@
         tester: { id: t ? t.id : '', tier: t ? t.tier : '' },
         startedAt: _plDate(), events: [], result: null, complete: false, comment: '',
       };
+      if (meta.startFrom) _plCur.startFrom = meta.startFrom; // 盤面コードから始めた試合だけ、その番号を残す（普通の試合の記録は変わらない）
+      if (meta.ban && meta.ban.length) _plCur.ban = meta.ban.slice().sort(); // 使えないカードを設定した試合だけ、その一覧を残す
       _plT0 = Date.now();
     }
 
@@ -23242,13 +23327,13 @@
 
     function _plNewId(prefix) { return prefix + Date.now() + '_' + String(Math.random() * 10000 | 0).padStart(4, '0'); }
     /** CPU戦の記録を始める（gameId は cpu_ + 時刻 + 乱数4桁）。opts は相手の CPU の設定・乱数の種・人の席（席1なら 'p2'）
-     * @param {string} difficulty @param {{opponent?: {deck: string, skill: string}, seed?: number | null, seat?: string}} [opts] */
+     * @param {string} difficulty @param {{opponent?: {deck: string, skill: string}, seed?: number | null, seat?: string, startFrom?: string | null, ban?: string[] | null}} [opts] */
     function plStartCpu(difficulty, opts) {
       if (!devLoggingOn()) return;
       _plDrew = []; _plDeckOpenAt = 0; _plGachaCands = null; _plDevPick = false; _plRecycleEv = null;
       _plLastGameId = _plNewId('cpu_');
       const o = opts || {};
-      plStart({ gameId: _plLastGameId, mode: 'cpu', cpuDifficulty: difficulty, seat: o.seat || 'p1', build: BUILD_ID, opponent: o.opponent || { deck: 'recommended', skill: difficulty }, seed: o.seed == null ? null : o.seed });
+      plStart({ gameId: _plLastGameId, mode: 'cpu', cpuDifficulty: difficulty, seat: o.seat || 'p1', build: BUILD_ID, opponent: o.opponent || { deck: 'recommended', skill: difficulty }, seed: o.seed == null ? null : o.seed, startFrom: o.startFrom || null, ban: o.ban || null });
     }
     /** オンライン対戦の記録を始める（ホスト）。gameId は roomId + _ + 時刻で、rooms/{roomId}/devGameId に置いてゲストへ渡す */
     function plStartOnlineHost() {
@@ -23355,7 +23440,7 @@
     // ═══════════════════════════════════════
     /** @param {any} log */
     function _plMeta(log) {
-      return { v: log.v, mode: log.mode, seat: log.seat, tier: log.tester.tier, testerId: log.tester.id, date: log.startedAt, complete: !!log.complete, build: log.build, opponent: log.opponent || null, seed: log.seed == null ? null : log.seed };
+      return { v: log.v, mode: log.mode, seat: log.seat, tier: log.tester.tier, testerId: log.tester.id, date: log.startedAt, complete: !!log.complete, build: log.build, opponent: log.opponent || null, seed: log.seed == null ? null : log.seed, ...(log.ban ? { ban: log.ban } : {}) };
     }
     /** 記録を Firebase の playLogs/{gameId}/{seat} へ送る。成功したら保留リストから外す。db が無い・失敗・大きすぎるときは false で、保留リストに残す
      * @param {any} log @returns {Promise<boolean>} */
@@ -23481,8 +23566,9 @@
     //   cities：CPU の都市を2つ指定（null ならガチャ）／humanFirst：人が先攻か／seed：乱数の種（null なら固定しない）
     // ═══════════════════════════════════════
     const DEV_KEY_CPU = 'ron_dev_cpu';
-    /** @type {{deck: string, skill: string, cities: string[] | null, humanFirst: boolean, seed: number | null}} */
-    let devCpuSetup = { deck: 'recommended', skill: '', cities: null, humanFirst: true, seed: null };
+    //   ban：使えないカード（第5段）。CPU のデッキに入らず、自分のデッキ構築でも0から増やせない。カード id の並び（idの昇順）
+    /** @type {{deck: string, skill: string, cities: string[] | null, humanFirst: boolean, seed: number | null, ban: string[]}} */
+    let devCpuSetup = { deck: 'recommended', skill: '', cities: null, humanFirst: true, seed: null, ban: [] };
     function devCpuSave() { try { localStorage.setItem(DEV_KEY_CPU, JSON.stringify(devCpuSetup)); } catch (e) {} }
     /** 端末に保存した設定を読む。壊れた値は既定のまま */
     function devCpuLoad() {
@@ -23495,12 +23581,72 @@
         if (Array.isArray(v.cities) && v.cities.length === 2 && v.cities[0] !== v.cities[1] && v.cities.every((/** @type {string} */ id) => CITIES.some(c => c.id === id))) s.cities = [v.cities[0], v.cities[1]];
         if (typeof v.humanFirst === 'boolean') s.humanFirst = v.humanFirst;
         if (typeof v.seed === 'number' && Number.isFinite(v.seed)) s.seed = Math.trunc(v.seed);
+        if (Array.isArray(v.ban)) {
+          const ban = [...new Set(v.ban.filter((/** @type {any} */ id) => typeof id === 'string' && ALL_CARDS.some(c => c.id === id)))].sort();
+          if (devBanCheck(ban, s.deck).ok) s.ban = /** @type {string[]} */ (ban); // 今の型で組めない保存値は捨てる
+        }
       } catch (e) {}
     }
+    // ── 使えないカード（第5段） ──
+    let _devBanMsg = '';
+    /** 使えないカードの指定が、そのデッキの型で組めるか（都市は分からないので、型の基本の枚数で確かめる）
+     * @param {string[]} ban @param {string} deck */
+    function devBanCheck(ban, deck) { return vsApplyBan(vsArchetypeCounts(/** @type {any} */ (deck), []), ban); }
+    /** 組めない指定を断った理由（パネルに出す。空なら断っていない） */
+    function devBanMessage() { return _devBanMsg; }
+    /** 組めないときは理由を残して false。始める前の確認に使う
+     * @param {string} deck @param {string[]} ban */
+    function devBanStartOk(deck, ban) {
+      const r = devBanCheck(ban, deck);
+      _devBanMsg = r.ok ? '' : '使えないカードの指定ではデッキを組めない：' + r.reasons.join('／');
+      return r.ok;
+    }
+    /** 今、使えないカードが効いている一覧（開発者モードがオンの CPU 戦のあいだだけ。ロビーのクリエイトラボのデッキ編成には効かない）
+     * @returns {string[] | null} */
+    function devBanActive() {
+      if (!isCpuMode || !Array.isArray(devCpuSetup.ban) || devCpuSetup.ban.length === 0 || !devModeOn()) return null;
+      if (G && G.deckBuildState && G.deckBuildState.standalone) return null;
+      return devCpuSetup.ban;
+    }
+    /** @param {string} cardId */
+    function devCardBanned(cardId) { const b = devBanActive(); return !!b && b.includes(cardId); }
+    /** 使えないカードが入っているデッキの枚数表に出す理由（確定できない理由に足す） @param {Partial<Record<CardId, number>>} counts @returns {string[]} */
+    function devBanReasons(counts) {
+      const b = devBanActive(); if (!b) return [];
+      return b.filter(id => (counts[/** @type {CardId} */ (id)] || 0) > 0).map(id => { const c = ALL_CARDS.find(x => x.id === id); return (c ? c.name : id) + 'は使えないカードに設定されている（DEV）'; });
+    }
+    /** 使えないカードを抜いた枚数表（効いているときだけ。配り直せないときは使えないカードだけを0にして、確定できない理由が出るようにはしない）
+     * @param {Partial<Record<CardId, number>>} counts */
+    function devBanFilterCounts(counts) {
+      const b = devBanActive(); if (!b) return counts;
+      const r = vsApplyBan(counts, b);
+      if (r.ok) return r.counts;
+      const out = { ...counts }; for (const id of b) delete out[/** @type {CardId} */ (id)];
+      return out;
+    }
+    /** @param {string} id @param {boolean} on */
+    function devCpuSetBan(id, on) {
+      if (!ALL_CARDS.some(c => c.id === id)) return;
+      const cur = Array.isArray(devCpuSetup.ban) ? devCpuSetup.ban : [];
+      const next = (on ? (cur.includes(id) ? cur.slice() : [...cur, id]) : cur.filter(x => x !== id)).sort();
+      const r = devBanCheck(next, devCpuSetup.deck);
+      if (!r.ok) { _devBanMsg = '使えないカードにできない：' + r.reasons.join('／'); render(); return; }
+      _devBanMsg = ''; devCpuSetup.ban = next; devCpuSave(); render();
+    }
     /** 今使う設定（開発者モードがオフなら null＝従来どおり） */
-    function devCpuCfg() { return devModeOn() ? devCpuSetup : null; }
+    function devCpuCfg() {
+      if (!devModeOn()) return null;
+      if (!Array.isArray(devCpuSetup.ban)) devCpuSetup.ban = []; // ban を持たない設定を丸ごと入れた場合（検証用）に備える
+      return devCpuSetup;
+    }
     /** @param {string} v */
-    function devCpuSetDeck(v) { if (v === 'recommended' || VERSUS_DECK_ARCHETYPES[v]) { devCpuSetup.deck = v; devCpuSave(); render(); } }
+    function devCpuSetDeck(v) {
+      if (v === 'recommended' || VERSUS_DECK_ARCHETYPES[v]) {
+        const r = devBanCheck(devCpuSetup.ban, v);
+        if (!r.ok) { _devBanMsg = 'この型は、いまの使えないカードでは組めない：' + r.reasons.join('／'); render(); return; }
+        _devBanMsg = ''; devCpuSetup.deck = v; devCpuSave(); render();
+      }
+    }
     /** @param {string} v */
     function devCpuSetSkill(v) { if (['', ...CPU_SKILLS].includes(v)) { devCpuSetup.skill = v; devCpuSave(); render(); } }
     /** @param {string} v 'gacha' か 'pick' */
@@ -23524,6 +23670,7 @@
     function devCpuPanelHtml() {
       if (!devModeOn()) return '';
       const s = devCpuSetup;
+      if (!Array.isArray(s.ban)) s.ban = [];
       /** @param {Array<string[]>} items @param {string} cur @param {string} fn */
       const seg = (items, cur, fn) => '<div class="settings-seg" style="flex-wrap:wrap">' + items.map(it => '<button type="button" class="settings-seg-btn' + (cur === it[0] ? ' active' : '') + '" onclick="' + fn + '(\'' + it[0] + '\')">' + it[1] + '</button>').join('') + '</div>';
       const row = (/** @type {string} */ label, /** @type {string} */ body) => '<div style="margin-top:8px"><div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:4px">' + label + '</div>' + body + '</div>';
@@ -23531,12 +23678,16 @@
       const skills = [['', '難易度ボタン'], ['easy', 'EASY'], ['normal', 'NORMAL'], ['hard', 'HARD'], ['beginner', '初心者'], ['standard', '標準'], ['expert', '上級']];
       const opt = (/** @type {number} */ slot) => '<select onchange="devCpuSetCity(' + slot + ', this.value)" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:4px 6px">' + CITIES.map(c => '<option value="' + c.id + '"' + (s.cities && s.cities[slot] === c.id ? ' selected' : '') + '>' + _escHtml(c.name) + '</option>').join('') + '</select>';
       const cityBody = seg([['gacha', 'ガチャ'], ['pick', '指定']], s.cities ? 'pick' : 'gacha', 'devCpuSetCityMode') + (s.cities ? '<div style="display:flex;gap:6px;margin-top:6px">' + opt(0) + opt(1) + '</div>' : '');
+      const banBtn = (/** @type {{id: string, name: string}} */ c) => { const on = s.ban.includes(c.id); return '<button type="button" class="settings-seg-btn' + (on ? ' active' : '') + '"' + (on ? ' style="border-color:rgba(248,81,73,.7);background:rgba(248,81,73,.18);color:var(--t0)"' : '') + ' onclick="devCpuSetBan(\'' + c.id + '\',' + (on ? 'false' : 'true') + ')">' + _escHtml(c.name) + '</button>'; };
+      const banBody = /** @type {CardFrame[]} */ (['attack', 'defend', 'free']).map(f => '<div style="margin-top:4px"><span style="font-size:.66rem;color:var(--t2)">' + VERSUS_FRAME_LABEL[f] + '</span><div class="settings-seg" style="flex-wrap:wrap">' + VERSUS_FRAME_CARDS[f].map(banBtn).join('') + '</div></div>').join('')
+        + (_devBanMsg ? '<div style="margin-top:6px;font-size:.7rem;color:var(--red)">' + _escHtml(_devBanMsg) + '</div>' : '');
       const seedBody = '<input type="text" inputmode="numeric" maxlength="10" placeholder="空欄＝固定しない" value="' + (s.seed == null ? '' : s.seed) + '" oninput="devCpuSetSeed(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:6px 8px">';
       return '<div id="dev-cpu-panel" style="margin-top:14px;padding:10px 12px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06)"><div style="font-size:.78rem;font-weight:700;color:var(--t1)">相手の CPU の設定（DEV）</div>'
         + row('デッキの型', seg(decks, s.deck, 'devCpuSetDeck'))
         + row('打ち方', seg(skills, s.skill, 'devCpuSetSkill'))
         + row('CPU の都市', cityBody)
         + row('先攻・後攻', seg([['1', '自分が先攻'], ['0', '自分が後攻']], s.humanFirst ? '1' : '0', 'devCpuSetFirst'))
+        + row('使えないカード（CPU のデッキに入らず、自分のデッキ構築でも増やせない）', banBody)
         + row('乱数の種（同じ種なら同じ山札の並び）', seedBody)
         + '</div>';
     }
@@ -23698,6 +23849,7 @@
       const jumpBtns = DEV_JUMP_KINDS.map(k => '<button class="settings-seg-btn" onclick="devUiJump(\'' + k[0] + '\')">' + k[1] + '</button>').join('');
       html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">画面へ飛ぶ</span><span class="settings-row-desc">確認用の仮の盤面を開きます（記録されません）。ロビーにいるときだけ使えます</span></div><div class="settings-seg" style="flex-wrap:wrap">' + jumpBtns + '</div></div>';
       if (G.screen !== 'lobby' && !G._devPreview) html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">盤面コード</span><span class="settings-row-desc">今の盤面を JSON で保存します（全部見える版と、自分の席から見える版）。番号：盤面 #' + devSnapshot('full').id + '</span></div><button class="copy-url-btn" style="font-size:.78rem" onclick="devSnapshotDownload()">盤面コードを書き出す</button></div>';
+      html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">盤面から始める</span><span class="settings-row-desc">盤面コードを読み込み、HP・手札などを直して、その盤面から CPU 戦を始めます。始められるのはロビーにいるときだけです</span></div><button class="copy-url-btn" style="font-size:.78rem" onclick="devScenarioOpen()">盤面から始める画面を開く</button></div>';
       html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">分析</span><span class="settings-row-desc">自動対戦と人の記録の結果（summary.json）を読み込んで表示します。プレイ記録から1試合を追うこともできます</span></div><button class="copy-url-btn" style="font-size:.78rem" onclick="devDashOpen()">分析画面を開く</button></div>';
       return html;
     }
@@ -23707,7 +23859,7 @@
     // 盤面コード（開発者モード 第4段）
     // 試合中の盤面を JSON にし、その中身から短い番号（盤面 #a3f9c2d1）を作る。
     //   全部見える版（開発・AI 用）と、片方の席から見える版（相手の手札と両者の山札の並びを伏せる）の2つを作れる。
-    //   番号は、全部見える版の state を「キーを並べ替えた文字列」にして FNV-1a 64bit に通した16進の先頭8文字。
+    //   番号は、全部見える版の state から席の設定（mode）を除いたものを「キーを並べ替えた文字列」にして FNV-1a 64bit に通した16進の先頭8文字。
     //   片方から見える版にも、同じ盤面の番号（全部見える版のもの）を付ける。
     // ブラウザと Node（tools/sim/engine.cjs が同じコードを読み込む）で同じ結果になるよう、乱数・時刻・表示名は入れない。
     // ═══════════════════════════════════════
@@ -23770,6 +23922,10 @@
         mode: { cpu: !!isCpuMode, cpuSeats: _dsClone(typeof cpuSeats !== 'undefined' ? cpuSeats : null), myPlayerIdx },
       };
     }
+    /** 番号の計算に使う中身：席の設定（mode：人か CPU か・打ち方・自分の席）は盤面ではないので除く。
+     * 除かないと、同じ盤面でも CPU の打ち方や自分の席を変えるだけで番号が変わり、読み込み直した盤面の番号が元と一致しなくなる
+     * @param {any} full */
+    function _dsBoardOf(full) { const b = _dsClone(full); delete b.mode; return b; }
     /** 片方の席から見える版：相手の手札の中身と、両者の山札の並びは入れない（枚数は入れる）。デッキの内訳は自分の分だけ
      * @param {any} full @param {number} seat */
     function _dsSeatState(full, seat) {
@@ -23792,7 +23948,7 @@
      * @returns {{v: number, id: string, view: string, build: string, state: any}} */
     function devSnapshot(view) {
       const full = _dsFullState();
-      const id = devSnapshotHash(full);
+      const id = devSnapshotHash(_dsBoardOf(full));
       const state = view === 'p1' ? _dsSeatState(full, 0) : view === 'p2' ? _dsSeatState(full, 1) : full;
       return { v: 1, id, view: view || 'full', build: BUILD_ID, state };
     }
@@ -23809,6 +23965,182 @@
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       } catch (e) {}
+    }
+
+    // ═══════════════════════════════════════
+    // 盤面から始める（開発者モード 第5段）
+    // 盤面コード（全部見える版）を検査し、その盤面から CPU 戦の1試合を始める。ブラウザと Node（自動対戦）で同じ関数を使う。
+    //   始められるのは、手番の始め（screen が main で、攻撃・対応・ドロー・捨て札の途中ではない）の盤面だけ。
+    //   片方から見える版は、伏せた部分を推測で埋める必要があるため始めない。
+    //   盤面の番号には席の設定（人か CPU か・打ち方）を含めないので、どの席設定で始めても、読み込んですぐ書き出せば元と同じ番号になる。
+    // ═══════════════════════════════════════
+    const DEV_SCENARIO_VERSION = 1;
+    /** 手番の途中を表す項目（どれかが入っていると、手番の始めの盤面ではない） */
+    const _DSC_PENDING_KEYS = ['pendingAttack', 'pendingPollution', 'pendingTyphoon', 'recycleState', 'turnDrawState', 'discardNeeded'];
+
+    /** 盤面コード（全部見える版）が、規則に合い、ここから始められるかを確かめる。空の配列なら合格。ban は使えないカードの id（盤面の手札・山札・捨て札に入っていれば理由になる）
+     * @param {any} snap @param {string[]} [ban] @returns {string[]} 合わない理由の一覧 */
+    function devScenarioValidate(snap, ban) {
+      /** @type {string[]} */ const R = [];
+      if (!snap || typeof snap !== 'object') return ['盤面コードが足りない（空、または JSON ではない）'];
+      if (snap.v !== DEV_SCENARIO_VERSION) R.push('盤面コードの版（v）が ' + JSON.stringify(snap.v) + ' で、この版は ' + DEV_SCENARIO_VERSION + ' のものだけ読める');
+      if (snap.view !== 'full') R.push('全部見える版の盤面コードだけ始められる（この盤面は ' + JSON.stringify(snap.view) + ' の版で、伏せた部分がある）');
+      const s = snap.state;
+      if (!s || typeof s !== 'object') { R.push('盤面の中身（state）が足りない'); return R; }
+      const isArr = (/** @type {any} */ v, /** @type {number} */ n) => Array.isArray(v) && (n < 0 || v.length === n);
+      const isInt = (/** @type {any} */ v) => typeof v === 'number' && isFinite(v) && Math.floor(v) === v;
+      if (!isArr(s.players, 2)) { R.push('players が足りない（2席分が要る）'); return R; }
+      let shapeOk = true;
+      /** @param {boolean} ok @param {string} msg */
+      const need = (ok, msg) => { if (!ok) { shapeOk = false; R.push(msg + 'が足りない、または形が違う'); } };
+      need(isArr(s.turnsEach, 2) && s.turnsEach.every(isInt), 'turnsEach');
+      need(isInt(s.activePlayer), 'activePlayer');
+      need(typeof s.screen === 'string', 'screen');
+      need(s.rng === null || s.rng === undefined || (typeof s.rng === 'object' && isInt(s.rng.seed) && typeof s.rng.s === 'number'), 'rng');
+      need(s.usedHistory == null || typeof s.usedHistory === 'object', 'usedHistory');
+      s.players.forEach((/** @type {any} */ p, /** @type {number} */ i) => {
+        if (!p || typeof p !== 'object') { shapeOk = false; R.push('席' + i + 'の項目が足りない'); return; }
+        const t = '席' + i + 'の ';
+        need(isArr(p.cities, 2), t + 'cities');
+        need(isArr(p.cityHps, 2) && p.cityHps.every((/** @type {any} */ h) => typeof h === 'number' && isFinite(h)), t + 'cityHps');
+        need(p.activeCityIdx === 0 || p.activeCityIdx === 1, t + 'activeCityIdx');
+        for (const k of ['hand', 'deck', 'discard']) need(isArr(p[k], -1) && p[k].every((/** @type {any} */ c) => c && typeof c.id === 'string'), t + k);
+        need(!!p.effects && typeof p.effects === 'object', t + 'effects');
+        need(typeof p.budgetUsed === 'number' && isFinite(p.budgetUsed) && p.budgetUsed >= 0, t + 'budgetUsed');
+      });
+      if (!shapeOk) return R;
+
+      // 手番の始めの盤面か
+      if (s.winner != null) R.push('すでに決着している盤面（winner が ' + s.winner + '）は始められない');
+      if (s.screen !== 'main') R.push('手番の始め（main）の盤面だけ始められる（この盤面の画面は ' + JSON.stringify(s.screen) + '）');
+      const pend = _DSC_PENDING_KEYS.filter(k => s[k] != null);
+      if (pend.length) R.push('攻撃・対応・ドロー・捨て札の途中の盤面は始められない（手番の始めの盤面だけ。' + pend.join('・') + ' が入っている）');
+      // 手番の席・手番の数
+      const ap = s.activePlayer;
+      if (ap !== 0 && ap !== 1) R.push('手番の席は 0 か 1 のはず（この盤面は ' + ap + '）');
+      else {
+        const te = s.turnsEach;
+        if (te.some((/** @type {number} */ n) => n < 0 || n > VERSUS_MAX_TURNS) || te[ap] >= VERSUS_MAX_TURNS) R.push('手番の数が範囲外（' + te.join('・') + '。各席 0〜' + (VERSUS_MAX_TURNS - 1) + ' ターン済み）');
+        else if (te[0] !== te[1] + (ap === 1 ? 1 : 0)) R.push('手番の数が席と合わない（席' + ap + ' の手番の始めなのに、済んだ手番が ' + te.join('・') + '）');
+      }
+
+      // 席ごと：カード・都市・HP
+      /** @type {Record<string, number>[]} */ const ownCount = [{}, {}];
+      let total = 0;
+      const seenCities = new Set();
+      s.players.forEach((/** @type {any} */ p, /** @type {number} */ i) => {
+        const t = '席' + i + 'の';
+        if (p.hand.length > 5) R.push(t + '手札が' + p.hand.length + '枚（上限5）');
+        for (const k of ['hand', 'deck', 'discard']) {
+          for (const c of p[k]) {
+            total++;
+            const def = ALL_CARDS.find(x => x.id === c.id);
+            if (!def) { R.push(t + k + 'に知らないカード「' + c.id + '」がある'); continue; }
+            if (!(typeof c.uid === 'string' && /_s\d+$/.test(c.uid))) ownCount[i][c.id] = (ownCount[i][c.id] || 0) + 1; // 台風で奪ったカードは同名の数に入れない
+          }
+        }
+        for (const id of Object.keys(ownCount[i])) {
+          const def = ALL_CARDS.find(x => x.id === id); if (!def) continue;
+          const max = def.maxCopies ?? VERSUS_DECK_MAX_COPIES;
+          if (ownCount[i][id] > max) R.push(t + '同名のカード「' + def.name + '」が' + ownCount[i][id] + '枚（上限' + max + '）');
+        }
+        const uids = [...p.hand, ...p.deck, ...p.discard].map((/** @type {any} */ c) => c.uid).filter((/** @type {any} */ u) => u != null);
+        if (new Set(uids).size !== uids.length) R.push(t + 'カードの uid が重なっている');
+        p.cities.forEach((/** @type {any} */ cid, /** @type {number} */ j) => {
+          const city = CITIES.find(c => c.id === cid);
+          if (!city) { R.push(t + '都市' + j + 'に知らない都市「' + cid + '」がある'); return; }
+          if (seenCities.has(cid)) R.push('都市「' + city.name + '」が両者に重なっている'); else seenCities.add(cid);
+          const hp = p.cityHps[j];
+          if (hp < 0) R.push(t + '都市' + j + '「' + city.name + '」の HP が' + hp + '（0以上のはず）');
+          if (hp > city.hp) R.push(t + '都市' + j + '「' + city.name + '」の HP が' + hp + 'で、最大' + city.hp + 'を超えている');
+        });
+        const act = p.activeCityIdx;
+        if (p.cityHps.every((/** @type {number} */ h) => h <= 0)) R.push(t + '両方の都市が壊れている（決着済み）');
+        else if (p.cityHps[act] <= 0) R.push('壊れた都市が前に出ている（' + t + '前の都市' + act + 'の HP が' + p.cityHps[act] + '）');
+      });
+      if (Array.isArray(ban) && ban.length) {
+        s.players.forEach((/** @type {any} */ p, /** @type {number} */ i) => {
+          for (const [k, label] of [['hand', '手札'], ['deck', '山札'], ['discard', '捨て札']]) {
+            for (const id of ban) {
+              const n = p[k].filter((/** @type {any} */ c) => c.id === id).length; if (!n) continue;
+              const def = ALL_CARDS.find(x => x.id === id);
+              R.push('席' + i + 'の' + label + 'に使えないカード「' + (def ? def.name : id) + '」が' + n + '枚ある');
+            }
+          }
+        });
+      }
+      if (total !== 2 * VERSUS_DECK_SIZE) R.push('両者のデッキの合計が' + total + '枚（手札・山札・捨て札の合計で' + (2 * VERSUS_DECK_SIZE) + '枚のはず）');
+      return R;
+    }
+
+    /** 盤面コードの番号（席の設定を除いた中身から計算。読み込んで始めた直後に書き出した番号と同じになる）
+     * @param {any} snap @returns {string} */
+    function devScenarioId(snap) { return devSnapshotHash(_dsBoardOf(snap.state)); }
+
+    /** 盤面コードから CPU 戦の1試合を始める。合わない盤面は、理由を返して何も変えない
+     * opts.humanSeat: 人が座る席（0・1）。null なら両方 CPU。opts.cpu: CPU の設定（{deck?, skill}。席ごとに変えるなら2つの配列）。
+     * opts.rng: 'keep'（盤面の乱数の状態から続ける）か {seed, reshuffleDecks?}（種で作り直す。reshuffleDecks で山札も混ぜ直す）。
+     * opts.ban: 使えないカード（盤面に入っていれば始めない）。opts.record: 記録の始め方（関数。null なら記録しない。省略すると CPU 戦の記録を始め、startFrom に盤面の番号を入れる）。opts.names: 席ごとの表示名
+     * @param {any} snap @param {{humanSeat: 0 | 1 | null, cpu: any, rng: 'keep' | {seed: number, reshuffleDecks?: boolean}, record?: (() => void) | null, names?: string[], ban?: string[]}} opts
+     * @returns {{ok: true, id: string} | {ok: false, reasons: string[]}} */
+    function devScenarioStart(snap, opts) {
+      const o = opts || /** @type {any} */ ({});
+      const reasons = devScenarioValidate(snap, o.ban);
+      const hs = o.humanSeat === undefined ? null : o.humanSeat;
+      if (hs !== null && hs !== 0 && hs !== 1) reasons.push('人の席は 0・1・null のどれか');
+      const cpuIn = Array.isArray(o.cpu) ? o.cpu : [o.cpu, o.cpu];
+      /** @type {Array<{deck: string, skill: string} | null>} */
+      const seats = [0, 1].map(i => {
+        if (i === hs) return null;
+        const c = cpuIn[i];
+        if (!c || !CPU_SKILLS.includes(c.skill)) { reasons.push('席' + i + 'の CPU の打ち方が不正（' + JSON.stringify(c && c.skill) + '）'); return null; }
+        return { deck: c.deck || 'recommended', skill: c.skill };
+      });
+      const rng = o.rng === undefined ? 'keep' : o.rng;
+      if (rng !== 'keep' && !(rng && typeof rng === 'object' && typeof rng.seed === 'number' && isFinite(rng.seed))) reasons.push('乱数の指定が不正（"keep" か {seed} のはず）');
+      if (reasons.length) return { ok: false, reasons };
+
+      const s = snap.state;
+      const id = devScenarioId(snap);
+      const nameOf = (/** @type {number} */ i) => (o.names && o.names[i]) || (seats[i] ? 'CPU（' + seats[i].deck + '・' + seats[i].skill + '）' : ((typeof lobbyState !== 'undefined' && lobbyState.nameInput && lobbyState.nameInput.trim()) || 'プレイヤー'));
+      startCpuMatch(seats, { names: [nameOf(0), nameOf(1)], seed: null, record: null });
+      G.screen = 'main'; G.activePlayer = s.activePlayer; G.turnsEach = [s.turnsEach[0], s.turnsEach[1]];
+      G.winner = null; G._endReason = s.endReason || null; G.gachaCurrent = null;
+      G.pendingAttack = null; G.recycleState = null; G.turnDrawState = null; G.discardNeeded = null;
+      G.usedHistory = s.usedHistory ? _dsClone(s.usedHistory) : { 0: [], 1: [] };
+      if (s.stealSeq) G.stealSeq = s.stealSeq;
+      const mk = (/** @type {any} */ c) => { const def = ALL_CARDS.find(x => x.id === c.id); return c.uid == null ? { ...def } : { ...def, uid: c.uid }; };
+      G.gachaPickedIds = [];
+      s.players.forEach((/** @type {any} */ sp, /** @type {number} */ i) => {
+        const p = G.players[i];
+        p.cities = sp.cities.map((/** @type {string} */ cid) => CITIES.find(c => c.id === cid)); p.cityHps = sp.cityHps.slice(); p.activeCityIdx = sp.activeCityIdx;
+        p.hand = sp.hand.map(mk); p.deck = sp.deck.map(mk); p.discard = sp.discard.map(mk);
+        p.effects = _dsClone(sp.effects); p.budgetUsed = sp.budgetUsed;
+        if (sp.deckCounts) p.deckCounts = _dsClone(sp.deckCounts);
+        for (const cid of sp.cities) G.gachaPickedIds.push(cid);
+      });
+      // 乱数
+      if (rng === 'keep') { if (s.rng) G._rng = { seed: s.rng.seed, s: s.rng.s }; else delete G._rng; }
+      else {
+        vsSeedRng(rng.seed);
+        if (rng.reshuffleDecks) for (const p of G.players) shuffle(p.deck);
+      }
+      // 記録
+      if (o.record === undefined) {
+        const cfgs = seats.filter(Boolean);
+        const first = /** @type {any} */ (cfgs[cfgs.length - 1]);
+        plStartCpu(first.skill, { opponent: { deck: first.deck, skill: first.skill }, seed: G._rng ? G._rng.seed : null, seat: hs === 1 ? 'p2' : 'p1', startFrom: id });
+      } else if (o.record) o.record();
+      // 記録には、普通の試合の始まりと同じ形で、両者の都市・手札と最初の手番の始めを入れる（指標の計算がそのまま使えるように）
+      if (plCurrent()) {
+        G.players.forEach((/** @type {any} */ p, /** @type {number} */ pi) => {
+          plEvent('cityOrder', { pi, order: p.cities.map((/** @type {any} */ c) => c.id) });
+          if (p.activeCityIdx !== 0) plEvent('citySwitch', { pi, from: p.cities[0].id, to: p.cities[p.activeCityIdx].id });
+          plEvent('draft', { pi, hand: plHand(p.hand) });
+        });
+        plTurnStart(G.activePlayer, []);
+      }
+      return { ok: true, id };
     }
     // ═══════════════════════════════════════
     // 開発者モードの分析画面（第4段 Task 4）
@@ -23957,6 +24289,16 @@
       return _ddSec('版ごとの主な数字', '<div class="dd-scroll"><table class="dd-table">' + head + rows + '</table></div>', '数字の下は試合数 n と 95% 区間（Wilson）。決着の内訳は構成比と件数で、区間は summary.json に無い。版の名前を押すと、下の詳細がその版になる。');
     }
 
+    /** 盤面コードの盤面から始めた実験の、その盤面から各席が勝つ見込み（summary.json の variants.<版>.fromBoard）
+     * @param {any} v */
+    function _ddFromBoardHtml(v) {
+      const fb = v.fromBoard;
+      if (!fb || typeof fb !== 'object') return '';
+      const sw = Array.isArray(fb.seatWin) ? fb.seatWin : [];
+      const rows = [0, 1].map(i => '<tr><th>席' + i + '</th><td>' + _ddRate(sw[i]) + '</td></tr>').join('');
+      return _ddSec('この盤面から勝つ見込み', '<div class="dd-meta">盤面 #' + _ddEsc(fb.id) + '</div><table class="dd-table">' + rows + '<tr><th>盤面から先のターン数</th><td>' + _ddMean(fb.turnsLeft, 2) + '</td></tr></table>', '同じ盤面から、乱数の種だけを変えて何度も回した結果。席は定義の席の並びで、先攻の指定が 0 のとき盤面の席と同じ。区間は Wilson。');
+    }
+
     /** @param {any} v */
     function _ddTierHtml(v) {
       const bc = v.byCity || {};
@@ -24045,7 +24387,7 @@
       let html = '';
       _dd.sums.forEach(s => {
         const d = s.data, e = d.experiment || {};
-        html += '<div class="dd-notice"><b>注意</b>　' + _ddEsc(d.notice || '（この summary.json には注意の文がありません）') + '<div class="dd-meta">' + _ddEsc(s.name) + (e.name ? '：実験 ' + _ddEsc(e.name) : '') + (_ddNum(e.games) ? '、' + e.games + '試合' : '') + (_ddNum(e.seed) ? '、種 ' + e.seed : '') + '</div>'
+        html += '<div class="dd-notice"><b>注意</b>　' + _ddEsc(d.notice || '（この summary.json には注意の文がありません）') + '<div class="dd-meta">' + _ddEsc(s.name) + (e.name ? '：実験 ' + _ddEsc(e.name) : '') + (_ddNum(e.games) ? '、' + e.games + '試合' : '') + (_ddNum(e.seed) ? '、種 ' + e.seed : '') + (e.startFrom ? '、盤面 #' + _ddEsc(e.startFrom) + ' から' + (e.reshuffleDecks ? '（山札は混ぜ直し）' : '') : '') + (Array.isArray(e.ban) && e.ban.length ? '、使えないカード ' + e.ban.map((/** @type {any} */ id) => _ddEsc(_ddCardName(String(id)))).join('・') : '') + '</div>'
           + (Array.isArray(d.notComputedForHuman) && d.notComputedForHuman.length ? '<div class="dd-meta dd-nc">未計算：' + d.notComputedForHuman.map(_ddEsc).join('、') + '</div>' : '') + '</div>';
       });
       html += _ddCompareHtml(flat);
@@ -24053,7 +24395,7 @@
       html += '<div class="dd-pick">詳細に表示している版：<b>' + _ddEsc(_ddLabel(f)) + '</b>' + (applied ? '<div class="dd-meta">この版で変えた数字　' + applied + '</div>' : '') + '</div>';
       if (v.notComputed && v.notComputed.length) html += '<div class="dd-nc dd-block">人の記録では未計算の指標：' + v.notComputed.map(_ddEsc).join('、') + '</div>';
       if (!(_ddNum(v.counted) && v.counted > 0)) return html + _ddSec('この版の詳細', '<div class="dd-empty">試合なし（n=0）。表示できる数字がありません</div>');
-      html += _ddTierHtml(v) + _ddMatrixHtml(v, 'city') + _ddMatrixHtml(v, 'deck') + _ddSkillHtml(v) + _ddAbilityHtml(v) + _ddCardsHtml(v);
+      html += _ddFromBoardHtml(v) + _ddTierHtml(v) + _ddMatrixHtml(v, 'city') + _ddMatrixHtml(v, 'deck') + _ddSkillHtml(v) + _ddAbilityHtml(v) + _ddCardsHtml(v);
       return html;
     }
 
@@ -24168,6 +24510,312 @@
         el.innerHTML = '<style>' + DD_CSS + '</style><div class="dd-top"><h2>分析<span>DEV</span></h2><button type="button" class="dd-close" onclick="devDashClose()">閉じる</button></div><div class="dd-wrap" id="dev-dash-body">' + devDashRender() + '</div>';
         document.body.appendChild(el);
       } catch (e) {}
+    }
+    // ═══════════════════════════════════════
+    // 盤面から始める画面（開発者モード 第5段）
+    // 盤面コード（全部見える版）を読み込み、要約を見て、HP・前の都市・手札・予算・手番の席・ターン数を直し、その盤面から CPU 戦を始める。
+    // 直すたびに規則に合うかを検査し直し（devScenarioValidate）、番号も計算し直す。合格のときだけ「この盤面から始める」を押せる。
+    // 直した盤面は、新しい番号の盤面コードとして書き出せる（devScenarioExport）。山札の並び・効果・捨て札の細かい直しは JSON を直接書き換える。
+    // 画面は body に重ねる独立の層（#dev-scn）。始めるまで G・render()・同期には触れない。入口は設定画面の開発者モードの行（devSettingsRowHtml）だけ。
+    // 手札の直し方は、カードの名前の一覧から選ぶ。選んだカードが山札（なければ捨て札）にあれば、それと入れ替えるので、デッキの中身は変わらない。
+    // どこにも無いカードを選ぶと、そのぶん中身が変わり、同名の上限を超えれば検査が理由を示す。
+    // ═══════════════════════════════════════
+    /** @type {{open: boolean, snap: any, origId: string, fileName: string, msg: string, seat: string, skills: string[], rng: string, seed: string, reshuffle: boolean}} */
+    let _sc = { open: false, snap: null, origId: '', fileName: '', msg: '', seat: 'p0', skills: ['normal', 'normal'], rng: 'keep', seed: '1', reshuffle: false };
+
+    /** @param {any} s */
+    function _scEsc(s) { return _escHtml(String(s == null ? '' : s)); }
+    function _scState() { return _sc.snap && typeof _sc.snap === 'object' ? _sc.snap.state : null; }
+    /** 画面に出せる形か（2席ぶんの都市・HP・カードの並びがそろっている） */
+    function _scShapeOk() {
+      const s = _scState();
+      if (!s || !Array.isArray(s.players) || s.players.length !== 2 || !Array.isArray(s.turnsEach) || s.turnsEach.length !== 2) return false;
+      return s.players.every((/** @type {any} */ p) => p && Array.isArray(p.cities) && p.cities.length === 2 && Array.isArray(p.cityHps) && p.cityHps.length === 2 && Array.isArray(p.hand) && Array.isArray(p.deck) && Array.isArray(p.discard));
+    }
+    /** 今の盤面の番号（読めない盤面は空） */
+    function _scId() { try { return _sc.snap && _sc.snap.state ? devScenarioId(_sc.snap) : ''; } catch (e) { return ''; } }
+    /** 使えないカード（CPU 戦の設定。盤面に入っていれば始められない） */
+    function _scBan() { return Array.isArray(devCpuSetup.ban) ? devCpuSetup.ban : []; }
+    /** 検査の結果（理由の一覧。空なら合格） @returns {string[]} */
+    function devScenarioReasons() { return _sc.snap ? devScenarioValidate(_sc.snap, _scBan()) : ['盤面コードが選ばれていない']; }
+    /** いまロビーにいるか（試合の途中には始められない） */
+    function _scInLobby() { return G.screen === 'lobby' || !!G._devPreview; }
+
+    function _scRefresh() {
+      try {
+        if (!_sc.open || typeof document === 'undefined' || !document.getElementById) return;
+        const el = document.getElementById('dev-scn-body');
+        if (el) el.innerHTML = devScenarioRender();
+      } catch (e) {}
+    }
+
+    // ── 読み込み・書き出し ──
+    /** 盤面コードの中身を読み込む（{v, id, view, state} か、ブラウザで保存した {id, build, full}）。形が違えば false
+     * @param {any} obj @param {string} [name] */
+    function devScenarioLoad(obj, name) {
+      let snap = obj;
+      if (snap && typeof snap === 'object' && !snap.state && snap.full) snap = snap.full;
+      if (!snap || typeof snap !== 'object' || !snap.state || typeof snap.state !== 'object') {
+        _sc.msg = (name ? name + '：' : '') + '盤面コードの形ではありません（state がありません）'; _scRefresh(); return false;
+      }
+      _sc.snap = JSON.parse(JSON.stringify(snap));
+      _sc.snap.id = _scId() || _sc.snap.id;
+      _sc.origId = _sc.snap.id; _sc.fileName = name || ''; _sc.msg = '';
+      _scRefresh(); return true;
+    }
+    /** @param {any} file */
+    async function devScenarioLoadFile(file) {
+      if (!file) return false;
+      try {
+        const text = (typeof file.text === 'function') ? await file.text() : await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(fr.error); fr.readAsText(file); });
+        return devScenarioLoad(JSON.parse(text), file.name);
+      } catch (e) { _sc.msg = (file.name || '') + '：JSON として読めません'; _scRefresh(); return false; }
+    }
+    /** 直した盤面を、新しい番号の盤面コード（ブラウザの保存と同じ {id, build, full}）として書き出す。合格しない盤面は書き出さない（空の文字を返す）。
+     * 画面があれば、ファイルにも保存する @returns {string} JSON の文字 */
+    function devScenarioExport() {
+      if (!_sc.snap || devScenarioValidate(_sc.snap).length) return '';
+      const id = _scId();
+      const full = { v: _sc.snap.v, id, view: 'full', build: _sc.snap.build || BUILD_ID, state: JSON.parse(JSON.stringify(_sc.snap.state)) };
+      const text = JSON.stringify({ id, build: full.build, full }, null, 2);
+      try {
+        if (typeof document !== 'undefined' && document.createElement && typeof URL !== 'undefined' && URL.createObjectURL) {
+          const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+          const a = document.createElement('a'); a.href = url; a.download = 'board_' + id + '.json';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+      } catch (e) {}
+      return text;
+    }
+
+    // ── 直す ──
+    /** @param {any} p @param {string} id */
+    function _scNewUid(p, id) {
+      const used = new Set([...p.hand, ...p.deck, ...p.discard].map((/** @type {any} */ c) => c.uid));
+      let n = 1; while (used.has(id + '_e' + n)) n++;
+      return id + '_e' + n;
+    }
+    /** 盤面を直す。field：hp:席:都市（0か1）／active:席／budget:席／ap（手番の席）／turn（席0が終えた手番の数）／hand:席:位置（カード id に替える）／handAdd:席（山札か捨て札から手札へ。値はカード id）／handDrop:席:位置（捨て札へ）。
+     * 直せたら true。値が数でない・場所が無いなどは false で何も変えない
+     * @param {string} field @param {any} value */
+    function devScenarioEdit(field, value) {
+      if (!_scShapeOk()) return false;
+      const s = _scState();
+      const m = String(field).split(':'), kind = m[0];
+      const seat = Number(m[1]), p = s.players[seat];
+      const num = (value === '' || value == null) ? NaN : Number(value);
+      let ok = false;
+      if (kind === 'hp') {
+        const j = Number(m[2]);
+        if (p && (j === 0 || j === 1) && Number.isFinite(num)) { p.cityHps[j] = num; ok = true; }
+      } else if (kind === 'active') {
+        if (p && (num === 0 || num === 1)) { p.activeCityIdx = num; ok = true; }
+      } else if (kind === 'budget') {
+        if (p && Number.isFinite(num) && num >= 0) { p.budgetUsed = num; ok = true; }
+      } else if (kind === 'ap') {
+        if (num === 0 || num === 1) {
+          const n = Math.max(num === 1 ? 1 : 0, s.turnsEach[0]);
+          s.activePlayer = num; s.turnsEach = [n, num === 1 ? n - 1 : n]; ok = true;
+        }
+      } else if (kind === 'turn') {
+        if (Number.isFinite(num)) {
+          const ap = s.activePlayer === 1 ? 1 : 0, n = Math.max(ap === 1 ? 1 : 0, Math.trunc(num));
+          s.turnsEach = [n, ap === 1 ? n - 1 : n]; ok = true;
+        }
+      } else if (kind === 'hand') {
+        const k = Number(m[2]), id = String(value);
+        if (p && p.hand[k] && ALL_CARDS.some(c => c.id === id)) {
+          const cur = p.hand[k];
+          if (cur.id !== id) {
+            let swapped = false;
+            for (const zone of ['deck', 'discard']) {
+              const idx = p[zone].findIndex((/** @type {any} */ c) => c.id === id);
+              if (idx >= 0) { p.hand[k] = p[zone][idx]; p[zone][idx] = cur; swapped = true; break; }
+            }
+            if (!swapped) p.hand[k] = { id, uid: _scNewUid(p, id) };
+          }
+          ok = true;
+        }
+      } else if (kind === 'handAdd') {
+        const id = String(value);
+        if (p && ALL_CARDS.some(c => c.id === id) && (p.deck.length || p.discard.length)) {
+          let from = null;
+          for (const zone of ['deck', 'discard']) {
+            const idx = p[zone].findIndex((/** @type {any} */ c) => c.id === id);
+            if (idx >= 0) { from = p[zone].splice(idx, 1)[0]; break; }
+          }
+          if (!from) { // どこにも無いカード：山札の先頭（山札が空なら捨て札の先頭）をそのカードに替えて手札へ
+            if (p.deck.length) p.deck.shift(); else p.discard.shift();
+            from = { id, uid: _scNewUid(p, id) };
+          }
+          p.hand.push(from); ok = true;
+        }
+      } else if (kind === 'handDrop') {
+        const k = Number(m[2]);
+        if (p && p.hand[k]) { p.discard.push(p.hand.splice(k, 1)[0]); ok = true; }
+      }
+      if (ok) { _sc.snap.id = _scId() || _sc.snap.id; _sc.msg = ''; _scRefresh(); }
+      return ok;
+    }
+
+    // ── 始める設定 ──
+    /** 始める設定を変える。key：seat（p0・p1・none）／skill0・skill1（打ち方）／rng（keep・seed）／seed（種の文字）／reshuffle（'1' か '0'）
+     * @param {string} key @param {any} value */
+    function devScenarioSet(key, value) {
+      const v = String(value);
+      if (key === 'seat' && (v === 'p0' || v === 'p1' || v === 'none')) _sc.seat = v;
+      else if ((key === 'skill0' || key === 'skill1') && CPU_SKILLS.includes(v)) _sc.skills[key === 'skill0' ? 0 : 1] = v;
+      else if (key === 'rng' && (v === 'keep' || v === 'seed')) _sc.rng = v;
+      else if (key === 'seed') { _sc.seed = v; return; } // 入力の途中で描き直すと文字入力が途切れる
+      else if (key === 'reshuffle') _sc.reshuffle = v === '1';
+      else return;
+      _scRefresh();
+    }
+
+    /** この盤面から試合を始める。始められなければ理由を返し、何も変えない
+     * @returns {{ok: true, id: string} | {ok: false, reasons: string[]}} */
+    function devScenarioBegin() {
+      if (!devModeOn()) return { ok: false, reasons: ['開発者モードがオフ'] };
+      if (!_sc.snap) return { ok: false, reasons: ['盤面コードが選ばれていない'] };
+      if (!_scInLobby()) return { ok: false, reasons: ['ロビーにいるときだけ始められる（いまの試合を終えてロビーへ戻る）'] };
+      /** @type {number | null} */
+      let seed = null;
+      if (_sc.rng === 'seed') {
+        if (!/^-?\d{1,9}$/.test(_sc.seed.trim())) return { ok: false, reasons: ['乱数の種は整数（9桁まで）で入れる'] };
+        seed = Number(_sc.seed.trim());
+      }
+      const humanSeat = _sc.seat === 'p0' ? 0 : _sc.seat === 'p1' ? 1 : null;
+      const r = devScenarioStart(_sc.snap, {
+        humanSeat, cpu: [0, 1].map(i => ({ deck: 'recommended', skill: _sc.skills[i] })),
+        rng: seed === null ? 'keep' : { seed, reshuffleDecks: _sc.reshuffle }, ban: _scBan(),
+      });
+      if (r.ok === false) { _sc.msg = r.reasons.join(' / '); _scRefresh(); return r; }
+      devScenarioClose();
+      _settingsOpen = false; roomId = null;
+      render();
+      return r;
+    }
+
+    // ── 描画 ──
+    /** カード名の一覧（枠ごと）。選んでいるものに selected を付ける @param {string} cur */
+    function _scCardOptions(cur) {
+      return /** @type {CardFrame[]} */ (['attack', 'defend', 'free']).map(f => '<optgroup label="' + _scEsc(VERSUS_FRAME_LABEL[f]) + '">'
+        + VERSUS_FRAME_CARDS[f].map(c => '<option value="' + c.id + '"' + (c.id === cur ? ' selected' : '') + '>' + _scEsc(c.name) + '</option>').join('') + '</optgroup>').join('');
+    }
+    /** @param {number} i */
+    function _scSeatHtml(i) {
+      const s = _scState(), p = s.players[i];
+      const who = _sc.seat === 'none' ? 'CPU' : (_sc.seat === 'p' + i ? 'あなた' : 'CPU');
+      const cities = p.cities.map((/** @type {string} */ cid, /** @type {number} */ j) => {
+        const c = CITIES.find(x => x.id === cid);
+        const max = c ? c.hp : 0, hp = p.cityHps[j];
+        const pct = max > 0 && Number.isFinite(hp) ? Math.max(0, Math.min(100, hp / max * 100)) : 0;
+        const front = p.activeCityIdx === j;
+        return '<div class="sc-city' + (front ? ' sc-front' : '') + '"><div class="sc-city-head"><b>' + _scEsc(c ? c.name : cid) + '</b><span class="sc-tag">' + (front ? '前に出ている' : '控え') + '</span>'
+          + (front ? '' : '<button type="button" class="sc-mini" onclick="devScenarioEdit(\'active:' + i + '\',' + j + ')">前に出す</button>') + '</div>'
+          + '<div class="sc-hp"><i style="width:' + pct.toFixed(1) + '%"></i></div>'
+          + '<label class="sc-field">HP<input type="number" inputmode="numeric" min="0" max="' + max + '" step="1" value="' + _scEsc(hp) + '" onchange="devScenarioEdit(\'hp:' + i + ':' + j + '\',this.value)"><span>/ ' + max + '</span></label></div>';
+      }).join('');
+      const hand = p.hand.map((/** @type {any} */ c, /** @type {number} */ k) => '<div class="sc-hand-row"><select aria-label="手札' + (k + 1) + '枚目" onchange="devScenarioEdit(\'hand:' + i + ':' + k + '\',this.value)">' + _scCardOptions(c.id) + '</select><button type="button" class="sc-mini" onclick="devScenarioEdit(\'handDrop:' + i + ':' + k + '\',\'\')">捨てる</button></div>').join('')
+        || '<div class="sc-empty">手札なし</div>';
+      const add = '<select class="sc-add" aria-label="手札にカードを足す" onchange="if(this.value){devScenarioEdit(\'handAdd:' + i + '\',this.value)}"><option value="">手札にカードを足す…</option>' + _scCardOptions('') + '</select>';
+      return '<div class="sc-sec"><h3>席' + i + '（' + (i === 0 ? '先攻' : '後攻') + '）<span class="sc-tag">' + who + '</span></h3>'
+        + '<div class="sc-cities">' + cities + '</div>'
+        + '<h4>手札 ' + p.hand.length + '枚<small>山札 ' + p.deck.length + '・捨て札 ' + p.discard.length + '</small></h4>' + hand + add
+        + '<label class="sc-field sc-budget">予算の使用済み<input type="number" inputmode="numeric" min="0" step="1" value="' + _scEsc(p.budgetUsed) + '" onchange="devScenarioEdit(\'budget:' + i + '\',this.value)"></label></div>';
+    }
+    /** @param {string} key @param {string} cur @param {Array<[string, string]>} items */
+    function _scSeg(key, cur, items) {
+      return '<div class="sc-seg">' + items.map(it => '<button type="button" class="sc-segbtn' + (cur === it[0] ? ' sc-on' : '') + '" onclick="devScenarioSet(\'' + key + '\',\'' + it[0] + '\')">' + _scEsc(it[1]) + '</button>').join('') + '</div>';
+    }
+    /** 画面の中身（HTML の文字）。盤面が選ばれていなければ選ぶ欄だけ */
+    function devScenarioRender() {
+      const pick = '<div class="sc-load"><label class="sc-btn">盤面コードを選ぶ<input type="file" accept=".json,application/json" onchange="devScenarioLoadFile(this.files[0])"></label></div>'
+        + (_sc.msg ? '<div class="sc-err">' + _scEsc(_sc.msg) + '</div>' : '');
+      if (!_sc.snap) return '<p class="sc-note">全部見える版の盤面コード（試合中に「盤面コードを書き出す」で保存したファイル、または自動対戦の snapshot）を選ぶ。手番の始めの盤面だけ始められる。</p>' + pick;
+      const s = _scState();
+      const reasons = devScenarioReasons();
+      const id = _scId();
+      const head = '<div class="sc-sec sc-head"><div class="sc-id">盤面 #' + _scEsc(id) + (id && id !== _sc.origId ? '<span class="sc-tag sc-edited">直した（元 #' + _scEsc(_sc.origId) + '）</span>' : '') + '</div>'
+        + '<div class="sc-meta">' + (_sc.fileName ? _scEsc(_sc.fileName) + '　' : '') + (_scShapeOk() ? '手番は席' + _scEsc(s.activePlayer) + '　終えた手番 席0：' + _scEsc(s.turnsEach[0]) + '・席1：' + _scEsc(s.turnsEach[1]) : '') + '</div></div>';
+      if (!_scShapeOk()) return head + pick + '<div class="sc-sec sc-bad"><h3>始められない理由</h3><ul>' + reasons.map(r => '<li>' + _scEsc(r) + '</li>').join('') + '</ul></div>';
+      const common = '<div class="sc-sec"><h3>手番</h3><div class="sc-row"><div class="sc-lab">手番の席</div>'
+        + '<div class="sc-seg">' + [0, 1].map(a => '<button type="button" class="sc-segbtn' + (s.activePlayer === a ? ' sc-on' : '') + '" onclick="devScenarioEdit(\'ap\',' + a + ')">席' + a + '</button>').join('') + '</div></div>'
+        + '<label class="sc-field">席0が終えた手番の数<input type="number" inputmode="numeric" min="0" max="' + (VERSUS_MAX_TURNS - 1) + '" step="1" value="' + _scEsc(s.turnsEach[0]) + '" onchange="devScenarioEdit(\'turn\',this.value)"><span>席1は自動で合わせる（上限 ' + VERSUS_MAX_TURNS + '）</span></label></div>';
+      const seats = '<div class="sc-seats">' + _scSeatHtml(0) + _scSeatHtml(1) + '</div>';
+      const skillSel = (/** @type {number} */ i) => '<label class="sc-field">席' + i + 'の CPU の打ち方<select onchange="devScenarioSet(\'skill' + i + '\',this.value)">' + CPU_SKILLS.map(k => '<option value="' + k + '"' + (_sc.skills[i] === k ? ' selected' : '') + '>' + _scEsc(CPU_SKILL_LABEL[k]) + '</option>').join('') + '</select></label>';
+      const ban = _scBan();
+      const banNames = ban.map(b => { const c = ALL_CARDS.find(x => x.id === b); return c ? c.name : b; });
+      const start = '<div class="sc-sec"><h3>始める設定</h3>'
+        + '<div class="sc-row"><div class="sc-lab">自分の席</div>' + _scSeg('seat', _sc.seat, [['p0', '席0'], ['p1', '席1'], ['none', '両方 CPU（見るだけ）']]) + '</div>'
+        + (_sc.seat !== 'p0' ? skillSel(0) : '') + (_sc.seat !== 'p1' ? skillSel(1) : '')
+        + '<div class="sc-note">デッキは盤面にあるものを使う（デッキの型は選べない）。</div>'
+        + '<div class="sc-row"><div class="sc-lab">乱数</div>' + _scSeg('rng', _sc.rng, [['keep', 'そのまま'], ['seed', '種を変える']]) + '</div>'
+        + (_sc.rng === 'seed' ? '<label class="sc-field">乱数の種<input type="text" inputmode="numeric" maxlength="10" value="' + _scEsc(_sc.seed) + '" oninput="devScenarioSet(\'seed\',this.value)"></label>'
+          + '<label class="sc-check"><input type="checkbox"' + (_sc.reshuffle ? ' checked' : '') + ' onchange="devScenarioSet(\'reshuffle\',this.checked?\'1\':\'0\')"> 山札を混ぜ直す（既定は混ぜ直さない）</label>' : '<div class="sc-note">盤面コードに入っている乱数の状態から続ける。同じ盤面・同じ手なら同じ展開になる。</div>')
+        + (ban.length ? '<div class="sc-note">使えないカード：' + _scEsc(banNames.join('・')) + '（CPU の設定で変える）。盤面に入っていれば始められない。</div>' : '') + '</div>';
+      const ok = reasons.length === 0, lobby = _scInLobby();
+      const check = ok
+        ? '<div class="sc-sec sc-good"><h3>検査</h3><div>規則に合う。この盤面から始められる。</div></div>'
+        : '<div class="sc-sec sc-bad"><h3>始められない理由</h3><ul>' + reasons.map(r => '<li>' + _scEsc(r) + '</li>').join('') + '</ul></div>';
+      const can = ok && lobby;
+      const actions = '<div class="sc-actions"><button type="button" class="sc-go" ' + (can ? '' : 'disabled ') + 'onclick="devScenarioBegin()">この盤面から始める</button>'
+        + '<button type="button" class="sc-btn" ' + (ok ? '' : 'disabled ') + 'onclick="devScenarioExport()">直した盤面を書き出す</button>'
+        + '<label class="sc-btn">別の盤面を選ぶ<input type="file" accept=".json,application/json" onchange="devScenarioLoadFile(this.files[0])"></label></div>'
+        + (ok && !lobby ? '<div class="sc-note">ロビーにいるときだけ始められる。いまの試合を終えてロビーへ戻ってから押す。</div>' : '')
+        + (_sc.msg ? '<div class="sc-err">' + _scEsc(_sc.msg) + '</div>' : '');
+      return head + common + seats + start + check + actions;
+    }
+
+    const SC_CSS = '#dev-scn{position:fixed;inset:0;z-index:9700;overflow:auto;background:var(--bg1);color:var(--t1);-webkit-overflow-scrolling:touch}'
+      + '#dev-scn *{box-sizing:border-box}#dev-scn .sc-wrap{max-width:980px;margin:0 auto;padding:0 12px 56px}'
+      + '#dev-scn .sc-top{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg1);border-bottom:1px solid rgba(248,81,73,.5)}'
+      + '#dev-scn .sc-top h2{margin:0;font-size:.95rem;flex:1;color:var(--t0)}#dev-scn .sc-top h2 span{color:var(--red);font-size:.66rem;letter-spacing:.1em;margin-left:6px}'
+      + '#dev-scn .sc-btn,#dev-scn .sc-close,#dev-scn .sc-go,#dev-scn .sc-mini{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:7px 14px;border-radius:8px;border:1px solid var(--blue);background:rgba(56,139,253,.1);color:var(--t0);font-size:.8rem;cursor:pointer;font-family:inherit}'
+      + '#dev-scn .sc-btn input{display:none}#dev-scn .sc-close{border-color:var(--bg3);background:var(--bg2)}'
+      + '#dev-scn .sc-go{border-color:var(--green);background:rgba(63,185,80,.14);font-weight:700;box-shadow:0 0 12px rgba(63,185,80,.18)}'
+      + '#dev-scn button:disabled{opacity:.38;cursor:default;box-shadow:none}'
+      + '#dev-scn .sc-mini{min-height:34px;padding:4px 10px;font-size:.72rem}'
+      + '#dev-scn .sc-sec{margin-top:12px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
+      + '#dev-scn .sc-good{border-left-color:var(--green)}#dev-scn .sc-bad{border-left-color:var(--red);background:rgba(248,81,73,.06)}#dev-scn .sc-bad li{margin:3px 0;font-size:.78rem;line-height:1.6}#dev-scn ul{margin:4px 0 0;padding-left:1.2em}'
+      + '#dev-scn h3{margin:0 0 6px;font-size:.85rem;color:var(--t0)}#dev-scn h4{margin:12px 0 6px;font-size:.78rem;color:var(--t0)}#dev-scn h4 small{margin-left:8px;color:var(--t2);font-size:.68rem;font-weight:400}'
+      + '#dev-scn .sc-note,#dev-scn .sc-meta{margin:6px 0;font-size:.7rem;color:var(--t2);line-height:1.6}#dev-scn .sc-err{margin:8px 0;color:var(--red);font-size:.76rem;line-height:1.6}'
+      + '#dev-scn .sc-id{font-size:1rem;font-weight:700;color:var(--t0);letter-spacing:.04em}#dev-scn .sc-tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:8px;background:rgba(56,139,253,.18);color:var(--t0);font-size:.64rem;font-weight:400}'
+      + '#dev-scn .sc-edited{background:rgba(227,179,65,.2)}#dev-scn .sc-load{margin-top:12px}'
+      + '#dev-scn .sc-seats{display:grid;grid-template-columns:1fr;gap:0 12px}'
+      + '#dev-scn .sc-cities{display:grid;grid-template-columns:1fr 1fr;gap:8px}#dev-scn .sc-city{padding:8px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg1)}#dev-scn .sc-front{border-color:var(--blue);box-shadow:0 0 10px rgba(56,139,253,.2)}'
+      + '#dev-scn .sc-city-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:.8rem;color:var(--t0)}#dev-scn .sc-city-head .sc-tag{margin-left:0}'
+      + '#dev-scn .sc-hp{height:6px;margin:6px 0;border-radius:3px;background:var(--bg3);overflow:hidden}#dev-scn .sc-hp i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green))}'
+      + '#dev-scn .sc-field{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:6px 0;font-size:.76rem;color:var(--t1)}#dev-scn .sc-field span{font-size:.68rem;color:var(--t2)}'
+      + '#dev-scn input[type=number],#dev-scn input[type=text],#dev-scn select{min-height:40px;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:16px;font-family:inherit}'
+      + '#dev-scn input[type=number]{width:5.5em}#dev-scn .sc-hand-row{display:flex;gap:6px;margin:6px 0}#dev-scn .sc-hand-row select{flex:1;min-width:0}#dev-scn .sc-add{width:100%;margin-top:4px;border-style:dashed}'
+      + '#dev-scn .sc-empty{padding:6px 0;color:var(--t2);font-size:.76rem}'
+      + '#dev-scn .sc-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:8px 0}#dev-scn .sc-lab{font-size:.74rem;font-weight:700;color:var(--t2);min-width:6em}'
+      + '#dev-scn .sc-seg{display:flex;flex-wrap:wrap;gap:6px}#dev-scn .sc-segbtn{min-height:40px;padding:6px 14px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t1);font-size:.8rem;cursor:pointer;font-family:inherit}'
+      + '#dev-scn .sc-on{border-color:var(--blue);background:rgba(56,139,253,.22);color:var(--t0)}#dev-scn .sc-check{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.76rem;min-height:40px}#dev-scn .sc-check input{width:20px;height:20px}'
+      + '#dev-scn .sc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}#dev-scn .sc-actions .sc-go{flex:1 1 100%}'
+      + '@media (min-width:760px){#dev-scn .sc-seats{grid-template-columns:1fr 1fr}#dev-scn .sc-actions .sc-go{flex:0 0 auto}}'
+      + '@media (max-width:420px){#dev-scn .sc-cities{grid-template-columns:1fr}}';
+
+    function devScenarioClose() {
+      _sc.open = false;
+      try { const el = document.getElementById('dev-scn'); if (el) el.remove(); } catch (e) {}
+    }
+    function devScenarioIsOpen() { return _sc.open; }
+    /** 画面を開く（開発者モードがオンのときだけ。オフなら何もせず false） */
+    function devScenarioOpen() {
+      if (!devModeOn()) return false;
+      _sc.open = true;
+      if (devCpuSetup.skill && CPU_SKILLS.includes(devCpuSetup.skill) && !_sc.snap) _sc.skills = [devCpuSetup.skill, devCpuSetup.skill];
+      try {
+        if (typeof document === 'undefined' || !document.createElement || !document.body) return true;
+        if (document.getElementById('dev-scn')) { _scRefresh(); return true; }
+        const el = document.createElement('div'); el.id = 'dev-scn';
+        el.innerHTML = '<style>' + SC_CSS + '</style><div class="sc-top"><h2>盤面から始める<span>DEV</span></h2><button type="button" class="sc-close" onclick="devScenarioClose()">閉じる</button></div><div class="sc-wrap" id="dev-scn-body">' + devScenarioRender() + '</div>';
+        document.body.appendChild(el);
+      } catch (e) {}
+      return true;
     }
   </script>
 </body>
