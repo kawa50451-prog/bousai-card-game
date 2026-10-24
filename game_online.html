@@ -7245,7 +7245,6 @@
         <div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">モーション</span><span class="settings-row-desc">${motionDesc}</span></div><div class="settings-seg">${motionSeg}</div></div>
         <hr class="hint-divider">
         ${cwCpuRow}
-        ${devSettingsRowHtml()}
       </div></div>`;
     }
 
@@ -8264,6 +8263,7 @@
     }
 
     function endTurn() {
+      if (G && G._devPreview) return; // プレビューの仮の盤面は進めない
       const p = G.players[G.activePlayer]; const city = getActiveCity(G.activePlayer);
       plEvent('turnEnd', plMine(G.activePlayer) ? { pi: G.activePlayer, budgetLeft: getBudgetLeft(G.activePlayer), hand: plHand(p.hand) } : { pi: G.activePlayer, budgetLeft: getBudgetLeft(G.activePlayer) });
       if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) { queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); plEvent('abilityHeal', { pi: G.activePlayer, city: city.id, amount: p.cityHps[p.activeCityIdx] - fh }); } addLog(`${coopIcoHeart(12,'#3fb950')} ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
@@ -9875,7 +9875,7 @@
     }
 
     function pushState() {
-      if (isCpuMode) return;
+      if (isCpuMode || (G && G._devPreview)) return;
       if (!db || !roomId || myRole === 'spectator') return;
       const s = JSON.stringify({ ...G, confirm: null }); myLastPush = s;
       db.ref(`rooms/${roomId}/state`).set(s);
@@ -11093,7 +11093,7 @@
     <div style="display:flex;gap:8px;margin-top:2px">
       <button class="lobby-btn-tut" onclick="startTutorial()" aria-label="対戦チュートリアル">${_svgGame}<span class="tut-btn-label">対戦<br>チュートリアル</span></button>
       <button class="lobby-btn-tut" onclick="startCoopTutorial()" aria-label="協力チュートリアル"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span class="tut-btn-label">協力<br>チュートリアル</span></button>
-    </div>
+    </div>${devHomeButtonHtml()}
     <div style="display:flex;align-items:center;gap:10px;margin:4px 0 0">
       <div style="flex:1;height:1px;background:var(--bg3)"></div>
       <!-- 2026-08-16：カード工房・問題工房・デイリー防災の総称を「クリエイトラボ」に決めた（ユーザー確定）。
@@ -11127,7 +11127,7 @@
     ${err}
     <div style="text-align:center;color:var(--t2);font-size:.82rem;margin:4px 0 10px">CPUと一人で対戦できます。難易度を選んでください。</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${_diffBtns}</div>
-    ${devCpuPanelHtml()}
+    ${devCpuSummaryHtml()}
     <button class="sq-btn-r" style="margin-top:8px" onclick="lobbyGoTo(()=>{lobbyState.mode='select';lobbyState.error=''},'back')" aria-label="ロビーに戻る">＜ ロビーに戻る</button>`;
       } else if (lobbyState.mode === 'coop') {
         // ── ステップ式ウィザード：1画面に1つの問いだけを出す（bigCard等の共通部品は対戦Layer2と兼用のため上でホイスト済み） ──
@@ -11379,7 +11379,7 @@
       const _l1Anchor = lobbyState.mode === 'select' && !lobbyState.playMode;
       const _boxStyleAttr = _l1Anchor ? ' style="min-height:min(640px, calc(100dvh - 40px))"' : '';
       const _bodyHtml = _l1Anchor ? `<div style="display:flex;flex-direction:column;gap:16px;margin-top:auto">${body}</div>` : body;
-      return `<div class="screen active"><div class="lobby-wrap"><div class="lobby-bg-title" aria-hidden="true">${_bgCols}</div><div class="lobby-box${enterClass}"${_boxStyleAttr}>
+      return `<div class="screen active">${_l1Anchor ? devHomeSwitchHtml() : ''}<div class="lobby-wrap"><div class="lobby-bg-title" aria-hidden="true">${_bgCols}</div><div class="lobby-box${enterClass}"${_boxStyleAttr}>
     <div class="lobby-hero">${_neonIconsHtml}${_rlHtml}</div>
     ${_bodyHtml}
   </div></div></div>${lobbyState.coopTutOfferOpen ? renderCoopTutOfferOverlay() : ''}${lobbyState.vsTutOfferOpen ? renderVsTutOfferOverlay() : ''}`;
@@ -11839,7 +11839,7 @@
         const bl = getBudgetLeft(ap);
         return p.hand.some(c => c.cost <= bl);
       }
-      const shouldAutoEnd = (ap === mi && !hasPending && !isResponsePhase && !canPlayAnyCard());
+      const shouldAutoEnd = (ap === mi && !hasPending && !isResponsePhase && !canPlayAnyCard() && !G._devPreview);
 
       function renderZone(idx, position, footer = '') {
         const p = G.players[idx]; const c = getActiveCity(idx); const hp = getActiveCityHp(idx); const mxHp = getActiveMaxHp(idx);
@@ -12852,6 +12852,7 @@
     function handleHostClick() { const name = lobbyState.nameInput.trim(); if (!name) { lobbyState.error = '名前を入力してください'; render(); return; } lobbyState.error = ''; createRoom(); }
     function handleJoinClick() { const name = lobbyState.nameInput.trim(); const code = lobbyState.joinCodeInput.trim(); if (!name) { lobbyState.error = '名前を入力してください'; render(); return; } if (code.length !== 6) { lobbyState.error = 'ルームコードは6文字で入力してください'; render(); return; } lobbyState.error = ''; joinRoom(); }
     function dismissTurnSummary() {
+      if (G && G._devPreview) return; // プレビューの仮の盤面は進めない
       G._atkSummaryConfirmed = false;
       const _evts = G._turnSummary || []; const _ap = G.activePlayer;
       if (!G._gameHistory) G._gameHistory = [];
@@ -13291,7 +13292,7 @@
     }
 
     function _triggerCpuIfNeeded() {
-      if (!isCpuMode) return;
+      if (!isCpuMode || (G && G._devPreview)) return; // 仮の盤面（プレビュー）では CPU を動かさない
       _cpuCancelTimer();
       if (!_cpuActor()) return;
       _cpuTimer = setTimeout(_cpuAct, 700 + (Math.random() * 700 | 0));
@@ -13299,7 +13300,7 @@
 
     function _cpuAct() {
       _cpuTimer = null;
-      if (!isCpuMode) return;
+      if (!isCpuMode || (G && G._devPreview)) return;
       cpuStep(false);
     }
 
@@ -13307,6 +13308,7 @@
      * sync が true のときは、画面の演出のための待ち（攻撃の受け渡しの 0.5 秒）を置かずにすぐ進める（画面なしの自動対戦用）
      * @param {boolean} [sync] @returns {boolean} */
     function cpuStep(sync) {
+      if (G && G._devPreview) return false;
       const a = _cpuActor(); if (!a) return false;
       const me = a.me;
       const gc = G.gachaCurrent, ts = G.turnDrawState;
@@ -23214,11 +23216,12 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = 'aa09030';
+    const BUILD_ID = '69dfc6f';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 2;
     const PL_KEY_PENDING = 'ron_playlog_pending';
     const PL_KEY_CURRENT = 'ron_playlog_current';
+    const PL_KEY_RECENT = 'ron_playlog_recent';
 
     /** 記録中の試合（無ければ null） @type {any} */
     let _plCur = null;
@@ -23227,6 +23230,17 @@
     let _plPending = [];
     /** 直近に終えた記録（ゲームオーバー画面の一言の送り先） @type {{gameId: string, seat: string} | null} */
     let _plLastEnded = null;
+    /** 最近の記録の一覧（新しい順に最大 10 件。送信済みになったものも残る。開発者ハブの「記録」に出す）。中身は印だけで、イベントは入れない
+     * @type {Array<{gameId: string, seat: string, mode: string, date: string, tester: string, complete: boolean, winner: number | null, endReason: string, status: 'unsent' | 'sent' | 'removed'}>} */
+    let _plRecent = [];
+    /** @param {any} log @param {'unsent' | 'sent' | 'removed'} status */
+    function _plNoteRecent(log, status) {
+      if (!log || !log.gameId) return;
+      const e = { gameId: log.gameId, seat: log.seat, mode: log.mode, date: log.startedAt || '', tester: log.tester && log.tester.id || '', complete: !!log.complete, winner: log.result && log.result.winner != null ? log.result.winner : null, endReason: log.result && log.result.endReason || '', status };
+      _plRecent = [e, ..._plRecent.filter(x => !(x.gameId === e.gameId && x.seat === e.seat))].slice(0, 10);
+      try { localStorage.setItem(PL_KEY_RECENT, JSON.stringify(_plRecent)); } catch (err) {}
+    }
+    function plRecent() { return _plRecent; }
 
     function _plDate() {
       const d = new Date();
@@ -23284,7 +23298,7 @@
       const log = _plCur;
       log.result = result; log.complete = true;
       _plCur = null; _plSaveCurrent();
-      _plPending.push(log); _plSavePending();
+      _plPending.push(log); _plSavePending(); _plNoteRecent(log, 'unsent');
       _plLastEnded = { gameId: log.gameId, seat: log.seat };
       plUpload(log).catch(() => {}); // 送信は待たない。失敗しても画面は進み、記録は保留リストに残る
     }
@@ -23295,7 +23309,7 @@
       const log = _plCur;
       log.complete = false; log.result = null;
       _plCur = null; _plSaveCurrent();
-      _plPending.push(log); _plSavePending();
+      _plPending.push(log); _plSavePending(); _plNoteRecent(log, 'unsent');
     }
 
     /** カードを id の列にする（uid や表示名は入れない）
@@ -23451,7 +23465,7 @@
         if (json.length >= 1000000) return false; // Firebase のルールの上限。ファイル保存で逃がす
         await db.ref('playLogs/' + log.gameId + '/' + log.seat).set({ meta: _plMeta(log), json });
         _plPending = _plPending.filter(l => !(l.gameId === log.gameId && l.seat === log.seat));
-        _plSavePending();
+        _plSavePending(); _plNoteRecent(log, 'sent');
         return true;
       } catch (e) { return false; }
     }
@@ -23462,18 +23476,19 @@
       for (const log of _plPending.slice()) { if (await plUpload(log)) ok++; else ng++; }
       return { ok, ng };
     }
-    /** ファイルに保存する中身：保留リストと記録中の試合 */
-    function plDownloadData() {
-      const logs = _plPending.slice();
-      if (_plCur) logs.push(_plCur);
+    /** ファイルに保存する中身：保留リストと記録中の試合（only を渡すと、その 1 試合だけ）。名前は ron_playlog_<テスター番号>_<日時>.json
+     * @param {any} [only] */
+    function plDownloadData(only) {
+      const logs = only ? [only] : _plPending.slice();
+      if (!only && _plCur) logs.push(_plCur);
       const t = devTester();
-      const d = new Date(); const z = (/** @type {number} */ n) => String(n).padStart(2, '0');
-      const stamp = d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes());
-      return { name: 'playlog_' + (t ? t.id : 'unknown') + '_' + stamp + '.json', text: JSON.stringify({ v: PLAYLOG_VERSION, exportedAt: d.toISOString(), logs }) };
+      const d = new Date();
+      return { name: devFileName('playlog', (only && only.tester && only.tester.id) || (t ? t.id : 'unknown'), d), text: JSON.stringify({ v: PLAYLOG_VERSION, exportedAt: d.toISOString(), logs }) };
     }
-    function plDownload() {
+    /** @param {any} [only] */
+    function plDownload(only) {
       try {
-        const data = plDownloadData();
+        const data = plDownloadData(only);
         const url = URL.createObjectURL(new Blob([data.text], { type: 'application/json' }));
         const a = document.createElement('a'); a.href = url; a.download = data.name;
         document.body.appendChild(a); a.click(); a.remove();
@@ -23492,6 +23507,14 @@
     }
     /** @returns {{gameId: string, seat: string} | null} */
     function plLastEnded() { return _plLastEnded; }
+    /** 保留リストの記録を消す（送らずに捨てる）。消せたら true @param {string} gameId @param {string} seat */
+    function plRemovePending(gameId, seat) {
+      const log = _plPending.find(l => l.gameId === gameId && l.seat === seat);
+      if (!log) return false;
+      _plPending = _plPending.filter(l => l !== log);
+      _plSavePending(); _plNoteRecent(log, 'removed');
+      return true;
+    }
 
     // 画面を閉じる・離れるとき：記録中の試合を未完了のまま保留リストへ移す
     (function plBindPageHide() {
@@ -23504,6 +23527,8 @@
         const raw = localStorage.getItem(PL_KEY_PENDING);
         const arr = raw ? JSON.parse(raw) : [];
         if (Array.isArray(arr)) _plPending = arr;
+        const rc = JSON.parse(localStorage.getItem(PL_KEY_RECENT) || '[]');
+        if (Array.isArray(rc)) _plRecent = rc.slice(0, 10);
         const cur = localStorage.getItem(PL_KEY_CURRENT);
         if (cur) {
           const log = JSON.parse(cur);
@@ -23538,7 +23563,8 @@
     /** @param {boolean} on */
     function devSetOn(on) {
       try { if (on) localStorage.setItem(DEV_KEY_ON, '1'); else localStorage.removeItem(DEV_KEY_ON); } catch (e) {}
-      devApplyBadge();
+      devApplyBand();
+      if (!on) devHubClose();
     }
     /** @returns {{id: string, tier: string} | null} */
     function devTester() {
@@ -23557,8 +23583,25 @@
         localStorage.setItem(DEV_KEY_TESTER, JSON.stringify({ id: cleanId, tier: DEV_TIERS.includes(tier) ? tier : DEV_TIERS[0] }));
       } catch (e) {}
     }
-    /** 記録を取る端末か：開発者モードがオンで、テスター登録がある */
-    function devLoggingOn() { return devModeOn() && devTester() !== null; }
+    /** 記録のオン・オフ（開発者ハブの「記録」）。既定はオン。オフにしても、テスター登録は残る */
+    const DEV_KEY_REC = 'ron_dev_rec';
+    function devRecOn() { try { return localStorage.getItem(DEV_KEY_REC) !== '0'; } catch (e) { return true; } }
+    /** @param {boolean} on */
+    function devSetRec(on) {
+      try { if (on) localStorage.removeItem(DEV_KEY_REC); else localStorage.setItem(DEV_KEY_REC, '0'); } catch (e) {}
+      devApplyBand();
+    }
+    /** 記録を取る端末か：開発者モードがオンで、テスター登録があり、記録がオン */
+    function devLoggingOn() { return devModeOn() && devTester() !== null && devRecOn(); }
+    /** 保存するファイルの名前：ron_<種類>_<番号か内容>_<YYYYMMDD-HHmm>.json（例：ron_board_a3f9c2d1_20261024-2130.json）
+     * @param {string} kind board・playlog・summary など @param {string} idOrLabel @param {Date | number} [date] 省略すると今 */
+    function devFileName(kind, idOrLabel, date) {
+      const d = date instanceof Date ? date : new Date(date == null ? Date.now() : date);
+      const z = (/** @type {number} */ n) => String(n).padStart(2, '0');
+      const stamp = d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes());
+      const safe = String(idOrLabel == null ? '' : idOrLabel).replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40) || 'unknown';
+      return 'ron_' + String(kind).replace(/[^A-Za-z0-9_-]+/g, '') + '_' + safe + '_' + stamp + '.json';
+    }
 
     // ═══════════════════════════════════════
     // CPU 戦の相手の設定（第2段a）。開発者モードがオンのときだけ、CPU 戦の startCpuGame がこれを使う。
@@ -23624,14 +23667,16 @@
       const out = { ...counts }; for (const id of b) delete out[/** @type {CardId} */ (id)];
       return out;
     }
+    /** CPU の設定を変えたあとの描き直し（難易度の画面とハブの作業面） */
+    function _devCpuChanged() { render(); _dhRefresh(); }
     /** @param {string} id @param {boolean} on */
     function devCpuSetBan(id, on) {
       if (!ALL_CARDS.some(c => c.id === id)) return;
       const cur = Array.isArray(devCpuSetup.ban) ? devCpuSetup.ban : [];
       const next = (on ? (cur.includes(id) ? cur.slice() : [...cur, id]) : cur.filter(x => x !== id)).sort();
       const r = devBanCheck(next, devCpuSetup.deck);
-      if (!r.ok) { _devBanMsg = '使えないカードにできない：' + r.reasons.join('／'); render(); return; }
-      _devBanMsg = ''; devCpuSetup.ban = next; devCpuSave(); render();
+      if (!r.ok) { _devBanMsg = '使えないカードにできない：' + r.reasons.join('／'); _devCpuChanged(); return; }
+      _devBanMsg = ''; devCpuSetup.ban = next; devCpuSave(); _devCpuChanged();
     }
     /** 今使う設定（開発者モードがオフなら null＝従来どおり） */
     function devCpuCfg() {
@@ -23643,22 +23688,22 @@
     function devCpuSetDeck(v) {
       if (v === 'recommended' || VERSUS_DECK_ARCHETYPES[v]) {
         const r = devBanCheck(devCpuSetup.ban, v);
-        if (!r.ok) { _devBanMsg = 'この型は、いまの使えないカードでは組めない：' + r.reasons.join('／'); render(); return; }
-        _devBanMsg = ''; devCpuSetup.deck = v; devCpuSave(); render();
+        if (!r.ok) { _devBanMsg = 'この型は、いまの使えないカードでは組めない：' + r.reasons.join('／'); _devCpuChanged(); return; }
+        _devBanMsg = ''; devCpuSetup.deck = v; devCpuSave(); _devCpuChanged();
       }
     }
     /** @param {string} v */
-    function devCpuSetSkill(v) { if (['', ...CPU_SKILLS].includes(v)) { devCpuSetup.skill = v; devCpuSave(); render(); } }
+    function devCpuSetSkill(v) { if (['', ...CPU_SKILLS].includes(v)) { devCpuSetup.skill = v; devCpuSave(); _devCpuChanged(); } }
     /** @param {string} v 'gacha' か 'pick' */
-    function devCpuSetCityMode(v) { devCpuSetup.cities = v === 'pick' ? [CITIES[0].id, CITIES[1].id] : null; devCpuSave(); render(); }
+    function devCpuSetCityMode(v) { devCpuSetup.cities = v === 'pick' ? [CITIES[0].id, CITIES[1].id] : null; devCpuSave(); _devCpuChanged(); }
     /** @param {number} slot 0か1 @param {string} id */
     function devCpuSetCity(slot, id) {
       const cs = devCpuSetup.cities; if (!cs || !CITIES.some(c => c.id === id)) return;
       if (cs[1 - slot] === id) cs[1 - slot] = cs[slot]; // 同じ都市を2つにはしない（入れ替える）
-      cs[slot] = id; devCpuSave(); render();
+      cs[slot] = id; devCpuSave(); _devCpuChanged();
     }
     /** @param {string} v */
-    function devCpuSetFirst(v) { devCpuSetup.humanFirst = v === '1'; devCpuSave(); render(); }
+    function devCpuSetFirst(v) { devCpuSetup.humanFirst = v === '1'; devCpuSave(); _devCpuChanged(); }
     /** 乱数の種（空欄は固定しない）。入力中に描き直すと文字入力が途切れるので render しない
      * @param {string} txt */
     function devCpuSetSeed(txt) {
@@ -23666,8 +23711,26 @@
       const n = /^-?\d{1,9}$/.test(t) ? Number(t) : null;
       devCpuSetup.seed = n; devCpuSave();
     }
-    /** CPU 戦の難易度を選ぶ画面の下に出す設定（開発者モードがオンのときだけ） */
-    function devCpuPanelHtml() {
+    /** 相手の CPU の設定の 1 行（難易度の画面に出す。設定の本体は開発者ハブの「CPU 戦」） */
+    function devCpuSummaryLine() {
+      const s = devCpuSetup;
+      const parts = [
+        s.deck === 'recommended' ? 'オススメ' : (VERSUS_DECK_ARCHETYPES[s.deck] ? VERSUS_DECK_ARCHETYPES[s.deck].label : s.deck),
+        s.skill ? CPU_SKILL_LABEL[s.skill] || s.skill : '難易度ボタン',
+        s.cities ? s.cities.map(id => { const c = CITIES.find(x => x.id === id); return c ? c.name : id; }).join('・') : 'ガチャ',
+        s.humanFirst ? '自分が先攻' : '自分が後攻',
+      ];
+      if (s.seed != null) parts.push('種 ' + s.seed);
+      if (Array.isArray(s.ban) && s.ban.length) parts.push('使えないカード ' + s.ban.length + '枚');
+      return parts.join('・');
+    }
+    /** CPU 戦の難易度を選ぶ画面に出す 1 行（開発者モードがオンのときだけ。押すとハブの「CPU 戦」が開く） */
+    function devCpuSummaryHtml() {
+      if (!devModeOn()) return '';
+      return '<button type="button" class="dev-cpu-line" onclick="devHubOpen(2)" style="display:block;width:100%;margin-top:12px;padding:8px 10px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06);color:var(--t1);font-size:.74rem;text-align:left;cursor:pointer;font-family:inherit"><span style="color:var(--red);font-weight:700;letter-spacing:.06em">DEV</span>　ハブで設定中：' + _escHtml(devCpuSummaryLine()) + '</button>';
+    }
+    /** 相手の CPU の設定の一式（開発者ハブの「CPU 戦」の作業面。開発者モードがオンのときだけ） @param {boolean} [inHub] */
+    function devCpuPanelHtml(inHub) {
       if (!devModeOn()) return '';
       const s = devCpuSetup;
       if (!Array.isArray(s.ban)) s.ban = [];
@@ -23682,7 +23745,7 @@
       const banBody = /** @type {CardFrame[]} */ (['attack', 'defend', 'free']).map(f => '<div style="margin-top:4px"><span style="font-size:.66rem;color:var(--t2)">' + VERSUS_FRAME_LABEL[f] + '</span><div class="settings-seg" style="flex-wrap:wrap">' + VERSUS_FRAME_CARDS[f].map(banBtn).join('') + '</div></div>').join('')
         + (_devBanMsg ? '<div style="margin-top:6px;font-size:.7rem;color:var(--red)">' + _escHtml(_devBanMsg) + '</div>' : '');
       const seedBody = '<input type="text" inputmode="numeric" maxlength="10" placeholder="空欄＝固定しない" value="' + (s.seed == null ? '' : s.seed) + '" oninput="devCpuSetSeed(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:6px 8px">';
-      return '<div id="dev-cpu-panel" style="margin-top:14px;padding:10px 12px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06)"><div style="font-size:.78rem;font-weight:700;color:var(--t1)">相手の CPU の設定（DEV）</div>'
+      return '<div id="dev-cpu-panel" style="margin-top:' + (inHub ? '0' : '14px') + ';padding:10px 12px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06)"><div style="font-size:.78rem;font-weight:700;color:var(--t1)">相手の CPU の設定（DEV）</div>'
         + row('デッキの型', seg(decks, s.deck, 'devCpuSetDeck'))
         + row('打ち方', seg(skills, s.skill, 'devCpuSetSkill'))
         + row('CPU の都市', cityBody)
@@ -23692,27 +23755,22 @@
         + '</div>';
     }
 
-    // オンのあいだ、画面の右上に小さく DEV と出す（普通の状態と取り違えないため）
-    function devApplyBadge() {
-      try {
-        if (typeof document === 'undefined' || !document.createElement || !document.body) return;
-        const old = document.getElementById('dev-badge');
-        if (!devModeOn()) { if (old) old.remove(); return; }
-        if (old) return;
-        const el = document.createElement('div'); el.id = 'dev-badge'; el.textContent = 'DEV';
-        el.style.cssText = 'position:fixed;top:6px;right:6px;z-index:9999;padding:1px 7px;border-radius:8px;font:700 .62rem/1.5 "Roboto Condensed",sans-serif;letter-spacing:.1em;color:#fff;background:rgba(248,81,73,.85);pointer-events:none';
-        document.body.appendChild(el);
-      } catch (e) {}
-    }
-
     // ═══════════════════════════════════════
     // 都市を自由に選ぶ（対戦のガチャの代わり）
     // 開発者モードの端末が、自分のガチャの番のときだけ働く。相手が開発者モードでなければ、相手は今までどおりガチャを引く。
     // 選んだ都市は既存の acceptGachaCity() に渡すので、重複の規則（同じ都市は選べない）も以降の流れも変わらない。
     // ═══════════════════════════════════════
+    /** 自分の都市を自由に選ぶか（開発者ハブの「CPU 戦」）。既定はオン。オフならガチャのまま */
+    const DEV_KEY_PICK = 'ron_dev_pickcity';
+    function devPickEnabled() { try { return devModeOn() && localStorage.getItem(DEV_KEY_PICK) !== '0'; } catch (e) { return devModeOn(); } }
+    /** @param {boolean} on */
+    function devSetPickCity(on) {
+      try { if (on) localStorage.removeItem(DEV_KEY_PICK); else localStorage.setItem(DEV_KEY_PICK, '0'); } catch (e) {}
+      _devCpuChanged();
+    }
     /** @param {string} cityId */
     function devPickCity(cityId) {
-      if (!devModeOn()) return;
+      if (!devPickEnabled()) return;
       const gc = G.gachaCurrent;
       if (!gc || G.screen !== 'gacha' || gc.playerIdx !== myPlayerIdx) return;
       if (typeof _gachaAnimState !== 'undefined' && _gachaAnimState) return; // 開封演出の最中は受け付けない
@@ -23726,7 +23784,7 @@
     /** ガチャ画面の下に出す選択パネル（開発者モードで、自分のガチャの番のときだけ） */
     function devGachaPanelHtml() {
       const gc = G.gachaCurrent;
-      if (!devModeOn() || !gc || G.screen !== 'gacha' || gc.playerIdx !== myPlayerIdx || gc.revealed) return '';
+      if (!devPickEnabled() || !gc || G.screen !== 'gacha' || gc.playerIdx !== myPlayerIdx || gc.revealed) return '';
       if (typeof _gachaAnimState !== 'undefined' && _gachaAnimState) return '';
       const btns = CITIES.map(c => {
         const taken = G.gachaPickedIds.includes(c.id);
@@ -23782,22 +23840,11 @@
       return g;
     }
     /** @param {string} kind */
-    function devJump(kind) {
-      if (!devModeOn()) return;
-      if (G.screen !== 'lobby' && !G._devPreview) return; // 対戦の途中では飛ばない
-      if (!DEV_JUMP_KINDS.some(k => k[0] === kind)) return;
-      _cpuCancelTimer();
-      isCpuMode = true; cpuDifficulty = 'normal'; myRole = 'p1'; myPlayerIdx = 0; roomId = null;
-      G = _devFakeG(kind);
-      _settingsOpen = false;
-      render();
-    }
-    /** @param {string} kind */
-    function devUiJump(kind) { devJump(kind); }
+    function devJump(kind) { devPreviewOpen(kind); } // 本体は 270_dev-hub.js の devPreviewOpen（プレビュー中の凍結と、元に戻す処理もそちら）
 
     // ── 設定画面の「開発者モード」の行（入口が出る場所でだけ描く） ──
     let _devUiTier = null;
-    function _devApplyUi() { devApplyBadge(); _ronAfterSettingChange(); }
+    function _devApplyUi() { devApplyBand(); _ronAfterSettingChange(); _dhRefresh(); }
     function devUiToggle(on) { devSetOn(!!on); _devApplyUi(); }
     function devUiApplyTester() {
       /** @type {HTMLInputElement | null} */
@@ -23826,35 +23873,14 @@
       return '<div class="go-inview go-stats-table go-deck-save"><div class="go-stats-section-header go-karte-header">意識したこと（任意）</div><div style="display:flex;gap:8px;padding:10px 14px"><input type="text" maxlength="200" value="' + _escHtml(_devCommentDraft) + '" oninput="devCommentInput(this.value)" placeholder="一言" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:.85rem"><button type="button" class="go-deck-mini go-deck-mini-green" onclick="devCommentSend()">' + uiIcoUpload(13) + ' 送る</button></div></div>';
     }
 
-    // ── 設定画面の開発者モード：記録のファイル保存と送り直し ──
+    // ── 開発者ハブの「記録」から使う送り直し ──
     let _devUiMsg = '';
     async function devUiSendPending() {
       _devUiMsg = '送信中…'; _devApplyUi();
       const r = await plUploadPending();
       _devUiMsg = '送信 ' + r.ok + '件・失敗 ' + r.ng + '件'; _devApplyUi();
     }
-    function devSettingsRowHtml() {
-      if (!devModeAvailable(window.location)) return '';
-      const on = devModeOn();
-      const sw = on ? 'ios-switch on' : 'ios-switch';
-      let html = '<hr class="hint-divider"><div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">開発者モード</span><span class="settings-row-desc">開発側の確認用です。テスター登録をすると、対戦の記録が取られます</span></div><div class="' + sw + '" onclick="devUiToggle(!devModeOn())" style="flex-shrink:0"><div class="track"><div class="knob"></div></div></div></div>';
-      if (!on) return html;
-      const t = devTester();
-      const tierNow = _devUiTier || (t ? t.tier : DEV_TIERS[0]);
-      const tierSeg = DEV_TIERS.map((x, i) => '<button class="settings-seg-btn' + (tierNow === x ? ' active' : '') + '" onclick="devUiSetTier(' + i + ')">' + x + '</button>').join('');
-      html += '<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">テスター番号</span><span class="settings-row-desc">' + (t ? '登録済み：' + _escHtml(t.id) + '（' + _escHtml(t.tier) + '）。この端末の対戦を記録します' : '番号を入れると記録が始まります（例：T01）') + '</span></div><input type="text" id="dev-tester-id" maxlength="20" value="' + (t ? _escHtml(t.id) : '') + '" placeholder="T01" onchange="devUiApplyTester()" style="width:5.5rem;flex-shrink:0;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:.85rem"></div>';
-      html += '<div class="settings-row"><div class="settings-row-text"><span class="settings-row-label">区分</span></div><div class="settings-seg">' + tierSeg + '</div></div>';
-      const pend = plPending().length;
-      html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">プレイ記録</span><span class="settings-row-desc">未送信 ' + pend + '件' + (plCurrent() ? '（記録中の試合あり）' : '') + (_devUiMsg ? '　' + _devUiMsg : '') + '</span></div><button class="copy-url-btn" style="font-size:.78rem" onclick="plDownload()">記録をファイルに保存</button><button class="copy-url-btn" style="font-size:.78rem" onclick="devUiSendPending()">未送信の記録を送る（' + pend + '件）</button></div>';
-      const jumpBtns = DEV_JUMP_KINDS.map(k => '<button class="settings-seg-btn" onclick="devUiJump(\'' + k[0] + '\')">' + k[1] + '</button>').join('');
-      html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">画面へ飛ぶ</span><span class="settings-row-desc">確認用の仮の盤面を開きます（記録されません）。ロビーにいるときだけ使えます</span></div><div class="settings-seg" style="flex-wrap:wrap">' + jumpBtns + '</div></div>';
-      if (G.screen !== 'lobby' && !G._devPreview) html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">盤面コード</span><span class="settings-row-desc">今の盤面を JSON で保存します（全部見える版と、自分の席から見える版）。番号：盤面 #' + devSnapshot('full').id + '</span></div><button class="copy-url-btn" style="font-size:.78rem" onclick="devSnapshotDownload()">盤面コードを書き出す</button></div>';
-      html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">盤面から始める</span><span class="settings-row-desc">盤面コードを読み込み、HP・手札などを直して、その盤面から CPU 戦を始めます。始められるのはロビーにいるときだけです</span></div><button class="copy-url-btn" style="font-size:.78rem" onclick="devScenarioOpen()">盤面から始める画面を開く</button></div>';
-      html += '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="settings-row-text"><span class="settings-row-label">分析</span><span class="settings-row-desc">自動対戦と人の記録の結果（summary.json）を読み込んで表示します。プレイ記録から1試合を追うこともできます</span></div><button class="copy-url-btn" style="font-size:.78rem" onclick="devDashOpen()">分析画面を開く</button></div>';
-      return html;
-    }
     devCpuLoad();
-    devApplyBadge();
     // ═══════════════════════════════════════
     // 盤面コード（開発者モード 第4段）
     // 試合中の盤面を JSON にし、その中身から短い番号（盤面 #a3f9c2d1）を作る。
@@ -23961,7 +23987,7 @@
         const full = devSnapshot('full'), seat = devSnapshot(mine);
         const text = JSON.stringify({ id: full.id, build: full.build, full, [mine]: seat }, null, 2);
         const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-        const a = document.createElement('a'); a.href = url; a.download = 'board_' + full.id + '.json';
+        const a = document.createElement('a'); a.href = url; a.download = devFileName('board', full.id);
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       } catch (e) {}
@@ -24146,11 +24172,11 @@
     // 開発者モードの分析画面（第4段 Task 4）
     // 自動対戦・人の記録の summary.json を読み込んで、書いてある数字をそのまま表示する。指標は計算し直さない。
     // もう一つ、プレイ記録の JSON を読み込んで、1試合を手番ごとの文字の一覧で追える。
-    // 画面は body に重ねる独立の層（#dev-dash）。ゲームの G・render()・同期には触れない。
-    // グラフは SVG を自前で描く（外部ライブラリなし）。入口は設定画面の開発者モードの行（devSettingsRowHtml）だけ。
+    // 画面は開発者ハブの作業面（「4 分析」）に入る。ゲームの G・render()・同期には触れない。
+    // グラフは SVG を自前で描く（外部ライブラリなし）。入口は開発者ハブの「分析」の項目だけ。
     // ═══════════════════════════════════════
-    /** @type {{open: boolean, sums: Array<{name: string, data: any}>, sel: number, logs: Array<{name: string, log: any}>, logSel: number, msg: string, sortKey: number, sortDesc: boolean, cell: number[] | null, cellKind: string}} */
-    let _dd = { open: false, sums: [], sel: 0, logs: [], logSel: 0, msg: '', sortKey: 0, sortDesc: true, cell: null, cellKind: '' };
+    /** @type {{sums: Array<{name: string, data: any}>, sel: number, logs: Array<{name: string, log: any}>, logSel: number, msg: string, sortKey: number, sortDesc: boolean, cell: number[] | null, cellKind: string}} */
+    let _dd = { sums: [], sel: 0, logs: [], logSel: 0, msg: '', sortKey: 0, sortDesc: true, cell: null, cellKind: '' };
     /** 相性表で「薄く表示」する試合数の下限 */
     const DD_MIN_CELL = 20;
     const DD_END_NAMES = { destroyed: '全壊', deckout: '山札切れ', maxturn: '18ターン' };
@@ -24255,7 +24281,8 @@
     /** @param {number} k */ function devDashSort(k) { if (_dd.sortKey === k) _dd.sortDesc = !_dd.sortDesc; else { _dd.sortKey = k; _dd.sortDesc = k !== 0; } _ddRefresh(); }
     /** @param {string} kind @param {number} r @param {number} c */ function devDashCell(kind, r, c) { _dd.cell = [r, c]; _dd.cellKind = kind; _ddRefresh(); }
     function devDashClearAll() { devDashReset(); }
-    function devDashIsOpen() { return _dd.open; }
+    /** 分析の項目を開いているか */
+    function devDashIsOpen() { return devHubIsOpen() && _dh.panel === 4; }
 
     // ── 版の一覧と選択 ──
     /** @returns {Array<{file: string, key: string, v: any, data: any}>} */
@@ -24465,63 +24492,42 @@
       return intro + inputs + _ddSummariesHtml() + (logs ? _ddSec('1試合を追う', logs) : '');
     }
 
-    const DD_CSS = '#dev-dash{position:fixed;inset:0;z-index:9700;overflow:auto;background:var(--bg1);color:var(--t1);-webkit-overflow-scrolling:touch}'
-      + '#dev-dash *{box-sizing:border-box}#dev-dash .dd-wrap{max-width:980px;margin:0 auto;padding:0 12px 48px}'
-      + '#dev-dash .dd-top{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg1);border-bottom:1px solid rgba(248,81,73,.5)}'
-      + '#dev-dash .dd-top h2{margin:0;font-size:.95rem;flex:1;color:var(--t0)}#dev-dash .dd-top h2 span{color:var(--red);font-size:.66rem;letter-spacing:.1em;margin-left:6px}'
-      + '#dev-dash .dd-btn,#dev-dash .dd-close{display:inline-block;padding:7px 12px;margin:0 6px 6px 0;border-radius:8px;border:1px solid var(--blue);background:rgba(56,139,253,.1);color:var(--t0);font-size:.78rem;cursor:pointer}'
-      + '#dev-dash .dd-btn input{display:none}#dev-dash .dd-close{margin:0;border-color:var(--bg3);background:var(--bg2)}'
-      + '#dev-dash .dd-sec{margin-top:14px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
-      + '#dev-dash h3{margin:0 0 6px;font-size:.85rem;color:var(--t0)}#dev-dash h4{margin:10px 0 4px;font-size:.78rem;color:var(--t0)}'
-      + '#dev-dash .dd-note,#dev-dash .dd-axis,#dev-dash .dd-meta,#dev-dash small{font-size:.68rem;color:var(--t2)}#dev-dash small{display:block}'
-      + '#dev-dash .dd-notice{margin-top:12px;padding:10px 12px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06);font-size:.78rem}'
-      + '#dev-dash .dd-pick{margin-top:14px;font-size:.78rem}#dev-dash .dd-block{margin-top:8px}#dev-dash .dd-nc{color:var(--yellow);font-size:.74rem}'
-      + '#dev-dash .dd-err{margin:6px 0;color:var(--red);font-size:.76rem}#dev-dash .dd-empty{padding:8px 0;color:var(--t2);font-size:.76rem}'
-      + '#dev-dash .dd-row{display:grid;grid-template-columns:minmax(5.5em,8em) 1fr;column-gap:8px;align-items:center;margin:6px 0}#dev-dash .dd-name{font-size:.76rem;font-weight:700}'
-      + '#dev-dash .dd-svg{width:100%;height:14px;display:block}#dev-dash .dd-num{grid-column:2;font-size:.68rem;color:var(--t2)}'
-      + '#dev-dash .dd-tier{display:inline-block;min-width:1.4em;text-align:center;border-radius:4px;background:rgba(56,139,253,.2);color:var(--t0);font-size:.66rem}'
-      + '#dev-dash .dd-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}#dev-dash .dd-table{border-collapse:collapse;font-size:.72rem;min-width:100%}'
-      + '#dev-dash .dd-table th,#dev-dash .dd-table td{padding:5px 7px;border:1px solid var(--bg3);text-align:left;vertical-align:top}#dev-dash .dd-table th{font-weight:700;color:var(--t0);white-space:nowrap}'
-      + '#dev-dash .dd-sel th{box-shadow:inset 3px 0 var(--blue)}#dev-dash .dd-link{background:none;border:0;padding:0;color:var(--blue);font:inherit;font-weight:700;cursor:pointer;text-align:left}'
-      + '#dev-dash .dd-matrix td{text-align:center;min-width:3.4em;cursor:pointer;color:var(--t0)}#dev-dash .dd-faint{opacity:.35}#dev-dash .dd-cell-sel{outline:2px solid var(--yellow);outline-offset:-2px}#dev-dash .dd-blank{cursor:default}'
-      + '#dev-dash .dd-detail{font-size:.74rem;line-height:1.7;margin:8px 0}#dev-dash .dd-seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}'
-      + '#dev-dash .dd-turn,#dev-dash .dd-prep{margin-top:8px;padding:6px 8px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg1)}#dev-dash .dd-turn ul,#dev-dash .dd-prep ul{margin:4px 0 0;padding-left:1.1em;font-size:.74rem;line-height:1.7}'
-      + '@media (max-width:520px){#dev-dash .dd-row{grid-template-columns:1fr}#dev-dash .dd-num{grid-column:1}#dev-dash .dd-table{font-size:.68rem}}';
+    const DD_CSS = '#dev-hub .dh-dash{color:var(--t1)}'
+      + '#dev-hub .dh-dash .dd-btn{display:inline-block;padding:7px 12px;margin:0 6px 6px 0;border-radius:8px;border:1px solid var(--blue);background:rgba(56,139,253,.1);color:var(--t0);font-size:.78rem;cursor:pointer}'
+      + '#dev-hub .dh-dash .dd-btn input{display:none}'
+      + '#dev-hub .dh-dash .dd-sec{margin-top:14px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
+      + '#dev-hub .dh-dash h3{margin:0 0 6px;font-size:.85rem;color:var(--t0)}#dev-hub .dh-dash h4{margin:10px 0 4px;font-size:.78rem;color:var(--t0)}'
+      + '#dev-hub .dh-dash .dd-note,#dev-hub .dh-dash .dd-axis,#dev-hub .dh-dash .dd-meta,#dev-hub .dh-dash small{font-size:.68rem;color:var(--t2)}#dev-hub .dh-dash small{display:block}'
+      + '#dev-hub .dh-dash .dd-notice{margin-top:12px;padding:10px 12px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06);font-size:.78rem}'
+      + '#dev-hub .dh-dash .dd-pick{margin-top:14px;font-size:.78rem}#dev-hub .dh-dash .dd-block{margin-top:8px}#dev-hub .dh-dash .dd-nc{color:var(--yellow);font-size:.74rem}'
+      + '#dev-hub .dh-dash .dd-err{margin:6px 0;color:var(--red);font-size:.76rem}#dev-hub .dh-dash .dd-empty{padding:8px 0;color:var(--t2);font-size:.76rem}'
+      + '#dev-hub .dh-dash .dd-row{display:grid;grid-template-columns:minmax(5.5em,8em) 1fr;column-gap:8px;align-items:center;margin:6px 0}#dev-hub .dh-dash .dd-name{font-size:.76rem;font-weight:700}'
+      + '#dev-hub .dh-dash .dd-svg{width:100%;height:14px;display:block}#dev-hub .dh-dash .dd-num{grid-column:2;font-size:.68rem;color:var(--t2)}'
+      + '#dev-hub .dh-dash .dd-tier{display:inline-block;min-width:1.4em;text-align:center;border-radius:4px;background:rgba(56,139,253,.2);color:var(--t0);font-size:.66rem}'
+      + '#dev-hub .dh-dash .dd-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}#dev-hub .dh-dash .dd-table{border-collapse:collapse;font-size:.72rem;min-width:100%}'
+      + '#dev-hub .dh-dash .dd-table th,#dev-hub .dh-dash .dd-table td{padding:5px 7px;border:1px solid var(--bg3);text-align:left;vertical-align:top}#dev-hub .dh-dash .dd-table th{font-weight:700;color:var(--t0);white-space:nowrap}'
+      + '#dev-hub .dh-dash .dd-sel th{box-shadow:inset 3px 0 var(--blue)}#dev-hub .dh-dash .dd-link{background:none;border:0;padding:0;color:var(--blue);font:inherit;font-weight:700;cursor:pointer;text-align:left}'
+      + '#dev-hub .dh-dash .dd-matrix td{text-align:center;min-width:3.4em;cursor:pointer;color:var(--t0)}#dev-hub .dh-dash .dd-faint{opacity:.35}#dev-hub .dh-dash .dd-cell-sel{outline:2px solid var(--yellow);outline-offset:-2px}#dev-hub .dh-dash .dd-blank{cursor:default}'
+      + '#dev-hub .dh-dash .dd-detail{font-size:.74rem;line-height:1.7;margin:8px 0}#dev-hub .dh-dash .dd-seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}'
+      + '#dev-hub .dh-dash .dd-turn,#dev-hub .dh-dash .dd-prep{margin-top:8px;padding:6px 8px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg1)}#dev-hub .dh-dash .dd-turn ul,#dev-hub .dh-dash .dd-prep ul{margin:4px 0 0;padding-left:1.1em;font-size:.74rem;line-height:1.7}'
+      + '@media (max-width:520px){#dev-hub .dh-dash .dd-row{grid-template-columns:1fr}#dev-hub .dh-dash .dd-num{grid-column:1}#dev-hub .dh-dash .dd-table{font-size:.68rem}}';
 
-    function _ddRefresh() {
-      try {
-        if (!_dd.open || typeof document === 'undefined' || !document.getElementById) return;
-        const el = document.getElementById('dev-dash-body');
-        if (el) el.innerHTML = devDashRender();
-      } catch (e) {}
-    }
-    function devDashClose() {
-      _dd.open = false;
-      try { const el = document.getElementById('dev-dash'); if (el) el.remove(); } catch (e) {}
-    }
-    /** 分析画面を開く（開発者モードがオンのときだけ） */
-    function devDashOpen() {
-      if (!devModeOn()) return;
-      _dd.open = true;
-      try {
-        if (typeof document === 'undefined' || !document.createElement || !document.body) return;
-        if (document.getElementById('dev-dash')) return;
-        const el = document.createElement('div'); el.id = 'dev-dash';
-        el.innerHTML = '<style>' + DD_CSS + '</style><div class="dd-top"><h2>分析<span>DEV</span></h2><button type="button" class="dd-close" onclick="devDashClose()">閉じる</button></div><div class="dd-wrap" id="dev-dash-body">' + devDashRender() + '</div>';
-        document.body.appendChild(el);
-      } catch (e) {}
-    }
+    /** 作業面を描き直す（ハブの「分析」を開いているときだけ） */
+    function _ddRefresh() { if (devDashIsOpen()) _dhRefresh(); }
+    function devDashClose() { devHubClose(); }
+    /** 分析の項目を開く（開発者モードがオンのときだけ） */
+    function devDashOpen() { devHubOpen(4); }
     // ═══════════════════════════════════════
     // 盤面から始める画面（開発者モード 第5段）
     // 盤面コード（全部見える版）を読み込み、要約を見て、HP・前の都市・手札・予算・手番の席・ターン数を直し、その盤面から CPU 戦を始める。
     // 直すたびに規則に合うかを検査し直し（devScenarioValidate）、番号も計算し直す。合格のときだけ「この盤面から始める」を押せる。
     // 直した盤面は、新しい番号の盤面コードとして書き出せる（devScenarioExport）。山札の並び・効果・捨て札の細かい直しは JSON を直接書き換える。
-    // 画面は body に重ねる独立の層（#dev-scn）。始めるまで G・render()・同期には触れない。入口は設定画面の開発者モードの行（devSettingsRowHtml）だけ。
+    // 画面は開発者ハブの作業面（「3 盤面」）に入る。始めるまで G・render()・同期には触れない。入口は開発者ハブの「盤面」の項目だけ。
     // 手札の直し方は、カードの名前の一覧から選ぶ。選んだカードが山札（なければ捨て札）にあれば、それと入れ替えるので、デッキの中身は変わらない。
     // どこにも無いカードを選ぶと、そのぶん中身が変わり、同名の上限を超えれば検査が理由を示す。
     // ═══════════════════════════════════════
-    /** @type {{open: boolean, snap: any, origId: string, fileName: string, msg: string, seat: string, skills: string[], rng: string, seed: string, reshuffle: boolean}} */
-    let _sc = { open: false, snap: null, origId: '', fileName: '', msg: '', seat: 'p0', skills: ['normal', 'normal'], rng: 'keep', seed: '1', reshuffle: false };
+    /** @type {{snap: any, origId: string, fileName: string, msg: string, seat: string, skills: string[], rng: string, seed: string, reshuffle: boolean}} */
+    let _sc = { snap: null, origId: '', fileName: '', msg: '', seat: 'p0', skills: ['normal', 'normal'], rng: 'keep', seed: '1', reshuffle: false };
 
     /** @param {any} s */
     function _scEsc(s) { return _escHtml(String(s == null ? '' : s)); }
@@ -24541,13 +24547,8 @@
     /** いまロビーにいるか（試合の途中には始められない） */
     function _scInLobby() { return G.screen === 'lobby' || !!G._devPreview; }
 
-    function _scRefresh() {
-      try {
-        if (!_sc.open || typeof document === 'undefined' || !document.getElementById) return;
-        const el = document.getElementById('dev-scn-body');
-        if (el) el.innerHTML = devScenarioRender();
-      } catch (e) {}
-    }
+    /** 作業面を描き直す（ハブの「盤面」を開いているときだけ） */
+    function _scRefresh() { if (devScenarioIsOpen()) _dhRefresh(); }
 
     // ── 読み込み・書き出し ──
     /** 盤面コードの中身を読み込む（{v, id, view, state} か、ブラウザで保存した {id, build, full}）。形が違えば false
@@ -24581,7 +24582,7 @@
       try {
         if (typeof document !== 'undefined' && document.createElement && typeof URL !== 'undefined' && URL.createObjectURL) {
           const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-          const a = document.createElement('a'); a.href = url; a.download = 'board_' + id + '.json';
+          const a = document.createElement('a'); a.href = url; a.download = devFileName('board', id);
           document.body.appendChild(a); a.click(); a.remove();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
@@ -24768,55 +24769,578 @@
       return head + common + seats + start + check + actions;
     }
 
-    const SC_CSS = '#dev-scn{position:fixed;inset:0;z-index:9700;overflow:auto;background:var(--bg1);color:var(--t1);-webkit-overflow-scrolling:touch}'
-      + '#dev-scn *{box-sizing:border-box}#dev-scn .sc-wrap{max-width:980px;margin:0 auto;padding:0 12px 56px}'
-      + '#dev-scn .sc-top{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg1);border-bottom:1px solid rgba(248,81,73,.5)}'
-      + '#dev-scn .sc-top h2{margin:0;font-size:.95rem;flex:1;color:var(--t0)}#dev-scn .sc-top h2 span{color:var(--red);font-size:.66rem;letter-spacing:.1em;margin-left:6px}'
-      + '#dev-scn .sc-btn,#dev-scn .sc-close,#dev-scn .sc-go,#dev-scn .sc-mini{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:7px 14px;border-radius:8px;border:1px solid var(--blue);background:rgba(56,139,253,.1);color:var(--t0);font-size:.8rem;cursor:pointer;font-family:inherit}'
-      + '#dev-scn .sc-btn input{display:none}#dev-scn .sc-close{border-color:var(--bg3);background:var(--bg2)}'
-      + '#dev-scn .sc-go{border-color:var(--green);background:rgba(63,185,80,.14);font-weight:700;box-shadow:0 0 12px rgba(63,185,80,.18)}'
-      + '#dev-scn button:disabled{opacity:.38;cursor:default;box-shadow:none}'
-      + '#dev-scn .sc-mini{min-height:34px;padding:4px 10px;font-size:.72rem}'
-      + '#dev-scn .sc-sec{margin-top:12px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
-      + '#dev-scn .sc-good{border-left-color:var(--green)}#dev-scn .sc-bad{border-left-color:var(--red);background:rgba(248,81,73,.06)}#dev-scn .sc-bad li{margin:3px 0;font-size:.78rem;line-height:1.6}#dev-scn ul{margin:4px 0 0;padding-left:1.2em}'
-      + '#dev-scn h3{margin:0 0 6px;font-size:.85rem;color:var(--t0)}#dev-scn h4{margin:12px 0 6px;font-size:.78rem;color:var(--t0)}#dev-scn h4 small{margin-left:8px;color:var(--t2);font-size:.68rem;font-weight:400}'
-      + '#dev-scn .sc-note,#dev-scn .sc-meta{margin:6px 0;font-size:.7rem;color:var(--t2);line-height:1.6}#dev-scn .sc-err{margin:8px 0;color:var(--red);font-size:.76rem;line-height:1.6}'
-      + '#dev-scn .sc-id{font-size:1rem;font-weight:700;color:var(--t0);letter-spacing:.04em}#dev-scn .sc-tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:8px;background:rgba(56,139,253,.18);color:var(--t0);font-size:.64rem;font-weight:400}'
-      + '#dev-scn .sc-edited{background:rgba(227,179,65,.2)}#dev-scn .sc-load{margin-top:12px}'
-      + '#dev-scn .sc-seats{display:grid;grid-template-columns:1fr;gap:0 12px}'
-      + '#dev-scn .sc-cities{display:grid;grid-template-columns:1fr 1fr;gap:8px}#dev-scn .sc-city{padding:8px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg1)}#dev-scn .sc-front{border-color:var(--blue);box-shadow:0 0 10px rgba(56,139,253,.2)}'
-      + '#dev-scn .sc-city-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:.8rem;color:var(--t0)}#dev-scn .sc-city-head .sc-tag{margin-left:0}'
-      + '#dev-scn .sc-hp{height:6px;margin:6px 0;border-radius:3px;background:var(--bg3);overflow:hidden}#dev-scn .sc-hp i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green))}'
-      + '#dev-scn .sc-field{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:6px 0;font-size:.76rem;color:var(--t1)}#dev-scn .sc-field span{font-size:.68rem;color:var(--t2)}'
-      + '#dev-scn input[type=number],#dev-scn input[type=text],#dev-scn select{min-height:40px;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:16px;font-family:inherit}'
-      + '#dev-scn input[type=number]{width:5.5em}#dev-scn .sc-hand-row{display:flex;gap:6px;margin:6px 0}#dev-scn .sc-hand-row select{flex:1;min-width:0}#dev-scn .sc-add{width:100%;margin-top:4px;border-style:dashed}'
-      + '#dev-scn .sc-empty{padding:6px 0;color:var(--t2);font-size:.76rem}'
-      + '#dev-scn .sc-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:8px 0}#dev-scn .sc-lab{font-size:.74rem;font-weight:700;color:var(--t2);min-width:6em}'
-      + '#dev-scn .sc-seg{display:flex;flex-wrap:wrap;gap:6px}#dev-scn .sc-segbtn{min-height:40px;padding:6px 14px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t1);font-size:.8rem;cursor:pointer;font-family:inherit}'
-      + '#dev-scn .sc-on{border-color:var(--blue);background:rgba(56,139,253,.22);color:var(--t0)}#dev-scn .sc-check{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.76rem;min-height:40px}#dev-scn .sc-check input{width:20px;height:20px}'
-      + '#dev-scn .sc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}#dev-scn .sc-actions .sc-go{flex:1 1 100%}'
-      + '@media (min-width:760px){#dev-scn .sc-seats{grid-template-columns:1fr 1fr}#dev-scn .sc-actions .sc-go{flex:0 0 auto}}'
-      + '@media (max-width:420px){#dev-scn .sc-cities{grid-template-columns:1fr}}';
+    const SC_CSS = '#dev-hub .dh-scn{color:var(--t1)}'
+      + '#dev-hub .dh-scn .sc-btn,#dev-hub .dh-scn .sc-go,#dev-hub .dh-scn .sc-mini{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:7px 14px;border-radius:8px;border:1px solid var(--blue);background:rgba(56,139,253,.1);color:var(--t0);font-size:.8rem;cursor:pointer;font-family:inherit}'
+      + '#dev-hub .dh-scn .sc-btn input{display:none}'
+      + '#dev-hub .dh-scn .sc-go{border-color:var(--green);background:rgba(63,185,80,.14);font-weight:700;box-shadow:0 0 12px rgba(63,185,80,.18)}'
+      + '#dev-hub .dh-scn button:disabled{opacity:.38;cursor:default;box-shadow:none}'
+      + '#dev-hub .dh-scn .sc-mini{min-height:34px;padding:4px 10px;font-size:.72rem}'
+      + '#dev-hub .dh-scn .sc-sec{margin-top:12px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
+      + '#dev-hub .dh-scn .sc-good{border-left-color:var(--green)}#dev-hub .dh-scn .sc-bad{border-left-color:var(--red);background:rgba(248,81,73,.06)}#dev-hub .dh-scn .sc-bad li{margin:3px 0;font-size:.78rem;line-height:1.6}#dev-hub .dh-scn ul{margin:4px 0 0;padding-left:1.2em}'
+      + '#dev-hub .dh-scn h3{margin:0 0 6px;font-size:.85rem;color:var(--t0)}#dev-hub .dh-scn h4{margin:12px 0 6px;font-size:.78rem;color:var(--t0)}#dev-hub .dh-scn h4 small{margin-left:8px;color:var(--t2);font-size:.68rem;font-weight:400}'
+      + '#dev-hub .dh-scn .sc-note,#dev-hub .dh-scn .sc-meta{margin:6px 0;font-size:.7rem;color:var(--t2);line-height:1.6}#dev-hub .dh-scn .sc-err{margin:8px 0;color:var(--red);font-size:.76rem;line-height:1.6}'
+      + '#dev-hub .dh-scn .sc-id{font-size:1rem;font-weight:700;color:var(--t0);letter-spacing:.04em}#dev-hub .dh-scn .sc-tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:8px;background:rgba(56,139,253,.18);color:var(--t0);font-size:.64rem;font-weight:400}'
+      + '#dev-hub .dh-scn .sc-edited{background:rgba(227,179,65,.2)}#dev-hub .dh-scn .sc-load{margin-top:12px}'
+      + '#dev-hub .dh-scn .sc-seats{display:grid;grid-template-columns:1fr;gap:0 12px}'
+      + '#dev-hub .dh-scn .sc-cities{display:grid;grid-template-columns:1fr 1fr;gap:8px}#dev-hub .dh-scn .sc-city{padding:8px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg1)}#dev-hub .dh-scn .sc-front{border-color:var(--blue);box-shadow:0 0 10px rgba(56,139,253,.2)}'
+      + '#dev-hub .dh-scn .sc-city-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:.8rem;color:var(--t0)}#dev-hub .dh-scn .sc-city-head .sc-tag{margin-left:0}'
+      + '#dev-hub .dh-scn .sc-hp{height:6px;margin:6px 0;border-radius:3px;background:var(--bg3);overflow:hidden}#dev-hub .dh-scn .sc-hp i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green))}'
+      + '#dev-hub .dh-scn .sc-field{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:6px 0;font-size:.76rem;color:var(--t1)}#dev-hub .dh-scn .sc-field span{font-size:.68rem;color:var(--t2)}'
+      + '#dev-hub .dh-scn input[type=number],#dev-hub .dh-scn input[type=text],#dev-hub .dh-scn select{min-height:40px;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:16px;font-family:inherit}'
+      + '#dev-hub .dh-scn input[type=number]{width:5.5em}#dev-hub .dh-scn .sc-hand-row{display:flex;gap:6px;margin:6px 0}#dev-hub .dh-scn .sc-hand-row select{flex:1;min-width:0}#dev-hub .dh-scn .sc-add{width:100%;margin-top:4px;border-style:dashed}'
+      + '#dev-hub .dh-scn .sc-empty{padding:6px 0;color:var(--t2);font-size:.76rem}'
+      + '#dev-hub .dh-scn .sc-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:8px 0}#dev-hub .dh-scn .sc-lab{font-size:.74rem;font-weight:700;color:var(--t2);min-width:6em}'
+      + '#dev-hub .dh-scn .sc-seg{display:flex;flex-wrap:wrap;gap:6px}#dev-hub .dh-scn .sc-segbtn{min-height:40px;padding:6px 14px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t1);font-size:.8rem;cursor:pointer;font-family:inherit}'
+      + '#dev-hub .dh-scn .sc-on{border-color:var(--blue);background:rgba(56,139,253,.22);color:var(--t0)}#dev-hub .dh-scn .sc-check{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.76rem;min-height:40px}#dev-hub .dh-scn .sc-check input{width:20px;height:20px}'
+      + '#dev-hub .dh-scn .sc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}#dev-hub .dh-scn .sc-actions .sc-go{flex:1 1 100%}'
+      + '@media (min-width:760px){#dev-hub .dh-scn .sc-seats{grid-template-columns:1fr 1fr}#dev-hub .dh-scn .sc-actions .sc-go{flex:0 0 auto}}'
+      + '@media (max-width:420px){#dev-hub .dh-scn .sc-cities{grid-template-columns:1fr}}';
 
-    function devScenarioClose() {
-      _sc.open = false;
-      try { const el = document.getElementById('dev-scn'); if (el) el.remove(); } catch (e) {}
-    }
-    function devScenarioIsOpen() { return _sc.open; }
-    /** 画面を開く（開発者モードがオンのときだけ。オフなら何もせず false） */
+    /** 画面を閉じる＝ハブを閉じる */
+    function devScenarioClose() { devHubClose(); }
+    /** 盤面の項目を開いているか */
+    function devScenarioIsOpen() { return devHubIsOpen() && _dh.panel === 3; }
+    /** 画面を開く（ハブの「盤面」。開発者モードがオンのときだけ。オフなら何もせず false） */
     function devScenarioOpen() {
       if (!devModeOn()) return false;
-      _sc.open = true;
       if (devCpuSetup.skill && CPU_SKILLS.includes(devCpuSetup.skill) && !_sc.snap) _sc.skills = [devCpuSetup.skill, devCpuSetup.skill];
+      return devHubOpen(3);
+    }
+    // ═══════════════════════════════════════
+    // 開発者ハブ（開発者モード UI の作り直し）
+    // 開発者モードの入口は、ホームの右上のスイッチと、チュートリアルの下のボタンだけ（GitHub 版と file: でだけ出る）。
+    // ボタンから入る画面（開発者ハブ）に、5 つの項目（記録・CPU 戦・盤面・分析・画面）を左のメニューで並べ、
+    // 選んだ項目の中身を作業面に出す。いちばん下のステータスバーは、いつも今の状態を見せる。
+    // 画面は body に重ねる独立の層（#dev-hub）。G・render()・同期には触れないので、試合中に開いて閉じても試合は変わらない。
+    // ショートカットは DEV_KEYS の 1 か所に集め、document の keydown に 1 つだけ登録する。文字の入力中は働かない。
+    // ═══════════════════════════════════════
+    /** ショートカットの割り当て（ここだけを変えれば、一覧・ボタンの横の表示・受け付けが一緒に変わる） */
+    const DEV_KEYS = { hub: '`', panels: ['1', '2', '3', '4', '5'], search: '/', help: '?', close: 'Escape', board: 'b', primary: 'Enter' };
+    /** 左のメニューの項目（番号は DEV_KEYS.panels の並びと対応する） */
+    const DEV_PANELS = [
+      { n: 1, id: 'rec', label: '記録' },
+      { n: 2, id: 'cpu', label: 'CPU 戦' },
+      { n: 3, id: 'board', label: '盤面' },
+      { n: 4, id: 'dash', label: '分析' },
+      { n: 5, id: 'screen', label: '画面' },
+    ];
+    /** @type {{open: boolean, panel: number, help: boolean, query: string, msg: string, confirm: string}} */
+    let _dh = { open: false, panel: 1, help: false, query: '', msg: '', confirm: '' };
+
+    /** キー名を画面に出す形にする @param {string} k */
+    function _dhKeyLabel(k) { return k === 'Escape' ? 'Esc' : k.length === 1 ? k.toUpperCase() : k; }
+    /** @param {string} k */
+    function _dhKbd(k) { return '<kbd>' + _escHtml(_dhKeyLabel(k)) + '</kbd>'; }
+
+    /** 画面の幅が 900px 未満か（狭いときは、左のメニューを上のタブにして、盤面と分析は見るだけにする） */
+    const DH_NARROW_PX = 900;
+    function _dhNarrow() { try { const w = typeof window !== 'undefined' ? Number(window.innerWidth) : 0; return w > 0 && w < DH_NARROW_PX; } catch (e) { return false; } }
+    let _dhWasNarrow = false;
+    /** 幅が境目をまたいだら描き直す */
+    function devHubOnResize() { const n = _dhNarrow(); if (n === _dhWasNarrow) return; _dhWasNarrow = n; _dhRefresh(); }
+
+    // ── 開く・閉じる・項目 ──
+    function devHubIsOpen() { return _dh.open && devModeOn(); }
+    /** 開く（開発者モードがオンのときだけ。オフなら何もせず false）
+     * @param {number} [panel] 1〜5 */
+    function devHubOpen(panel) {
+      if (!devModeOn()) return false;
+      if (panel != null && Number.isInteger(Number(panel)) && Number(panel) >= 1 && Number(panel) <= DEV_PANELS.length) _dh.panel = Number(panel);
+      if (!_dh.open) _dh.msg = '';
+      _dh.open = true; _dh.help = false; _dh.query = ''; _dh.confirm = '';
       try {
         if (typeof document === 'undefined' || !document.createElement || !document.body) return true;
-        if (document.getElementById('dev-scn')) { _scRefresh(); return true; }
-        const el = document.createElement('div'); el.id = 'dev-scn';
-        el.innerHTML = '<style>' + SC_CSS + '</style><div class="sc-top"><h2>盤面から始める<span>DEV</span></h2><button type="button" class="sc-close" onclick="devScenarioClose()">閉じる</button></div><div class="sc-wrap" id="dev-scn-body">' + devScenarioRender() + '</div>';
-        document.body.appendChild(el);
+        let el = document.getElementById('dev-hub');
+        if (!el) {
+          el = document.createElement('div'); el.id = 'dev-hub';
+          el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', '開発者ハブ');
+          el.setAttribute('ondragover', 'devHubOnDrag(event)'); el.setAttribute('ondragleave', 'devHubOnDragLeave(event)'); el.setAttribute('ondrop', 'devHubOnDrop(event)');
+          document.body.appendChild(el);
+        }
+        el.innerHTML = devHubRender();
       } catch (e) {}
       return true;
     }
+    function devHubClose() {
+      if (!_dh.open) return;
+      _dh.open = false; _dh.help = false; _dh.query = '';
+      try { const el = document.getElementById('dev-hub'); if (el) el.remove(); } catch (e) {}
+    }
+    function devHubToggle() { if (_dh.open) devHubClose(); else devHubOpen(); }
+    /** @param {number} n 1〜5 @returns {boolean} */
+    function devHubSetPanel(n) {
+      const v = Number(n);
+      if (!Number.isInteger(v) || v < 1 || v > DEV_PANELS.length) return false;
+      _dh.panel = v; _dh.query = ''; _dh.msg = ''; _dh.confirm = '';
+      _dhRefresh();
+      return true;
+    }
+    function devHubToggleHelp() { _dh.help = !_dh.help; _dhRefresh(); }
+    /** ハブの中身を描き直す（開いているときだけ。作業面のスクロール位置は残す） */
+    function _dhRefresh() {
+      try {
+        if (!_dh.open || typeof document === 'undefined' || !document.getElementById) return;
+        const el = document.getElementById('dev-hub'); if (!el) return;
+        const w = document.getElementById('dh-work'); const top = w ? w.scrollTop : 0;
+        el.innerHTML = devHubRender();
+        const w2 = document.getElementById('dh-work'); if (w2) w2.scrollTop = top;
+      } catch (e) {}
+    }
+
+    // ── 状態の表示（ステータスバー・試合中の帯） ──
+    function devHubStatusHtml() {
+      const t = devTester();
+      const rec = devLoggingOn() && t ? '記録中 ' + _escHtml(t.id) + '（' + _escHtml(t.tier) + '）' : '記録なし';
+      if (_dhNarrow()) return '<span class="dh-pill">DEV オン</span><span>' + rec + '</span><span>未送信 ' + plPending().length + ' 件</span>';
+      return '<span class="dh-pill">開発者モード オン</span><span>' + rec + '</span><span>未送信 ' + plPending().length + ' 件</span><span>ビルド ' + _escHtml(BUILD_ID) + '</span><span class="dh-grow"></span><label class="dh-file">ファイルをここに落とせます（押して選ぶ）<input type="file" multiple accept=".json,application/json" onchange="devHubLoadFiles(this.files)"></label>';
+    }
+    /** 試合中の上の端に出す帯の文言 */
+    function devBandText() {
+      const t = devTester();
+      return 'DEV｜' + (devLoggingOn() && t ? '記録中 ' + t.id : '記録なし') + '｜' + DEV_KEYS.hub + ' でハブ';
+    }
+    /** オンのあいだ、画面の上の端に細い帯を重ねる（ゲームの画面を押し下げない）。押すとハブが開く */
+    function devApplyBand() {
+      try {
+        if (typeof document === 'undefined' || !document.createElement || !document.body) return;
+        const old = document.getElementById('dev-band');
+        if (!devModeOn() || devPreviewActive()) { if (old) old.remove(); return; }
+        const el = old || document.createElement('button');
+        el.id = 'dev-band'; el.type = 'button'; el.textContent = devBandText();
+        el.setAttribute('aria-label', '開発者ハブを開く');
+        el.setAttribute('onclick', 'devHubOpen()');
+        el.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9600;height:18px;padding:0 12px;border:0;border-radius:0 0 8px 8px;font:700 .62rem/18px "Roboto Condensed",sans-serif;letter-spacing:.06em;white-space:nowrap;color:#fff;background:rgba(248,81,73,.85);cursor:pointer;opacity:.92';
+        if (!old) document.body.appendChild(el);
+      } catch (e) {}
+    }
+
+    // ── ホームの入口 ──
+    /** ホームの右上のスイッチ（出すのは入口が使える場所だけ。それ以外では空の文字） */
+    function devHomeSwitchHtml() {
+      if (!devModeAvailable(window.location)) return '';
+      const on = devModeOn();
+      return '<div class="dev-home-switch" style="position:fixed;top:26px;right:12px;z-index:40;display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--t2)"><span>開発者モード</span>'
+        + '<span role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="開発者モード" tabindex="0" onclick="devUiToggle(!devModeOn())" onkeydown="if(event.key===\' \'||event.key===\'Enter\'){event.preventDefault();devUiToggle(!devModeOn())}" style="position:relative;display:inline-block;width:34px;height:20px;border-radius:10px;cursor:pointer;background:' + (on ? 'var(--green)' : 'var(--bg3)') + ';transition:background .2s"><span style="position:absolute;top:2px;left:' + (on ? '16px' : '2px') + ';width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:left .2s"></span></span></div>';
+    }
+    /** チュートリアルの下の「開発者モード」のボタン（オンのときだけ） */
+    function devHomeButtonHtml() {
+      if (!devModeOn()) return '';
+      return '<button type="button" class="lobby-btn-tut dev-home-btn" style="flex:none;width:100%;margin-top:-8px;border-color:rgba(248,81,73,.5);background:rgba(248,81,73,.07);color:var(--t0)" onclick="devHubOpen()" aria-label="開発者モード">' + uiIcoGear(16) + '<span class="tut-btn-label">開発者モード</span>' + _dhKbd(DEV_KEYS.hub) + '</button>';
+    }
+
+    // ── ショートカット ──
+    /** 文字を打っている最中か（input・textarea・select・contenteditable）。ボタンやチェックボックスは含めない
+     * @param {any} t */
+    function _dhTyping(t) {
+      if (!t) return false;
+      const tag = String(t.tagName || '').toUpperCase();
+      if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (tag === 'INPUT') return !['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'range', 'color', 'image'].includes(String(t.type || 'text').toLowerCase());
+      return !!t.isContentEditable;
+    }
+    /** 項目の主な操作（Enter）。実行したら true */
+    function devHubPrimary() {
+      if (!_dh.open) return false;
+      if (_dh.panel === 1) { devUiSendPending(); return true; }
+      if (_dh.panel === 2) return devHubStartCpu();
+      if (_dh.panel === 3) {
+        if (_dhNarrow()) return false;
+        if (!_sc.snap || devScenarioReasons().length) return false;
+        const r = devScenarioBegin();
+        if (r.ok) devHubClose();
+        return r.ok;
+      }
+      return false;
+    }
+    /** ハブの「CPU 戦を始める」：項目 2 の設定のまま、いま始める。ロビーにいるときだけ。始められたら true */
+    function devHubStartCpu() {
+      if (!devModeOn()) return false;
+      if (G.screen !== 'lobby' || G._devPreview) { _dh.msg = 'ロビーにいるときだけ CPU 戦を始められる（いまの試合を終えてロビーへ戻る）'; _dhRefresh(); return false; }
+      startCpuGame(devCpuSetup.skill || 'normal');
+      if (G.screen === 'lobby') { _dh.msg = devBanMessage() || 'CPU 戦を始められなかった'; _dhRefresh(); return false; }
+      _dh.msg = ''; devHubClose();
+      return true;
+    }
+    /** keydown の受け付け。働いたときは何をしたかの名前を、働かなかったときは空の文字を返す
+     * @param {any} ev @returns {string} */
+    function devHubOnKey(ev) {
+      try {
+        if (!ev || !devModeOn()) return '';
+        if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return '';
+        const k = String(ev.key), typing = _dhTyping(ev.target);
+        const done = (/** @type {string} */ name) => { if (ev.preventDefault) ev.preventDefault(); return name; };
+        if (k === DEV_KEYS.close) {
+          if (devPreviewActive()) { devPreviewClose(); return done('close'); }
+          if (typing && String(ev.target.tagName).toUpperCase() === 'SELECT') return '';
+          if (_dh.help) { _dh.help = false; _dhRefresh(); return done('close'); }
+          if (_dh.open) { devHubClose(); return done('close'); }
+          return '';
+        }
+        if (typing) return '';
+        if (devPreviewActive()) return ''; // プレビュー中は Esc 以外のキーを受けない
+        if (k === DEV_KEYS.hub) { devHubToggle(); return done('hub'); }
+        if (k.toLowerCase() === DEV_KEYS.board) {
+          if (G.screen === 'lobby' || G._devPreview) return '';
+          devSnapshotDownload(); return done('board');
+        }
+        if (!_dh.open) return '';
+        const pi = DEV_KEYS.panels.indexOf(k);
+        if (pi >= 0) { devHubSetPanel(pi + 1); return done('panel'); }
+        if (k === DEV_KEYS.search) {
+          try { const s = document.getElementById('dh-search'); if (s) s.focus(); } catch (e) {}
+          return done('search');
+        }
+        if (k === DEV_KEYS.help) { devHubToggleHelp(); return done('help'); }
+        if (k === DEV_KEYS.primary) {
+          const tag = String(ev.target && ev.target.tagName || '').toUpperCase();
+          const isSwitch = !!(ev.target && ev.target.getAttribute && ev.target.getAttribute('role') === 'switch');
+          if (tag === 'BUTTON' || tag === 'A' || tag === 'SUMMARY' || isSwitch) return ''; // ボタンやスイッチの上の Enter は、そのものに任せる
+          return devHubPrimary() ? done('primary') : '';
+        }
+      } catch (e) {}
+      return '';
+    }
+
+    // ── 検索（項目・設定の名前、カード、都市） ──
+    /** @returns {Array<{label: string, panel: number, note: string}>} */
+    function _dhIndex() {
+      /** @type {Array<{label: string, panel: number, note: string}>} */
+      const out = [];
+      const add = (/** @type {string} */ label, /** @type {number} */ panel, /** @type {string} */ note) => out.push({ label, panel, note });
+      DEV_PANELS.forEach(p => add(p.label, p.n, '項目'));
+      ['テスター番号', '区分', '記録のオン・オフ', '未送信の記録', '最近の記録'].forEach(s => add(s, 1, '記録'));
+      ['デッキの型', '打ち方', 'CPU の都市', '先攻・後攻', '乱数の種', '使えないカード', '自分の都市を自由に選ぶ', 'CPU 戦を始める'].forEach(s => add(s, 2, 'CPU 戦'));
+      ['盤面コード', '盤面から始める', '盤面の書き出し'].forEach(s => add(s, 3, '盤面'));
+      ['summary.json', 'プレイ記録', '結果のまとめ'].forEach(s => add(s, 4, '分析'));
+      DEV_JUMP_KINDS.forEach(k => add(k[1], 5, '画面'));
+      ALL_CARDS.forEach(c => add(c.name, 2, 'カード（使えないカード）'));
+      CITIES.forEach(c => add(c.name, 2, '都市（CPU の都市）'));
+      return out;
+    }
+    /** @param {string} q */
+    function devHubSearchResults(q) {
+      const s = String(q == null ? '' : q).trim().toLowerCase();
+      if (!s) return [];
+      return _dhIndex().filter(x => x.label.toLowerCase().includes(s)).slice(0, 30);
+    }
+    /** 検索の入力。作業面だけを差し替える（入力欄の文字入力を途切れさせない） @param {string} q */
+    function devHubSearch(q) {
+      _dh.query = String(q == null ? '' : q);
+      try { const w = document.getElementById('dh-work'); if (w) w.innerHTML = _dhWorkHtml(); } catch (e) {}
+    }
+    /** 検索の欄で Enter：先頭の結果の項目へ @param {any} ev */
+    function devHubSearchKey(ev) {
+      if (ev && ev.key === 'Enter') { const r = devHubSearchResults(_dh.query)[0]; if (r) devHubSetPanel(r.panel); }
+    }
+    function _dhSearchHtml() {
+      const rs = devHubSearchResults(_dh.query);
+      if (!rs.length) return '<div class="dh-empty">「' + _escHtml(_dh.query) + '」に合う項目はない</div>';
+      return '<div class="dh-sec"><h3>検索の結果</h3>' + rs.map(r => '<button type="button" class="dh-hit" onclick="devHubSetPanel(' + r.panel + ')"><b>' + _escHtml(r.label) + '</b><small>' + _escHtml(r.note) + '</small></button>').join('') + '</div>';
+    }
+
+    // ── 作業面 ──
+    // ── 5 つの項目の作業面 ──
+    /** @param {string} title @param {string} body @param {string} [cls] */
+    function _dhSec(title, body, cls) { return '<section class="dh-sec' + (cls ? ' ' + cls : '') + '"><h3>' + title + '</h3>' + body + '</section>'; }
+    /** @param {boolean} on @param {string} click @param {string} label */
+    function _dhSwitch(on, click, label) {
+      return '<span class="dh-sw' + (on ? ' on' : '') + '" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + _escHtml(label) + '" tabindex="0" onclick="' + click + '" onkeydown="if(event.key===\' \'||event.key===\'Enter\'){event.preventDefault();' + click + '}"><i></i></span>';
+    }
+    /** 1 記録：テスター・記録のオン・オフ・未送信の一覧（送る・ファイルに保存・消す）・最近の記録 */
+    function _dhPanelRec() {
+      const t = devTester(), recOn = devRecOn();
+      const tierNow = _devUiTier || (t ? t.tier : DEV_TIERS[0]);
+      const seg = DEV_TIERS.map((x, i) => '<button type="button" class="dh-segbtn' + (tierNow === x ? ' on' : '') + '" onclick="devUiSetTier(' + i + ')">' + _escHtml(x) + '</button>').join('');
+      const state = !t ? '番号を入れると記録が始まる（例：T01）' : recOn ? '記録中：' + _escHtml(t.id) + '（' + _escHtml(t.tier) + '）。この端末の対戦を記録する' : '記録オフ：登録は残っているが、新しい試合は記録しない';
+      const tester = _dhSec('テスター', '<div class="dh-field"><label for="dev-tester-id">番号</label><input type="text" id="dev-tester-id" maxlength="20" value="' + (t ? _escHtml(t.id) : '') + '" placeholder="T01" onchange="devUiApplyTester()"></div>'
+        + '<div class="dh-field"><span>区分</span><div class="dh-seg">' + seg + '</div></div>'
+        + '<div class="dh-field"><span>記録</span>' + _dhSwitch(recOn, 'devHubSetRec(!devRecOn())', '記録') + '<span class="dh-note">' + state + '</span></div>');
+      const recent = _dhSec('最近の記録', plRecent().map(r => {
+        const res = r.complete ? (r.winner == null ? '引き分け' : '席' + r.winner + ' の勝ち（' + (DD_END_NAMES[/** @type {'destroyed'} */ (r.endReason)] || '全壊') + '）') : '未完了';
+        const st = r.status === 'sent' ? '送信済み' : r.status === 'removed' ? '消した' : '未送信';
+        return '<div class="dh-item"><div class="dh-item-main"><b>' + _escHtml(r.gameId) + '</b><small>' + [r.mode, '席 ' + r.seat, r.date, res].map(x => _escHtml(x)).join('・') + '</small></div><span class="dh-badge dh-' + _escHtml(r.status) + '">' + st + '</span></div>';
+      }).join('') || '<div class="dh-empty">まだ記録がない</div>');
+      const pend = plPending();
+      const items = pend.map((l, i) => {
+        const ask = _dh.confirm === l.gameId + '|' + l.seat;
+        return '<div class="dh-item"><div class="dh-item-main"><b>' + _escHtml(l.gameId) + '</b><small>' + [l.mode, '席 ' + l.seat, l.startedAt, l.complete ? '完了' : '未完了', (Array.isArray(l.events) ? l.events.length : 0) + ' 件の行動'].map(x => _escHtml(x)).join('・') + '</small></div>'
+          + '<div class="dh-item-btns"><button type="button" class="dh-btn" onclick="devHubSendOne(' + i + ')">送る</button><button type="button" class="dh-btn" onclick="plDownload(plPending()[' + i + '])">ファイルに保存</button><button type="button" class="dh-btn danger" onclick="devHubDel(' + i + ')">' + (ask ? '本当に消す' : '消す') + '</button></div></div>';
+      }).join('') || '<div class="dh-empty">未送信の記録はない</div>';
+      const bar = '<div class="dh-bar"><button type="button" class="dh-btn primary"' + (pend.length ? '' : ' disabled') + ' onclick="devUiSendPending()">' + uiIcoUpload(13) + ' すべて送る' + _dhKbd(DEV_KEYS.primary) + '</button><button type="button" class="dh-btn" onclick="plDownload()">すべてファイルに保存</button>' + (plCurrent() ? '<span class="dh-note">記録中の試合あり（保存には含まれる）</span>' : '') + (_devUiMsg ? '<span class="dh-note">' + _escHtml(_devUiMsg) + '</span>' : '') + '</div>';
+      return '<div class="dh-grid">' + tester + recent + '</div>' + _dhSec('未送信の記録（' + pend.length + ' 件）', bar + items);
+    }
+    /** 2 CPU 戦：相手の CPU の設定一式・自分の都市を自由に選ぶか・CPU 戦を始める */
+    function _dhPanelCpu() {
+      const own = _dhSec('自分の都市', '<div class="dh-field">' + _dhSwitch(devPickEnabled(), 'devSetPickCity(!devPickEnabled())', '自分の都市を自由に選ぶ') + '<span>自分の都市を自由に選ぶ</span></div><div class="dh-note">オンのとき、対戦のガチャの自分の番に、都市の一覧から選べる。オフならガチャを引く。</div>');
+      const go = _dhSec('始める', '<button type="button" class="dh-btn primary big" onclick="devHubStartCpu()">' + uiIcoSwords(15) + ' CPU 戦を始める' + _dhKbd(DEV_KEYS.primary) + '</button><div class="dh-note">' + _escHtml(devCpuSummaryLine()) + '</div><div class="dh-note">ロビーにいるときだけ始められる。</div>');
+      return '<div class="dh-grid"><div>' + devCpuPanelHtml(true) + '</div><div>' + go + own + '</div></div>';
+    }
+    /** 狭い幅で、操作を出さない項目の案内 @param {string} what */
+    function _dhViewOnly(what) { return '<div class="dh-sec"><h3>見るだけ</h3><div class="dh-note">' + _escHtml(what) + 'は、PC で開いてください。</div></div>'; }
+    /** 3 盤面：試合中は今の盤面の書き出し。その下に、盤面コードを読み込んで直して始める */
+    function _dhPanelBoard() {
+      if (_dhNarrow()) return _dhViewOnly('盤面の書き出し・読み込み・直す・始める操作') + (_sc.snap ? '<div class="dh-sec"><h3>読み込み済みの盤面</h3><div class="dh-field"><b>盤面 #' + _escHtml(_scId()) + '</b>' + (_sc.fileName ? '<span>' + _escHtml(_sc.fileName) + '</span>' : '') + '</div></div>' : '');
+      const inGame = G.screen !== 'lobby' && !G._devPreview;
+      const exp = inGame ? _dhSec('今の盤面を書き出す', '<div class="dh-field"><span>番号</span><b>盤面 #' + _escHtml(devSnapshot('full').id) + '</b></div><button type="button" class="dh-btn primary" onclick="devSnapshotDownload()">盤面コードを書き出す' + _dhKbd(DEV_KEYS.board) + '</button><div class="dh-note">全部見える版と、自分の席から見える版を、1 つのファイルに保存する。</div>') : '';
+      return exp + '<div class="dh-scn">' + devScenarioRender() + '</div>';
+    }
+    /** 4 分析：結果のまとめとプレイ記録 */
+    function _dhPanelDash() {
+      if (_dhNarrow()) { const logs = _ddLogHtml(); return _dhViewOnly('結果のまとめやプレイ記録の読み込み') + '<div class="dh-dash">' + _ddSummariesHtml() + (logs ? _ddSec('1試合を追う', logs) : '') + '</div>'; }
+      return '<div class="dh-dash">' + devDashRender() + '</div>';
+    }
+    /** 5 画面：見たい画面へ飛ぶ */
+    function _dhPanelScreen() {
+      const btn = (/** @type {string[]} */ k) => '<button type="button" class="dh-btn" onclick="devHubJump(\'' + k[0] + '\')">' + _escHtml(k[1]) + '</button>';
+      const ends = DEV_JUMP_KINDS.filter(k => /^(win|lose)_/.test(k[0])), mid = DEV_JUMP_KINDS.filter(k => !/^(win|lose)_/.test(k[0]));
+      return '<div class="dh-grid">' + _dhSec('決着の画面', '<div class="dh-btns">' + ends.map(btn).join('') + '</div>') + _dhSec('途中の画面', '<div class="dh-btns">' + mid.map(btn).join('') + '</div>') + '</div>'
+        + '<div class="dh-note">確認用の仮の盤面を開く（記録されない・CPU も動かない）。Esc で戻る。ロビーにいるときだけ使える。</div>';
+    }
+    /** 項目ごとの中身（作業面に入れる HTML） @param {number} n */
+    function devHubPanelHtml(n) {
+      if (!devModeOn()) return '';
+      if (n === 1) return _dhPanelRec();
+      if (n === 2) return _dhPanelCpu();
+      if (n === 3) return _dhPanelBoard();
+      if (n === 4) return _dhPanelDash();
+      return _dhPanelScreen();
+    }
+
+    // ── 記録の操作 ──
+    /** @param {boolean} on */
+    function devHubSetRec(on) { devSetRec(!!on); _dhRefresh(); }
+    /** 未送信の 1 件を送る @param {number} i */
+    async function devHubSendOne(i) {
+      const log = plPending()[i]; if (!log) return false;
+      _devUiMsg = '送信中…'; _dhRefresh();
+      const ok = await plUpload(log);
+      _devUiMsg = ok ? '送った' : '送れなかった（通信できない、または大きすぎる。ファイルに保存できる）'; _dhRefresh();
+      return ok;
+    }
+    /** 未送信の 1 件を消す。1 回目は確認に変わり、2 回目で消す @param {number} i @returns {'ask' | 'deleted' | ''} */
+    function devHubDel(i) {
+      const log = plPending()[i]; if (!log) return '';
+      const key = log.gameId + '|' + log.seat;
+      if (_dh.confirm !== key) { _dh.confirm = key; _dhRefresh(); return 'ask'; }
+      _dh.confirm = ''; plRemovePending(log.gameId, log.seat); _dhRefresh();
+      return 'deleted';
+    }
+    /** 画面へ飛ぶ（ハブを閉じて仮の盤面を開く） @param {string} kind */
+    function devHubJump(kind) {
+      if (!devModeOn()) return false;
+      if (G.screen !== 'lobby' && !G._devPreview) { _dh.msg = 'ロビーにいるときだけ画面へ飛べる（いまの試合を終えてロビーへ戻る）'; _dhRefresh(); return false; }
+      return devPreviewOpen(kind);
+    }
+
+    // ── ファイルの落とし込み ──
+    /** 読み込んだ JSON の種類を中身から見分ける。盤面コード・結果のまとめ・プレイ記録のどれでもなければ null
+     * @param {any} obj @returns {'board' | 'summary' | 'playlog' | null} */
+    function devHubDetectFile(obj) {
+      const hasEvents = (/** @type {any} */ l) => !!l && typeof l === 'object' && Array.isArray(l.events);
+      if (Array.isArray(obj)) return obj.length > 0 && obj.every(hasEvents) ? 'playlog' : null;
+      if (!obj || typeof obj !== 'object') return null;
+      if (obj.state && typeof obj.state === 'object') return 'board';
+      if (obj.full && typeof obj.full === 'object' && obj.full.state && typeof obj.full.state === 'object') return 'board';
+      if (obj.variants && typeof obj.variants === 'object' && !Array.isArray(obj.variants)) return 'summary';
+      if (Array.isArray(obj.logs) && obj.logs.some(hasEvents)) return 'playlog';
+      if (Array.isArray(obj.events)) return 'playlog';
+      return null;
+    }
+    /** ファイルの中身を読み込み、種類に合う項目で開く。読めない・種類が分からないときは理由を出して、何も変えない
+     * @param {string} name @param {string} text @returns {{ok: boolean, kind: string | null, msg: string}} */
+    function devHubLoadText(name, text) {
+      if (!devModeOn()) return { ok: false, kind: null, msg: '開発者モードがオフ' };
+      /** @param {string} msg */
+      const fail = (msg) => { _dh.msg = msg; _dhRefresh(); return { ok: false, kind: null, msg }; };
+      /** @type {any} */ let obj;
+      try { obj = JSON.parse(String(text)); } catch (e) { return fail(name + '：JSON として読めない（壊れている）。何も変えていない'); }
+      const kind = devHubDetectFile(obj);
+      if (!kind) return fail(name + '：種類が分からない（盤面コード・結果のまとめ summary.json・プレイ記録のどれでもない）。何も変えていない');
+      let ok = false, why = '';
+      if (kind === 'board') { ok = devScenarioLoad(obj, name); why = _sc.msg; }
+      else if (kind === 'summary') { ok = devDashAddSummary(name, obj); why = _dd.msg; }
+      else { ok = devDashAddLog(name, obj); why = _dd.msg; }
+      if (!ok) return fail(why || name + '：読み込めなかった');
+      _dh.msg = '';
+      if (!_dh.open) devHubOpen(kind === 'board' ? 3 : 4); else { _dh.panel = kind === 'board' ? 3 : 4; _dh.query = ''; _dh.confirm = ''; _dhRefresh(); }
+      return { ok: true, kind, msg: '' };
+    }
+    /** @param {any[] | FileList} files */
+    async function devHubLoadFiles(files) {
+      /** @type {string[]} */ const msgs = [];
+      for (const f of Array.from(files || [])) {
+        let text = '';
+        try { text = await _ddReadText(f); } catch (e) { msgs.push((f && f.name || '') + '：ファイルを読めなかった'); continue; }
+        const r = devHubLoadText(f.name || '（名前なし）', text);
+        if (!r.ok) msgs.push(r.msg);
+      }
+      if (msgs.length) { _dh.msg = msgs.join(' / '); _dhRefresh(); }
+    }
+    /** @param {any} ev */
+    function devHubOnDrag(ev) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      try { const el = document.getElementById('dev-hub'); if (el) el.classList.add('dh-drop'); } catch (e) {}
+    }
+    /** @param {any} ev */
+    function devHubOnDragLeave(ev) {
+      try { const el = document.getElementById('dev-hub'); if (el && (!ev || !ev.relatedTarget || !el.contains(ev.relatedTarget))) el.classList.remove('dh-drop'); } catch (e) {}
+    }
+    /** @param {any} ev */
+    function devHubOnDrop(ev) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      try { const el = document.getElementById('dev-hub'); if (el) el.classList.remove('dh-drop'); } catch (e) {}
+      const files = ev && ev.dataTransfer && ev.dataTransfer.files;
+      if (files && files.length) devHubLoadFiles(files);
+    }
+
+    function _dhWorkHtml() {
+      const p = DEV_PANELS[_dh.panel - 1];
+      if (_dh.query.trim()) return _dhSearchHtml();
+      return '<h2 class="dh-h">' + _escHtml(p.label) + '</h2>' + (_dh.msg ? '<div class="dh-msg">' + _escHtml(_dh.msg) + '</div>' : '') + devHubPanelHtml(_dh.panel);
+    }
+    /** ショートカットの一覧（?） */
+    function devHubKeyHelpHtml() {
+      const rows = [
+        [_dhKbd(DEV_KEYS.hub), 'ハブを開く／閉じる', 'どの画面でも（文字の入力中を除く）'],
+        [_dhKbd(DEV_KEYS.panels[0]) + '〜' + _dhKbd(DEV_KEYS.panels[DEV_KEYS.panels.length - 1]), '項目を切り替える', 'ハブの中'],
+        [_dhKbd(DEV_KEYS.search), '検索の欄へ', 'ハブの中'],
+        [_dhKbd(DEV_KEYS.help), 'ショートカットの一覧', 'ハブの中'],
+        [_dhKbd(DEV_KEYS.close), '一覧・ハブを閉じる', 'どこでも'],
+        [_dhKbd(DEV_KEYS.board), '今の盤面を書き出す', '試合中（ハブを開かなくても）'],
+        [_dhKbd(DEV_KEYS.primary), '項目の主な操作（記録を送る・CPU 戦を始める・この盤面から始める）', 'ハブの中、ボタンが押せるとき'],
+      ];
+      return '<div class="dh-help" onclick="devHubToggleHelp()"><div class="dh-help-card" onclick="event.stopPropagation()"><h3>ショートカット</h3><table>'
+        + rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('') + '</table><button type="button" class="dh-btn" onclick="devHubToggleHelp()">閉じる ' + _dhKbd(DEV_KEYS.close) + '</button></div></div>';
+    }
+
+    const DH_CSS = '#dev-hub{position:fixed;inset:0;z-index:9650;display:flex;flex-direction:column;background:var(--bg1);color:var(--t1)}#dev-hub *{box-sizing:border-box}'
+      + '#dev-hub kbd{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid var(--bg3);border-radius:4px;background:var(--bg1);color:var(--t2);font:700 .62rem/1.5 "Roboto Condensed",monospace}'
+      + '#dev-hub .dh-top{flex:none;display:flex;align-items:center;gap:10px;padding:0 12px;height:46px;background:var(--bg1);border-bottom:1px solid rgba(248,81,73,.5)}'
+      + '#dev-hub .dh-title{display:flex;align-items:center;gap:8px;font-size:.92rem;font-weight:700;color:var(--t0);white-space:nowrap}#dev-hub .dh-tag{color:var(--red);font-size:.64rem;letter-spacing:.1em}'
+      + '#dev-hub .dh-search{flex:1;max-width:420px;margin-left:auto;display:flex;align-items:center;gap:6px}#dev-hub .dh-search input{flex:1;min-width:0;height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:16px;font-family:inherit}'
+      + '#dev-hub .dh-btn,#dev-hub .dh-ico{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:.78rem;cursor:pointer;font-family:inherit}'
+      + '#dev-hub .dh-ico{margin-left:0}#dev-hub .dh-btn:hover,#dev-hub .dh-ico:hover{border-color:var(--blue)}'
+      + '#dev-hub .dh-body{flex:1;min-height:0;display:flex}'
+      + '#dev-hub .dh-menu{flex:none;width:170px;padding:10px 8px;display:flex;flex-direction:column;gap:6px;background:var(--bg2);border-right:1px solid var(--bg3);overflow:auto}'
+      + '#dev-hub .dh-mi{display:flex;align-items:center;gap:9px;min-height:42px;padding:0 10px;border-radius:8px;border:1px solid transparent;border-left:3px solid transparent;background:none;color:var(--t1);font-size:.84rem;cursor:pointer;font-family:inherit;text-align:left}'
+      + '#dev-hub .dh-mi kbd{margin-left:auto}#dev-hub .dh-mi:hover{background:rgba(56,139,253,.08)}'
+      + '#dev-hub .dh-mi.on{border-left-color:var(--blue);background:rgba(56,139,253,.16);color:var(--t0);box-shadow:inset 0 0 14px rgba(56,139,253,.16)}'
+      + '#dev-hub .dh-work{flex:1;min-width:0;overflow:auto;padding:14px 18px 40px;-webkit-overflow-scrolling:touch}'
+      + '#dev-hub .dh-h{margin:0 0 10px;font-size:1rem;color:var(--t0)}#dev-hub .dh-msg{margin:0 0 10px;padding:8px 10px;border:1px solid rgba(248,81,73,.5);border-radius:8px;background:rgba(248,81,73,.07);font-size:.76rem;color:var(--t0)}'
+      + '#dev-hub .dh-sec h3{margin:0 0 8px;font-size:.85rem;color:var(--t0)}#dev-hub .dh-empty{padding:10px 0;color:var(--t2);font-size:.8rem}'
+      + '#dev-hub .dh-hit{display:flex;align-items:baseline;gap:10px;width:100%;min-height:40px;padding:6px 10px;margin-bottom:6px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:.82rem;cursor:pointer;font-family:inherit;text-align:left}#dev-hub .dh-hit small{color:var(--t2);font-size:.68rem}'
+      + '#dev-hub .dh-status{flex:none;display:flex;align-items:center;gap:6px 16px;padding:0 12px;min-height:30px;background:var(--bg2);border-top:1px solid var(--bg3);font-size:.68rem;color:var(--t2);overflow:hidden;white-space:nowrap}'
+      + '#dev-hub .dh-pill{padding:1px 8px;border-radius:8px;background:rgba(248,81,73,.85);color:#fff;font-weight:700;letter-spacing:.04em}'
+      + '#dev-hub .dh-help{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}'
+      + '#dev-hub .dh-help-card{width:min(560px,100%);max-height:100%;overflow:auto;padding:14px 16px;border:1px solid var(--bg3);border-top:3px solid var(--blue);border-radius:10px;background:var(--bg1);box-shadow:0 0 24px rgba(56,139,253,.2)}'
+      + '#dev-hub .dh-help-card h3{margin:0 0 8px;font-size:.9rem;color:var(--t0)}#dev-hub .dh-help-card table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:.78rem}'
+      + '#dev-hub .dh-help-card td{padding:6px 6px;border-bottom:1px solid var(--bg3);vertical-align:top}#dev-hub .dh-help-card td:first-child{white-space:nowrap}#dev-hub .dh-help-card td:first-child kbd{margin:0 2px}#dev-hub .dh-help-card td:last-child{color:var(--t2);font-size:.7rem}';
+
+    const DH_CSS2 = '#dev-hub.dh-drop{outline:3px dashed var(--blue);outline-offset:-6px}#dev-hub .dh-grow{flex:1}'
+      + '#dev-hub .dh-file{cursor:pointer;color:var(--t1);text-decoration:underline dotted}#dev-hub .dh-file input{display:none}'
+      + '#dev-hub .dh-sec{margin-bottom:12px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
+      + '#dev-hub .dh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:0 12px;align-items:start}'
+      + '#dev-hub .dh-field{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:8px 0;font-size:.8rem;color:var(--t1)}'
+      + '#dev-hub .dh-field input[type=text]{min-height:36px;width:7em;padding:0 10px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:16px;font-family:inherit}'
+      + '#dev-hub .dh-note{font-size:.7rem;line-height:1.6;color:var(--t2)}'
+      + '#dev-hub .dh-seg,#dev-hub .dh-btns,#dev-hub .dh-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}#dev-hub .dh-bar{margin-bottom:8px}'
+      + '#dev-hub .dh-segbtn{min-height:34px;padding:0 12px;border-radius:8px;border:1.5px solid var(--bg3);background:var(--bg1);color:var(--t2);font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit}#dev-hub .dh-segbtn.on{border-color:var(--blue);color:var(--t0);background:rgba(56,139,253,.16)}'
+      + '#dev-hub .dh-btn.primary{border-color:var(--green);background:rgba(63,185,80,.14);font-weight:700;box-shadow:0 0 12px rgba(63,185,80,.18)}#dev-hub .dh-btn.big{min-height:44px;font-size:.9rem;width:100%}'
+      + '#dev-hub .dh-btn.danger{border-color:rgba(248,81,73,.6)}#dev-hub .dh-btn:disabled{opacity:.38;cursor:default;box-shadow:none}'
+      + '#dev-hub .dh-sw{position:relative;display:inline-block;flex:none;width:36px;height:22px;border-radius:11px;background:var(--bg3);cursor:pointer;transition:background .2s}#dev-hub .dh-sw i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:left .2s}#dev-hub .dh-sw.on{background:var(--green)}#dev-hub .dh-sw.on i{left:17px}'
+      + '#dev-hub .dh-item{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;padding:7px 0;border-top:1px solid var(--bg3)}#dev-hub .dh-item:first-of-type{border-top:0}'
+      + '#dev-hub .dh-item-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 240px}#dev-hub .dh-item-main b{font-size:.78rem;color:var(--t0);word-break:break-all}#dev-hub .dh-item-main small{font-size:.68rem;color:var(--t2)}#dev-hub .dh-item-btns{display:flex;flex-wrap:wrap;gap:6px}'
+      + '#dev-hub .dh-badge{padding:1px 8px;border-radius:8px;font-size:.66rem;font-weight:700;background:rgba(56,139,253,.18);color:var(--t0)}#dev-hub .dh-badge.dh-unsent{background:rgba(227,179,65,.22)}#dev-hub .dh-badge.dh-removed{background:var(--bg3);color:var(--t2)}'
+      + '#dev-hub .dh-work>.dh-note{margin-top:4px}'
+      + '#dev-hub .dh-narrow kbd{display:none}#dev-hub .dh-narrow .dh-ico kbd{display:inline-block}#dev-hub .dh-top.dh-narrow{gap:6px;padding:0 8px}#dev-hub .dh-top.dh-narrow .dh-title span:not(.dh-tag):not(:first-child){display:none}#dev-hub .dh-top.dh-narrow .dh-search{margin-left:0;min-width:0}#dev-hub .dh-top.dh-narrow .dh-btn{padding:0 10px}'
+      + '#dev-hub .dh-body.dh-narrow{flex-direction:column}#dev-hub .dh-menu.dh-tabs{flex:none;width:auto;flex-direction:row;gap:2px;padding:6px 4px 0;border-right:0;border-bottom:1px solid var(--bg3);overflow:hidden}'
+      + '#dev-hub .dh-tabs .dh-mi{flex:1 1 0;min-width:0;flex-direction:column;justify-content:center;gap:2px;min-height:48px;padding:0 2px;font-size:.7rem;border-left:1px solid transparent;border-bottom:3px solid transparent;border-radius:8px 8px 0 0}#dev-hub .dh-tabs .dh-mi.on{border-left-color:transparent;border-bottom-color:var(--blue)}'
+      + '#dev-hub .dh-narrow .dh-work,#dev-hub .dh-body.dh-narrow .dh-work{padding:12px 12px 32px}#dev-hub .dh-status.dh-narrow{gap:6px 10px;padding:0 8px}';
+
+    /** ハブの全体（開発者モードがオフなら空の文字） */
+    function devHubRender() {
+      if (!devModeOn()) return '';
+      const icons = [uiIcoClock(16), uiIcoSwords(16), uiIcoMap(16), uiIcoTrendDown(16), uiIcoEye(16)];
+      const narrow = _dhNarrow(); _dhWasNarrow = narrow;
+      const menu = DEV_PANELS.map((p, i) => '<button type="button" class="dh-mi' + (_dh.panel === p.n ? ' on' : '') + '" onclick="devHubSetPanel(' + p.n + ')" aria-label="' + _escHtml(p.label) + '">' + icons[i] + '<span>' + _escHtml(p.label) + '</span>' + _dhKbd(DEV_KEYS.panels[i]) + '</button>').join('');
+      return '<style>' + DH_CSS + DH_CSS2 + DD_CSS + SC_CSS + '</style>'
+        + '<div class="dh-top' + (narrow ? ' dh-narrow' : '') + '"><div class="dh-title">' + uiIcoGear(16) + '<span>開発者モード</span><span class="dh-tag">DEV</span></div>'
+        + '<label class="dh-search"><input id="dh-search" type="text" placeholder="検索（項目・設定・カード・都市）" value="' + _escHtml(_dh.query) + '" oninput="devHubSearch(this.value)" onkeydown="devHubSearchKey(event)" autocomplete="off">' + _dhKbd(DEV_KEYS.search) + '</label>'
+        + '<button type="button" class="dh-ico" onclick="devHubToggleHelp()" aria-label="ショートカットの一覧">' + _dhKbd(DEV_KEYS.help).replace('<kbd>', '<kbd style="margin:0">') + '</button>'
+        + '<button type="button" class="dh-btn" onclick="devHubClose()" aria-label="閉じる">' + _lpIcoClose(13) + ' 閉じる' + _dhKbd(DEV_KEYS.close) + '</button></div>'
+        + '<div class="dh-body' + (narrow ? ' dh-narrow' : '') + '">' + (narrow ? '<nav class="dh-menu dh-tabs" role="tablist" aria-label="項目">' : '<nav class="dh-menu" aria-label="項目">') + menu + '</nav><main class="dh-work" id="dh-work">' + _dhWorkHtml() + '</main></div>'
+        + '<div class="dh-status' + (narrow ? ' dh-narrow' : '') + '">' + devHubStatusHtml() + '</div>'
+        + (_dh.help ? devHubKeyHelpHtml() : '');
+    }
+
+    // ── プレビュー（画面へ飛ぶ） ──
+    // 仮の盤面（_devFakeG）を出すあいだは、ゲームを動かすものを全部止める。
+    // 止めるもの：CPU の判断と起動のタイマー（_triggerCpuIfNeeded・_cpuAct・cpuStep）、ターンの進行（endTurn・自動のターン終了）、
+    // 相手への送信（pushState）、記録（plEvent）、画面のボタン（click を #app などの手前で止める）。
+    // 入るときに、元の状態（G・CPU 戦の印・席・部屋・設定画面）をまるごと控え、Esc か帯のボタンで元に戻して、ハブの 5 画面を開く。
+    /** @type {any} */
+    let _dpv = null;
+    function devPreviewActive() { return !!_dpv && !!G && !!G._devPreview; }
+    function devPreviewBandText() { return 'プレビュー中（Esc で戻る）'; }
+    function devPreviewBandHtml() {
+      return '<span>' + _escHtml(devPreviewBandText()) + '</span><span class="dpv-btn" aria-hidden="true">戻る ' + _dhKbd(DEV_KEYS.close) + '</span>';
+    }
+    /** プレビューの帯を出す・消す */
+    function _dpvBand() {
+      try {
+        if (typeof document === 'undefined' || !document.createElement || !document.body) return;
+        const old = document.getElementById('dev-preview-band');
+        if (!_dpv) { if (old) old.remove(); return; }
+        const el = old || document.createElement('button');
+        el.id = 'dev-preview-band'; el.type = 'button'; el.innerHTML = devPreviewBandHtml();
+        el.setAttribute('aria-label', 'プレビューを終えてハブへ戻る');
+        el.setAttribute('onclick', 'devPreviewClose()');
+        el.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9700;display:flex;align-items:center;gap:12px;min-height:30px;padding:0 14px;border:1px solid var(--blue);border-top:0;border-radius:0 0 10px 10px;font:700 .74rem/1 "Roboto Condensed",sans-serif;letter-spacing:.04em;white-space:nowrap;color:var(--t0);background:rgba(13,17,23,.94);box-shadow:0 0 14px rgba(56,139,253,.45);cursor:pointer';
+        if (!old) document.body.appendChild(el);
+      } catch (e) {}
+    }
+    /** 見たい画面を開く（ロビーにいるときだけ。すでにプレビュー中なら、入る前の状態は控えたまま別の画面へ替える）
+     * @param {string} kind @returns {boolean} */
+    function devPreviewOpen(kind) {
+      if (!devModeOn()) return false;
+      if (G.screen !== 'lobby' && !G._devPreview) return false; // 対戦の途中では飛ばない
+      if (!DEV_JUMP_KINDS.some(k => k[0] === kind)) return false;
+      _cpuCancelTimer();
+      if (!_dpv) _dpv = { G, isCpuMode, cpuDifficulty, myRole, myPlayerIdx, roomId, settingsOpen: _settingsOpen };
+      isCpuMode = true; cpuDifficulty = 'normal'; myRole = 'p1'; myPlayerIdx = 0; roomId = null;
+      G = _devFakeG(kind);
+      _settingsOpen = false;
+      devHubClose(); _dpvBand(); devApplyBand();
+      render();
+      return true;
+    }
+    /** プレビューを終える：入る前の状態に戻し、ハブの 5 画面を開く @returns {boolean} */
+    function devPreviewClose() {
+      if (!_dpv) return false;
+      const s = _dpv; _dpv = null;
+      _cpuCancelTimer();
+      G = s.G; isCpuMode = s.isCpuMode; cpuDifficulty = s.cpuDifficulty; myRole = s.myRole; myPlayerIdx = s.myPlayerIdx; roomId = s.roomId; _settingsOpen = s.settingsOpen;
+      _dpvBand(); devApplyBand();
+      render();
+      devHubOpen(5);
+      return true;
+    }
+    /** プレビュー中は、画面のゲームのボタンを押させない（帯とハブは除く）。止めたら true
+     * @param {any} ev */
+    function devPreviewBlockClick(ev) {
+      try {
+        if (!devPreviewActive() || !ev || !ev.target || !ev.target.closest) return false;
+        if (ev.target.closest('#dev-preview-band, #dev-hub')) return false;
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        return true;
+      } catch (e) { return false; }
+    }
+    // 起動時：キーの受け付けを 1 つだけ登録し、帯を出す
+    (function dhInit() {
+      try { if (typeof document !== 'undefined' && document.addEventListener) { document.addEventListener('keydown', devHubOnKey); document.addEventListener('click', devPreviewBlockClick, true); } if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('resize', devHubOnResize); } catch (e) {}
+      devApplyBand();
+    })();
   </script>
 </body>
 
