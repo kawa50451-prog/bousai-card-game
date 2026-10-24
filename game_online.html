@@ -23216,7 +23216,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '69dfc6f';
+    const BUILD_ID = 'ad9fe47';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 2;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -23545,6 +23545,8 @@
     // ═══════════════════════════════════════
     const DEV_HOSTS = ['kawa50451-prog.github.io'];
     const DEV_TIERS = ['初心者', '標準', '設計者'];
+    /** 開発者ハブで使う等幅フォント（ショートカットの [1] や表の数字。ゲームに専用の指定が無いので spec §6-2 の既定） */
+    const DH_MONO = 'ui-monospace, "Cascadia Mono", Consolas, monospace';
     const DEV_KEY_ON = 'ron_dev_on';
     const DEV_KEY_TESTER = 'ron_dev_tester';
 
@@ -23729,29 +23731,32 @@
       if (!devModeOn()) return '';
       return '<button type="button" class="dev-cpu-line" onclick="devHubOpen(2)" style="display:block;width:100%;margin-top:12px;padding:8px 10px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06);color:var(--t1);font-size:.74rem;text-align:left;cursor:pointer;font-family:inherit"><span style="color:var(--red);font-weight:700;letter-spacing:.06em">DEV</span>　ハブで設定中：' + _escHtml(devCpuSummaryLine()) + '</button>';
     }
-    /** 相手の CPU の設定の一式（開発者ハブの「CPU 戦」の作業面。開発者モードがオンのときだけ） @param {boolean} [inHub] */
+    /** 相手の CPU の設定の一式（開発者ハブの「CPU 戦」の作業面。開発者モードがオンのときだけ）。
+     * 選択肢が少ないものはセグメント（四角の区切り）、多いものはプルダウン @param {boolean} [inHub] */
     function devCpuPanelHtml(inHub) {
       if (!devModeOn()) return '';
       const s = devCpuSetup;
       if (!Array.isArray(s.ban)) s.ban = [];
       /** @param {Array<string[]>} items @param {string} cur @param {string} fn */
-      const seg = (items, cur, fn) => '<div class="settings-seg" style="flex-wrap:wrap">' + items.map(it => '<button type="button" class="settings-seg-btn' + (cur === it[0] ? ' active' : '') + '" onclick="' + fn + '(\'' + it[0] + '\')">' + it[1] + '</button>').join('') + '</div>';
-      const row = (/** @type {string} */ label, /** @type {string} */ body) => '<div style="margin-top:8px"><div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:4px">' + label + '</div>' + body + '</div>';
+      const seg = (items, cur, fn) => '<div class="dh-seg">' + items.map(it => '<button type="button" class="dh-segbtn' + (cur === it[0] ? ' on' : '') + '" onclick="' + fn + '(\'' + it[0] + '\')">' + it[1] + '</button>').join('') + '</div>';
+      /** @param {Array<string[]>} items @param {string} cur @param {string} fn */
+      const pull = (items, cur, fn) => '<select onchange="' + fn + '(this.value)">' + items.map(it => '<option value="' + it[0] + '"' + (cur === it[0] ? ' selected' : '') + '>' + it[1] + '</option>').join('') + '</select>';
+      const row = (/** @type {string} */ label, /** @type {string} */ body) => '<div class="dh-field"><span>' + label + '</span>' + body + '</div>';
       const decks = [['recommended', 'オススメ'], ...Object.keys(VERSUS_DECK_ARCHETYPES).map(k => [k, VERSUS_DECK_ARCHETYPES[k].label])];
       const skills = [['', '難易度ボタン'], ['easy', 'EASY'], ['normal', 'NORMAL'], ['hard', 'HARD'], ['beginner', '初心者'], ['standard', '標準'], ['expert', '上級']];
-      const opt = (/** @type {number} */ slot) => '<select onchange="devCpuSetCity(' + slot + ', this.value)" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:4px 6px">' + CITIES.map(c => '<option value="' + c.id + '"' + (s.cities && s.cities[slot] === c.id ? ' selected' : '') + '>' + _escHtml(c.name) + '</option>').join('') + '</select>';
-      const cityBody = seg([['gacha', 'ガチャ'], ['pick', '指定']], s.cities ? 'pick' : 'gacha', 'devCpuSetCityMode') + (s.cities ? '<div style="display:flex;gap:6px;margin-top:6px">' + opt(0) + opt(1) + '</div>' : '');
-      const banBtn = (/** @type {{id: string, name: string}} */ c) => { const on = s.ban.includes(c.id); return '<button type="button" class="settings-seg-btn' + (on ? ' active' : '') + '"' + (on ? ' style="border-color:rgba(248,81,73,.7);background:rgba(248,81,73,.18);color:var(--t0)"' : '') + ' onclick="devCpuSetBan(\'' + c.id + '\',' + (on ? 'false' : 'true') + ')">' + _escHtml(c.name) + '</button>'; };
-      const banBody = /** @type {CardFrame[]} */ (['attack', 'defend', 'free']).map(f => '<div style="margin-top:4px"><span style="font-size:.66rem;color:var(--t2)">' + VERSUS_FRAME_LABEL[f] + '</span><div class="settings-seg" style="flex-wrap:wrap">' + VERSUS_FRAME_CARDS[f].map(banBtn).join('') + '</div></div>').join('')
-        + (_devBanMsg ? '<div style="margin-top:6px;font-size:.7rem;color:var(--red)">' + _escHtml(_devBanMsg) + '</div>' : '');
-      const seedBody = '<input type="text" inputmode="numeric" maxlength="10" placeholder="空欄＝固定しない" value="' + (s.seed == null ? '' : s.seed) + '" oninput="devCpuSetSeed(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:6px 8px">';
-      return '<div id="dev-cpu-panel" style="margin-top:' + (inHub ? '0' : '14px') + ';padding:10px 12px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06)"><div style="font-size:.78rem;font-weight:700;color:var(--t1)">相手の CPU の設定（DEV）</div>'
-        + row('デッキの型', seg(decks, s.deck, 'devCpuSetDeck'))
-        + row('打ち方', seg(skills, s.skill, 'devCpuSetSkill'))
+      const opt = (/** @type {number} */ slot) => '<select onchange="devCpuSetCity(' + slot + ', this.value)">' + CITIES.map(c => '<option value="' + c.id + '"' + (s.cities && s.cities[slot] === c.id ? ' selected' : '') + '>' + _escHtml(c.name) + '</option>').join('') + '</select>';
+      const cityBody = seg([['gacha', 'ガチャ'], ['pick', '指定']], s.cities ? 'pick' : 'gacha', 'devCpuSetCityMode') + (s.cities ? opt(0) + opt(1) : '');
+      const banBtn = (/** @type {{id: string, name: string}} */ c) => '<button type="button" class="dh-chip' + (s.ban.includes(c.id) ? ' on' : '') + '" onclick="devCpuSetBan(\'' + c.id + '\',' + (s.ban.includes(c.id) ? 'false' : 'true') + ')">' + _escHtml(c.name) + '</button>';
+      const banBody = /** @type {CardFrame[]} */ (['attack', 'defend', 'free']).map(f => '<div class="dh-sub">' + VERSUS_FRAME_LABEL[f] + '</div><div class="dh-chips">' + VERSUS_FRAME_CARDS[f].map(banBtn).join('') + '</div>').join('')
+        + (_devBanMsg ? '<div class="dh-err">' + _escHtml(_devBanMsg) + '</div>' : '');
+      const seedBody = '<input type="text" inputmode="numeric" maxlength="10" placeholder="固定しない" value="' + (s.seed == null ? '' : s.seed) + '" oninput="devCpuSetSeed(this.value)">';
+      return '<div id="dev-cpu-panel">' + _dhSec('相手の CPU の設定',
+        row('デッキの型', seg(decks, s.deck, 'devCpuSetDeck'))
+        + row('打ち方', pull(skills, s.skill, 'devCpuSetSkill'))
         + row('CPU の都市', cityBody)
         + row('先攻・後攻', seg([['1', '自分が先攻'], ['0', '自分が後攻']], s.humanFirst ? '1' : '0', 'devCpuSetFirst'))
-        + row('使えないカード（CPU のデッキに入らず、自分のデッキ構築でも増やせない）', banBody)
-        + row('乱数の種（同じ種なら同じ山札の並び）', seedBody)
+        + row('乱数の種', seedBody))
+        + _dhSec('使えないカード', banBody)
         + '</div>';
     }
 
@@ -24177,6 +24182,8 @@
     // ═══════════════════════════════════════
     /** @type {{sums: Array<{name: string, data: any}>, sel: number, logs: Array<{name: string, log: any}>, logSel: number, msg: string, sortKey: number, sortDesc: boolean, cell: number[] | null, cellKind: string}} */
     let _dd = { sums: [], sel: 0, logs: [], logSel: 0, msg: '', sortKey: 0, sortDesc: true, cell: null, cellKind: '' };
+    /** ティアのランクごとの色（バーとランクの文字で同じ。色だけに頼らず、ランクの文字を必ず添える） */
+    const DD_TIER_COLOR = /** @type {Record<string, string>} */ ({ S: 'var(--yellow)', A: 'var(--green)', B: 'var(--blue)', C: 'var(--t2)', D: 'var(--red)' });
     /** 相性表で「薄く表示」する試合数の下限 */
     const DD_MIN_CELL = 20;
     const DD_END_NAMES = { destroyed: '全壊', deckout: '山札切れ', maxturn: '18ターン' };
@@ -24195,21 +24202,29 @@
     function _ddCityName(id) { const c = CITIES.find(x => x.id === id); return c ? c.name : id; }
     /** @param {string} id */
     function _ddCardName(id) { const c = ALL_CARDS.find(x => x.id === id); return c ? c.name : id; }
-    /** 率 {p, lo, hi, n|games} を「52.1%（n=2400、95%区間 50.1〜54.1%）」の文字に。試合なし・値なしは文で返す
+    /** 割合（0〜1）を % の記号なしの 1 桁に。数でなければ「—」 @param {any} p */
+    function _ddPctN(p) { return _ddNum(p) ? (p * 100).toFixed(1) : '—'; }
+    /** 率 {p, lo, hi, n|games} を「52.1%  n=2400  95%CI 50.1–54.1」の文字に。試合なし・値なしは短く返す
      * @param {any} o @param {number} [nOverride] */
     function _ddRate(o, nOverride) {
       if (!o || typeof o !== 'object') return '—';
       const n = _ddNum(nOverride) ? nOverride : (_ddNum(o.n) ? o.n : (_ddNum(o.games) ? o.games : null));
-      if (n === 0) return '試合なし（n=0）';
-      if (!_ddNum(o.p)) return n == null ? '—' : '値なし（n=' + n + '）';
-      return _ddPct(o.p) + '（n=' + (n == null ? '—' : n) + '、95%区間 ' + _ddPct(o.lo) + '〜' + _ddPct(o.hi) + '）';
+      if (n === 0) return '試合なし  n=0';
+      if (!_ddNum(o.p)) return n == null ? '—' : '値なし  n=' + n;
+      return _ddPct(o.p) + '  n=' + (n == null ? '—' : n) + '  95%CI ' + _ddPctN(o.lo) + '–' + _ddPctN(o.hi);
     }
-    /** 平均 {mean, lo, hi, n} を文字に @param {any} o @param {number} d */
+    /** 平均 {mean, lo, hi, n} を「6.54  n=2400  95%CI 6.45–6.63」の文字に @param {any} o @param {number} d */
     function _ddMean(o, d) {
       if (!o || typeof o !== 'object') return '—';
-      if (o.n === 0) return '試合なし（n=0）';
-      if (!_ddNum(o.mean)) return '値なし' + (_ddNum(o.n) ? '（n=' + o.n + '）' : '');
-      return _ddFix(o.mean, d) + '（n=' + (_ddNum(o.n) ? o.n : '—') + '、95%区間 ' + _ddFix(o.lo, d) + '〜' + _ddFix(o.hi, d) + '）';
+      if (o.n === 0) return '試合なし  n=0';
+      if (!_ddNum(o.mean)) return '値なし' + (_ddNum(o.n) ? '  n=' + o.n : '');
+      return _ddFix(o.mean, d) + '  n=' + (_ddNum(o.n) ? o.n : '—') + '  95%CI ' + _ddFix(o.lo, d) + '–' + _ddFix(o.hi, d);
+    }
+    /** 勝ち・引き分けの件数を、行の title（ホバーの文字）に回す。数が無ければ空 @param {any} o @param {any} [wins] @param {any} [draws] */
+    function _ddWinsTitle(o, wins, draws) {
+      const w = _ddNum(wins) ? wins : (o && _ddNum(o.wins) ? o.wins : null), d = _ddNum(draws) ? draws : (o && _ddNum(o.draws) ? o.draws : null);
+      const t = (w != null ? w + '勝' : '') + (d != null ? (w != null ? ' ' : '') + d + '分' : '');
+      return t ? ' title="' + _ddEsc(t) + '"' : '';
     }
 
     // ── SVG（自前） ──
@@ -24219,13 +24234,13 @@
       const span = b - a; if (!(span > 0)) return '';
       const X = (/** @type {number} */ x) => Math.max(0, Math.min(100, (x - a) / span * 100));
       let g = '<rect x="0" y="0" width="100" height="12" style="fill:var(--bg2)"/>';
-      if (_ddNum(v)) g += '<rect x="0" y="2" width="' + X(v).toFixed(2) + '" height="8" style="fill:' + color + ';fill-opacity:.55"/>';
+      if (_ddNum(v)) g += '<rect x="0" y="2" width="' + X(v).toFixed(2) + '" height="8" style="fill:' + color + ';fill-opacity:.85"/>';
       if (_ddNum(lo) && _ddNum(hi)) g += '<line x1="' + X(lo).toFixed(2) + '" y1="6" x2="' + X(hi).toFixed(2) + '" y2="6" style="stroke:var(--t0);stroke-width:1.5" vector-effect="non-scaling-stroke"/><line x1="' + X(lo).toFixed(2) + '" y1="2.5" x2="' + X(lo).toFixed(2) + '" y2="9.5" style="stroke:var(--t0);stroke-width:1.5" vector-effect="non-scaling-stroke"/><line x1="' + X(hi).toFixed(2) + '" y1="2.5" x2="' + X(hi).toFixed(2) + '" y2="9.5" style="stroke:var(--t0);stroke-width:1.5" vector-effect="non-scaling-stroke"/>';
-      if (ref != null && ref > a && ref < b) g += '<line x1="' + X(ref).toFixed(2) + '" y1="0" x2="' + X(ref).toFixed(2) + '" y2="12" style="stroke:var(--yellow);stroke-width:1;stroke-dasharray:3 2" vector-effect="non-scaling-stroke"/>';
+      if (ref != null && ref > a && ref < b) g += '<line x1="' + X(ref).toFixed(2) + '" y1="0" x2="' + X(ref).toFixed(2) + '" y2="12" style="stroke:var(--t1);stroke-width:1;stroke-dasharray:3 2" vector-effect="non-scaling-stroke"/>';
       return '<svg class="dd-svg" viewBox="0 0 100 12" preserveAspectRatio="none" role="img" aria-hidden="true">' + g + '</svg>';
     }
     /** 棒グラフの行を並べる。rows: {name, tag?, v, lo, hi, text}
-     * @param {Array<{name: string, tag?: string, v: any, lo: any, hi: any, text: string}>} rows @param {number | null} ref @param {string} color @param {boolean} rate */
+     * @param {Array<{name: string, tag?: string, color?: string, v: any, lo: any, hi: any, text: string, title?: string}>} rows @param {number | null} ref @param {string} color @param {boolean} rate */
     function _ddBars(rows, ref, color, rate) {
       if (!rows.length) return '<div class="dd-empty">データなし</div>';
       const vals = [];
@@ -24236,8 +24251,7 @@
         if (rate) { a = Math.max(0, Math.floor((Math.min(mn, ref == null ? mn : ref) - 0.02) * 20) / 20); b = Math.min(1, Math.ceil((Math.max(mx, ref == null ? mx : ref) + 0.02) * 20) / 20); }
         else { a = Math.min(0, mn); b = mx > a ? mx * 1.05 : a + 1; }
       }
-      return rows.map(r => '<div class="dd-row"><div class="dd-name">' + _ddEsc(r.name) + (r.tag ? ' <b class="dd-tier dd-tier-' + _ddEsc(r.tag) + '">' + _ddEsc(r.tag) + '</b>' : '') + '</div>' + _ddBar(r.v, r.lo, r.hi, a, b, ref, color) + '<div class="dd-num">' + _ddEsc(r.text) + '</div></div>').join('')
-        + '<div class="dd-axis">軸 ' + (rate ? _ddPct(a) + '〜' + _ddPct(b) : _ddFix(a, 1) + '〜' + _ddFix(b, 1)) + (ref != null ? '（破線は 50%）' : '') + '。白い線は 95% 区間</div>';
+      return rows.map(r => '<div class="dd-row"' + (r.title || '') + '><div class="dd-name">' + (r.tag ? '<b class="dd-tier dd-tier-' + _ddEsc(r.tag) + '">' + _ddEsc(r.tag) + '</b>' : '') + _ddEsc(r.name) + '</div>' + _ddBar(r.v, r.lo, r.hi, a, b, ref, r.color || color) + '<div class="dd-num">' + _ddEsc(r.text) + '</div></div>').join('');
     }
 
     // ── 状態の操作 ──
@@ -24295,25 +24309,26 @@
     function _ddLabel(f) { return f.key + '（' + f.file + '）'; }
 
     // ── 各部の HTML ──
-    /** @param {string} title @param {string} body @param {string} [note] */
-    function _ddSec(title, body, note) { return '<section class="dd-sec"><h3>' + title + '</h3>' + (note ? '<p class="dd-note">' + note + '</p>' : '') + body + '</section>'; }
+    /** @param {string} title @param {string} body */
+    function _ddSec(title, body) { return '<section class="dd-sec"><h3>' + title + '</h3>' + body + '</section>'; }
 
     /** @param {Array<{file: string, key: string, v: any, data: any}>} flat */
     function _ddCompareHtml(flat) {
-      const rateCell = (/** @type {any} */ o) => (o === null || o === undefined) ? '<span class="dd-nc">人の記録では未計算</span>' : '<b>' + _ddPct(o.p) + '</b><small>' + (o.n === 0 ? '試合なし（n=0）' : 'n=' + (_ddNum(o.n) ? o.n : '—') + '<br>' + _ddPct(o.lo) + '〜' + _ddPct(o.hi)) + '</small>';
-      const meanCell = (/** @type {any} */ o, /** @type {number} */ d) => (o === null || o === undefined) ? '<span class="dd-nc">人の記録では未計算</span>' : '<b>' + _ddFix(o.mean, d) + '</b><small>' + (o.n === 0 ? '試合なし（n=0）' : 'n=' + (_ddNum(o.n) ? o.n : '—') + '<br>' + _ddFix(o.lo, d) + '〜' + _ddFix(o.hi, d)) + '</small>';
+      const rateCell = (/** @type {any} */ o) => (o === null || o === undefined) ? '<span class="dd-nc">人の記録では未計算</span>' : '<b>' + _ddPct(o.p) + '</b><small>' + (o.n === 0 ? '試合なし  n=0' : 'n=' + (_ddNum(o.n) ? o.n : '—') + '<br>95%CI ' + _ddPctN(o.lo) + '–' + _ddPctN(o.hi)) + '</small>';
+      const meanCell = (/** @type {any} */ o, /** @type {number} */ d) => (o === null || o === undefined) ? '<span class="dd-nc">人の記録では未計算</span>' : '<b>' + _ddFix(o.mean, d) + '</b><small>' + (o.n === 0 ? '試合なし  n=0' : 'n=' + (_ddNum(o.n) ? o.n : '—') + '<br>95%CI ' + _ddFix(o.lo, d) + '–' + _ddFix(o.hi, d)) + '</small>';
       const endCell = (/** @type {any} */ er, /** @type {any} */ counted) => {
-        const ks = Object.keys(er || {}); if (!ks.length) return '<small>' + (counted === 0 ? '試合なし（n=0）' : '—') + '</small>';
-        return ks.map(k => (DD_END_NAMES[/** @type {'destroyed'} */ (k)] || _ddEsc(k)) + ' <b>' + _ddPct(er[k] && er[k].share) + '</b><small>（n=' + (er[k] && _ddNum(er[k].n) ? er[k].n : '—') + '）</small>').join('<br>');
+        const ks = Object.keys(er || {}); if (!ks.length) return '<small>' + (counted === 0 ? '試合なし  n=0' : '—') + '</small>';
+        return ks.map(k => '<div>' + (DD_END_NAMES[/** @type {'destroyed'} */ (k)] || _ddEsc(k)) + ' <b>' + _ddPct(er[k] && er[k].share) + '</b> <small class="dd-i">n=' + (er[k] && _ddNum(er[k].n) ? er[k].n : '—') + '</small></div>').join('');
       };
       const head = '<tr><th>版</th><th>試合数</th><th>先攻の勝率</th><th>決着の内訳</th><th>平均ターン</th><th>逆転率</th><th>大差からの逆転率</th><th>予算の余り</th></tr>';
       const rows = flat.map((f, i) => {
         const v = f.v; const cnt = _ddNum(v.counted) ? v.counted : null;
-        return '<tr class="dd-cmp-row' + (i === _dd.sel ? ' dd-sel' : '') + '"><th><button type="button" class="dd-link" onclick="devDashSelect(' + i + ')">' + _ddEsc(f.key) + '</button><small>' + _ddEsc(f.file) + '</small></th>'
-          + '<td><b>' + (cnt == null ? '—' : cnt) + '</b><small>引き分け ' + (_ddNum(v.draws) ? v.draws : '—') + '／止まった ' + (v.stalled && _ddNum(v.stalled.n) ? v.stalled.n : '—') + '</small></td>'
+        const tip = '引き分け ' + (_ddNum(v.draws) ? v.draws : '—') + '／止まった ' + (v.stalled && _ddNum(v.stalled.n) ? v.stalled.n : '—');
+        return '<tr class="dd-cmp-row' + (i === _dd.sel ? ' dd-sel' : '') + '" title="' + _ddEsc(tip) + '"><th><button type="button" class="dd-link" onclick="devDashSelect(' + i + ')">' + _ddEsc(f.key) + '</button><small>' + _ddEsc(f.file) + '</small></th>'
+          + '<td><b>' + (cnt == null ? '—' : cnt) + '</b></td>'
           + '<td>' + rateCell(v.firstSeatWin) + '</td><td>' + endCell(v.endReasons, cnt) + '</td><td>' + meanCell(v.turns, 2) + '</td><td>' + rateCell(v.comeback) + '</td><td>' + rateCell(v.comebackBig) + '</td><td>' + meanCell(v.budgetLeft, 2) + '</td></tr>';
       }).join('');
-      return _ddSec('版ごとの主な数字', '<div class="dd-scroll"><table class="dd-table">' + head + rows + '</table></div>', '数字の下は試合数 n と 95% 区間（Wilson）。決着の内訳は構成比と件数で、区間は summary.json に無い。版の名前を押すと、下の詳細がその版になる。');
+      return _ddSec('版ごとの主な数字', '<div class="dd-scroll"><table class="dd-table">' + head + rows + '</table></div>');
     }
 
     /** 盤面コードの盤面から始めた実験の、その盤面から各席が勝つ見込み（summary.json の variants.<版>.fromBoard）
@@ -24322,16 +24337,16 @@
       const fb = v.fromBoard;
       if (!fb || typeof fb !== 'object') return '';
       const sw = Array.isArray(fb.seatWin) ? fb.seatWin : [];
-      const rows = [0, 1].map(i => '<tr><th>席' + i + '</th><td>' + _ddRate(sw[i]) + '</td></tr>').join('');
-      return _ddSec('この盤面から勝つ見込み', '<div class="dd-meta">盤面 #' + _ddEsc(fb.id) + '</div><table class="dd-table">' + rows + '<tr><th>盤面から先のターン数</th><td>' + _ddMean(fb.turnsLeft, 2) + '</td></tr></table>', '同じ盤面から、乱数の種だけを変えて何度も回した結果。席は定義の席の並びで、先攻の指定が 0 のとき盤面の席と同じ。区間は Wilson。');
+      const rows = [0, 1].map(i => '<tr' + _ddWinsTitle(sw[i]) + '><th>席' + i + '</th><td>' + _ddRate(sw[i]) + '</td></tr>').join('');
+      return _ddSec('この盤面から勝つ見込み', '<div class="dd-meta">盤面 #' + _ddEsc(fb.id) + '</div><table class="dd-table dd-kv">' + rows + '<tr><th>盤面から先のターン数</th><td>' + _ddMean(fb.turnsLeft, 2) + '</td></tr></table>');
     }
 
     /** @param {any} v */
     function _ddTierHtml(v) {
       const bc = v.byCity || {};
       const order = (Array.isArray(v.tierOrder) && v.tierOrder.length ? v.tierOrder : Object.keys(bc)).filter((/** @type {string} */ id) => bc[id]);
-      const rows = order.map((/** @type {string} */ id) => { const c = bc[id]; const w = c.winRate || {}; return { name: _ddCityName(id), tag: typeof c.tier === 'string' ? c.tier : '', v: w.p, lo: w.lo, hi: w.hi, text: _ddRate(w, c.games) + '、' + (_ddNum(c.wins) ? c.wins + '勝' : '') + (_ddNum(c.draws) ? ' ' + c.draws + '分' : '') }; });
-      return _ddSec('都市のティア', _ddBars(rows, 0.5, 'var(--blue)', true), '勝率はその都市を持った側の勝率（相手はランダム）。ティアは区間の中心で S・A・B・C・D。');
+      const rows = order.map((/** @type {string} */ id) => { const c = bc[id]; const w = c.winRate || {}; const tag = typeof c.tier === 'string' ? c.tier : ''; return { name: _ddCityName(id), tag, color: DD_TIER_COLOR[tag], v: w.p, lo: w.lo, hi: w.hi, text: _ddRate(w, c.games), title: _ddWinsTitle(c) }; });
+      return _ddSec('都市のティア', _ddBars(rows, 0.5, 'var(--blue)', true));
     }
 
     /** 相性表。kind は 'city' か 'deck' @param {any} v @param {string} kind */
@@ -24347,25 +24362,25 @@
         const d = c.p - 0.5, al = Math.min(0.85, Math.abs(d) * 2.2);
         const bg = d >= 0 ? 'rgba(56,139,253,' + al.toFixed(2) + ')' : 'rgba(248,81,73,' + al.toFixed(2) + ')';
         const sel = _dd.cell && _dd.cellKind === kind && _dd.cell[0] === ri && _dd.cell[1] === ci ? ' dd-cell-sel' : '';
-        return '<td class="dd-cell' + (c.games < DD_MIN_CELL ? ' dd-faint' : '') + sel + '" style="background:' + bg + '" onclick="devDashCell(\'' + kind + '\',' + ri + ',' + ci + ')">' + (c.p * 100).toFixed(0) + '<small>n=' + c.games + '</small></td>';
+        return '<td class="dd-cell' + (c.games < DD_MIN_CELL ? ' dd-faint' : '') + sel + '" style="background:' + bg + '" onclick="devDashCell(\'' + kind + '\',' + ri + ',' + ci + ')"' + _ddWinsTitle(c) + '>' + (c.p * 100).toFixed(0) + '<small>n=' + c.games + '</small></td>';
       }).join('') + '</tr>').join('');
-      let detail = '<p class="dd-detail">セルを押すと、勝率と n と区間がここに出る。</p>';
+      let detail = '';
       if (_dd.cell && _dd.cellKind === kind) {
         const a = keys[_dd.cell[0]], b = keys[_dd.cell[1]]; const c = a && b && M[a] && M[a][b];
-        if (c) detail = '<p class="dd-detail"><b>' + _ddEsc(nm(a)) + '</b> 対 <b>' + _ddEsc(nm(b)) + '</b>：' + _ddEsc(_ddRate(c, c.games)) + '、' + (_ddNum(c.wins) ? c.wins + '勝' : '') + (c.games < DD_MIN_CELL ? '（' + DD_MIN_CELL + '試合未満のため薄く表示）' : '') + '</p>';
+        if (c) detail = '<p class="dd-detail"' + _ddWinsTitle(c) + '><b>' + _ddEsc(nm(a)) + '</b> 対 <b>' + _ddEsc(nm(b)) + '</b>：' + _ddEsc(_ddRate(c, c.games)) + '</p>';
       }
-      return _ddSec(kind === 'city' ? '都市どうしの相性表' : 'デッキの型どうしの表', '<div class="dd-scroll"><table class="dd-table dd-matrix">' + head + body + '</table></div>' + detail, '行の側から見た勝率（%）。青は行が有利、赤は列が有利。' + DD_MIN_CELL + '試合未満のマスは薄く表示する。');
+      return _ddSec(kind === 'city' ? '都市どうしの相性表' : 'デッキの型どうしの表', '<div class="dd-scroll"><table class="dd-table dd-matrix">' + head + body + '</table></div>' + detail);
     }
 
     /** @param {any} v */
     function _ddSkillHtml(v) {
-      const rows = (/** @type {Array<{name: string, v: any, lo: any, hi: any, text: string}>} */ ([]));
-      Object.keys(v.byDeck || {}).forEach(k => { const d = v.byDeck[k]; const w = (d && d.winRate) || {}; rows.push({ name: '型 ' + (k === 'recommended' ? 'オススメ' : (VERSUS_DECK_ARCHETYPES[k] ? VERSUS_DECK_ARCHETYPES[k].label : k)), v: w.p, lo: w.lo, hi: w.hi, text: _ddRate(w, d && d.games) }); });
-      Object.keys(v.bySkill || {}).forEach(k => { const d = v.bySkill[k]; const w = (d && d.winRate) || {}; rows.push({ name: '打ち方 ' + k, v: w.p, lo: w.lo, hi: w.hi, text: _ddRate(w, d && d.games) }); });
+      const rows = (/** @type {Array<{name: string, v: any, lo: any, hi: any, text: string, title?: string}>} */ ([]));
+      Object.keys(v.byDeck || {}).forEach(k => { const d = v.byDeck[k]; const w = (d && d.winRate) || {}; rows.push({ name: '型 ' + (k === 'recommended' ? 'オススメ' : (VERSUS_DECK_ARCHETYPES[k] ? VERSUS_DECK_ARCHETYPES[k].label : k)), v: w.p, lo: w.lo, hi: w.hi, text: _ddRate(w, d && d.games), title: _ddWinsTitle(d) }); });
+      Object.keys(v.bySkill || {}).forEach(k => { const d = v.bySkill[k]; const w = (d && d.winRate) || {}; rows.push({ name: '打ち方 ' + k, v: w.p, lo: w.lo, hi: w.hi, text: _ddRate(w, d && d.games), title: _ddWinsTitle(d) }); });
       let html = _ddBars(rows, 0.5, 'var(--purple)', true);
       const gap = Array.isArray(v.skillGap) ? v.skillGap : [];
-      if (gap.length) html += '<h4>腕の差（上の打ち方の勝率）</h4>' + _ddBars(gap.map((/** @type {any} */ g) => ({ name: g.upper + ' 対 ' + g.lower, v: g.p, lo: g.lo, hi: g.hi, text: _ddRate(g, g.games) })), 0.5, 'var(--green)', true);
-      return _ddSec('デッキの型と腕の差', html, '型・打ち方ごとの勝率は、その側の勝率（相手は他の全部）。');
+      if (gap.length) html += '<h4>腕の差（上の打ち方の勝率）</h4>' + _ddBars(gap.map((/** @type {any} */ g) => ({ name: g.upper + ' 対 ' + g.lower, v: g.p, lo: g.lo, hi: g.hi, text: _ddRate(g, g.games), title: _ddWinsTitle(g) })), 0.5, 'var(--green)', true);
+      return _ddSec('デッキの型と腕の差', html);
     }
 
     /** @param {any} v */
@@ -24374,8 +24389,8 @@
       const ids = Object.keys(ab).filter(id => ab[id] && ab[id].hp);
       if (!ids.length) return _ddSec('都市能力の実測値', '<div class="dd-empty">データなし</div>');
       ids.sort((a, b) => (_ddNum(ab[b].hp.mean) ? ab[b].hp.mean : -1e9) - (_ddNum(ab[a].hp.mean) ? ab[a].hp.mean : -1e9));
-      const rows = ids.map(id => { const a = ab[id]; const act = a.hpActive; return { name: _ddCityName(id), v: a.hp.mean, lo: a.hp.lo, hi: a.hp.hi, text: '1試合あたり ' + _ddMean(a.hp, 1) + ' HP。出番があった試合だけ：' + _ddMean(act, 1) + (_ddNum(a.activeGames) ? '、出番あり ' + a.activeGames + '試合' : '') }; });
-      return _ddSec('都市能力の実測値', _ddBars(rows, null, 'var(--green)', false), '能力が防いだダメージと回復した HP の合計の、1試合あたりの平均。');
+      const rows = ids.map(id => { const a = ab[id]; const act = a.hpActive; return { name: _ddCityName(id), v: a.hp.mean, lo: a.hp.lo, hi: a.hp.hi, text: _ddMean(a.hp, 1), title: ' title="' + _ddEsc('出番があった試合だけ ' + _ddMean(act, 1) + (_ddNum(a.activeGames) ? '、出番あり ' + a.activeGames + '試合' : '')) + '"' }; });
+      return _ddSec('都市能力の実測値（1試合あたり HP）', _ddBars(rows, null, 'var(--green)', false));
     }
 
     /** @param {any} v */
@@ -24400,9 +24415,9 @@
       const head = '<tr>' + DD_CARD_COLS.map((c, i) => '<th><button type="button" class="dd-link" onclick="devDashSort(' + i + ')">' + c[1] + (_dd.sortKey === i ? (_dd.sortDesc ? ' ▼' : ' ▲') : '') + '</button></th>').join('') + '</tr>';
       const body = ids.map(id => {
         const c = cs[id] || {};
-        return '<tr><th>' + _ddEsc(_ddCardName(id)) + '</th><td>' + (_ddNum(c.drawn) ? c.drawn : '—') + '</td><td>' + (_ddNum(c.played) ? c.played : '—') + '</td><td>' + _ddPct(c.unplayedRate) + '</td><td>' + _ddEsc(_ddRate(c.winWhenPlayed)) + '</td><td>' + (_ddNum(c.cost) ? c.cost : '—') + '</td><td>' + _ddFix(c.dmgPerBudget, 2) + '</td><td>' + _ddFix(c.savedPerBudget, 2) + '</td></tr>';
+        return '<tr><th>' + _ddEsc(_ddCardName(id)) + '</th><td>' + (_ddNum(c.drawn) ? c.drawn : '—') + '</td><td>' + (_ddNum(c.played) ? c.played : '—') + '</td><td>' + _ddPct(c.unplayedRate) + '</td><td' + _ddWinsTitle(c.winWhenPlayed) + '>' + _ddEsc(_ddRate(c.winWhenPlayed)) + '</td><td>' + (_ddNum(c.cost) ? c.cost : '—') + '</td><td>' + _ddFix(c.dmgPerBudget, 2) + '</td><td>' + _ddFix(c.savedPerBudget, 2) + '</td></tr>';
       }).join('');
-      return _ddSec('カードの数字', '<div class="dd-scroll"><table class="dd-table dd-cards">' + head + body + '</table></div>', '見出しを押すと並べ替える。勝率は出した試合の勝率（n と区間つき）。');
+      return _ddSec('カードの数字', '<div class="dd-scroll"><table class="dd-table dd-cards">' + head + body + '</table></div>');
     }
 
     /** 読み込んだ版の詳細 */
@@ -24453,7 +24468,7 @@
       const L = _dd.logs[_dd.logSel].log;
       const me = L.mode === 'online' || L.mode === 'cpu' ? (L.seat === 'p2' ? 1 : 0) : null;
       let html = '';
-      if (_dd.logs.length > 1) html += '<div class="dd-seg">' + _dd.logs.map((l, i) => '<button type="button" class="settings-seg-btn' + (i === _dd.logSel ? ' active' : '') + '" onclick="devDashPickGame(' + i + ')">' + (i + 1) + '試合目</button>').join('') + '</div>';
+      if (_dd.logs.length > 1) html += '<div class="dh-seg dd-seg">' + _dd.logs.map((l, i) => '<button type="button" class="dh-segbtn' + (i === _dd.logSel ? ' on' : '') + '" onclick="devDashPickGame(' + i + ')">' + (i + 1) + '試合目</button>').join('') + '</div>';
       const res = L.result;
       html += '<p class="dd-detail">記録 v' + _ddEsc(L.v) + '、' + _ddEsc(L.gameId) + '、' + _ddEsc(L.mode) + (L.cpuDifficulty ? '（' + _ddEsc(L.cpuDifficulty) + '）' : '') + '、記録した席 ' + _ddEsc(L.seat) + '、ビルド ' + _ddEsc(L.build)
         + (L.opponent ? '、相手 ' + _ddEsc(L.opponent.deck) + '/' + _ddEsc(L.opponent.skill) : '') + (_ddNum(L.seed) ? '、種 ' + L.seed : '') + (L.tester && L.tester.id ? '、テスター ' + _ddEsc(L.tester.id) : '') + '<br>'
@@ -24483,34 +24498,55 @@
     }
 
     function devDashRender() {
-      const intro = (_dd.sums.length || _dd.logs.length) ? '' : '<p class="dd-note">自動対戦の結果（sim-results や exports の summary.json）や、人の記録（playlogs の summary.json）を選ぶと、書いてある数字をそのまま表示する。複数選ぶと版の数字を横に並べる。1試合を追うには、プレイ記録の JSON を選ぶ。</p>';
       const inputs = '<div class="dd-load"><label class="dd-btn">summary.json を選ぶ（複数可）<input type="file" accept=".json,application/json" multiple onchange="devDashLoadSummary(this.files)"></label>'
         + '<label class="dd-btn">プレイ記録を選ぶ（1試合を追う）<input type="file" accept=".json,application/json" onchange="devDashLoadLog(this.files[0])"></label>'
         + ((_dd.sums.length || _dd.logs.length) ? '<button type="button" class="dd-btn" onclick="devDashClearAll()">全部消す</button>' : '') + '</div>'
         + (_dd.msg ? '<div class="dd-err">' + _ddEsc(_dd.msg) + '</div>' : '');
       const logs = _ddLogHtml();
-      return intro + inputs + _ddSummariesHtml() + (logs ? _ddSec('1試合を追う', logs) : '');
+      return inputs + _ddSummariesHtml() + (logs ? _ddSec('1試合を追う', logs) : '');
     }
 
-    const DD_CSS = '#dev-hub .dh-dash{color:var(--t1)}'
-      + '#dev-hub .dh-dash .dd-btn{display:inline-block;padding:7px 12px;margin:0 6px 6px 0;border-radius:8px;border:1px solid var(--blue);background:rgba(56,139,253,.1);color:var(--t0);font-size:.78rem;cursor:pointer}'
-      + '#dev-hub .dh-dash .dd-btn input{display:none}'
-      + '#dev-hub .dh-dash .dd-sec{margin-top:14px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
-      + '#dev-hub .dh-dash h3{margin:0 0 6px;font-size:.85rem;color:var(--t0)}#dev-hub .dh-dash h4{margin:10px 0 4px;font-size:.78rem;color:var(--t0)}'
-      + '#dev-hub .dh-dash .dd-note,#dev-hub .dh-dash .dd-axis,#dev-hub .dh-dash .dd-meta,#dev-hub .dh-dash small{font-size:.68rem;color:var(--t2)}#dev-hub .dh-dash small{display:block}'
-      + '#dev-hub .dh-dash .dd-notice{margin-top:12px;padding:10px 12px;border:1px solid rgba(248,81,73,.5);border-radius:10px;background:rgba(248,81,73,.06);font-size:.78rem}'
-      + '#dev-hub .dh-dash .dd-pick{margin-top:14px;font-size:.78rem}#dev-hub .dh-dash .dd-block{margin-top:8px}#dev-hub .dh-dash .dd-nc{color:var(--yellow);font-size:.74rem}'
-      + '#dev-hub .dh-dash .dd-err{margin:6px 0;color:var(--red);font-size:.76rem}#dev-hub .dh-dash .dd-empty{padding:8px 0;color:var(--t2);font-size:.76rem}'
-      + '#dev-hub .dh-dash .dd-row{display:grid;grid-template-columns:minmax(5.5em,8em) 1fr;column-gap:8px;align-items:center;margin:6px 0}#dev-hub .dh-dash .dd-name{font-size:.76rem;font-weight:700}'
-      + '#dev-hub .dh-dash .dd-svg{width:100%;height:14px;display:block}#dev-hub .dh-dash .dd-num{grid-column:2;font-size:.68rem;color:var(--t2)}'
-      + '#dev-hub .dh-dash .dd-tier{display:inline-block;min-width:1.4em;text-align:center;border-radius:4px;background:rgba(56,139,253,.2);color:var(--t0);font-size:.66rem}'
-      + '#dev-hub .dh-dash .dd-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}#dev-hub .dh-dash .dd-table{border-collapse:collapse;font-size:.72rem;min-width:100%}'
-      + '#dev-hub .dh-dash .dd-table th,#dev-hub .dh-dash .dd-table td{padding:5px 7px;border:1px solid var(--bg3);text-align:left;vertical-align:top}#dev-hub .dh-dash .dd-table th{font-weight:700;color:var(--t0);white-space:nowrap}'
-      + '#dev-hub .dh-dash .dd-sel th{box-shadow:inset 3px 0 var(--blue)}#dev-hub .dh-dash .dd-link{background:none;border:0;padding:0;color:var(--blue);font:inherit;font-weight:700;cursor:pointer;text-align:left}'
-      + '#dev-hub .dh-dash .dd-matrix td{text-align:center;min-width:3.4em;cursor:pointer;color:var(--t0)}#dev-hub .dh-dash .dd-faint{opacity:.35}#dev-hub .dh-dash .dd-cell-sel{outline:2px solid var(--yellow);outline-offset:-2px}#dev-hub .dh-dash .dd-blank{cursor:default}'
-      + '#dev-hub .dh-dash .dd-detail{font-size:.74rem;line-height:1.7;margin:8px 0}#dev-hub .dh-dash .dd-seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}'
-      + '#dev-hub .dh-dash .dd-turn,#dev-hub .dh-dash .dd-prep{margin-top:8px;padding:6px 8px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg1)}#dev-hub .dh-dash .dd-turn ul,#dev-hub .dh-dash .dd-prep ul{margin:4px 0 0;padding-left:1.1em;font-size:.74rem;line-height:1.7}'
-      + '@media (max-width:520px){#dev-hub .dh-dash .dd-row{grid-template-columns:1fr}#dev-hub .dh-dash .dd-num{grid-column:1}#dev-hub .dh-dash .dd-table{font-size:.68rem}}';
+    // 数字の行の空白 2 つは詰めずに見せる（61.2%  n=799  95%CI 57.8–64.5）
+    // 見た目（spec §6）：節は上の罫線 1 本、表は見出し太字＋下罫線・行は 1 本の罫線・乗せた行を薄く塗る、数字は右寄せ・等幅。箱・角丸・影なし
+    const DD_CSS = [
+      '#dev-hub .dh-dash{color:var(--t1)}',
+      '#dev-hub .dh-dash .dd-load{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px}',
+      '#dev-hub .dh-dash .dd-btn{display:inline-flex;align-items:center;height:34px;padding:0 14px;border:1px solid var(--bg3);border-radius:0;background:none;color:var(--t0);font-size:.82rem;cursor:pointer;font-family:inherit}#dev-hub .dh-dash .dd-btn:hover{background:rgba(56,139,253,.1);border-color:var(--blue)}',
+      '#dev-hub .dh-dash .dd-btn input{display:none}',
+      '#dev-hub .dh-dash .dd-sec{margin:0;padding:14px 0 14px;border-top:1px solid var(--bg3)}',
+      '#dev-hub .dh-dash h3{margin:0 0 6px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:var(--t2)}#dev-hub .dh-dash h4{margin:12px 0 4px;font-size:.8rem;color:var(--t0)}',
+      '#dev-hub .dh-dash .dd-note,#dev-hub .dh-dash .dd-axis,#dev-hub .dh-dash .dd-meta,#dev-hub .dh-dash small{font-size:.72rem;color:var(--t2)}#dev-hub .dh-dash small{display:block}#dev-hub .dh-dash small.dd-i{display:inline}',
+      '#dev-hub .dh-dash .dd-note{margin:0 0 8px;line-height:1.6}',
+      // 注意書き・今見ている版：片辺アクセントだけ
+      '#dev-hub .dh-dash .dd-notice{margin-top:12px;padding:8px 4px 8px 12px;border-left:2px solid var(--red);border-bottom:1px solid var(--bg3);font-size:.8rem}',
+      '#dev-hub .dh-dash .dd-pick{margin-top:12px;padding:8px 4px 8px 12px;border-left:2px solid var(--blue);border-bottom:1px solid var(--bg3);font-size:.82rem}#dev-hub .dh-dash .dd-block{margin-top:8px}#dev-hub .dh-dash .dd-nc{color:var(--yellow);font-size:.76rem}',
+      '#dev-hub .dh-dash .dd-err{margin:6px 0;color:var(--red);font-size:.8rem}#dev-hub .dh-dash .dd-empty{padding:8px 0;color:var(--t2);font-size:.8rem}',
+      // 棒グラフ：名前｜棒｜数字を 1 行に。ティアの色はランクごと
+      '#dev-hub .dh-dash .dd-row{display:grid;grid-template-columns:12em minmax(160px,360px) minmax(0,1fr);column-gap:16px;align-items:center;padding:3px 0;border-bottom:1px solid var(--bg3)}#dev-hub .dh-dash .dd-row:last-of-type{border-bottom:0}',
+      '#dev-hub .dh-dash .dd-name{font-size:.84rem;font-weight:700;color:var(--t0)}#dev-hub .dh-dash .dd-svg{width:100%;height:14px;display:block}#dev-hub .dh-dash .dd-num{font-size:.74rem;color:var(--t2);font-variant-numeric:tabular-nums;white-space:pre-wrap}#dev-hub .dh-dash .dd-table td,#dev-hub .dh-dash .dd-detail{white-space:pre-wrap}',
+      '#dev-hub .dh-dash .dd-tier{display:inline-block;min-width:1.2em;margin-right:6px;font:700 .86rem/1 ' + DH_MONO + ';text-align:center;color:var(--t2)}',
+      '#dev-hub .dh-dash .dd-tier-S{color:var(--yellow)}#dev-hub .dh-dash .dd-tier-A{color:var(--green)}#dev-hub .dh-dash .dd-tier-B{color:var(--blue)}#dev-hub .dh-dash .dd-tier-C{color:var(--t2)}#dev-hub .dh-dash .dd-tier-D{color:var(--red)}',
+      '#dev-hub .dh-dash .dd-axis{margin-top:6px}',
+      // 表：見出し行は太字＋下罫線、行は 1 本の罫線、乗せた行を薄く塗る。数字は右寄せ・等幅
+      '#dev-hub .dh-dash .dd-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}#dev-hub .dh-dash .dd-table{border-collapse:collapse;font-size:.8rem;min-width:100%}',
+      '#dev-hub .dh-dash .dd-table th,#dev-hub .dh-dash .dd-table td{padding:7px 10px;border:0;border-bottom:1px solid var(--bg3);text-align:right;vertical-align:top;font-variant-numeric:tabular-nums}',
+      '#dev-hub .dh-dash .dd-table td{font-family:' + DH_MONO + ';font-size:.78rem}#dev-hub .dh-dash .dd-table td small{font-family:inherit}',
+      '#dev-hub .dh-dash .dd-table tr:first-child th{font-weight:700;color:var(--t0);border-bottom:2px solid var(--bg3);white-space:nowrap;vertical-align:bottom}',
+      '#dev-hub .dh-dash .dd-table th:first-child,#dev-hub .dh-dash .dd-table td:first-child{text-align:left}',
+      '#dev-hub .dh-dash .dd-table tr+tr th:first-child{font-weight:700;color:var(--t0);white-space:nowrap}',
+      '#dev-hub .dh-dash .dd-table tr+tr:hover{background:rgba(56,139,253,.06)}',
+      '#dev-hub .dh-dash .dd-sel th:first-child{box-shadow:none;border-left:2px solid var(--blue)}',
+      '#dev-hub .dh-dash .dd-link{background:none;border:0;padding:0;color:var(--blue);font:inherit;font-weight:700;cursor:pointer;text-align:left}#dev-hub .dh-dash .dd-link:hover{text-decoration:underline}',
+      // 相性表だけは色の濃さで読むので、マスの塗りは残す（マスの間は背景色の細い線）
+      '#dev-hub .dh-dash .dd-matrix{border-collapse:separate;border-spacing:1px}#dev-hub .dh-dash .dd-matrix th,#dev-hub .dh-dash .dd-matrix td{border-bottom:0;text-align:center}#dev-hub .dh-dash .dd-matrix tr:first-child th{border-bottom:0}#dev-hub .dh-dash .dd-matrix tr+tr th:first-child{text-align:left}#dev-hub .dh-dash .dd-matrix tr+tr:hover{background:none}',
+      '#dev-hub .dh-dash .dd-matrix td{min-width:3.4em;padding:3px 4px;cursor:pointer;color:var(--t0)}#dev-hub .dh-dash .dd-faint{opacity:.35}#dev-hub .dh-dash .dd-cell-sel{outline:2px solid var(--yellow);outline-offset:-2px}#dev-hub .dh-dash .dd-blank{cursor:default}',
+      '#dev-hub .dh-dash .dd-detail{font-size:.8rem;line-height:1.7;margin:8px 0}#dev-hub .dh-dash .dd-seg{flex-wrap:wrap;margin:6px 0}',
+      '#dev-hub .dh-dash .dd-kv{min-width:0;width:100%;max-width:640px}#dev-hub .dh-dash .dd-kv th,#dev-hub .dh-dash .dd-kv tr:first-child th{text-align:left;font-weight:700;color:var(--t0);border-bottom:1px solid var(--bg3);white-space:normal}#dev-hub .dh-dash .dd-kv td{text-align:left;font-family:inherit;font-size:.8rem}',
+      // 1 試合の追跡：手番ごとに左辺の線と水平罫線（個々の箱にしない）
+      '#dev-hub .dh-dash .dd-turn,#dev-hub .dh-dash .dd-prep{margin-top:10px;padding:2px 4px 8px 12px;border-left:2px solid var(--blue);border-bottom:1px solid var(--bg3)}#dev-hub .dh-dash .dd-prep{border-left-color:var(--bg3)}',
+      '#dev-hub .dh-dash .dd-turn ul,#dev-hub .dh-dash .dd-prep ul{margin:4px 0 0;padding-left:1.1em;font-size:.8rem;line-height:1.7}',
+      '@media (max-width:520px){#dev-hub .dh-dash .dd-row{grid-template-columns:1fr}#dev-hub .dh-dash .dd-table{font-size:.72rem}}',
+    ].join('');
 
     /** 作業面を描き直す（ハブの「分析」を開いているときだけ） */
     function _ddRefresh() { if (devDashIsOpen()) _dhRefresh(); }
@@ -24715,7 +24751,7 @@
         const front = p.activeCityIdx === j;
         return '<div class="sc-city' + (front ? ' sc-front' : '') + '"><div class="sc-city-head"><b>' + _scEsc(c ? c.name : cid) + '</b><span class="sc-tag">' + (front ? '前に出ている' : '控え') + '</span>'
           + (front ? '' : '<button type="button" class="sc-mini" onclick="devScenarioEdit(\'active:' + i + '\',' + j + ')">前に出す</button>') + '</div>'
-          + '<div class="sc-hp"><i style="width:' + pct.toFixed(1) + '%"></i></div>'
+          + '<div class="sc-hp"><i class="' + (pct <= 30 ? 'lo' : pct <= 60 ? 'mid' : 'hi') + '" style="width:' + pct.toFixed(1) + '%"></i></div>'
           + '<label class="sc-field">HP<input type="number" inputmode="numeric" min="0" max="' + max + '" step="1" value="' + _scEsc(hp) + '" onchange="devScenarioEdit(\'hp:' + i + ':' + j + '\',this.value)"><span>/ ' + max + '</span></label></div>';
       }).join('');
       const hand = p.hand.map((/** @type {any} */ c, /** @type {number} */ k) => '<div class="sc-hand-row"><select aria-label="手札' + (k + 1) + '枚目" onchange="devScenarioEdit(\'hand:' + i + ':' + k + '\',this.value)">' + _scCardOptions(c.id) + '</select><button type="button" class="sc-mini" onclick="devScenarioEdit(\'handDrop:' + i + ':' + k + '\',\'\')">捨てる</button></div>').join('')
@@ -24734,7 +24770,7 @@
     function devScenarioRender() {
       const pick = '<div class="sc-load"><label class="sc-btn">盤面コードを選ぶ<input type="file" accept=".json,application/json" onchange="devScenarioLoadFile(this.files[0])"></label></div>'
         + (_sc.msg ? '<div class="sc-err">' + _scEsc(_sc.msg) + '</div>' : '');
-      if (!_sc.snap) return '<p class="sc-note">全部見える版の盤面コード（試合中に「盤面コードを書き出す」で保存したファイル、または自動対戦の snapshot）を選ぶ。手番の始めの盤面だけ始められる。</p>' + pick;
+      if (!_sc.snap) return pick;
       const s = _scState();
       const reasons = devScenarioReasons();
       const id = _scId();
@@ -24743,7 +24779,7 @@
       if (!_scShapeOk()) return head + pick + '<div class="sc-sec sc-bad"><h3>始められない理由</h3><ul>' + reasons.map(r => '<li>' + _scEsc(r) + '</li>').join('') + '</ul></div>';
       const common = '<div class="sc-sec"><h3>手番</h3><div class="sc-row"><div class="sc-lab">手番の席</div>'
         + '<div class="sc-seg">' + [0, 1].map(a => '<button type="button" class="sc-segbtn' + (s.activePlayer === a ? ' sc-on' : '') + '" onclick="devScenarioEdit(\'ap\',' + a + ')">席' + a + '</button>').join('') + '</div></div>'
-        + '<label class="sc-field">席0が終えた手番の数<input type="number" inputmode="numeric" min="0" max="' + (VERSUS_MAX_TURNS - 1) + '" step="1" value="' + _scEsc(s.turnsEach[0]) + '" onchange="devScenarioEdit(\'turn\',this.value)"><span>席1は自動で合わせる（上限 ' + VERSUS_MAX_TURNS + '）</span></label></div>';
+        + '<label class="sc-field">席0が終えた手番の数<input type="number" inputmode="numeric" min="0" max="' + (VERSUS_MAX_TURNS - 1) + '" step="1" value="' + _scEsc(s.turnsEach[0]) + '" onchange="devScenarioEdit(\'turn\',this.value)"><span>/ ' + VERSUS_MAX_TURNS + '</span></label></div>';
       const seats = '<div class="sc-seats">' + _scSeatHtml(0) + _scSeatHtml(1) + '</div>';
       const skillSel = (/** @type {number} */ i) => '<label class="sc-field">席' + i + 'の CPU の打ち方<select onchange="devScenarioSet(\'skill' + i + '\',this.value)">' + CPU_SKILLS.map(k => '<option value="' + k + '"' + (_sc.skills[i] === k ? ' selected' : '') + '>' + _scEsc(CPU_SKILL_LABEL[k]) + '</option>').join('') + '</select></label>';
       const ban = _scBan();
@@ -24751,50 +24787,53 @@
       const start = '<div class="sc-sec"><h3>始める設定</h3>'
         + '<div class="sc-row"><div class="sc-lab">自分の席</div>' + _scSeg('seat', _sc.seat, [['p0', '席0'], ['p1', '席1'], ['none', '両方 CPU（見るだけ）']]) + '</div>'
         + (_sc.seat !== 'p0' ? skillSel(0) : '') + (_sc.seat !== 'p1' ? skillSel(1) : '')
-        + '<div class="sc-note">デッキは盤面にあるものを使う（デッキの型は選べない）。</div>'
         + '<div class="sc-row"><div class="sc-lab">乱数</div>' + _scSeg('rng', _sc.rng, [['keep', 'そのまま'], ['seed', '種を変える']]) + '</div>'
         + (_sc.rng === 'seed' ? '<label class="sc-field">乱数の種<input type="text" inputmode="numeric" maxlength="10" value="' + _scEsc(_sc.seed) + '" oninput="devScenarioSet(\'seed\',this.value)"></label>'
-          + '<label class="sc-check"><input type="checkbox"' + (_sc.reshuffle ? ' checked' : '') + ' onchange="devScenarioSet(\'reshuffle\',this.checked?\'1\':\'0\')"> 山札を混ぜ直す（既定は混ぜ直さない）</label>' : '<div class="sc-note">盤面コードに入っている乱数の状態から続ける。同じ盤面・同じ手なら同じ展開になる。</div>')
-        + (ban.length ? '<div class="sc-note">使えないカード：' + _scEsc(banNames.join('・')) + '（CPU の設定で変える）。盤面に入っていれば始められない。</div>' : '') + '</div>';
+          + '<label class="sc-check"><input type="checkbox"' + (_sc.reshuffle ? ' checked' : '') + ' onchange="devScenarioSet(\'reshuffle\',this.checked?\'1\':\'0\')"> 山札を混ぜ直す</label>' : '')
+        + (ban.length ? '<div class="sc-note">使えないカード：' + _scEsc(banNames.join('・')) + '</div>' : '') + '</div>';
       const ok = reasons.length === 0, lobby = _scInLobby();
       const check = ok
-        ? '<div class="sc-sec sc-good"><h3>検査</h3><div>規則に合う。この盤面から始められる。</div></div>'
+        ? '<div class="sc-sec sc-good"><h3>検査</h3><div>規則に合う</div></div>'
         : '<div class="sc-sec sc-bad"><h3>始められない理由</h3><ul>' + reasons.map(r => '<li>' + _scEsc(r) + '</li>').join('') + '</ul></div>';
       const can = ok && lobby;
-      const actions = '<div class="sc-actions"><button type="button" class="sc-go" ' + (can ? '' : 'disabled ') + 'onclick="devScenarioBegin()">この盤面から始める</button>'
+      const actions = '<div class="sc-actions"><button type="button" class="sc-go" ' + (can ? '' : 'disabled ') + (ok && !lobby ? 'title="ロビーにいるときだけ" ' : '') + 'onclick="devScenarioBegin()">この盤面から始める' + _dhKbd(DEV_KEYS.primary) + '</button>'
         + '<button type="button" class="sc-btn" ' + (ok ? '' : 'disabled ') + 'onclick="devScenarioExport()">直した盤面を書き出す</button>'
-        + '<label class="sc-btn">別の盤面を選ぶ<input type="file" accept=".json,application/json" onchange="devScenarioLoadFile(this.files[0])"></label></div>'
-        + (ok && !lobby ? '<div class="sc-note">ロビーにいるときだけ始められる。いまの試合を終えてロビーへ戻ってから押す。</div>' : '')
-        + (_sc.msg ? '<div class="sc-err">' + _scEsc(_sc.msg) + '</div>' : '');
-      return head + common + seats + start + check + actions;
+        + '<label class="sc-btn">別の盤面を選ぶ<input type="file" accept=".json,application/json" onchange="devScenarioLoadFile(this.files[0])"></label></div>'        + (_sc.msg ? '<div class="sc-err">' + _scEsc(_sc.msg) + '</div>' : '');
+      return head + common + seats + '<div class="sc-lower"><div>' + start + '</div><div>' + check + actions + '</div></div>';
     }
 
-    const SC_CSS = '#dev-hub .dh-scn{color:var(--t1)}'
-      + '#dev-hub .dh-scn .sc-btn,#dev-hub .dh-scn .sc-go,#dev-hub .dh-scn .sc-mini{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:7px 14px;border-radius:8px;border:1px solid var(--blue);background:rgba(56,139,253,.1);color:var(--t0);font-size:.8rem;cursor:pointer;font-family:inherit}'
-      + '#dev-hub .dh-scn .sc-btn input{display:none}'
-      + '#dev-hub .dh-scn .sc-go{border-color:var(--green);background:rgba(63,185,80,.14);font-weight:700;box-shadow:0 0 12px rgba(63,185,80,.18)}'
-      + '#dev-hub .dh-scn button:disabled{opacity:.38;cursor:default;box-shadow:none}'
-      + '#dev-hub .dh-scn .sc-mini{min-height:34px;padding:4px 10px;font-size:.72rem}'
-      + '#dev-hub .dh-scn .sc-sec{margin-top:12px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
-      + '#dev-hub .dh-scn .sc-good{border-left-color:var(--green)}#dev-hub .dh-scn .sc-bad{border-left-color:var(--red);background:rgba(248,81,73,.06)}#dev-hub .dh-scn .sc-bad li{margin:3px 0;font-size:.78rem;line-height:1.6}#dev-hub .dh-scn ul{margin:4px 0 0;padding-left:1.2em}'
-      + '#dev-hub .dh-scn h3{margin:0 0 6px;font-size:.85rem;color:var(--t0)}#dev-hub .dh-scn h4{margin:12px 0 6px;font-size:.78rem;color:var(--t0)}#dev-hub .dh-scn h4 small{margin-left:8px;color:var(--t2);font-size:.68rem;font-weight:400}'
-      + '#dev-hub .dh-scn .sc-note,#dev-hub .dh-scn .sc-meta{margin:6px 0;font-size:.7rem;color:var(--t2);line-height:1.6}#dev-hub .dh-scn .sc-err{margin:8px 0;color:var(--red);font-size:.76rem;line-height:1.6}'
-      + '#dev-hub .dh-scn .sc-id{font-size:1rem;font-weight:700;color:var(--t0);letter-spacing:.04em}#dev-hub .dh-scn .sc-tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:8px;background:rgba(56,139,253,.18);color:var(--t0);font-size:.64rem;font-weight:400}'
-      + '#dev-hub .dh-scn .sc-edited{background:rgba(227,179,65,.2)}#dev-hub .dh-scn .sc-load{margin-top:12px}'
-      + '#dev-hub .dh-scn .sc-seats{display:grid;grid-template-columns:1fr;gap:0 12px}'
-      + '#dev-hub .dh-scn .sc-cities{display:grid;grid-template-columns:1fr 1fr;gap:8px}#dev-hub .dh-scn .sc-city{padding:8px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg1)}#dev-hub .dh-scn .sc-front{border-color:var(--blue);box-shadow:0 0 10px rgba(56,139,253,.2)}'
-      + '#dev-hub .dh-scn .sc-city-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:.8rem;color:var(--t0)}#dev-hub .dh-scn .sc-city-head .sc-tag{margin-left:0}'
-      + '#dev-hub .dh-scn .sc-hp{height:6px;margin:6px 0;border-radius:3px;background:var(--bg3);overflow:hidden}#dev-hub .dh-scn .sc-hp i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green))}'
-      + '#dev-hub .dh-scn .sc-field{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:6px 0;font-size:.76rem;color:var(--t1)}#dev-hub .dh-scn .sc-field span{font-size:.68rem;color:var(--t2)}'
-      + '#dev-hub .dh-scn input[type=number],#dev-hub .dh-scn input[type=text],#dev-hub .dh-scn select{min-height:40px;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:16px;font-family:inherit}'
-      + '#dev-hub .dh-scn input[type=number]{width:5.5em}#dev-hub .dh-scn .sc-hand-row{display:flex;gap:6px;margin:6px 0}#dev-hub .dh-scn .sc-hand-row select{flex:1;min-width:0}#dev-hub .dh-scn .sc-add{width:100%;margin-top:4px;border-style:dashed}'
-      + '#dev-hub .dh-scn .sc-empty{padding:6px 0;color:var(--t2);font-size:.76rem}'
-      + '#dev-hub .dh-scn .sc-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:8px 0}#dev-hub .dh-scn .sc-lab{font-size:.74rem;font-weight:700;color:var(--t2);min-width:6em}'
-      + '#dev-hub .dh-scn .sc-seg{display:flex;flex-wrap:wrap;gap:6px}#dev-hub .dh-scn .sc-segbtn{min-height:40px;padding:6px 14px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t1);font-size:.8rem;cursor:pointer;font-family:inherit}'
-      + '#dev-hub .dh-scn .sc-on{border-color:var(--blue);background:rgba(56,139,253,.22);color:var(--t0)}#dev-hub .dh-scn .sc-check{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.76rem;min-height:40px}#dev-hub .dh-scn .sc-check input{width:20px;height:20px}'
-      + '#dev-hub .dh-scn .sc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}#dev-hub .dh-scn .sc-actions .sc-go{flex:1 1 100%}'
-      + '@media (min-width:760px){#dev-hub .dh-scn .sc-seats{grid-template-columns:1fr 1fr}#dev-hub .dh-scn .sc-actions .sc-go{flex:0 0 auto}}'
-      + '@media (max-width:420px){#dev-hub .dh-scn .sc-cities{grid-template-columns:1fr}}';
+    // 見た目（spec §6）：節は上の罫線 1 本、都市は左辺の線（前に出ている都市は青）、箱・角丸・影・グラデーションなし
+    const SC_CSS = [
+      '#dev-hub .dh-scn{color:var(--t1)}',
+      '#dev-hub .dh-scn .sc-btn,#dev-hub .dh-scn .sc-go,#dev-hub .dh-scn .sc-mini{display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 14px;border:1px solid var(--bg3);border-radius:0;background:none;color:var(--t0);font-size:.82rem;cursor:pointer;font-family:inherit}',
+      '#dev-hub .dh-scn .sc-btn:hover,#dev-hub .dh-scn .sc-mini:hover{background:rgba(56,139,253,.1);border-color:var(--blue)}#dev-hub .dh-scn .sc-btn input{display:none}',
+      '#dev-hub .dh-scn .sc-go{border-color:var(--blue);background:var(--blue);color:#fff;font-weight:700;height:40px;padding:0 18px}#dev-hub .dh-scn .sc-go:hover{filter:brightness(1.12)}#dev-hub .dh-scn .sc-go kbd{color:rgba(255,255,255,.78)}',
+      '#dev-hub .dh-scn button:disabled{opacity:.38;cursor:default;filter:none}#dev-hub .dh-scn .sc-btn:disabled:hover,#dev-hub .dh-scn .sc-mini:disabled:hover{background:none;border-color:var(--bg3)}',
+      '#dev-hub .dh-scn .sc-mini{height:28px;padding:0 10px;font-size:.74rem}',
+      '#dev-hub .dh-scn .sc-sec{margin:0;padding:14px 0 14px;border-top:1px solid var(--bg3)}',
+      '#dev-hub .dh-scn .sc-good{border-top-color:var(--green)}#dev-hub .dh-scn .sc-bad{border-top-color:var(--red)}#dev-hub .dh-scn .sc-bad li{margin:3px 0;font-size:.82rem;line-height:1.6}#dev-hub .dh-scn ul{margin:4px 0 0;padding-left:1.2em}',
+      '#dev-hub .dh-scn h3{margin:0 0 10px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:var(--t2)}#dev-hub .dh-scn h4{margin:14px 0 6px;font-size:.8rem;color:var(--t0)}#dev-hub .dh-scn h4 small{margin-left:8px;color:var(--t2);font-size:.72rem;font-weight:400}',
+      '#dev-hub .dh-scn .sc-note,#dev-hub .dh-scn .sc-meta{margin:6px 0;font-size:.76rem;color:var(--t2);line-height:1.6}#dev-hub .dh-scn .sc-err{margin:8px 0;color:var(--red);font-size:.8rem;line-height:1.6}',
+      '#dev-hub .dh-scn .sc-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 20px}#dev-hub .dh-scn .sc-head .sc-meta{margin:0}',
+      '#dev-hub .dh-scn .sc-id{font:700 1.05rem/1.4 ' + DH_MONO + ';color:var(--t0);letter-spacing:.02em}',
+      '#dev-hub .dh-scn .sc-tag{display:inline-block;margin-left:10px;font:700 .68rem/1 ' + DH_MONO + ';letter-spacing:.04em;color:var(--blue)}#dev-hub .dh-scn .sc-edited{color:var(--yellow)}#dev-hub .dh-scn .sc-load{margin-top:12px}',
+      '#dev-hub .dh-scn .sc-seats{display:grid;grid-template-columns:1fr;gap:0 40px}',
+      '#dev-hub .dh-scn .sc-lower{display:grid;grid-template-columns:1fr;gap:0 40px;align-items:start}',
+      // 都市：箱にせず、左辺の線で帰属を示す（前に出ている都市は青）
+      '#dev-hub .dh-scn .sc-cities{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}#dev-hub .dh-scn .sc-city{padding:2px 0 4px 12px;border-left:2px solid var(--bg3)}#dev-hub .dh-scn .sc-front{border-left-color:var(--blue)}',
+      '#dev-hub .dh-scn .sc-city-head{min-height:30px;display:flex;flex-wrap:nowrap;white-space:nowrap;align-items:center;gap:4px 8px;font-size:.88rem;color:var(--t0)}#dev-hub .dh-scn .sc-city-head .sc-tag{margin-left:0}#dev-hub .dh-scn .sc-city-head .sc-mini{margin-left:auto}',
+      '#dev-hub .dh-scn .sc-hp{height:5px;margin:8px 0;background:var(--bg3);overflow:hidden}#dev-hub .dh-scn .sc-hp i{display:block;height:100%;background:var(--green)}#dev-hub .dh-scn .sc-hp i.mid{background:var(--yellow)}#dev-hub .dh-scn .sc-hp i.lo{background:var(--red)}',
+      '#dev-hub .dh-scn .sc-field{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0;font-size:.84rem;color:var(--t1)}#dev-hub .dh-scn .sc-field span{font-size:.74rem;color:var(--t2)}',
+      '#dev-hub .dh-scn input[type=number],#dev-hub .dh-scn input[type=text],#dev-hub .dh-scn select{height:34px;padding:0 8px;border-radius:0;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:16px;font-family:inherit}#dev-hub .dh-scn input:focus,#dev-hub .dh-scn select:focus{outline:0;border-color:var(--blue)}',
+      '#dev-hub .dh-scn input[type=number]{width:5.5em;font-family:' + DH_MONO + '}#dev-hub .dh-scn .sc-hand-row{display:flex;gap:8px;margin:0;padding:4px 0;border-bottom:1px solid var(--bg3)}#dev-hub .dh-scn .sc-hand-row select{flex:1;min-width:0;height:30px;font-size:14px}#dev-hub .dh-scn .sc-add{width:100%;margin-top:8px;height:30px;font-size:14px;border-style:dashed}',
+      '#dev-hub .dh-scn .sc-empty{padding:6px 0;color:var(--t2);font-size:.8rem}',
+      '#dev-hub .dh-scn .sc-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:6px 0;min-height:36px}#dev-hub .dh-scn .sc-lab{flex:0 0 7em;font-size:.82rem;color:var(--t2)}',
+      '#dev-hub .dh-scn .sc-seg{display:flex}#dev-hub .dh-scn .sc-segbtn{height:34px;padding:0 14px;margin-left:-1px;border:1px solid var(--bg3);border-radius:0;background:none;color:var(--t2);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit}#dev-hub .dh-scn .sc-segbtn:first-child{margin-left:0}',
+      '#dev-hub .dh-scn .sc-on{position:relative;border-color:var(--blue);background:rgba(56,139,253,.14);color:var(--t0)}#dev-hub .dh-scn .sc-check{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.84rem;min-height:34px}#dev-hub .dh-scn .sc-check input{width:18px;height:18px}',
+      '#dev-hub .dh-scn .sc-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}',
+      '@media (min-width:1000px){#dev-hub .dh-scn .sc-seats{grid-template-columns:1fr 1fr}#dev-hub .dh-scn .sc-lower{grid-template-columns:1fr 1fr}}',
+      '@media (max-width:420px){#dev-hub .dh-scn .sc-cities{grid-template-columns:1fr}}',
+    ].join('');
 
     /** 画面を閉じる＝ハブを閉じる */
     function devScenarioClose() { devHubClose(); }
@@ -25051,37 +25090,38 @@
       const t = devTester(), recOn = devRecOn();
       const tierNow = _devUiTier || (t ? t.tier : DEV_TIERS[0]);
       const seg = DEV_TIERS.map((x, i) => '<button type="button" class="dh-segbtn' + (tierNow === x ? ' on' : '') + '" onclick="devUiSetTier(' + i + ')">' + _escHtml(x) + '</button>').join('');
-      const state = !t ? '番号を入れると記録が始まる（例：T01）' : recOn ? '記録中：' + _escHtml(t.id) + '（' + _escHtml(t.tier) + '）。この端末の対戦を記録する' : '記録オフ：登録は残っているが、新しい試合は記録しない';
+      const state = !t ? '記録なし' : recOn ? '記録中' : '記録オフ';
       const tester = _dhSec('テスター', '<div class="dh-field"><label for="dev-tester-id">番号</label><input type="text" id="dev-tester-id" maxlength="20" value="' + (t ? _escHtml(t.id) : '') + '" placeholder="T01" onchange="devUiApplyTester()"></div>'
         + '<div class="dh-field"><span>区分</span><div class="dh-seg">' + seg + '</div></div>'
         + '<div class="dh-field"><span>記録</span>' + _dhSwitch(recOn, 'devHubSetRec(!devRecOn())', '記録') + '<span class="dh-note">' + state + '</span></div>');
       const recent = _dhSec('最近の記録', plRecent().map(r => {
         const res = r.complete ? (r.winner == null ? '引き分け' : '席' + r.winner + ' の勝ち（' + (DD_END_NAMES[/** @type {'destroyed'} */ (r.endReason)] || '全壊') + '）') : '未完了';
         const st = r.status === 'sent' ? '送信済み' : r.status === 'removed' ? '消した' : '未送信';
-        return '<div class="dh-item"><div class="dh-item-main"><b>' + _escHtml(r.gameId) + '</b><small>' + [r.mode, '席 ' + r.seat, r.date, res].map(x => _escHtml(x)).join('・') + '</small></div><span class="dh-badge dh-' + _escHtml(r.status) + '">' + st + '</span></div>';
+        return '<div class="dh-item st-' + _escHtml(r.status) + '"><div class="dh-item-main"><b>' + _escHtml(r.gameId) + '</b><small>' + [r.mode, '席 ' + r.seat, r.date, res].map(x => _escHtml(x)).join('・') + '</small></div><span class="dh-badge dh-' + _escHtml(r.status) + '">' + st + '</span></div>';
       }).join('') || '<div class="dh-empty">まだ記録がない</div>');
       const pend = plPending();
       const items = pend.map((l, i) => {
         const ask = _dh.confirm === l.gameId + '|' + l.seat;
-        return '<div class="dh-item"><div class="dh-item-main"><b>' + _escHtml(l.gameId) + '</b><small>' + [l.mode, '席 ' + l.seat, l.startedAt, l.complete ? '完了' : '未完了', (Array.isArray(l.events) ? l.events.length : 0) + ' 件の行動'].map(x => _escHtml(x)).join('・') + '</small></div>'
+        return '<div class="dh-item st-unsent"><div class="dh-item-main"><b>' + _escHtml(l.gameId) + '</b><small>' + [l.mode, '席 ' + l.seat, l.startedAt, l.complete ? '完了' : '未完了', (Array.isArray(l.events) ? l.events.length : 0) + ' 件の行動'].map(x => _escHtml(x)).join('・') + '</small></div>'
           + '<div class="dh-item-btns"><button type="button" class="dh-btn" onclick="devHubSendOne(' + i + ')">送る</button><button type="button" class="dh-btn" onclick="plDownload(plPending()[' + i + '])">ファイルに保存</button><button type="button" class="dh-btn danger" onclick="devHubDel(' + i + ')">' + (ask ? '本当に消す' : '消す') + '</button></div></div>';
       }).join('') || '<div class="dh-empty">未送信の記録はない</div>';
-      const bar = '<div class="dh-bar"><button type="button" class="dh-btn primary"' + (pend.length ? '' : ' disabled') + ' onclick="devUiSendPending()">' + uiIcoUpload(13) + ' すべて送る' + _dhKbd(DEV_KEYS.primary) + '</button><button type="button" class="dh-btn" onclick="plDownload()">すべてファイルに保存</button>' + (plCurrent() ? '<span class="dh-note">記録中の試合あり（保存には含まれる）</span>' : '') + (_devUiMsg ? '<span class="dh-note">' + _escHtml(_devUiMsg) + '</span>' : '') + '</div>';
+      const bar = '<div class="dh-bar"><button type="button" class="dh-btn primary"' + (pend.length ? '' : ' disabled') + ' onclick="devUiSendPending()">' + uiIcoUpload(13) + ' すべて送る' + _dhKbd(DEV_KEYS.primary) + '</button><button type="button" class="dh-btn" onclick="plDownload()">すべてファイルに保存</button>' + (plCurrent() ? '<span class="dh-note">記録中の試合あり</span>' : '') + (_devUiMsg ? '<span class="dh-note">' + _escHtml(_devUiMsg) + '</span>' : '') + '</div>';
       return '<div class="dh-grid">' + tester + recent + '</div>' + _dhSec('未送信の記録（' + pend.length + ' 件）', bar + items);
     }
-    /** 2 CPU 戦：相手の CPU の設定一式・自分の都市を自由に選ぶか・CPU 戦を始める */
+    /** 2 CPU 戦：左に相手の CPU の設定一式、右に CPU 戦を始める・自分の都市を自由に選ぶか */
     function _dhPanelCpu() {
-      const own = _dhSec('自分の都市', '<div class="dh-field">' + _dhSwitch(devPickEnabled(), 'devSetPickCity(!devPickEnabled())', '自分の都市を自由に選ぶ') + '<span>自分の都市を自由に選ぶ</span></div><div class="dh-note">オンのとき、対戦のガチャの自分の番に、都市の一覧から選べる。オフならガチャを引く。</div>');
-      const go = _dhSec('始める', '<button type="button" class="dh-btn primary big" onclick="devHubStartCpu()">' + uiIcoSwords(15) + ' CPU 戦を始める' + _dhKbd(DEV_KEYS.primary) + '</button><div class="dh-note">' + _escHtml(devCpuSummaryLine()) + '</div><div class="dh-note">ロビーにいるときだけ始められる。</div>');
-      return '<div class="dh-grid"><div>' + devCpuPanelHtml(true) + '</div><div>' + go + own + '</div></div>';
+      const own = _dhSec('自分の都市', '<div class="dh-field"><span>自分の都市を自由に選ぶ</span>' + _dhSwitch(devPickEnabled(), 'devSetPickCity(!devPickEnabled())', '自分の都市を自由に選ぶ') + '</div>');
+      const away = G.screen !== 'lobby' || !!G._devPreview;
+      const go = _dhSec('始める', '<button type="button" class="dh-btn primary big"' + (away ? ' disabled title="ロビーにいるときだけ"' : '') + ' onclick="devHubStartCpu()">' + uiIcoSwords(15) + ' CPU 戦を始める' + _dhKbd(DEV_KEYS.primary) + '</button>');
+      return '<div class="dh-cols"><div>' + devCpuPanelHtml(true) + '</div><div>' + go + own + '</div></div>';
     }
     /** 狭い幅で、操作を出さない項目の案内 @param {string} what */
-    function _dhViewOnly(what) { return '<div class="dh-sec"><h3>見るだけ</h3><div class="dh-note">' + _escHtml(what) + 'は、PC で開いてください。</div></div>'; }
+    function _dhViewOnly(what) { return '<div class="dh-sec" title="' + _escHtml(what) + 'は PC で"><h3>見るだけ（操作は PC で）</h3></div>'; }
     /** 3 盤面：試合中は今の盤面の書き出し。その下に、盤面コードを読み込んで直して始める */
     function _dhPanelBoard() {
       if (_dhNarrow()) return _dhViewOnly('盤面の書き出し・読み込み・直す・始める操作') + (_sc.snap ? '<div class="dh-sec"><h3>読み込み済みの盤面</h3><div class="dh-field"><b>盤面 #' + _escHtml(_scId()) + '</b>' + (_sc.fileName ? '<span>' + _escHtml(_sc.fileName) + '</span>' : '') + '</div></div>' : '');
       const inGame = G.screen !== 'lobby' && !G._devPreview;
-      const exp = inGame ? _dhSec('今の盤面を書き出す', '<div class="dh-field"><span>番号</span><b>盤面 #' + _escHtml(devSnapshot('full').id) + '</b></div><button type="button" class="dh-btn primary" onclick="devSnapshotDownload()">盤面コードを書き出す' + _dhKbd(DEV_KEYS.board) + '</button><div class="dh-note">全部見える版と、自分の席から見える版を、1 つのファイルに保存する。</div>') : '';
+      const exp = inGame ? _dhSec('今の盤面を書き出す', '<div class="dh-field"><span>番号</span><b>盤面 #' + _escHtml(devSnapshot('full').id) + '</b></div><button type="button" class="dh-btn primary" onclick="devSnapshotDownload()">盤面コードを書き出す' + _dhKbd(DEV_KEYS.board) + '</button>') : '';
       return exp + '<div class="dh-scn">' + devScenarioRender() + '</div>';
     }
     /** 4 分析：結果のまとめとプレイ記録 */
@@ -25089,12 +25129,12 @@
       if (_dhNarrow()) { const logs = _ddLogHtml(); return _dhViewOnly('結果のまとめやプレイ記録の読み込み') + '<div class="dh-dash">' + _ddSummariesHtml() + (logs ? _ddSec('1試合を追う', logs) : '') + '</div>'; }
       return '<div class="dh-dash">' + devDashRender() + '</div>';
     }
-    /** 5 画面：見たい画面へ飛ぶ */
+    /** 5 画面：見たい画面へ飛ぶ（決着の画面は勝ちが緑・負けが赤の線、途中の画面は灰色の線） */
     function _dhPanelScreen() {
-      const btn = (/** @type {string[]} */ k) => '<button type="button" class="dh-btn" onclick="devHubJump(\'' + k[0] + '\')">' + _escHtml(k[1]) + '</button>';
+      const away = G.screen !== 'lobby' && !G._devPreview;
+      const btn = (/** @type {string[]} */ k) => '<button type="button" class="dh-jump ' + (/^win_/.test(k[0]) ? 'win' : /^lose_/.test(k[0]) ? 'lose' : 'mid') + '"' + (away ? ' disabled title="ロビーにいるときだけ"' : '') + ' onclick="devHubJump(\'' + k[0] + '\')"><span>' + _escHtml(k[1]) + '</span></button>';
       const ends = DEV_JUMP_KINDS.filter(k => /^(win|lose)_/.test(k[0])), mid = DEV_JUMP_KINDS.filter(k => !/^(win|lose)_/.test(k[0]));
-      return '<div class="dh-grid">' + _dhSec('決着の画面', '<div class="dh-btns">' + ends.map(btn).join('') + '</div>') + _dhSec('途中の画面', '<div class="dh-btns">' + mid.map(btn).join('') + '</div>') + '</div>'
-        + '<div class="dh-note">確認用の仮の盤面を開く（記録されない・CPU も動かない）。Esc で戻る。ロビーにいるときだけ使える。</div>';
+      return '<div class="dh-grid">' + _dhSec('決着の画面', ends.map(btn).join('')) + _dhSec('途中の画面', mid.map(btn).join('')) + '</div>';
     }
     /** 項目ごとの中身（作業面に入れる HTML） @param {number} n */
     function devHubPanelHtml(n) {
@@ -25195,8 +25235,8 @@
 
     function _dhWorkHtml() {
       const p = DEV_PANELS[_dh.panel - 1];
-      if (_dh.query.trim()) return _dhSearchHtml();
-      return '<h2 class="dh-h">' + _escHtml(p.label) + '</h2>' + (_dh.msg ? '<div class="dh-msg">' + _escHtml(_dh.msg) + '</div>' : '') + devHubPanelHtml(_dh.panel);
+      if (_dh.query.trim()) return '<div class="dh-page"><h2 class="dh-h">検索</h2>' + _dhSearchHtml() + '</div>';
+      return '<div class="dh-page"><h2 class="dh-h">' + _escHtml(p.label) + '</h2>' + (_dh.msg ? '<div class="dh-msg">' + _escHtml(_dh.msg) + '</div>' : '') + devHubPanelHtml(_dh.panel) + '</div>';
     }
     /** ショートカットの一覧（?） */
     function devHubKeyHelpHtml() {
@@ -25213,49 +25253,80 @@
         + rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('') + '</table><button type="button" class="dh-btn" onclick="devHubToggleHelp()">閉じる ' + _dhKbd(DEV_KEYS.close) + '</button></div></div>';
     }
 
-    const DH_CSS = '#dev-hub{position:fixed;inset:0;z-index:9650;display:flex;flex-direction:column;background:var(--bg1);color:var(--t1)}#dev-hub *{box-sizing:border-box}'
-      + '#dev-hub kbd{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid var(--bg3);border-radius:4px;background:var(--bg1);color:var(--t2);font:700 .62rem/1.5 "Roboto Condensed",monospace}'
-      + '#dev-hub .dh-top{flex:none;display:flex;align-items:center;gap:10px;padding:0 12px;height:46px;background:var(--bg1);border-bottom:1px solid rgba(248,81,73,.5)}'
-      + '#dev-hub .dh-title{display:flex;align-items:center;gap:8px;font-size:.92rem;font-weight:700;color:var(--t0);white-space:nowrap}#dev-hub .dh-tag{color:var(--red);font-size:.64rem;letter-spacing:.1em}'
-      + '#dev-hub .dh-search{flex:1;max-width:420px;margin-left:auto;display:flex;align-items:center;gap:6px}#dev-hub .dh-search input{flex:1;min-width:0;height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:16px;font-family:inherit}'
-      + '#dev-hub .dh-btn,#dev-hub .dh-ico{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:.78rem;cursor:pointer;font-family:inherit}'
-      + '#dev-hub .dh-ico{margin-left:0}#dev-hub .dh-btn:hover,#dev-hub .dh-ico:hover{border-color:var(--blue)}'
-      + '#dev-hub .dh-body{flex:1;min-height:0;display:flex}'
-      + '#dev-hub .dh-menu{flex:none;width:170px;padding:10px 8px;display:flex;flex-direction:column;gap:6px;background:var(--bg2);border-right:1px solid var(--bg3);overflow:auto}'
-      + '#dev-hub .dh-mi{display:flex;align-items:center;gap:9px;min-height:42px;padding:0 10px;border-radius:8px;border:1px solid transparent;border-left:3px solid transparent;background:none;color:var(--t1);font-size:.84rem;cursor:pointer;font-family:inherit;text-align:left}'
-      + '#dev-hub .dh-mi kbd{margin-left:auto}#dev-hub .dh-mi:hover{background:rgba(56,139,253,.08)}'
-      + '#dev-hub .dh-mi.on{border-left-color:var(--blue);background:rgba(56,139,253,.16);color:var(--t0);box-shadow:inset 0 0 14px rgba(56,139,253,.16)}'
-      + '#dev-hub .dh-work{flex:1;min-width:0;overflow:auto;padding:14px 18px 40px;-webkit-overflow-scrolling:touch}'
-      + '#dev-hub .dh-h{margin:0 0 10px;font-size:1rem;color:var(--t0)}#dev-hub .dh-msg{margin:0 0 10px;padding:8px 10px;border:1px solid rgba(248,81,73,.5);border-radius:8px;background:rgba(248,81,73,.07);font-size:.76rem;color:var(--t0)}'
-      + '#dev-hub .dh-sec h3{margin:0 0 8px;font-size:.85rem;color:var(--t0)}#dev-hub .dh-empty{padding:10px 0;color:var(--t2);font-size:.8rem}'
-      + '#dev-hub .dh-hit{display:flex;align-items:baseline;gap:10px;width:100%;min-height:40px;padding:6px 10px;margin-bottom:6px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:.82rem;cursor:pointer;font-family:inherit;text-align:left}#dev-hub .dh-hit small{color:var(--t2);font-size:.68rem}'
-      + '#dev-hub .dh-status{flex:none;display:flex;align-items:center;gap:6px 16px;padding:0 12px;min-height:30px;background:var(--bg2);border-top:1px solid var(--bg3);font-size:.68rem;color:var(--t2);overflow:hidden;white-space:nowrap}'
-      + '#dev-hub .dh-pill{padding:1px 8px;border-radius:8px;background:rgba(248,81,73,.85);color:#fff;font-weight:700;letter-spacing:.04em}'
-      + '#dev-hub .dh-help{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}'
-      + '#dev-hub .dh-help-card{width:min(560px,100%);max-height:100%;overflow:auto;padding:14px 16px;border:1px solid var(--bg3);border-top:3px solid var(--blue);border-radius:10px;background:var(--bg1);box-shadow:0 0 24px rgba(56,139,253,.2)}'
-      + '#dev-hub .dh-help-card h3{margin:0 0 8px;font-size:.9rem;color:var(--t0)}#dev-hub .dh-help-card table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:.78rem}'
-      + '#dev-hub .dh-help-card td{padding:6px 6px;border-bottom:1px solid var(--bg3);vertical-align:top}#dev-hub .dh-help-card td:first-child{white-space:nowrap}#dev-hub .dh-help-card td:first-child kbd{margin:0 2px}#dev-hub .dh-help-card td:last-child{color:var(--t2);font-size:.7rem}';
+    // 見た目の作り直し（spec §6）：Google Workspace 型の骨組み。区切りはターンサマリー（.ts-ev）と同じ文法
+    // （片辺アクセント＋水平罫線、個々の箱を持たない、角は丸めない、影・グラデーション・常時の発光なし）。
+    const DH_CSS = [
+      '#dev-hub{position:fixed;inset:0;z-index:9650;display:flex;flex-direction:column;background:var(--bg1);color:var(--t1)}#dev-hub *{box-sizing:border-box}',
+      // ショートカットの表示は [1] の形・等幅（角かっこは疑似要素で足すので、中身は 1 のまま）
+      '#dev-hub kbd{display:inline-block;margin-left:8px;padding:0;border:0;background:none;color:var(--t2);font:700 .72rem/1 ' + DH_MONO + ';letter-spacing:0;white-space:nowrap}#dev-hub kbd::before{content:"["}#dev-hub kbd::after{content:"]"}',
+      // 上の帯：左に名前、中央に検索、右に [?] と閉じる
+      '#dev-hub .dh-top{flex:none;display:grid;grid-template-columns:1fr minmax(280px,560px) 1fr;align-items:center;gap:16px;height:60px;padding:0 20px;background:var(--bg1);border-bottom:1px solid var(--bg3)}',
+      '#dev-hub .dh-title{display:flex;align-items:center;gap:10px;font-size:1rem;font-weight:700;color:var(--t0);white-space:nowrap}#dev-hub .dh-tag{color:var(--red);font:700 .66rem/1 ' + DH_MONO + ';letter-spacing:.08em}',
+      '#dev-hub .dh-top-r{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
+      '#dev-hub .dh-search{position:relative;display:block;margin:0}#dev-hub .dh-search input{width:100%;height:38px;padding:0 44px 0 12px;border-radius:0;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:16px;font-family:inherit}#dev-hub .dh-search input:focus{outline:0;border-color:var(--blue)}',
+      '#dev-hub .dh-search kbd{position:absolute;right:12px;top:50%;margin:0;transform:translateY(-50%)}',
+      // ボタン：主な操作は塗り 1 つ、ほかは枠線だけ
+      '#dev-hub .dh-btn,#dev-hub .dh-ico{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 14px;border-radius:0;border:1px solid var(--bg3);background:none;color:var(--t0);font-size:.82rem;cursor:pointer;font-family:inherit}',
+      '#dev-hub .dh-ico{border-color:transparent;padding:0 10px}#dev-hub .dh-ico kbd{margin:0;font-size:.82rem;color:var(--t1)}#dev-hub .dh-btn:hover,#dev-hub .dh-ico:hover{background:rgba(56,139,253,.1);border-color:var(--blue)}',
+      '#dev-hub .dh-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}#dev-hub .dh-btn.primary:hover{filter:brightness(1.12)}#dev-hub .dh-btn.primary kbd{color:rgba(255,255,255,.78)}',
+      '#dev-hub .dh-btn.big{height:44px;font-size:.92rem;width:100%}#dev-hub .dh-btn.danger{color:var(--red);border-color:rgba(248,81,73,.55)}#dev-hub .dh-btn.danger:hover{background:rgba(248,81,73,.1);border-color:var(--red)}',
+      '#dev-hub .dh-btn:disabled{opacity:.38;cursor:default;filter:none}#dev-hub .dh-btn:disabled:hover{background:none;border-color:var(--bg3)}#dev-hub .dh-btn.primary:disabled:hover{background:var(--blue);border-color:var(--blue)}',
+      // 左のナビゲーション：アイコン＋名前＋右寄せのキー。選択中は薄い塗りと左辺の色線（角は丸めない）
+      '#dev-hub .dh-body{flex:1;min-height:0;display:flex}',
+      '#dev-hub .dh-menu{flex:none;width:240px;padding:12px 0;display:flex;flex-direction:column;background:var(--bg2);border-right:1px solid var(--bg3);overflow:auto}',
+      '#dev-hub .dh-mi{display:flex;align-items:center;gap:12px;width:100%;height:44px;padding:0 16px 0 13px;border:0;border-left:3px solid transparent;border-radius:0;background:none;color:var(--t1);font-size:.9rem;cursor:pointer;font-family:inherit;text-align:left}',
+      '#dev-hub .dh-mi kbd{margin-left:auto}#dev-hub .dh-mi:hover{background:rgba(56,139,253,.07)}#dev-hub .dh-mi.on{border-left-color:var(--blue);background:rgba(56,139,253,.14);color:var(--t0);font-weight:700}',
+      // 作業面：見出し＋短い説明、節は上の罫線 1 本で区切る。最大幅 1100px で左寄せ
+      '#dev-hub .dh-work{flex:1;min-width:0;overflow:auto;padding:24px 32px 48px;-webkit-overflow-scrolling:touch}#dev-hub .dh-page{max-width:1100px}',
+      '#dev-hub .dh-h{margin:0 0 14px;font-size:1.3rem;font-weight:700;color:var(--t0)}',
+      '#dev-hub .dh-msg{margin:0 0 12px;padding:8px 4px 8px 12px;border-left:2px solid var(--red);border-bottom:1px solid var(--bg3);font-size:.8rem;color:var(--t0)}',
+      '#dev-hub .dh-sec{margin:0;padding:14px 0 14px;border-top:1px solid var(--bg3)}#dev-hub .dh-sec h3{margin:0 0 10px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:var(--t2)}',
+      '#dev-hub .dh-empty{padding:10px 0;color:var(--t2);font-size:.82rem}',
+      '#dev-hub .dh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:0 40px;align-items:start}',
+      '#dev-hub .dh-cols{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0 40px;align-items:start}',
+      // フォーム：ラベル左・入力右の 2 段組
+      '#dev-hub .dh-field{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;min-height:40px;padding:3px 0;font-size:.86rem;color:var(--t1)}#dev-hub .dh-field>:first-child{flex:0 0 150px;color:var(--t2);font-size:.82rem}',
+      '#dev-hub .dh-field input[type=text],#dev-hub .dh-field select,#dev-hub .dh-input{height:34px;padding:0 10px;border-radius:0;border:1px solid var(--bg3);background:var(--bg2);color:var(--t0);font-size:16px;font-family:inherit}#dev-hub .dh-field input[type=text]{width:12em}',
+      '#dev-hub .dh-field input:focus,#dev-hub .dh-field select:focus{outline:0;border-color:var(--blue)}#dev-hub .dh-field .dh-note{flex:1 1 240px}',
+      '#dev-hub .dh-note{font-size:.76rem;line-height:1.6;color:var(--t2)}#dev-hub .dh-work .dh-page>.dh-note{margin-top:10px}',
+      '#dev-hub .dh-seg,#dev-hub .dh-btns,#dev-hub .dh-bar,#dev-hub .dh-chips{display:flex;flex-wrap:wrap;align-items:center}#dev-hub .dh-btns,#dev-hub .dh-chips{gap:6px}#dev-hub .dh-bar{gap:8px;margin-bottom:6px}',
+      // セグメント（四角の区切り）
+      '#dev-hub .dh-seg{flex-wrap:nowrap}#dev-hub .dh-segbtn{height:34px;padding:0 14px;margin-left:-1px;border:1px solid var(--bg3);border-radius:0;background:none;color:var(--t2);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit}#dev-hub .dh-segbtn:first-child{margin-left:0}#dev-hub .dh-segbtn:hover{color:var(--t0)}',
+      '#dev-hub .dh-segbtn.on{position:relative;border-color:var(--blue);color:var(--t0);background:rgba(56,139,253,.14)}',
+      // 使えないカードの選び（トグル）
+      '#dev-hub .dh-sub{margin:10px 0 4px;font:700 .68rem/1 ' + DH_MONO + ';letter-spacing:.06em;color:var(--t2)}#dev-hub .dh-sub:first-of-type{margin-top:0}',
+      '#dev-hub .dh-chip{height:30px;padding:0 10px;border:1px solid var(--bg3);border-radius:0;background:none;color:var(--t1);font-size:.8rem;cursor:pointer;font-family:inherit}#dev-hub .dh-chip:hover{border-color:var(--blue)}#dev-hub .dh-chip.on{border-color:rgba(248,81,73,.7);background:rgba(248,81,73,.14);color:var(--t0)}',
+      '#dev-hub .dh-err{margin-top:8px;font-size:.78rem;color:var(--red)}',
+      '#dev-hub .dh-sw{position:relative;display:inline-block;flex:none;width:36px;height:20px;border-radius:10px;background:var(--bg3);cursor:pointer;transition:background .2s}#dev-hub .dh-sw i{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s}#dev-hub .dh-sw.on{background:var(--green)}#dev-hub .dh-sw.on i{left:19px}',
+      // 一覧の行（ターンサマリーの .ts-ev と同じ：左辺 2px の線＋下に水平罫線）
+      '#dev-hub .dh-item{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:9px 4px 9px 12px;border-left:2px solid var(--bg3);border-bottom:1px solid var(--bg3)}#dev-hub .dh-item:last-child{border-bottom:0}#dev-hub .dh-item:hover{background:rgba(56,139,253,.05)}',
+      '#dev-hub .dh-item.st-sent{border-left-color:var(--green)}#dev-hub .dh-item.st-unsent{border-left-color:var(--yellow)}',
+      '#dev-hub .dh-item-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 240px}#dev-hub .dh-item-main b{font-size:.82rem;color:var(--t0);word-break:break-all}#dev-hub .dh-item-main small{font-size:.72rem;color:var(--t2)}#dev-hub .dh-item-btns{display:flex;flex-wrap:wrap;gap:6px}',
+      '#dev-hub .dh-badge{font-size:.72rem;font-weight:700;color:var(--blue);white-space:nowrap}#dev-hub .dh-badge.dh-unsent{color:var(--yellow)}#dev-hub .dh-badge.dh-removed{color:var(--t2)}',
+      '#dev-hub .dh-hit{display:flex;align-items:baseline;gap:12px;width:100%;min-height:40px;padding:6px 4px 6px 12px;border:0;border-left:2px solid var(--bg3);border-bottom:1px solid var(--bg3);border-radius:0;background:none;color:var(--t0);font-size:.86rem;cursor:pointer;font-family:inherit;text-align:left}#dev-hub .dh-hit:hover{background:rgba(56,139,253,.07);border-left-color:var(--blue)}#dev-hub .dh-hit small{color:var(--t2);font-size:.72rem}',
+      // 画面へ飛ぶ：行の並び
+      '#dev-hub .dh-jump{display:flex;align-items:center;justify-content:space-between;width:100%;height:40px;padding:0 4px 0 12px;border:0;border-left:2px solid var(--bg3);border-bottom:1px solid var(--bg3);border-radius:0;background:none;color:var(--t0);font-size:.86rem;cursor:pointer;font-family:inherit;text-align:left}#dev-hub .dh-jump:hover{background:rgba(56,139,253,.07);border-left-color:var(--blue)}#dev-hub .dh-jump.win{border-left-color:var(--green)}#dev-hub .dh-jump.lose{border-left-color:var(--red)}#dev-hub .dh-jump:disabled{opacity:.38;cursor:default}#dev-hub .dh-jump:disabled:hover{background:none;border-left-color:var(--bg3)}',
+      // 下の帯（ステータスバー）：28px、｜で区切る
+      '#dev-hub .dh-status{flex:none;display:flex;align-items:center;padding:0 16px;height:28px;background:var(--bg2);border-top:1px solid var(--bg3);font-size:.7rem;color:var(--t2);overflow:hidden;white-space:nowrap}',
+      '#dev-hub .dh-status>span+span::before{content:"｜";margin:0 10px;color:var(--t2);opacity:.55}#dev-hub .dh-status>.dh-grow::before{content:none}#dev-hub .dh-grow{flex:1}#dev-hub .dh-pill{color:var(--red);font-weight:700}',
+      '#dev-hub .dh-file{margin-left:10px;cursor:pointer;color:var(--t1);text-decoration:underline dotted}#dev-hub .dh-file input{display:none}',
+      '#dev-hub.dh-drop{outline:3px dashed var(--blue);outline-offset:-6px}',
+      // ショートカットの一覧（?）
+      '#dev-hub .dh-help{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}',
+      '#dev-hub .dh-help-card{width:min(640px,100%);max-height:100%;overflow:auto;padding:18px 24px 20px;border:1px solid var(--bg3);border-top:2px solid var(--blue);border-radius:0;background:var(--bg1)}',
+      '#dev-hub .dh-help-card h3{margin:0 0 8px;font-size:.9rem;color:var(--t0)}#dev-hub .dh-help-card table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:.82rem}',
+      '#dev-hub .dh-help-card td{padding:8px 8px 8px 0;border-bottom:1px solid var(--bg3);vertical-align:top}#dev-hub .dh-help-card td:first-child{white-space:nowrap}#dev-hub .dh-help-card td:first-child kbd{margin:0 2px 0 0;font-size:.8rem;color:var(--t0)}#dev-hub .dh-help-card td:last-child{color:var(--t2);font-size:.74rem}',
+    ].join('');
 
-    const DH_CSS2 = '#dev-hub.dh-drop{outline:3px dashed var(--blue);outline-offset:-6px}#dev-hub .dh-grow{flex:1}'
-      + '#dev-hub .dh-file{cursor:pointer;color:var(--t1);text-decoration:underline dotted}#dev-hub .dh-file input{display:none}'
-      + '#dev-hub .dh-sec{margin-bottom:12px;padding:10px 12px;border:1px solid var(--bg3);border-left:3px solid var(--blue);border-radius:10px;background:var(--bg2)}'
-      + '#dev-hub .dh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:0 12px;align-items:start}'
-      + '#dev-hub .dh-field{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:8px 0;font-size:.8rem;color:var(--t1)}'
-      + '#dev-hub .dh-field input[type=text]{min-height:36px;width:7em;padding:0 10px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:16px;font-family:inherit}'
-      + '#dev-hub .dh-note{font-size:.7rem;line-height:1.6;color:var(--t2)}'
-      + '#dev-hub .dh-seg,#dev-hub .dh-btns,#dev-hub .dh-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}#dev-hub .dh-bar{margin-bottom:8px}'
-      + '#dev-hub .dh-segbtn{min-height:34px;padding:0 12px;border-radius:8px;border:1.5px solid var(--bg3);background:var(--bg1);color:var(--t2);font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit}#dev-hub .dh-segbtn.on{border-color:var(--blue);color:var(--t0);background:rgba(56,139,253,.16)}'
-      + '#dev-hub .dh-btn.primary{border-color:var(--green);background:rgba(63,185,80,.14);font-weight:700;box-shadow:0 0 12px rgba(63,185,80,.18)}#dev-hub .dh-btn.big{min-height:44px;font-size:.9rem;width:100%}'
-      + '#dev-hub .dh-btn.danger{border-color:rgba(248,81,73,.6)}#dev-hub .dh-btn:disabled{opacity:.38;cursor:default;box-shadow:none}'
-      + '#dev-hub .dh-sw{position:relative;display:inline-block;flex:none;width:36px;height:22px;border-radius:11px;background:var(--bg3);cursor:pointer;transition:background .2s}#dev-hub .dh-sw i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:left .2s}#dev-hub .dh-sw.on{background:var(--green)}#dev-hub .dh-sw.on i{left:17px}'
-      + '#dev-hub .dh-item{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;padding:7px 0;border-top:1px solid var(--bg3)}#dev-hub .dh-item:first-of-type{border-top:0}'
-      + '#dev-hub .dh-item-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 240px}#dev-hub .dh-item-main b{font-size:.78rem;color:var(--t0);word-break:break-all}#dev-hub .dh-item-main small{font-size:.68rem;color:var(--t2)}#dev-hub .dh-item-btns{display:flex;flex-wrap:wrap;gap:6px}'
-      + '#dev-hub .dh-badge{padding:1px 8px;border-radius:8px;font-size:.66rem;font-weight:700;background:rgba(56,139,253,.18);color:var(--t0)}#dev-hub .dh-badge.dh-unsent{background:rgba(227,179,65,.22)}#dev-hub .dh-badge.dh-removed{background:var(--bg3);color:var(--t2)}'
-      + '#dev-hub .dh-work>.dh-note{margin-top:4px}'
-      + '#dev-hub .dh-narrow kbd{display:none}#dev-hub .dh-narrow .dh-ico kbd{display:inline-block}#dev-hub .dh-top.dh-narrow{gap:6px;padding:0 8px}#dev-hub .dh-top.dh-narrow .dh-title span:not(.dh-tag):not(:first-child){display:none}#dev-hub .dh-top.dh-narrow .dh-search{margin-left:0;min-width:0}#dev-hub .dh-top.dh-narrow .dh-btn{padding:0 10px}'
-      + '#dev-hub .dh-body.dh-narrow{flex-direction:column}#dev-hub .dh-menu.dh-tabs{flex:none;width:auto;flex-direction:row;gap:2px;padding:6px 4px 0;border-right:0;border-bottom:1px solid var(--bg3);overflow:hidden}'
-      + '#dev-hub .dh-tabs .dh-mi{flex:1 1 0;min-width:0;flex-direction:column;justify-content:center;gap:2px;min-height:48px;padding:0 2px;font-size:.7rem;border-left:1px solid transparent;border-bottom:3px solid transparent;border-radius:8px 8px 0 0}#dev-hub .dh-tabs .dh-mi.on{border-left-color:transparent;border-bottom-color:var(--blue)}'
-      + '#dev-hub .dh-narrow .dh-work,#dev-hub .dh-body.dh-narrow .dh-work{padding:12px 12px 32px}#dev-hub .dh-status.dh-narrow{gap:6px 10px;padding:0 8px}';
+    // 幅 900px 未満（タブ表示）の上書き。形は今のまま
+    const DH_CSS2 = [
+      '#dev-hub .dh-narrow kbd{display:none}#dev-hub .dh-narrow .dh-ico kbd{display:inline-block}',
+      '#dev-hub .dh-top.dh-narrow{display:flex;height:46px;gap:6px;padding:0 8px}#dev-hub .dh-top.dh-narrow .dh-title span:not(.dh-tag):not(:first-child){display:none}#dev-hub .dh-top.dh-narrow .dh-search{flex:1;min-width:0}#dev-hub .dh-top.dh-narrow .dh-search input{height:34px;padding-right:12px}#dev-hub .dh-top.dh-narrow .dh-btn{padding:0 10px}',
+      '#dev-hub .dh-body.dh-narrow{flex-direction:column}#dev-hub .dh-menu.dh-tabs{flex:none;width:auto;flex-direction:row;gap:2px;padding:6px 4px 0;border-right:0;border-bottom:1px solid var(--bg3);overflow:hidden}',
+      '#dev-hub .dh-tabs .dh-mi{flex:1 1 0;min-width:0;width:auto;flex-direction:column;justify-content:center;gap:2px;height:auto;min-height:48px;padding:0 2px;font-size:.7rem;border-left:0;border-bottom:3px solid transparent}#dev-hub .dh-tabs .dh-mi.on{border-bottom-color:var(--blue)}',
+      '#dev-hub .dh-narrow .dh-work,#dev-hub .dh-body.dh-narrow .dh-work{padding:12px 12px 32px}#dev-hub .dh-status.dh-narrow{padding:0 8px}',
+      '#dev-hub .dh-narrow .dh-cols,#dev-hub .dh-narrow .dh-grid{grid-template-columns:1fr}#dev-hub .dh-narrow .dh-field>:first-child{flex:1 0 100%}',
+    ].join('');
 
     /** ハブの全体（開発者モードがオフなら空の文字） */
     function devHubRender() {
@@ -25266,8 +25337,8 @@
       return '<style>' + DH_CSS + DH_CSS2 + DD_CSS + SC_CSS + '</style>'
         + '<div class="dh-top' + (narrow ? ' dh-narrow' : '') + '"><div class="dh-title">' + uiIcoGear(16) + '<span>開発者モード</span><span class="dh-tag">DEV</span></div>'
         + '<label class="dh-search"><input id="dh-search" type="text" placeholder="検索（項目・設定・カード・都市）" value="' + _escHtml(_dh.query) + '" oninput="devHubSearch(this.value)" onkeydown="devHubSearchKey(event)" autocomplete="off">' + _dhKbd(DEV_KEYS.search) + '</label>'
-        + '<button type="button" class="dh-ico" onclick="devHubToggleHelp()" aria-label="ショートカットの一覧">' + _dhKbd(DEV_KEYS.help).replace('<kbd>', '<kbd style="margin:0">') + '</button>'
-        + '<button type="button" class="dh-btn" onclick="devHubClose()" aria-label="閉じる">' + _lpIcoClose(13) + ' 閉じる' + _dhKbd(DEV_KEYS.close) + '</button></div>'
+        + '<div class="dh-top-r"><button type="button" class="dh-ico" onclick="devHubToggleHelp()" aria-label="ショートカットの一覧">' + _dhKbd(DEV_KEYS.help) + '</button>'
+        + '<button type="button" class="dh-btn" onclick="devHubClose()" aria-label="閉じる">' + _lpIcoClose(13) + ' 閉じる' + _dhKbd(DEV_KEYS.close) + '</button></div></div>'
         + '<div class="dh-body' + (narrow ? ' dh-narrow' : '') + '">' + (narrow ? '<nav class="dh-menu dh-tabs" role="tablist" aria-label="項目">' : '<nav class="dh-menu" aria-label="項目">') + menu + '</nav><main class="dh-work" id="dh-work">' + _dhWorkHtml() + '</main></div>'
         + '<div class="dh-status' + (narrow ? ' dh-narrow' : '') + '">' + devHubStatusHtml() + '</div>'
         + (_dh.help ? devHubKeyHelpHtml() : '');
