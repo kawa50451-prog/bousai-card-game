@@ -5297,6 +5297,36 @@
     // 仕組みは、abilityType が 'response_double' の都市が将来現れたときのために休眠コードとして残している（現在の実在都市は持たない）。
     // 種類＝カードid単位（洪水と津波は別。地形は種類ではない）。同じ種類を何度受けても累積せず1回の攻撃につきこの値だけ軽減する。
     const VERSUS_ISTANBUL_LEARN_REDUCE = 20;
+
+    // ═══════════════════════════════════════
+    // CPU 上級の評価の重み（開発者モード第2段b。使う場所：115_cpu-skills.js の skEvaluate・skPlan など）
+    // ═══════════════════════════════════════
+    // 評価値の単位は「HP 1 点ぶん」。最初の値は設計者（私）が置いた案で、自動対戦の結果（experiments/skill-ladder.json ほか）で直す。
+    // 勝率の目安に届かないときは、まずここだけを直す（判断の関数は直さない）。
+    const CPU_EXPERT_WEIGHTS = {
+      win: 100000,          // 相手の全都市を落とした（勝ち）の評価。確率で混ぜて使う
+      // 両者の HP 合計の差 1 点あたりの重み。序盤は軽く、18ターンの判定が近づくほど重くする（決着までのターン数の見込み）
+      hpBase: 0.6, hpEnd: 1.4,
+      cityLost: 35,         // 都市 1 つが落ちたときの追加の重み（効果のリセットと、残りの都市の数が減ることの分）
+      // 相手の次の手番の脅威（skThreat）への重み。expected＝見込みのダメージ、max＝出せる最大のダメージ、lethal＝今の都市が落ちる確率
+      threatExp: 0.5, threatMax: 0.1, lethal: 20, lethalLast: 100,
+      compound: 20,         // 相手が複合災害を持っていそうで、広域避難指示が無いときの減点（対応を飛ばされる分。HP40以下なら 1.5 倍、それ以外は 0.4 倍）
+      oppHand: 3,           // 相手の手札 1 枚の重み（台風で奪うと減る）
+      shield: 8,            // 貼ってあるシールド（耐震・堤防・避難指示・防災庁）1 つの重み。自分の分は加点、相手の分は減点
+      // 手札のカード 1 枚の「持っている価値」（手札の置き換えやすさに関わる）。場面で倍率がかかる（手札に攻撃が無ければ攻撃を 1.8 倍など）
+      hold: { disaster: 0.3, heal: 0.5, shield: 10, bousai: 10, evacuation: 6, pollution: 8, terror: 6, rumor: 3, draw: 3, recycle: 3 },
+      needAtk: 1.8, needDef: 1.6, needDefAtkLow: 0.7,
+      // 作戦ごとの重み。hand＝手札 1 枚の基本の価値、deck＝自分の山札 1 枚の価値。長期戦は山札を減らさないことを重くする
+      short: { hand: 4, deck: 1 },
+      long: { hand: 9, deck: 10 },
+      // 作戦の決め方：攻める災害が planLongMinDisasters 枚以上で平均コストが planLongAvgCost 以上なら長期戦（重量型）。
+      // 試合中は HP 合計の差が planSwitchLead 以上なら長期戦（守り切る）、-planSwitchLead 以下なら短期決戦（取り返す）に切り替える
+      planLongAvgCost: 2.3, planLongMinDisasters: 13, planSwitchLead: 40,
+      recycleBonus: 10,     // ローリングストックを使うと得な手札（要らないカードが 1 枚・偏りが 1）の、1 つあたりの加点
+      stealOpp: 1.0, stealMine: 0.5,   // 台風で奪うカードの価値：相手から取り上げる分と、自分が使える分（Task 4）
+      // 先読みする手の並びの上限。手札 5 枚・予算 5 でも 2^5 通りの選び方と災害の順序を合わせて 200 を超えない。超えたら打ち切る
+      maxCandidates: 200,
+    };
     // @ts-check
     // 難易度は「人間にとっての難しさ」で統一。都市側／自然側で立場が逆なので side ごとに設定を分ける。
     const _COOP_EVENTS_ALL = [{ t: 2, id: 'rumor' }, { t: 5, id: 'pollution' }, { t: 7, id: 'terror' }];
@@ -8163,10 +8193,10 @@
     function endTurn() {
       const p = G.players[G.activePlayer]; const city = getActiveCity(G.activePlayer);
       plEvent('turnEnd', plMine(G.activePlayer) ? { pi: G.activePlayer, budgetLeft: getBudgetLeft(G.activePlayer), hand: plHand(p.hand) } : { pi: G.activePlayer, budgetLeft: getBudgetLeft(G.activePlayer) });
-      if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); addLog(`${coopIcoHeart(12,'#3fb950')} ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
+      if (city && city.abilityType === 'regen') { const mxHp = city.hp; const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, mxHp); if (p.cityHps[p.activeCityIdx] !== fh) { queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); plEvent('abilityHeal', { pi: G.activePlayer, city: city.id, amount: p.cityHps[p.activeCityIdx] - fh }); } addLog(`${coopIcoHeart(12,'#3fb950')} ${city.name}の回復能力 +${city.abilityValue}（HP:${p.cityHps[p.activeCityIdx]}）`, 'heal'); const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] }); }
       if (city && city.abilityType === 'quake_regen' && p.effects.quakeHitThisTurn) {
         const fh = p.cityHps[p.activeCityIdx]; p.cityHps[p.activeCityIdx] = Math.min(p.cityHps[p.activeCityIdx] + city.abilityValue, city.hp);
-        if (p.cityHps[p.activeCityIdx] !== fh) queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]);
+        if (p.cityHps[p.activeCityIdx] !== fh) { queueHpAnim(G.activePlayer, fh, p.cityHps[p.activeCityIdx]); plEvent('abilityHeal', { pi: G.activePlayer, city: city.id, amount: p.cityHps[p.activeCityIdx] - fh }); }
         addLog(`${coopIcoHeart(12,'#3fb950')} ${city.name}の能力（地震後回復）+${city.abilityValue}`, 'heal');
         const opp = G.activePlayer === 0 ? 1 : 0; G._nextTurnEvents[opp].push({ type: 'opp_regen', cityIcon: terrainImg(city, 18), cityName: city.name, amount: city.abilityValue, hpBefore: fh, hpAfter: p.cityHps[p.activeCityIdx] });
         // 2026-09-24 第1陣B-2：新潟専用の追加効果（WORKTRACK.md §15 B-2）。捨て札の上から2枚（＝直前に
@@ -13063,6 +13093,15 @@
     /** 席 me の CPU の打ち方（設定が無い席では従来のグローバルの難易度） @param {number} me */
     function _cpuSkill(me) { const c = cpuSeatCfg(me); return c ? c.skill : cpuDifficulty; }
 
+    // 打ち方の一覧（開発者モード第2段b）。easy・normal・hard は従来の決め打ちの規則（110_ のこのファイルの関数）、
+    // beginner・standard・expert は 115_cpu-skills.js の判断（sk で始まる関数）で動く。一般の CPU 戦は従来の3つだけを使う。
+    const CPU_SKILLS = ['easy', 'normal', 'hard', 'beginner', 'standard', 'expert'];
+    /** @type {Record<string, string>} */
+    const CPU_SKILL_LABEL = { easy: 'EASY', normal: 'NORMAL', hard: 'HARD', beginner: '初心者', standard: '標準', expert: '上級' };
+    const CPU_NEW_SKILLS = ['beginner', 'standard', 'expert'];
+    /** 席 me の CPU が新しい打ち方（115_cpu-skills.js）か @param {number} me */
+    function _cpuIsNewSkill(me) { return CPU_NEW_SKILLS.includes(_cpuSkill(me)); }
+
     const _CPU_CITY_TIERS = {
       kobe: 'S', tokyo: 'S',
       kumamoto: 'A', osaka: 'A',
@@ -13073,7 +13112,10 @@
     const _CPU_GACHA_W = {
       easy:   { S: 0.3, A: 0.6, B: 0.8, C: 1.0, D: 1.5 },
       normal: { S: 0.6, A: 0.8, B: 0.9, C: 1.0, D: 1.2 },
-      hard:   { S: 1.0, A: 1.0, B: 1.0, C: 1.0, D: 1.0 }
+      hard:   { S: 1.0, A: 1.0, B: 1.0, C: 1.0, D: 1.0 },
+      beginner: { S: 0.6, A: 0.8, B: 0.9, C: 1.0, D: 1.2 },
+      standard: { S: 1.0, A: 1.0, B: 1.0, C: 1.0, D: 1.0 },
+      expert:   { S: 1.0, A: 1.0, B: 1.0, C: 1.0, D: 1.0 }
     };
 
     function _cpuPullGacha(me = 1) {
@@ -13122,7 +13164,7 @@
 
     function startCpuGame(difficulty) {
       const name = lobbyState.nameInput.trim() || 'プレイヤー';
-      const cpuNames = { easy: 'CPU（EASY）', normal: 'CPU（NORMAL）', hard: 'CPU（HARD）' };
+      const cpuNames = Object.fromEntries(CPU_SKILLS.map(k => [k, 'CPU（' + CPU_SKILL_LABEL[k] + '）']));
       // 開発者モードがオンのときだけ、相手の CPU の設定（devCpuSetup）を使う。オフなら従来どおり（人が席0・オススメデッキ・ガチャ・種なし）
       const dv = devCpuCfg();
       const skill = dv && dv.skill ? dv.skill : difficulty;
@@ -13187,21 +13229,21 @@
       const gc = G.gachaCurrent, ts = G.turnDrawState;
       switch (a.k) {
         case 'gacha': if (!gc.revealed && !gc.candidates) _cpuPullGacha(me); else acceptGachaCity(); break;
-        case 'cityOrder': _cpuSelectCityOrder(me); break;
+        case 'cityOrder': if (_cpuIsNewSkill(me)) skCityOrder(me); else _cpuSelectCityOrder(me); break;
         case 'draft': finalizeAllDraftCards(); break;
         case 'turnDraw': if (!ts.revealed) pullTurnCard(); else acceptTurnCard(); break;
         case 'atkConfirm': dismissAttackerSummary(); break;
         case 'turnSummary': dismissTurnSummary(); break;
-        case 'main': _cpuDoMainTurn(me); break;
+        case 'main': if (_cpuIsNewSkill(me)) skMainTurn(me); else _cpuDoMainTurn(me); break;
         case 'handover':
           if (sync) goResponseHandover();
           else { G._pendingAutoHandover = true; setTimeout(() => { G._pendingAutoHandover = false; goResponseHandover(); }, 500); }
           break;
-        case 'response': _cpuDoResponse(me); break;
-        case 'discard': _cpuDoDiscard(me); break;
-        case 'recycle': _cpuDoRecycle(me); break;
-        case 'pollution': _cpuDoPollution(me); break;
-        case 'typhoon': _cpuDoTyphoon(me); break;
+        case 'response': if (_cpuIsNewSkill(me)) skResponse(me); else _cpuDoResponse(me); break;
+        case 'discard': if (_cpuIsNewSkill(me)) skDiscard(me); else _cpuDoDiscard(me); break;
+        case 'recycle': if (_cpuIsNewSkill(me)) skRecycle(me); else _cpuDoRecycle(me); break;
+        case 'pollution': if (_cpuIsNewSkill(me)) skPollution(me); else _cpuDoPollution(me); break;
+        case 'typhoon': if (_cpuIsNewSkill(me)) skTyphoon(me); else _cpuDoTyphoon(me); break;
       }
       return true;
     }
@@ -13473,6 +13515,1074 @@
       confirmRecycle();
     }
 
+    // @ts-check
+    // ═══════════════════════════════════════
+    // CPU の新しい打ち方（開発者モード第2段b）：初心者 beginner・標準 standard・上級 expert
+    // ═══════════════════════════════════════
+    // 設計：docs/superpowers/specs/2026-10-24-dev-mode-cpu-skills-design.md ／ 計画：docs/superpowers/plans/2026-10-24-dev-mode-cpu-skills.md
+    // 従来の easy・normal・hard は 110_versus-events-and-cpu-solo.js の関数のまま（挙動を変えない）。
+    // cpuStep() は席の打ち方が CPU_NEW_SKILLS のとき、ここの sk で始まる入口（skMainTurn など）を呼ぶ。
+    // 入口は cpuSeatCfg(me).skill を見て打ち方ごとの判断に分ける。判断の関数はどれも「1回の呼び出しで1つの操作」をする
+    // （従来と同じ。手番の中の次の操作は、cpuStep が次に呼ばれたときにもう一度判断する）。
+    // 乱数は vsRand() だけを使う（種を指定した試合で再現するため）。
+
+    // 見誤りの確率（私の判断で置いた初期値。メンバーの記録で直す）
+    const SK_MISTAKE_RATE = { beginner: 0.25, standard: 0.05, expert: 0 };
+
+    /** 確率 rate で true（見誤りを起こす）。vsRand() を1回だけ使う
+     * @param {number} rate @returns {boolean} */
+    function skMistake(rate) { return vsRand() < rate; }
+
+    /** 席 me の打ち方 @param {number} me @returns {string} */
+    function _skKind(me) { const c = cpuSeatCfg(me); return c ? c.skill : 'standard'; }
+
+    /** 相手（席 1-me）が id のカードを使ったことがあるか（捨て札と使用履歴の記録から。相手の手札・山札は見ない）
+     * @param {number} me @param {string} id */
+    function _skOppUsed(me, id) {
+      const opi = 1 - me;
+      if (G.players[opi].discard.some(c => c.id === id)) return true;
+      const hist = (G.usedHistory && G.usedHistory[opi]) || [];
+      return hist.some(h => h.id === id);
+    }
+
+    /** 候補（優先順の関数の並び）から1つ実行する。見誤りが起きるときは一番下の候補を選ぶ（候補が2つなら2番目）。候補が1つなら乱数を使わない
+     * @param {Array<() => void>} options @param {number} rate */
+    function _skPickOption(options, rate) {
+      if (options.length >= 2 && skMistake(rate)) options[options.length - 1](); else options[0]();
+    }
+
+    // ───────────────────────────────────────
+    // 手番の判断
+    // ───────────────────────────────────────
+    /** 手番の1回分の判断 @param {number} me */
+    function skMainTurn(me) {
+      const k = _skKind(me);
+      if (k === 'beginner') _skBeginnerMain(me);
+      else if (k === 'expert') skExpertMain(me);
+      else _skStandardMain(me);
+    }
+
+    /** 初心者：毎ターン出せる中で一番大きいダメージの災害を出す。シールドは攻撃された後に貼る。回復は HP が減ってから。
+     * 人為災害は単独で出す。ローリングストックは手札が尽きかけたときだけ。カードは数えない。
+     * @param {number} me */
+    function _skBeginnerMain(me) {
+      const opi = 1 - me;
+      const budget = getBudgetLeft(me);
+      const cpu = G.players[me], opp = G.players[opi];
+      const cpuHp = cpu.cityHps[cpu.activeCityIdx];
+      if (budget === 0) { endTurn(); return; }
+      const affordable = cpu.hand.filter(c => c.cost <= budget);
+      if (!affordable.length) { endTurn(); return; }
+      /** @type {Array<() => void>} */
+      const options = [];
+      const add = (/** @type {any} */ c) => options.push(() => playCard(c.uid));
+      const ranked = affordable.filter(c => c.type === 'disaster')
+        .map(c => ({ c, dmg: _cpuEstimateDmg(c, opi, me) })).filter(x => x.dmg > 0).sort((a, b) => b.dmg - a.dmg);
+      ranked.forEach(x => add(x.c));
+      // 攻撃された後だけシールドを貼る（直近に相手が使った災害を見る）
+      const hist = (G.usedHistory && G.usedHistory[opi]) || [];
+      const lastAtk = hist.find(h => h.type === 'disaster');
+      if (lastAtk) {
+        const e = cpu.effects;
+        let sh = null;
+        if ((lastAtk.id === 'earthquake' || lastAtk.id === 'wildfire') && !e.shieldQuakeFire) sh = affordable.find(c => c.id === 'quake_wall');
+        else if ((lastAtk.id === 'flood' || lastAtk.id === 'tsunami') && !e.shieldFlood) sh = affordable.find(c => c.id === 'dam');
+        if (!sh && !e.damageReduceHits) sh = affordable.find(c => c.id === 'bousai_cho');
+        if (sh) add(sh);
+      }
+      if (cpuHp < 30) { const h = affordable.filter(c => c.effectType === 'heal').sort((a, b) => b.value - a.value)[0]; if (h) add(h); }
+      if (_cpuHasShield(opi)) { const po = affordable.find(c => c.id === 'pollution'); if (po) add(po); }
+      const rumor = affordable.find(c => c.id === 'rumor'); if (rumor) add(rumor);
+      const hm = affordable.find(c => c.id === 'hazard_map'); if (hm && cpu.hand.length <= 3) add(hm);
+      const rs = affordable.find(c => c.effectType === 'recycle_hand');
+      if (rs && cpu.hand.length <= 3 && !ranked.length && cpu.deck.length > 0) add(rs);
+      if (!options.length) { endTurn(); return; }
+      _skPickOption(options, SK_MISTAKE_RATE.beginner);
+    }
+
+    /** 手札が攻めか守りの片方に偏っているか（ローリングストックを除く手札が2枚以上で、全部が同じ枠）
+     * @param {any[]} hand */
+    function _skHandBiased(hand) {
+      const others = hand.filter(c => c.effectType !== 'recycle_hand');
+      if (others.length < 2) return false;
+      return others.every(c => c.frame === 'attack') || others.every(c => c.frame === 'defend');
+    }
+
+    /** 標準：HARD に次を足したもの。シールドを手番の最初に貼る（先回り）、手札が偏ったらローリングストックで入れ替える、
+     * 相手が複合災害を使ったかを覚えて広域避難指示の先貼りをやめる。簡単な組み合わせ（公害でシールドを剥がす・テロ）は HARD と同じ。
+     * 5% で見誤る（打てる手のうち2番目を選ぶ。手が1つなら見誤らない）。
+     * @param {number} me */
+    function _skStandardMain(me) {
+      const opi = 1 - me;
+      const budget = getBudgetLeft(me);
+      const cpu = G.players[me], opp = G.players[opi];
+      const oppHp = opp.cityHps[opp.activeCityIdx];
+      const cpuHp = cpu.cityHps[cpu.activeCityIdx];
+      const oppCity = opp.cities[opp.activeCityIdx];
+      if (budget === 0) { endTurn(); return; }
+      const affordable = cpu.hand.filter(c => c.cost <= budget);
+      if (!affordable.length) { endTurn(); return; }
+      const ranked = affordable.filter(c => c.type === 'disaster')
+        .map(c => ({ c, dmg: _cpuEstimateDmg(c, opi, me) })).sort((a, b) => b.dmg - a.dmg);
+      // 見誤り：本来の1手の代わりに、攻撃の2番目の候補を出す（攻撃が2つ以上あるときだけ）
+      if (ranked.length >= 2 && ranked[0].dmg < oppHp && ranked[1].dmg > 0 && skMistake(SK_MISTAKE_RATE.standard)) { playCard(ranked[1].c.uid); return; }
+      const terror = affordable.find(c => c.id === 'terror');
+      const pollution = affordable.find(c => c.id === 'pollution');
+      // ① 仕留める
+      if (oppHp <= 20) {
+        const fin = affordable.filter(c => c.type === 'disaster' && _cpuEstimateDmg(c, opi, me) >= oppHp)
+          .sort((a, b) => a.cost - b.cost)[0];
+        if (fin) { playCard(fin.uid); return; }
+      }
+      if (ranked.length && ranked[0].dmg >= oppHp) { playCard(ranked[0].c.uid); return; }
+      if (cpu.effects.terrorNextDisaster && ranked.length && ranked[0].dmg > 0) { playCard(ranked[0].c.uid); return; }
+      // ①b テロで確殺
+      if (terror && !cpu.effects.terrorNextDisaster && !opp.effects.negateSpecial && ranked.length) {
+        const big = ranked[0];
+        if (big.c.cost + 1 <= budget && big.dmg >= 30 && big.dmg >= oppHp - 15) { playCard(terror.uid); return; }
+      }
+      // ①c 公害でシールドを剥がしてから撃つ
+      if (pollution && _cpuHasShield(opi) && ranked.length) {
+        const best = ranked[0]; const e = opp.effects;
+        const blocked = (e.shieldQuakeFire && (best.c.id === 'earthquake' || best.c.id === 'wildfire'))
+                     || (e.shieldFlood && (best.c.id === 'flood' || best.c.id === 'tsunami'))
+                     || (e.damageReduceHits > 0);
+        if (blocked && best.c.cost + 1 <= budget) { playCard(pollution.uid); return; }
+      }
+      // ①d 先回りのシールド：手番の最初に、相手の地形に合うものを貼る（HARD は攻撃の後に回す）
+      if (oppCity && cpu.budgetUsed === 0) {
+        if (!cpu.effects.shieldQuakeFire && !oppCity.isCoastal && !oppCity.isMountain) {
+          const qw = affordable.find(c => c.id === 'quake_wall'); if (qw) { playCard(qw.uid); return; }
+        }
+        if (!cpu.effects.shieldFlood && oppCity.isCoastal) {
+          const dm = affordable.find(c => c.id === 'dam'); if (dm) { playCard(dm.uid); return; }
+        }
+      }
+      // ①e 手札が攻めか守りに偏ったらローリングストックで入れ替える（山札があるときだけ）
+      const rsc = affordable.find(c => c.effectType === 'recycle_hand');
+      if (rsc && cpu.deck.length > 0 && _skHandBiased(cpu.hand)) { playCard(rsc.uid); return; }
+      // ② 広域避難指示の先貼り（序盤のみ）。相手が複合災害をもう使っていたら、もう出ないので貼らない
+      if (!cpu.effects.negateSpecial && G.turnsEach[me] < 4 && cpu.budgetUsed === 0 && !_skOppUsed(me, 'compound')) {
+        const ev = affordable.find(c => c.id === 'evacuation'); if (ev) { playCard(ev.uid); return; }
+      }
+      // ③ 防災庁設置の序盤の守り
+      if (!cpu.effects.damageReduceHits && G.turnsEach[me] < 5 && cpu.budgetUsed === 0) {
+        const bc = affordable.find(c => c.id === 'bousai_cho'); if (bc) { playCard(bc.uid); return; }
+      }
+      // ④ HP が危ないときの回復
+      if (cpuHp < 30) {
+        const h = affordable.filter(c => c.effectType === 'heal').sort((a, b) => b.value - a.value)[0];
+        if (h) { playCard(h.uid); return; }
+      }
+      // ④a テロ＋大型災害
+      if (terror && !cpu.effects.terrorNextDisaster && !opp.effects.negateSpecial && ranked.length) {
+        const big = ranked[0];
+        if (big.dmg >= 40 && big.c.cost + 1 <= budget) { playCard(terror.uid); return; }
+      }
+      // ⑤ 一番ダメージの大きい災害
+      if (ranked.length && ranked[0].dmg > 0) { playCard(ranked[0].c.uid); return; }
+      // ⑥ 先回りのシールド（手番の途中でも）
+      if (oppCity) {
+        if (!cpu.effects.shieldQuakeFire && !oppCity.isCoastal && !oppCity.isMountain) {
+          const qw = affordable.find(c => c.id === 'quake_wall'); if (qw) { playCard(qw.uid); return; }
+        }
+        if (!cpu.effects.shieldFlood && oppCity.isCoastal) {
+          const dm = affordable.find(c => c.id === 'dam'); if (dm) { playCard(dm.uid); return; }
+        }
+      }
+      // ⑦ ハザードマップ
+      const hm = affordable.find(c => c.id === 'hazard_map'); if (hm) { playCard(hm.uid); return; }
+      // ⑧ 回復（HP が半分以下）
+      if (cpuHp < 50) {
+        const h = affordable.filter(c => c.effectType === 'heal').sort((a, b) => b.value - a.value)[0];
+        if (h) { playCard(h.uid); return; }
+      }
+      // ⑨ デマ拡散
+      const rumor = affordable.find(c => c.id === 'rumor');
+      if (rumor) { playCard(rumor.uid); return; }
+      // ⑩ ローリングストック（最後の手段）
+      const rs = affordable.find(c => c.effectType === 'recycle_hand');
+      if (rs && cpu.hand.length >= 3) { playCard(rs.uid); return; }
+      endTurn();
+    }
+
+    // ───────────────────────────────────────
+    // 対応・捨てる・入れ替え・台風・公害・都市の順番
+    // ───────────────────────────────────────
+    /** 対応フェーズ。初心者：合うシールドがあれば必ず使う。HP が半分以下なら回復。標準：HARD と同じ。上級：skExpertResponse
+     * @param {number} me */
+    function skResponse(me) {
+      if (_skKind(me) === 'expert') { skExpertResponse(me); return; }
+      const atk = G.pendingAttack.card;
+      const cpu = G.players[me];
+      const policies = cpu.hand.filter(c => c.type === 'policy');
+      if (!policies.length) { skipResponse(); return; }
+      const matching = (atk.id === 'earthquake' || atk.id === 'wildfire') ? policies.find(c => c.id === 'quake_wall')
+        : (atk.id === 'flood' || atk.id === 'tsunami') ? policies.find(c => c.id === 'dam') : null;
+      if (_skKind(me) === 'beginner') {
+        let use = matching || null;
+        if (!use && cpu.cityHps[cpu.activeCityIdx] <= 50) use = policies.filter(c => c.effectType === 'heal').sort((a, b) => b.value - a.value)[0] || null;
+        if (use) playResponseCard(use.uid); else skipResponse();
+        return;
+      }
+      let use = matching || policies.find(c => c.id === 'agreement');
+      if (!use && atk.baseDamage >= 30) use = policies.find(c => c.id === 'evacuation');
+      if (use) playResponseCard(use.uid); else skipResponse();
+    }
+
+    /** 手札上限での捨てる1枚。標準は HARD と同じ（置いたシールドの重複・要らない土砂崩れを先に捨てる）。初心者は優先順だけ。上級は skExpertDiscard
+     * @param {number} me */
+    function skDiscard(me) {
+      if (_skKind(me) === 'expert') { skExpertDiscard(me); return; }
+      const cpu = G.players[me]; const hand = cpu.hand;
+      if (_skKind(me) !== 'beginner') {
+        const oppCity = G.players[1 - me].cities[G.players[1 - me].activeCityIdx];
+        if (cpu.effects.shieldQuakeFire) { const c = hand.find(c => c.id === 'quake_wall'); if (c) { discardCard(c.uid); return; } }
+        if (cpu.effects.shieldFlood) { const c = hand.find(c => c.id === 'dam'); if (c) { discardCard(c.uid); return; } }
+        if (oppCity && !oppCity.isMountain) { const ls = hand.find(c => c.id === 'landslide'); if (ls) { discardCard(ls.uid); return; } }
+      }
+      for (const id of CPU_DISCARD_PRIORITY) { const c = hand.find(c => c.id === id); if (c) { discardCard(c.uid); return; } }
+      discardCard(hand[0].uid);
+    }
+
+    /** ローリングストックの入れ替え。初心者・標準は従来と同じ（優先順の低い順に最大2枚）。上級：skExpertRecycle @param {number} me */
+    function skRecycle(me) { if (_skKind(me) === 'expert') skExpertRecycle(me); else _cpuDoRecycle(me); }
+
+    /** 台風で奪うカード。初心者・標準は従来と同じ。上級：skExpertTyphoon @param {number} me */
+    function skTyphoon(me) { if (_skKind(me) === 'expert') skExpertTyphoon(me); else _cpuDoTyphoon(me); }
+
+    /** 公害で剥がすシールド。初心者・標準は従来と同じ。上級：skExpertPollution @param {number} me */
+    function skPollution(me) { if (_skKind(me) === 'expert') skExpertPollution(me); else _cpuDoPollution(me); }
+
+    /** 都市を出す順番。都市を指定した席は指定どおり。初心者は神戸を後に出すだけ。標準は HARD と同じ。上級：skExpertCityOrder
+     * @param {number} me */
+    function skCityOrder(me) {
+      if (_skKind(me) === 'expert') { skExpertCityOrder(me); return; }
+      const cfg = cpuSeatCfg(me);
+      if (cfg && cfg.cities) { selectCityOrder(me, 0); return; }
+      const p = G.players[me]; const c0 = p.cities[0], c1 = p.cities[1];
+      const beginner = _skKind(me) === 'beginner';
+      const prefer2nd = beginner ? ['kobe'] : ['kobe', 'osaka', 'sendai', 'kagoshima', 'new_orleans'];
+      if (prefer2nd.includes(c0.id)) selectCityOrder(me, 1);
+      else if (prefer2nd.includes(c1.id)) selectCityOrder(me, 0);
+      else if (!beginner) selectCityOrder(me, c0.hp <= c1.hp ? 0 : 1);
+      else selectCityOrder(me, 0);
+    }
+
+    // ═══════════════════════════════════════
+    // 上級のための部品：公開情報の写し・相手の手札の推測・相手の脅威の見積もり（Task 2）
+    // ═══════════════════════════════════════
+    // 上級は人の上級者と同じく、見えない情報（相手の手札の中身・両者の山札の並び）では打たない。
+    // 判断に使ってよいのは、自分の手札、盤面（HP・都市・効果・予算）、両者の使ったカードの記録（捨て札と G.usedHistory）、
+    // 相手の手札と山札の枚数だけ。それを 1 つの写し（view）にまとめ、以降の推測・先読みは view だけを読む。
+    // 台風で相手の手札を見る場面だけは例外で、skTyphoon（Task 4）が G を直接読む。
+
+    // 人為災害（公害・テロ・デマ）は、人の上級者もほとんど読まない。推測した「持っている見込み」にこの倍率をかける。
+    // ただし相手の終盤（SK_JINZAI_LATE_TURN 手番目以降）に、その人為災害がまだ1枚も使われていなければ、倍率をかけない（警戒する）。
+    const SK_JINZAI_READ = 0.25;
+    const SK_JINZAI_LATE_TURN = 8;
+    // 相手のデッキの型の見込みの付け方：使われたカードの数が型の枚数を超えた分、1枚ごとにこの倍率で重みを下げる。
+    const SK_TYPE_EXCESS_PENALTY = 0.25;
+    // 型の尤度の平滑化（0枚の型でも完全には切らない）。24枚デッキ・18種として扱う
+    const SK_TYPE_SMOOTH = 0.5;
+
+    /** @typedef {{ id: string, uid: string, cost: number, type: string, frame?: string }} SkHandCard */
+    /** @typedef {{ hp: number, cityHps: number[], cities: any[], activeCityIdx: number, effects: any, budgetUsed: number, budget: number, handCount: number, deckCount: number, discardCount: number, used: string[], deckList?: Record<string, number>, allCards?: Record<string, number> }} SkSide */
+    /** @typedef {{ seat: number, oppSeat: number, turnsEach: number[], activePlayer: number, firstSeat: number, hand: SkHandCard[], self: SkSide, opp: SkSide, drawn?: number, bonus?: number, winProb?: number, dealt?: number }} SkView */
+
+    /** 席 pi の使ったカードの id の並び。捨て札（使った・捨てた）と G.usedHistory のどちらにも出る分は二重に数えない（同じ id は多いほうの枚数）
+     * @param {number} pi @returns {string[]} */
+    function _skUsedIds(pi) {
+      /** @type {Record<string, number>} */
+      const inDiscard = {}, inHist = {};
+      for (const c of G.players[pi].discard) inDiscard[c.id] = (inDiscard[c.id] || 0) + 1;
+      for (const h of ((G.usedHistory && G.usedHistory[pi]) || [])) inHist[h.id] = (inHist[h.id] || 0) + 1;
+      /** @type {string[]} */
+      const out = [];
+      for (const id of Object.keys({ ...inDiscard, ...inHist }).sort()) {
+        const n = Math.max(inDiscard[id] || 0, inHist[id] || 0);
+        for (let i = 0; i < n; i++) out.push(id);
+      }
+      return out;
+    }
+
+    /** 効果の複製（receivedTypes の配列も複製する。写しの書き込みが G に届かないように） @param {any} e @returns {any} */
+    function _skCopyEffects(e) { const o = { ...e }; if (Array.isArray(o.receivedTypes)) o.receivedTypes = o.receivedTypes.slice(); return o; }
+
+    /** @param {number} pi @returns {SkSide} */
+    function _skSide(pi) {
+      const p = G.players[pi];
+      return {
+        hp: p.cityHps[p.activeCityIdx], cityHps: p.cityHps.slice(), cities: p.cities.slice(), activeCityIdx: p.activeCityIdx,
+        effects: _skCopyEffects(p.effects), budgetUsed: p.budgetUsed, budget: getBudget(pi),
+        handCount: p.hand.length, deckCount: p.deck.length, discardCount: p.discard.length, used: _skUsedIds(pi),
+      };
+    }
+
+    /** 席 me から見える公開情報の写し。相手の手札の中身と、両者の山札の並びを持たない（自分の手札は持つ）。G は変えない・G を参照で持たない
+     * @param {number} me @returns {SkView} */
+    function skView(me) {
+      const opi = 1 - me;
+      const mine = G.players[me];
+      /** @param {any[]} cards @returns {Record<string, number>} */
+      const countIds = (cards) => { const o = /** @type {Record<string, number>} */ ({}); for (const c of cards) o[c.id] = (o[c.id] || 0) + 1; return o; };
+      const self = _skSide(me);
+      // 自分のデッキの構成（順序は持たない。自分のデッキ表と使ったカードから分かる情報）。作戦と手札の入れ替えの判断に使う
+      self.deckList = countIds(mine.deck);
+      self.allCards = countIds(mine.hand.concat(mine.deck, mine.discard));
+      return {
+        seat: me, oppSeat: opi, turnsEach: G.turnsEach.slice(), activePlayer: G.activePlayer, firstSeat: 0,
+        hand: mine.hand.map(c => ({ id: c.id, uid: c.uid, cost: c.cost, type: c.type, frame: c.frame })),
+        self, opp: _skSide(opi), drawn: 0, bonus: 0, winProb: 0,
+      };
+    }
+
+    /** カードの id ごとの上限（同名の枚数。複合災害は1枚） @param {string} id */
+    function _skCap(id) {
+      const c = ALL_CARDS.find(x => x.id === id);
+      return c && /** @type {any} */ (c).maxCopies ? /** @type {any} */ (c).maxCopies : VERSUS_DECK_MAX_COPIES;
+    }
+
+    /** @param {string[]} ids @returns {Record<string, number>} */
+    function _skCount(ids) { const o = /** @type {Record<string, number>} */ ({}); for (const id of ids) o[id] = (o[id] || 0) + 1; return o; }
+
+    /** 相手のデッキの型の見込み（合計 1）。相手の都市から決まる5つの型を候補にし、相手が使ったカードとの食い違いが少ない型ほど重くする。
+     * 使ったカードが 0 枚なら、どの型も同じ重み。
+     * @param {SkView} view @returns {Record<string, number>} */
+    function skOppTypeWeights(view) {
+      const types = ['recommended', ...Object.keys(VERSUS_DECK_ARCHETYPES)];
+      const seen = _skCount(view.opp.used);
+      /** @type {Record<string, number>} */
+      const logw = {};
+      for (const t of types) {
+        const counts = /** @type {any} */ (vsArchetypeCounts(/** @type {any} */ (t), view.opp.cities));
+        let lw = 0;
+        for (const id of Object.keys(seen)) {
+          const have = counts[id] || 0;
+          const over = Math.max(0, seen[id] - have);
+          // 使われたカードがその型でどれだけありそうか（枚数が多いカードをたくさん使うほど、その型らしい）
+          lw += seen[id] * Math.log((have + SK_TYPE_SMOOTH) / (VERSUS_DECK_SIZE + SK_TYPE_SMOOTH * 18)) + over * Math.log(SK_TYPE_EXCESS_PENALTY);
+        }
+        logw[t] = lw;
+      }
+      const mx = Math.max(...types.map(t => logw[t]));
+      /** @type {Record<string, number>} */
+      const w = {}; let sum = 0;
+      for (const t of types) { w[t] = Math.exp(logw[t] - mx); sum += w[t]; }
+      for (const t of types) w[t] /= sum;
+      return w;
+    }
+
+    /** 相手が今それぞれのカードを1枚以上持っている見込み（0〜1）。
+     * 型ごとに「その型のデッキから、使われた分を引いた残り」を数え、相手の手札の枚数ぶんが手札にある確率（山札と手札に残るのは手札＋山札の枚数）を
+     * 超幾何分布で求め、型の見込みで混ぜる。同名3枚・複合災害1枚の上限を超えない。使い切ったカードは 0。
+     * @param {SkView} view @returns {Record<string, number>} */
+    function skInferOppHand(view) {
+      const h = view.opp.handCount;
+      const N = view.opp.handCount + view.opp.deckCount;
+      const seen = _skCount(view.opp.used);
+      const tw = skOppTypeWeights(view);
+      /** @type {Record<string, number>} */
+      const out = {};
+      for (const c of ALL_CARDS) out[c.id] = 0;
+      if (h <= 0 || N <= 0) return out;
+      for (const t of Object.keys(tw)) {
+        const counts = /** @type {any} */ (vsArchetypeCounts(/** @type {any} */ (t), view.opp.cities));
+        /** @type {Record<string, number>} */
+        const R = {}; let T = 0;
+        for (const c of ALL_CARDS) {
+          const r = Math.max(0, Math.min(_skCap(c.id), counts[c.id] || 0) - (seen[c.id] || 0));
+          R[c.id] = r; T += r;
+        }
+        const scale = T > N ? N / T : 1;
+        for (const c of ALL_CARDS) {
+          const r = R[c.id] * scale;
+          if (r <= 0) continue;
+          // 手札 h 枚が、N 枚（うち r 枚がこのカード）から無作為に引かれたとき、1枚以上持つ確率
+          let none = 1;
+          for (let i = 0; i < h; i++) { const d = N - i; if (d <= 0) break; none *= Math.max(0, (N - r - i)) / d; }
+          out[c.id] += tw[t] * (1 - none);
+        }
+      }
+      const late = view.turnsEach[view.oppSeat] >= SK_JINZAI_LATE_TURN;
+      for (const c of ALL_CARDS) {
+        if (c.type === 'jinzai' && !(late && !seen[c.id])) out[c.id] *= SK_JINZAI_READ;
+        out[c.id] = Math.min(1, Math.max(0, out[c.id]));
+      }
+      return out;
+    }
+
+    /** 防御側（view.self）が災害 attack を受けたときの、手札の対応カードを踏まえたダメージ。使った対応カードの uid も返す
+     * @param {SkView} view @param {any} attack @param {any} effects @param {SkHandCard[]} hand
+     * @returns {{ dmg: number, used: SkHandCard | null }} */
+    function _skHitDamage(view, attack, effects, hand) {
+      const city = view.self.cities[view.self.activeCityIdx];
+      const firstTurn = view.oppSeat === 0 && view.turnsEach[0] === 0;
+      /** @param {SkHandCard | null} rc */
+      const calc = (rc) => calcDamage({
+        attackCard: attack, defCity: city, defName: '', defEffects: effects,
+        defHand: /** @type {any} */ (hand.filter(c => !rc || c.uid !== rc.uid)), responses: rc ? [/** @type {any} */ (ALL_CARDS.find(x => x.id === rc.id))] : [],
+        isFirstTurnPenalty: firstTurn, view: 'defender',
+      }).total;
+      let best = { dmg: calc(null), used: /** @type {SkHandCard | null} */ (null) };
+      // 複合災害は対応フェーズを飛ばす（広域避難指示を事前に貼っていれば別）。対応カードは使えない
+      if (attack.specialType === 'skip_response' && !effects.negateSpecial) return best;
+      for (const rc of hand) {
+        if (rc.type !== 'policy' || rc.id === 'rolling_stock' || rc.id === 'hazard_map') continue;
+        const d = calc(rc);
+        if (d < best.dmg) best = { dmg: d, used: rc };
+      }
+      return best;
+    }
+
+    /** 災害の並び（先に出す順）を受けた合計ダメージ。シールドと対応カードは使うと減る
+     * @param {SkView} view @param {any[]} attacks @returns {number} */
+    function _skSequenceDamage(view, attacks) {
+      const e = { ...view.self.effects };
+      let hand = view.hand.slice();
+      let total = 0;
+      for (const a of attacks) {
+        const r = _skHitDamage(view, a, e, hand);
+        total += r.dmg;
+        if (r.used) hand = hand.filter(c => c.uid !== r.used.uid);
+        const qf = a.id === 'earthquake' || a.id === 'wildfire', fl = a.id === 'flood' || a.id === 'tsunami';
+        if (qf) e.shieldQuakeFire = false;
+        if (fl) e.shieldFlood = false;
+        if (e.damageReduceHits > 0) e.damageReduceHits--;
+        if (r.used && r.used.id === 'bousai_cho') e.damageReduceHits = 1;
+        e.disastersReceivedThisTurn = (e.disastersReceivedThisTurn || 0) + 1;
+      }
+      return total;
+    }
+
+    /** 相手の次の手番に受けるダメージの見積もり。相手の予算（デマ拡散の影響を含む）で出せる災害（1枚と、予算に収まる2枚の組み合わせ）を、
+     * こちらの今の備え（貼ったシールド・手札の対応カード）を踏まえて数える。人為災害（テロ・公害）の組み合わせは数えない。
+     * expected は「出せる見込みのある手を、ダメージの大きい順に見て、持っている見込みで重みを付けた期待値」。
+     * max は持っている見込みが 0 でない手の中の最大。compound は相手が複合災害を持っている見込み。
+     * lethal は、今の都市が落ちるダメージ（今の HP 以上）を出せる手を、相手が持っている確率（1 - 全部持っていない確率）。
+     * cache（Map）を渡すと、備えが同じ盤面の手の一覧を使い回す（上級の先読みで同じ備えを何度も数えないため。呼び出し側が inf ごとに用意する）。
+     * @param {SkView} view @param {Record<string, number>} inf @param {Map<string, any>} [cache]
+     * @returns {{expected: number, max: number, compound: number, lethal: number}} */
+    function skThreat(view, inf, cache) {
+      const budget = view.opp.budget;
+      const hpNow = view.self.cityHps[view.self.activeCityIdx];
+      /** @type {Array<{dmg: number, p: number}> | undefined} */
+      let opts;
+      const key = cache ? JSON.stringify([view.self.effects, view.hand.map(c => c.id).sort(), budget, view.self.activeCityIdx, view.oppSeat === 0 && view.turnsEach[0] === 0]) : '';
+      if (cache) opts = cache.get(key);
+      if (!opts) {
+        const ids = ALL_CARDS.filter(c => c.type === 'disaster' && (inf[c.id] || 0) > 0 && c.cost <= budget);
+        opts = [];
+        for (let i = 0; i < ids.length; i++) {
+          const a = /** @type {any} */ (ids[i]);
+          opts.push({ dmg: _skSequenceDamage(view, [a]), p: inf[a.id] });
+          for (let j = i; j < ids.length; j++) {
+            const b = /** @type {any} */ (ids[j]);
+            if (a.cost + b.cost > budget) continue;
+            if (i === j && _skCap(a.id) < 2) continue;
+            const dmg = Math.max(_skSequenceDamage(view, [a, b]), _skSequenceDamage(view, [b, a]));
+            opts.push({ dmg, p: i === j ? inf[a.id] * inf[a.id] : inf[a.id] * inf[b.id] });
+          }
+        }
+        opts.sort((x, y) => y.dmg - x.dmg);
+        if (cache) cache.set(key, opts);
+      }
+      let expected = 0, miss = 1, max = 0, safe = 1;
+      for (const o of opts) {
+        if (o.p > 0 && o.dmg > max) max = o.dmg;
+        expected += o.dmg * o.p * miss;
+        miss *= 1 - o.p;
+        if (o.dmg >= hpNow) safe *= 1 - o.p;
+      }
+      return { expected, max, compound: inf.compound || 0, lethal: 1 - safe };
+    }
+
+    // ═══════════════════════════════════════
+    // 上級の自分の手番：先読み・盤面の評価・手の選び方（Task 3）
+    // ═══════════════════════════════════════
+    // 流れ：skView（公開情報の写し）→ skInferOppHand（相手の手札の推測）→ 候補の手の並びごとに skSimulate（写しの上で結果を計算）
+    // → skEvaluate（盤面の評価）で比べる。本物の G・ログ・記録には触れない（写しだけを書き換える）。
+    // 相手の対応は推測した手札で数える。最後の都市を落とせる一撃だけは、相手が防げる対応を持っている確率で「勝ち」と「生き残り」に分けて混ぜる
+    // （テロで対応を封じる価値が出る）。それ以外の一撃は、対応で減る分の期待値を引く。
+
+    // 相手が対応フェーズで使いうる政策カード
+    const SK_RESPONSE_IDS = ['quake_wall', 'dam', 'bousai_cho', 'agreement', 'drill', 'evacuation'];
+
+    /** カード定義を id で引く @param {string} id @returns {any} */
+    function _skDef(id) { return ALL_CARDS.find(c => c.id === id); }
+
+    /** @param {any} side */
+    function _skActive(side) { return side.cities[side.activeCityIdx]; }
+
+    /** 全都市の HP 合計（壊れた都市は 0） @param {any} side @returns {number} */
+    function _skHpSum(side) { let s = 0; for (const h of side.cityHps) s += Math.max(0, h); return s; }
+
+    /** @param {any} side @returns {boolean} 全部の都市が落ちた */
+    function _skDead(side) { return side.cityHps.every((/** @type {number} */ h) => h <= 0); }
+
+    /** @param {any} side @returns {number} */
+    function _skDestroyed(side) { return side.cityHps.filter((/** @type {number} */ h) => h <= 0).length; }
+
+    /** 貼ってあるシールドの数（防災庁は残り回数も少し数える） @param {any} e @returns {number} */
+    function _skShieldCount(e) { return (e.shieldQuakeFire ? 1 : 0) + (e.shieldFlood ? 1 : 0) + (e.negateSpecial ? 1 : 0) + (e.damageReduceHits > 0 ? 0.5 + 0.25 * e.damageReduceHits : 0); }
+
+    /** @param {any} e @returns {boolean} */
+    function _skHasShield(e) { return !!(e.shieldQuakeFire || e.shieldFlood || e.negateSpecial || e.damageReduceHits > 0); }
+
+    /** 側の次の手番の予算（getBudget と同じ式。写しの上で効果が変わったあとに数え直す） @param {any} side @returns {number} */
+    function _skBudget(side) {
+      const c = _skActive(side); const e = side.effects; let b = 3;
+      if (c && c.abilityType === 'extra_budget') b += c.abilityValue;
+      if (c && c.abilityType === 'flood_budget' && e.floodBonusTurns > 0) b += c.abilityValue;
+      if (e.debtBudget > 0) b -= e.debtBudget;
+      return Math.max(0, b);
+    }
+
+    /** 相手の手札の枚数ぶんの、種類だけを持つ仮の手札（ダメージ計算が手札の長さと種別だけを読むため） @param {number} n @returns {any[]} */
+    function _skPlaceholders(n) { const a = []; for (let i = 0; i < n; i++) a.push({ id: '?', uid: '?' + i, cost: 0, type: 'policy' }); return a; }
+
+    /** @param {any} side */
+    function _skSync(side) { side.hp = side.cityHps[side.activeCityIdx]; }
+
+    /** 写しの複製（先読みの書き込みが元の写しに届かないように、配列と効果を複製する） @param {any} view @returns {any} */
+    function _skClone(view) {
+      /** @param {any} s */
+      const side = (s) => ({ ...s, cityHps: s.cityHps.slice(), effects: _skCopyEffects(s.effects), used: s.used.slice() });
+      return { ...view, turnsEach: view.turnsEach.slice(), hand: view.hand.slice(), self: side(view.self), opp: side(view.opp), drawn: view.drawn || 0, bonus: view.bonus || 0, winProb: view.winProb || 0, dealt: 0 };
+    }
+
+    /** 都市が落ちたときの処理（checkWin と同じ：次の都市に交代し、効果はリセット。receivedTypes だけ引き継ぐ） @param {any} side */
+    function _skKillCity(side) {
+      const i = side.activeCityIdx; side.cityHps[i] = 0;
+      const nxt = i + 1;
+      if (nxt < side.cities.length && side.cityHps[nxt] > 0) {
+        const prev = side.effects.receivedTypes;
+        side.activeCityIdx = nxt; side.effects = mkEffects();
+        if (prev) side.effects.receivedTypes = prev;
+        side.budget = _skBudget(side);
+      }
+      _skSync(side);
+    }
+
+    // ───────────────────────────────────────
+    // 手札のカード 1 枚の「持っている価値」
+    // ───────────────────────────────────────
+    /** 側 forOpp ? opp : self が手札に持っているときの、カード id の価値（CPU_EXPERT_WEIGHTS.hold）。
+     * 手札に攻撃が無ければ攻撃を重く・守りを軽く、手札が全部攻撃なら守りを重くする（手札の偏りを直したい）。
+     * @param {string} id @param {any} v @param {boolean} forOpp @returns {number} */
+    function _skHoldId(id, v, forOpp) {
+      const W = CPU_EXPERT_WEIGHTS, H = W.hold;
+      const d = _skDef(id); if (!d) return 0;
+      const me = forOpp ? v.opp : v.self, other = forOpp ? v.self : v.opp;
+      // 偏りの倍率は、判断する側（自分）の手札だけで決める（相手の手札の中身は見ない）
+      const n = v.hand.length; const atkN = forOpp ? 0 : v.hand.filter((/** @type {any} */ c) => c.type === 'disaster').length;
+      const needAtk = !forOpp && n >= 2 && atkN === 0, needDef = !forOpp && n >= 3 && atkN === n;
+      if (d.type === 'disaster') return H.disaster * d.baseDamage * (needAtk ? W.needAtk : 1);
+      if (d.type === 'jinzai') {
+        if (id === 'pollution') return (_skHasShield(other.effects) ? H.pollution : H.pollution * 0.3);
+        return id === 'terror' ? H.terror : H.rumor;
+      }
+      const e = me.effects;
+      const defMul = needAtk ? W.needDefAtkLow : needDef ? W.needDef : 1;
+      switch (d.effectType) {
+        case 'heal': { const city = _skActive(me); const miss = Math.max(0, city.hp - me.cityHps[me.activeCityIdx]); return H.heal * Math.min(d.value, miss) * defMul; }
+        case 'shield_quake_fire': return e.shieldQuakeFire ? 0 : H.shield * defMul;
+        case 'shield_flood': return e.shieldFlood ? 0 : H.shield * defMul;
+        case 'damage_reduce_2t': return e.damageReduceHits > 0 ? 0 : H.bousai * defMul;
+        case 'negate_special': return e.negateSpecial ? 0 : H.evacuation * defMul;
+        case 'draw': return H.draw;
+        case 'recycle_hand': return H.recycle;
+      }
+      return 0;
+    }
+
+    /** 先読み 1 回ぶんの共有物：相手の手札の推測・備えごとの脅威の一覧の使い回し・対応の一覧の使い回し・山札の平均の価値
+     * @param {any} view @returns {{ inf: Record<string, number>, avgHold: number, threatCache: Map<string, any>, respCache: Map<string, any> }} */
+    function _skCtx(view) {
+      const inf = skInferOppHand(view);
+      const dl = view.self.deckList || {};
+      let sum = 0, cnt = 0;
+      for (const id of Object.keys(dl)) { sum += _skHoldId(id, view, false) * dl[id]; cnt += dl[id]; }
+      return { inf, avgHold: cnt ? sum / cnt : 0, threatCache: new Map(), respCache: new Map() };
+    }
+
+    // ───────────────────────────────────────
+    // 作戦
+    // ───────────────────────────────────────
+    /** 作戦：'short'（短期決戦）か 'long'（長期戦）。自分のデッキの攻める災害の枚数と平均コストで基本を決め、
+     * 試合中は HP 合計の差と山札の残りで切り替える。
+     * @param {any} view @returns {'short' | 'long'} */
+    function skPlan(view) {
+      const W = CPU_EXPERT_WEIGHTS;
+      let n = 0, cost = 0;
+      const all = view.self.allCards || {};
+      for (const id of Object.keys(all)) { const d = _skDef(id); if (d && d.type === 'disaster') { n += all[id]; cost += d.cost * all[id]; } }
+      /** @type {'short' | 'long'} */
+      let plan = (n >= W.planLongMinDisasters && cost / n >= W.planLongAvgCost) ? 'long' : 'short';
+      const lead = _skHpSum(view.self) - _skHpSum(view.opp);
+      if (lead >= W.planSwitchLead) plan = 'long';
+      else if (lead <= -W.planSwitchLead) plan = 'short';
+      else {
+        // 自分の手持ちの残り（手札＋山札）が少なく、相手にはまだ多いなら、手持ちがあるうちに攻める
+        const mine = view.self.handCount + view.self.deckCount, theirs = view.opp.handCount + view.opp.deckCount;
+        if (mine <= 4 && theirs - mine >= 6) plan = 'short';
+      }
+      return plan;
+    }
+
+    // ───────────────────────────────────────
+    // 盤面の評価
+    // ───────────────────────────────────────
+    /** 相手の次の手番の脅威に対する減点（skThreat の見積もりに重みをかけたもの） @param {any} v @param {any} ctx @returns {number} */
+    function _skThreatPenalty(v, ctx) {
+      const W = CPU_EXPERT_WEIGHTS, s = v.self;
+      const hpA = Math.max(1, s.cityHps[s.activeCityIdx]);
+      const thr = skThreat(v, ctx.inf, ctx.threatCache);
+      const last = s.cityHps.every((/** @type {number} */ h, /** @type {number} */ i) => i === s.activeCityIdx || h <= 0);
+      let pen = W.threatExp * Math.min(thr.expected, hpA) + W.threatMax * Math.min(thr.max, hpA) + thr.lethal * (last ? W.lethalLast : W.lethal);
+      if (v.opp.budget >= 3 && thr.compound > 0 && !s.effects.negateSpecial) pen += W.compound * thr.compound * (hpA <= 40 ? 1.5 : 0.4);
+      return pen;
+    }
+
+    /** 盤面の評価（自分から見た良さ。大きいほど良い）。重みは CPU_EXPERT_WEIGHTS。
+     * 項目：HP 合計の差（終盤ほど重い）／落ちた都市／手札の価値と山札の残り（作戦で重みが変わる）／貼ってあるシールド／
+     * 相手の手札の枚数／相手の次の手番の脅威（複合災害を含む）。相手を倒した写しは勝ち。winProb があれば勝ちと生き残りを混ぜる。
+     * @param {any} view @param {'short' | 'long'} plan @param {any} [ctx] @returns {number} */
+    function skEvaluate(view, plan, ctx) {
+      const W = CPU_EXPERT_WEIGHTS, P = W[plan] || W.short;
+      const s = view.self, o = view.opp;
+      const selfHp = _skHpSum(s), oppHp = _skHpSum(o);
+      if (oppHp <= 0) return W.win;
+      if (selfHp <= 0) return -W.win;
+      if (!ctx) ctx = _skCtx(view);
+      const turn = Math.max(view.turnsEach[0], view.turnsEach[1]);
+      const progress = Math.min(1, turn / VERSUS_MAX_TURNS);
+      let val = (W.hpBase + (W.hpEnd - W.hpBase) * progress) * (selfHp - oppHp);
+      val += W.cityLost * (_skDestroyed(o) - _skDestroyed(s));
+      // 手札と山札：手札のカードの価値、次の手番に引く見込みのカード（引くぶん山札が減る）、山札の残り
+      const drawn = view.drawn || 0;
+      const nextDraw = Math.max(0, Math.min(2, 5 - view.hand.length - drawn, s.deckCount));
+      for (const c of view.hand) val += P.hand + _skHoldId(c.id, view, false);
+      val += (drawn + nextDraw) * (P.hand + ctx.avgHold);
+      val += (s.deckCount - nextDraw) * P.deck;
+      val -= W.oppHand * o.handCount;
+      val += W.shield * (_skShieldCount(s.effects) - _skShieldCount(o.effects));
+      val -= _skThreatPenalty(view, ctx);
+      val += view.bonus || 0;
+      const wp = view.winProb || 0;
+      return wp > 0 ? wp * W.win + (1 - wp) * val : val;
+    }
+
+    // ───────────────────────────────────────
+    // 先読み：手の並びを写しに当てる
+    // ───────────────────────────────────────
+    /** 公害で剥がすシールドの選び方（純粋版。CPU の既存の優先順と同じ）：最善の災害を通すものを優先 @param {any} e @param {string | null} bestId @returns {string | null} */
+    function _skShieldToBreak(e, bestId) {
+      if ((bestId === 'earthquake' || bestId === 'wildfire') && e.shieldQuakeFire) return 'shieldQuakeFire';
+      if ((bestId === 'flood' || bestId === 'tsunami') && e.shieldFlood) return 'shieldFlood';
+      if (e.damageReduceHits > 0) return 'damageReduceHits';
+      if (e.shieldQuakeFire) return 'shieldQuakeFire';
+      if (e.shieldFlood) return 'shieldFlood';
+      if (e.negateSpecial) return 'negateSpecial';
+      return null;
+    }
+
+    /** 公害の効果を写しの相手側に当てる @param {any} e @param {string} key */
+    function _skBreakShield(e, key) { if (key === 'damageReduceHits') e.damageReduceHits = 0; else if (key) e[key] = false; }
+
+    /** calcDamage の mods に積まれた副作用の指示を、側 defKey の写しに当てる（resolveDamage と同じ内容）
+     * @param {any} v @param {'self' | 'opp'} defKey @param {any[]} mods */
+    function _skApplyMods(v, defKey, mods) {
+      const def = v[defKey], other = defKey === 'self' ? v.opp : v.self;
+      const city = _skActive(def);
+      for (const m of mods) {
+        switch (m.fx) {
+          case 'negatePre': def.effects.negateSpecial = false; break;
+          case 'shieldPreQF': case 'respClearQF': def.effects.shieldQuakeFire = false; break;
+          case 'shieldPreFlood': case 'respClearFlood': def.effects.shieldFlood = false; break;
+          case 'agencyPre': case 'agencyResp': def.effects.damageReduceHits--; break;
+          case 'applyPolicy': if (m.rc && m.rc.effectType === 'damage_reduce_2t') def.effects.damageReduceHits = 2; break;
+          case 'received': def.effects.disastersReceivedThisTurn = (def.effects.disastersReceivedThisTurn || 0) + 1; break;
+          case 'floodLearned': def.effects.floodLearned = true; break;
+          case 'quakeHit': def.effects.quakeHitThisTurn = true; break;
+          case 'floodBudget': def.effects.floodBonusTurns = 1; def.budget = _skBudget(def); break;
+          case 'quakeDraw': case 'vulnDraw': {
+            const n = m.fx === 'quakeDraw' ? city.abilityValue : 1;
+            if (defKey === 'opp') { const k = Math.min(n, def.deckCount); def.handCount += k; def.deckCount -= k; }
+            else { const k = Math.min(n, def.deckCount); v.drawn += k; def.deckCount -= k; }
+            break;
+          }
+          case 'typhoon':
+            if (defKey === 'opp') { if (def.handCount > 0) { def.handCount--; other.deckCount++; } }
+            else if (v.hand.length > 0) {
+              // 自分が台風を受ける：相手は一番惜しいカードを奪う、と見積もる
+              let bi = 0, bv = -1;
+              v.hand.forEach((/** @type {any} */ c, /** @type {number} */ i) => { const h = _skHoldId(c.id, v, false); if (h > bv) { bv = h; bi = i; } });
+              v.hand.splice(bi, 1); other.deckCount++;
+            }
+            break;
+        }
+      }
+    }
+
+    /** 相手（写しの opp）が対応フェーズで使いうる政策カードごとの、ダメージの減り方。減る順に並べる。
+     * @param {any} v @param {any} d 攻撃のカード定義 @param {number} base 対応なしのダメージ @param {boolean} first 先攻1ターン目の補正 @param {any} ctx
+     * @returns {Array<{ id: string, p: number, red: number, total: number }>} */
+    function _skRespOptions(v, d, base, first, ctx) {
+      const def = v.opp;
+      const key = [d.id, JSON.stringify(def.effects), def.activeCityIdx, def.handCount, first].join('|');
+      const hit = ctx.respCache.get(key); if (hit) return hit;
+      const city = _skActive(def);
+      /** @type {Array<{ id: string, p: number, red: number, total: number }>} */
+      const out = [];
+      for (const id of SK_RESPONSE_IDS) {
+        const p = ctx.inf[id] || 0; if (p <= 0) continue;
+        const rc = _skDef(id); if (!rc) continue;
+        const total = calcDamage({ attackCard: d, defCity: city, defName: '', defEffects: def.effects, defHand: _skPlaceholders(Math.max(0, def.handCount - 1)), responses: [rc], isFirstTurnPenalty: first, view: 'defender' }).total;
+        const red = base - total;
+        if (red > 0) out.push({ id, p, red, total });
+      }
+      out.sort((a, b) => b.red - a.red);
+      ctx.respCache.set(key, out);
+      return out;
+    }
+
+    /** 自分の災害 d を相手の写しに当てる @param {any} v @param {any} d @param {any} ctx */
+    function _skSimDisaster(v, d, ctx) {
+      const atk = v.self, def = v.opp;
+      const skip = (atk.effects.terrorNextDisaster || d.specialType === 'skip_response') && !def.effects.negateSpecial;
+      atk.effects.terrorNextDisaster = false;
+      const idx = def.activeCityIdx; const hp = def.cityHps[idx];
+      const first = v.seat === 0 && v.turnsEach[0] === 0;
+      const r0 = calcDamage({ attackCard: d, defCity: _skActive(def), defName: '', defEffects: def.effects, defHand: _skPlaceholders(def.handCount), responses: [], isFirstTurnPenalty: first, view: 'defender' });
+      let dmg = r0.total;
+      let killed = false;
+      if (!skip && def.handCount > 0) {
+        const opts = _skRespOptions(v, d, r0.total, first, ctx);
+        const last = def.cityHps.every((/** @type {number} */ h, /** @type {number} */ i) => i === idx || h <= 0);
+        if (dmg >= hp && last) {
+          // 最後の都市を落とせる一撃：防げる対応を持っている確率で、勝ちと生き残りに分ける
+          const prevent = opts.filter(x => x.total < hp);
+          let k = 1; for (const x of prevent) k *= 1 - x.p;
+          if (k < 1 - 1e-9) {
+            const alive = 1 - v.winProb;
+            v.winProb += alive * k;
+            dmg = prevent.slice().sort((a, b) => b.p - a.p)[0].total;
+          } else killed = true;
+        } else {
+          let miss = 1, e = 0;
+          for (const x of opts) { e += x.red * x.p * miss; miss *= 1 - x.p; }
+          dmg = Math.max(0, dmg - e);
+        }
+      } else if (dmg >= hp) killed = true;
+      _skApplyMods(v, 'opp', r0.mods);
+      v.dealt += Math.min(dmg, hp);
+      if (killed || dmg >= hp) { _skKillCity(def); }
+      else { def.cityHps[idx] = hp - dmg; _skSync(def); }
+    }
+
+    /** 自分の人為災害 d を写しに当てる。pollution は、あとに続く災害（rest）の中で一番大きいものを通すシールドを剥がす
+     * @param {any} v @param {any} d @param {any[]} rest */
+    function _skSimJinzai(v, d, rest) {
+      if (d.id === 'pollution') {
+        let best = null;
+        for (const c of rest) { const dd = _skDef(typeof c === 'string' ? (v.hand.find((/** @type {any} */ x) => x.uid === c) || {}).id : c.id); if (dd && dd.type === 'disaster' && (!best || dd.baseDamage > best.baseDamage)) best = dd; }
+        const key = _skShieldToBreak(v.opp.effects, best ? best.id : null);
+        if (key) _skBreakShield(v.opp.effects, key);
+      } else if (d.id === 'terror') v.self.effects.terrorNextDisaster = true;
+      else if (d.id === 'rumor') { v.opp.effects.debtBudget = 1; v.opp.budget = _skBudget(v.opp); }
+    }
+
+    /** ローリングストックで得をする度合い（要らないカード＝持っている価値が 0 のものが 2 枚まで、手札が攻めか守りの片方に偏っていれば 1）
+     * @param {any} v @returns {number} */
+    function _skRecycleBonus(v) {
+      const dead = v.hand.filter((/** @type {any} */ c) => _skHoldId(c.id, v, false) <= 0.5).length;
+      const imbalanced = v.hand.length >= 2 && (v.hand.every((/** @type {any} */ c) => c.frame === 'attack') || v.hand.every((/** @type {any} */ c) => c.frame === 'defend'));
+      return CPU_EXPERT_WEIGHTS.recycleBonus * (Math.min(dead, 2) + (imbalanced ? 1 : 0));
+    }
+
+    /** 自分の政策カード d を写しに当てる @param {any} v @param {any} d */
+    function _skSimPolicy(v, d) {
+      const s = v.self, e = s.effects;
+      switch (d.effectType) {
+        case 'shield_quake_fire': e.shieldQuakeFire = true; break;
+        case 'shield_flood': e.shieldFlood = true; break;
+        case 'heal': { const i = s.activeCityIdx; s.cityHps[i] = Math.min(s.cities[i].hp, s.cityHps[i] + d.value); _skSync(s); break; }
+        case 'negate_special': e.negateSpecial = true; break;
+        case 'damage_reduce_2t': e.damageReduceHits = 2; break;
+        case 'draw': { const n = Math.min(d.value, s.deckCount); v.drawn += n; s.deckCount -= n; break; }
+        case 'recycle_hand': if (s.deckCount > 0 && v.hand.length > 0) v.bonus += _skRecycleBonus(v); break;
+      }
+    }
+
+    /** 手の並び（手札の uid の並び。先に出す順）を公開情報の写しに当てた結果を返す。view は変えない。
+     * 予算を超える手と、手札に無い手は飛ばす。手番の終わりの効果（回復する都市）も当てる。
+     * ダメージは calcDamage で見積もり、相手の対応は推測した手札の期待値で引く。
+     * @param {any} view @param {Array<string | {uid: string}>} actions @param {any} [ctx] @returns {any} */
+    function skSimulate(view, actions, ctx) {
+      if (!ctx) ctx = _skCtx(view);
+      const v = _skClone(view);
+      const uids = actions.map(a => (typeof a === 'string' ? a : a.uid));
+      for (let i = 0; i < uids.length; i++) {
+        if (_skDead(v.opp)) break;
+        const idx = v.hand.findIndex((/** @type {any} */ c) => c.uid === uids[i]); if (idx < 0) continue;
+        const card = v.hand[idx];
+        if (card.cost > v.self.budget - v.self.budgetUsed) continue;
+        v.hand.splice(idx, 1); v.self.budgetUsed += card.cost; v.self.discardCount++; v.self.used.push(card.id);
+        const d = _skDef(card.id); if (!d) continue;
+        if (d.type === 'policy') _skSimPolicy(v, d);
+        else if (d.type === 'jinzai') _skSimJinzai(v, d, uids.slice(i + 1));
+        else _skSimDisaster(v, d, ctx);
+      }
+      // 手番の終わり：回復する都市の回復。使わなかったテロの効果は消える
+      const sc = _skActive(v.self);
+      if (sc.abilityType === 'regen' && v.self.cityHps[v.self.activeCityIdx] > 0) { v.self.cityHps[v.self.activeCityIdx] = Math.min(sc.hp, v.self.cityHps[v.self.activeCityIdx] + sc.abilityValue); _skSync(v.self); }
+      v.self.effects.terrorNextDisaster = false;
+      return v;
+    }
+
+    // ───────────────────────────────────────
+    // 手の候補と選択
+    // ───────────────────────────────────────
+    /** 同じ並びの重複を避けるため、同じ id の災害を入れ替えた並びを 1 つにまとめた順列 @param {any[]} cards @returns {any[][]} */
+    function _skUniquePerms(cards) {
+      /** @type {any[][]} */
+      const out = [];
+      const rec = (/** @type {any[]} */ left, /** @type {any[]} */ acc) => {
+        if (!left.length) { out.push(acc); return; }
+        const seen = new Set();
+        left.forEach((c, i) => { if (seen.has(c.id)) return; seen.add(c.id); rec(left.filter((_, j) => j !== i), acc.concat([c])); });
+      };
+      rec(cards, []);
+      return out;
+    }
+
+    /** 手札から、予算内で出せる手の並びを全部挙げる（空は含めない）。同じカードの並べ替えは 1 つにまとめる。
+     * 並べ方は決まった順（ローリングストック→ドロー→テロ→公害→デマ→政策→災害）で、災害どうしだけ順序の違いを試す。
+     * 上限は CPU_EXPERT_WEIGHTS.maxCandidates で、超えたら打ち切る。
+     * @param {any} view @returns {string[][]} uid の並び */
+    function _skCandidates(view) {
+      const left = view.self.budget - view.self.budgetUsed;
+      /** @param {any} c */
+      const rank = (c) => {
+        const d = _skDef(c.id); if (!d) return 9;
+        if (d.effectType === 'recycle_hand') return 0;
+        if (d.effectType === 'draw') return 1;
+        if (c.id === 'terror') return 2; if (c.id === 'pollution') return 3; if (c.id === 'rumor') return 4;
+        return d.type === 'policy' ? 5 : 6;
+      };
+      /** @type {Map<string, any[]>} */
+      const groups = new Map();
+      for (const c of view.hand) { if (c.cost > left) continue; if (!groups.has(c.id)) groups.set(c.id, []); /** @type {any[]} */ (groups.get(c.id)).push(c); }
+      const gs = [...groups.values()].sort((a, b) => rank(a[0]) - rank(b[0]) || (a[0].id < b[0].id ? -1 : 1));
+      /** @type {string[][]} */
+      const out = [];
+      const max = CPU_EXPERT_WEIGHTS.maxCandidates;
+      const rec = (/** @type {number} */ gi, /** @type {any[]} */ chosen, /** @type {number} */ cost) => {
+        if (out.length >= max) return;
+        if (gi === gs.length) {
+          if (!chosen.length) return;
+          const dis = chosen.filter(c => rank(c) === 6), rest = chosen.filter(c => rank(c) !== 6);
+          for (const perm of _skUniquePerms(dis)) { if (out.length >= max) return; out.push(rest.concat(perm).map(c => c.uid)); }
+          return;
+        }
+        const g = gs[gi];
+        for (let n = 0; n <= g.length; n++) {
+          if (cost + n * g[0].cost > left) break;
+          rec(gi + 1, chosen.concat(g.slice(0, n)), cost + n * g[0].cost);
+        }
+      };
+      rec(0, [], 0);
+      return out;
+    }
+
+    /** 今の写しでの一番良い手の並びを返す。何も出さない（手番を終える）も候補で、同点なら何も出さない方を選ぶ
+     * @param {any} view @param {'short' | 'long'} plan @param {any} ctx @returns {{ uids: string[], value: number, candidates: number }} */
+    function _skBestPlay(view, plan, ctx) {
+      let bestVal = skEvaluate(skSimulate(view, [], ctx), plan, ctx);
+      /** @type {string[]} */
+      let best = [];
+      const cands = _skCandidates(view);
+      for (const seq of cands) {
+        const val = skEvaluate(skSimulate(view, seq, ctx), plan, ctx);
+        if (val > bestVal + 1e-9) { bestVal = val; best = seq; }
+      }
+      return { uids: best, value: bestVal, candidates: cands.length };
+    }
+
+    /** 上級の手番の判断を選ぶだけ（実際には何も出さない。G を変えない。テストと診断用）。
+     * @param {number} me @returns {{ uids: string[], cards: string[], value: number, plan: string, candidates: number }} */
+    function skExpertChoose(me) {
+      const view = skView(me); const plan = skPlan(view);
+      const b = _skBestPlay(view, plan, _skCtx(view));
+      return { uids: b.uids, cards: b.uids.map(u => (view.hand.find((/** @type {any} */ c) => c.uid === u) || { id: '?' }).id), value: b.value, plan, candidates: b.candidates };
+    }
+
+    /** 上級の手番の 1 回分の判断。選んだ並びの先頭の 1 枚を出す（次の判断でまた選び直す）。何も出さないのが一番良ければ手番を終える
+     * @param {number} me */
+    function skExpertMain(me) {
+      const left = getBudgetLeft(me);
+      if (left <= 0 || !G.players[me].hand.some(c => c.cost <= left)) { endTurn(); return; }
+      const b = skExpertChoose(me);
+      if (!b.uids.length) { endTurn(); return; }
+      playCard(b.uids[0]);
+    }
+
+    // ═══════════════════════════════════════
+    // 上級のその他の判断：対応・捨てる・ローリングストック・台風・公害・都市の順番（Task 4）
+    // ═══════════════════════════════════════
+    // どれも skEvaluate で候補を比べる。対応・捨てる・ローリングストックは公開情報の写し（skView）だけで決める。
+    // 台風だけは、規則で相手の手札が見える場面なので G を直接読む（見込みの代わりに実際の手札を使う）。
+
+    /** 防御側（自分）が災害 atk を受けた結果を写しに当てる。rc は使う対応カード（無ければ null）
+     * @param {any} v @param {any} atk 攻撃のカード @param {SkHandCard | null} rc */
+    function _skHitSelf(v, atk, rc) {
+      const s = v.self; const idx = s.activeCityIdx; const hp = s.cityHps[idx];
+      const first = v.oppSeat === 0 && v.turnsEach[0] === 0;
+      const rest = rc ? v.hand.filter((/** @type {any} */ c) => c.uid !== rc.uid) : v.hand;
+      const rcDef = rc ? _skDef(rc.id) : null;
+      const r = calcDamage({ attackCard: atk, defCity: _skActive(s), defName: '', defEffects: s.effects, defHand: rest, responses: rcDef ? [rcDef] : [], isFirstTurnPenalty: first, view: 'defender' });
+      v.hand = rest;
+      if (rc) { s.discardCount++; s.used.push(rc.id); }
+      _skApplyMods(v, 'self', r.mods);
+      if (r.total >= hp) _skKillCity(s); else { s.cityHps[idx] = hp - r.total; _skSync(s); }
+    }
+
+    /** 対応フェーズ。「使わない」と「手札の対応カード（種類ごとに 1 つ）」をそれぞれ受けた後の盤面で比べる。
+     * 長期戦で、受けても都市が壊れず、そのカードを持ち続けたほうが次の脅威に役立つなら使わない（温存する）。壊れるなら合うカードを使う
+     * @param {number} me */
+    function skExpertResponse(me) {
+      const cpu = G.players[me];
+      const usable = (/** @type {any} */ c) => c.type === 'policy' && c.effectType !== 'draw' && c.effectType !== 'recycle_hand';
+      if (!cpu.hand.some(usable)) { skipResponse(); return; }
+      const atk = G.pendingAttack.card;
+      const view = skView(me); const plan = skPlan(view); const ctx = _skCtx(view);
+      /** @type {Array<SkHandCard | null>} */
+      const options = [null]; const seen = new Set();
+      for (const c of view.hand) { if (!usable(c) || seen.has(c.id)) continue; seen.add(c.id); options.push(c); }
+      /** @type {SkHandCard | null} */
+      let best = null; let bestVal = -Infinity;
+      for (const rc of options) {
+        const v = _skClone(view);
+        _skHitSelf(v, atk, rc);
+        const val = skEvaluate(v, plan, ctx);
+        if (val > bestVal + 1e-9) { bestVal = val; best = rc; }
+      }
+      if (best) playResponseCard(best.uid); else skipResponse();
+    }
+
+    /** 手札上限での捨てる 1 枚。1 枚ずつ手放した盤面を比べ、一番評価が落ちない（要らない）カードを捨てる @param {number} me */
+    function skExpertDiscard(me) {
+      const cpu = G.players[me];
+      const view = skView(me); const plan = skPlan(view); const ctx = _skCtx(view);
+      /** @type {SkHandCard | null} */
+      let best = null; let bestVal = -Infinity; const seen = new Set();
+      for (const c of view.hand) {
+        if (seen.has(c.id)) continue; seen.add(c.id);
+        const v = _skClone(view); v.hand = v.hand.filter((/** @type {any} */ x) => x.uid !== c.uid);
+        const val = skEvaluate(v, plan, ctx);
+        if (val > bestVal + 1e-9) { bestVal = val; best = c; }
+      }
+      discardCard((best || { uid: cpu.hand[0].uid }).uid);
+    }
+
+    /** ローリングストックで戻す枚数と中身。持っている価値の低い順に k 枚を戻して、同じ枚数を山札から引く（引くカードの価値は山札の平均）盤面を比べ、
+     * 一番良い k（0〜手札と山札の少ないほう）を選ぶ
+     * @param {number} me */
+    function skExpertRecycle(me) {
+      const rs = G.recycleState; if (!rs) return;
+      const pi = rs.pi;
+      const view = skView(pi); const plan = skPlan(view); const ctx = _skCtx(view);
+      const cap = Math.min(view.hand.length, view.self.deckCount);
+      const ordered = view.hand.slice().sort((a, b) => _skHoldId(a.id, view, false) - _skHoldId(b.id, view, false));
+      let bestK = 0; let bestVal = -Infinity;
+      for (let k = 0; k <= cap; k++) {
+        const v = _skClone(view);
+        const gone = new Set(ordered.slice(0, k).map(c => c.uid));
+        v.hand = v.hand.filter((/** @type {any} */ c) => !gone.has(c.uid)); v.drawn += k;
+        const val = skEvaluate(v, plan, ctx);
+        if (val > bestVal + 1e-9) { bestVal = val; bestK = k; }
+      }
+      _recycleSelected = ordered.slice(0, bestK).map(c => c.uid);
+      confirmRecycle();
+    }
+
+    /** 台風で奪うカード。相手の手札は規則で見える（台風を使った本人だけが見る）ので、推測の代わりに実際の手札を使う。
+     * 点数＝奪うと減る相手の脅威（次の手番に出せるダメージ）＋相手が持つ価値（回復・シールドなど）＋自分が山札の一番上から使える価値の半分
+     * @param {number} me */
+    function skExpertTyphoon(me) {
+      const pt = G.pendingTyphoon; if (!pt) return;
+      const targets = versusTyphoonTargets(pt.defIdx);
+      if (targets.length === 0) { G.pendingTyphoon = null; G.screen = 'main'; commit(); return; }
+      const W = CPU_EXPERT_WEIGHTS;
+      const view = skView(me); const ctx = _skCtx(view);
+      // 例外：相手の手札の中身を、見込みの代わりに使う
+      /** @type {Record<string, number>} */
+      const have = {};
+      for (const c of G.players[pt.defIdx].hand) have[c.id] = (have[c.id] || 0) + 1;
+      /** @param {string | null} drop @returns {Record<string, number>} */
+      const knownInf = (drop) => {
+        /** @type {Record<string, number>} */
+        const o = {}; for (const c of ALL_CARDS) o[c.id] = ((have[c.id] || 0) - (c.id === drop ? 1 : 0)) > 0 ? 1 : 0;
+        return o;
+      };
+      const penBefore = _skThreatPenalty(view, { ...ctx, inf: knownInf(null), threatCache: new Map() });
+      /** @type {any} */
+      let best = null; let bestScore = -Infinity; const seen = new Set();
+      for (const c of targets) {
+        if (seen.has(c.id)) continue; seen.add(c.id);
+        const v = _skClone(view); v.opp.handCount = Math.max(0, v.opp.handCount - 1); v.self.deckCount++;
+        const penAfter = _skThreatPenalty(v, { ...ctx, inf: knownInf(c.id), threatCache: new Map() });
+        const score = (penBefore - penAfter) + W.stealOpp * _skHoldId(c.id, view, true) + W.stealMine * _skHoldId(c.id, view, false);
+        if (score > bestScore + 1e-9) { bestScore = score; best = c; }
+      }
+      pickTyphoonSteal((best || targets[0]).uid);
+    }
+
+    /** 公害で剥がすシールド。相手のシールドを 1 つずつ剥がした盤面で、手札からの一番良い手の評価を比べる
+     * @param {number} me */
+    function skExpertPollution(me) {
+      const pp = G.pendingPollution; if (!pp) return;
+      const e = G.players[1 - me].effects;
+      /** @type {string[]} */
+      const keys = [];
+      if (e.damageReduceHits > 0) keys.push('damageReduceHits');
+      if (e.shieldQuakeFire) keys.push('shieldQuakeFire');
+      if (e.shieldFlood) keys.push('shieldFlood');
+      if (e.negateSpecial) keys.push('negateSpecial');
+      if (!keys.length) { destroyPollutionShield('none'); return; }
+      const view = skView(me); const plan = skPlan(view); const ctx = _skCtx(view);
+      let bestKey = keys[0]; let bestVal = -Infinity;
+      for (const key of keys) {
+        const v = _skClone(view); _skBreakShield(v.opp.effects, key);
+        const val = _skBestPlay(v, plan, ctx).value;
+        if (val > bestVal + 1e-9) { bestVal = val; bestKey = key; }
+      }
+      destroyPollutionShield(bestKey);
+    }
+
+    /** 都市の順番に効く能力の強さ（大きいほど先に出す）。自動対戦（標準デッキの 200 試合ずつ）で、回復する都市は先に出すと勝率が上がり、
+     * 被害を減らす都市はその次、予算を増やす都市は後ろに回したほうが良かった。相手の都市はこの時点で分からないので、能力だけで決める
+     * @param {any} c @returns {number} */
+    function _skCityFirstScore(c) {
+      switch (c.abilityType) {
+        case 'regen': return 3;
+        case 'resist_quake_fire': case 'resist_flood': case 'resist_landslide': case 'resist_compound': case 'resist_custom': case 'second_hit_reduce': case 'quake_regen': return 2;
+        case 'extra_budget': return 0;
+        default: return 1;
+      }
+    }
+
+    /** 都市を出す順番。都市を指定した席は指定どおり。それ以外は能力の強さ（_skCityFirstScore）が高いほうを先に、同じなら HP の低いほうを先に
+     * @param {number} me */
+    function skExpertCityOrder(me) {
+      const cfg = cpuSeatCfg(me);
+      if (cfg && cfg.cities) { selectCityOrder(me, 0); return; }
+      const p = G.players[me]; const c0 = p.cities[0], c1 = p.cities[1];
+      const s0 = _skCityFirstScore(c0), s1 = _skCityFirstScore(c1);
+      if (s0 !== s1) selectCityOrder(me, s0 > s1 ? 0 : 1);
+      else selectCityOrder(me, c0.hp <= c1.hp ? 0 : 1);
+    }
     // ═══════════════════════════════════════
     // INIT
     // ═══════════════════════════════════════
@@ -22021,7 +23131,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '6cbecb8';
+    const BUILD_ID = '946c7a5';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 2;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -22381,7 +23491,7 @@
         const v = JSON.parse(raw); if (!v || typeof v !== 'object') return;
         const s = devCpuSetup;
         if (v.deck === 'recommended' || (typeof v.deck === 'string' && VERSUS_DECK_ARCHETYPES[v.deck])) s.deck = v.deck;
-        if (['', 'easy', 'normal', 'hard'].includes(v.skill)) s.skill = v.skill;
+        if (['', ...CPU_SKILLS].includes(v.skill)) s.skill = v.skill;
         if (Array.isArray(v.cities) && v.cities.length === 2 && v.cities[0] !== v.cities[1] && v.cities.every((/** @type {string} */ id) => CITIES.some(c => c.id === id))) s.cities = [v.cities[0], v.cities[1]];
         if (typeof v.humanFirst === 'boolean') s.humanFirst = v.humanFirst;
         if (typeof v.seed === 'number' && Number.isFinite(v.seed)) s.seed = Math.trunc(v.seed);
@@ -22392,7 +23502,7 @@
     /** @param {string} v */
     function devCpuSetDeck(v) { if (v === 'recommended' || VERSUS_DECK_ARCHETYPES[v]) { devCpuSetup.deck = v; devCpuSave(); render(); } }
     /** @param {string} v */
-    function devCpuSetSkill(v) { if (['', 'easy', 'normal', 'hard'].includes(v)) { devCpuSetup.skill = v; devCpuSave(); render(); } }
+    function devCpuSetSkill(v) { if (['', ...CPU_SKILLS].includes(v)) { devCpuSetup.skill = v; devCpuSave(); render(); } }
     /** @param {string} v 'gacha' か 'pick' */
     function devCpuSetCityMode(v) { devCpuSetup.cities = v === 'pick' ? [CITIES[0].id, CITIES[1].id] : null; devCpuSave(); render(); }
     /** @param {number} slot 0か1 @param {string} id */
@@ -22418,7 +23528,7 @@
       const seg = (items, cur, fn) => '<div class="settings-seg" style="flex-wrap:wrap">' + items.map(it => '<button type="button" class="settings-seg-btn' + (cur === it[0] ? ' active' : '') + '" onclick="' + fn + '(\'' + it[0] + '\')">' + it[1] + '</button>').join('') + '</div>';
       const row = (/** @type {string} */ label, /** @type {string} */ body) => '<div style="margin-top:8px"><div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:4px">' + label + '</div>' + body + '</div>';
       const decks = [['recommended', 'オススメ'], ...Object.keys(VERSUS_DECK_ARCHETYPES).map(k => [k, VERSUS_DECK_ARCHETYPES[k].label])];
-      const skills = [['', '難易度ボタン'], ['easy', 'EASY'], ['normal', 'NORMAL'], ['hard', 'HARD']];
+      const skills = [['', '難易度ボタン'], ['easy', 'EASY'], ['normal', 'NORMAL'], ['hard', 'HARD'], ['beginner', '初心者'], ['standard', '標準'], ['expert', '上級']];
       const opt = (/** @type {number} */ slot) => '<select onchange="devCpuSetCity(' + slot + ', this.value)" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:4px 6px">' + CITIES.map(c => '<option value="' + c.id + '"' + (s.cities && s.cities[slot] === c.id ? ' selected' : '') + '>' + _escHtml(c.name) + '</option>').join('') + '</select>';
       const cityBody = seg([['gacha', 'ガチャ'], ['pick', '指定']], s.cities ? 'pick' : 'gacha', 'devCpuSetCityMode') + (s.cities ? '<div style="display:flex;gap:6px;margin-top:6px">' + opt(0) + opt(1) + '</div>' : '');
       const seedBody = '<input type="text" inputmode="numeric" maxlength="10" placeholder="空欄＝固定しない" value="' + (s.seed == null ? '' : s.seed) + '" oninput="devCpuSetSeed(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:6px;padding:6px 8px">';
