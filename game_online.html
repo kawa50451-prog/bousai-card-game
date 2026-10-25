@@ -6302,7 +6302,7 @@
     let cpuDifficulty = 'normal'; // 'easy' | 'normal' | 'hard'
     let _cpuTimer = null;
     /** 席ごとの CPU 設定（null は人）。G には入れない。cpuSeatCfg(pi) で読む */
-    /** @type {Array<null | {deck: string, skill: string, cities?: string[], ban?: string[]}>} */
+    /** @type {Array<null | {deck: string, skill: string, cities?: string[], ban?: string[], counts?: Record<string, number>}>} */
     let cpuSeats = [null, null];
     // ══ 協力モード（ソロ：人間=都市側 / CPU=自然側）状態。対戦エンジン(G)とは完全独立 ══
     /** @type {CoopState | null} */
@@ -8394,7 +8394,7 @@
         // 開発者モード第2段a：CPU の席ごとにデッキの型（cpuSeatCfg(pi).deck）で組む。型が recommended なら従来の自動生成と同じ。
         for (const pi of [0, 1]) {
           const cfg = cpuSeatCfg(pi); if (!cfg) continue;
-          let _cpuCounts = vsArchetypeCounts(/** @type {any} */ (cfg.deck), G.players[pi].cities);
+          let _cpuCounts = cfg.counts ? { ...cfg.counts } : vsArchetypeCounts(/** @type {any} */ (cfg.deck), G.players[pi].cities); // 自動対戦の評価シート：席に枚数表そのものを渡したときはそれを使う
           const _recommended = buildCityAwareDeckCounts(G.players[pi].cities);
           // 開発者モード第5段：使えないカードを抜いて、同じ枠のほかのカードに配り直す（組めないときは抜かず、記録に残す）
           if (cfg.ban && cfg.ban.length) {
@@ -13161,7 +13161,7 @@
     function _cpuCancelTimer() { if (_cpuTimer) { clearTimeout(_cpuTimer); _cpuTimer = null; } }
 
     /** 席 pi の CPU 設定（人の席・CPU 戦でないときは null）
-     * @param {number} pi @returns {{deck: string, skill: string, cities?: string[], ban?: string[]} | null} */
+     * @param {number} pi @returns {{deck: string, skill: string, cities?: string[], ban?: string[], counts?: Record<string, number>} | null} */
     function cpuSeatCfg(pi) {
       if (!isCpuMode) return null;
       // cpuSeats が未設定のまま isCpuMode だけが立つ経路（画面ジャンプ・検証用）は、従来どおり席1が CPU（打ち方は cpuDifficulty）
@@ -23216,7 +23216,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = 'ad9fe47';
+    const BUILD_ID = '2522845';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 2;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -24255,7 +24255,7 @@
     }
 
     // ── 状態の操作 ──
-    function devDashReset() { _dd.sums = []; _dd.logs = []; _dd.sel = 0; _dd.logSel = 0; _dd.msg = ''; _dd.cell = null; _ddRefresh(); }
+    function devDashReset() { _ddEs = { human: {}, before: [] }; _dd.sums = []; _dd.logs = []; _dd.sel = 0; _dd.logSel = 0; _dd.msg = ''; _dd.cell = null; _ddRefresh(); }
     /** summary.json の中身を足す（同じ名前なら置き換え） @param {string} name @param {any} data */
     function devDashAddSummary(name, data) {
       if (!data || typeof data !== 'object' || !data.variants || typeof data.variants !== 'object') { _dd.msg = name + '：summary.json の形ではありません'; _ddRefresh(); return false; }
@@ -24279,7 +24279,7 @@
     async function devDashLoadSummary(files) {
       const msgs = [];
       for (const f of Array.from(files || [])) {
-        try { const ok = devDashAddSummary(f.name, JSON.parse(await _ddReadText(f))); if (!ok) msgs.push(_dd.msg); }
+        try { const obj = JSON.parse(await _ddReadText(f)); const ok = obj && obj.type === 'evalsheet' ? devDashAddEvalSheet(f.name, obj) : devDashAddSummary(f.name, obj); if (!ok) msgs.push(_dd.msg); }
         catch (e) { msgs.push(f.name + '：読み込めませんでした（JSON として壊れています）'); }
       }
       _dd.msg = msgs.join(' / '); _ddRefresh();
@@ -24423,7 +24423,7 @@
     /** 読み込んだ版の詳細 */
     function _ddSummariesHtml() {
       const flat = _ddFlat();
-      if (!flat.length) return '';
+      if (!flat.length) return _ddEvalHtml();
       if (_dd.sel >= flat.length || _dd.sel < 0) _dd.sel = 0;
       const f = flat[_dd.sel], v = f.v;
       let html = '';
@@ -24432,12 +24432,243 @@
         html += '<div class="dd-notice"><b>注意</b>　' + _ddEsc(d.notice || '（この summary.json には注意の文がありません）') + '<div class="dd-meta">' + _ddEsc(s.name) + (e.name ? '：実験 ' + _ddEsc(e.name) : '') + (_ddNum(e.games) ? '、' + e.games + '試合' : '') + (_ddNum(e.seed) ? '、種 ' + e.seed : '') + (e.startFrom ? '、盤面 #' + _ddEsc(e.startFrom) + ' から' + (e.reshuffleDecks ? '（山札は混ぜ直し）' : '') : '') + (Array.isArray(e.ban) && e.ban.length ? '、使えないカード ' + e.ban.map((/** @type {any} */ id) => _ddEsc(_ddCardName(String(id)))).join('・') : '') + '</div>'
           + (Array.isArray(d.notComputedForHuman) && d.notComputedForHuman.length ? '<div class="dd-meta dd-nc">未計算：' + d.notComputedForHuman.map(_ddEsc).join('、') + '</div>' : '') + '</div>';
       });
+      html += _ddEvalHtml();
       html += _ddCompareHtml(flat);
       const applied = f.data.applied && f.data.applied[f.key] ? Object.keys(f.data.applied[f.key]).map(k => k + '：' + _ddEsc(f.data.applied[f.key][k] && f.data.applied[f.key][k].from) + ' → ' + _ddEsc(f.data.applied[f.key][k] && f.data.applied[f.key][k].to)).join('、') : '';
       html += '<div class="dd-pick">詳細に表示している版：<b>' + _ddEsc(_ddLabel(f)) + '</b>' + (applied ? '<div class="dd-meta">この版で変えた数字　' + applied + '</div>' : '') + '</div>';
       if (v.notComputed && v.notComputed.length) html += '<div class="dd-nc dd-block">人の記録では未計算の指標：' + v.notComputed.map(_ddEsc).join('、') + '</div>';
       if (!(_ddNum(v.counted) && v.counted > 0)) return html + _ddSec('この版の詳細', '<div class="dd-empty">試合なし（n=0）。表示できる数字がありません</div>');
       html += _ddFromBoardHtml(v) + _ddTierHtml(v) + _ddMatrixHtml(v, 'city') + _ddMatrixHtml(v, 'deck') + _ddSkillHtml(v) + _ddAbilityHtml(v) + _ddCardsHtml(v);
+      return html;
+    }
+
+    // ═══════════════════════════════════════
+    // 評価シート（評価シート Task 3）
+    // summary.json の evalSheet（実測の値と提案の点）を、4観点・足切り・項目ごとの行にして出す。人が 0・1・2 を付け、メモを書き、保存する。
+    // 保存した評価シート（ron_evalsheet_…json）を読み込むと「作る前」の列に入り、実測の「入れた後」と並ぶ（同じ対象のときだけ）。
+    // ═══════════════════════════════════════
+    /** 観点（正本は vault の .claude/skills/ability-design/SKILL.md「評価シート（4観点）」） */
+    const DD_EVAL_PERSP = [['K', 'コンセプト'], ['S', '戦略性・面白さ'], ['H', '環境との調和'], ['M', '明快さ']];
+    /** 項目ごとの 0・1・2 の目安（ホバーに出す。正本は上と同じ節。表示のための写し） */
+    const DD_EVAL_ANCHORS = /** @type {Record<string, string[]>} */ ({
+      K1: ['自動で効くだけ', '使う時機の判断がある', '相手との読み合いの中で判断が生まれる'],
+      K2: ['効いたか分からない', 'ログや数字を見れば分かる', '画面ですぐ分かり、次の判断に使える'],
+      K3: ['1回で勝敗が決まり挽回できない', '挽回は難しいが可能', '挽回の手段がある'],
+      K4: ['由来と関係がない', '名前や説明だけが由来に合う', '効果の形そのものが由来を表す'],
+      K5: ['備えるほど不利になるなど、誤った防災観になる', '防災の行動と関係しない', '正しい備え・判断が勝ちにつながる'],
+      S1: ['余っている予算にだけ効く', '間接的にカード・HPに効く', 'カード・山札・対応の機会・HPに直接効く'],
+      S2: ['避ければ済む', '片方だけが迷う', '両者に読み合いが生まれる'],
+      S3: ['発動しない試合では無意味', '相手の行動を少し変える', '抑止としていつも効いている'],
+      S4: ['初心者の打ち方のほうが勝つ', '打ち方による差が 5 ポイント未満', '上級の打ち方で 5 ポイント以上勝率が上がる'],
+      S5: ['引き（初手・ガチャ）だけで勝敗がほぼ決まる', '引きの影響が大きいが挽回できる', '引きの差が勝率に小さくしか出ない'],
+      S6: ['何もできない時間を長く作る', '一時的に何もできない場面がある', '不快な場面を作らない'],
+      H1: ['狙いの帯から外れる（勝率で ±6 ポイント超、または期待軽減量で「弱すぎ」「強すぎ」）', '帯の端', '狙いの帯の中'],
+      H2: ['ほかの都市・カードの上位・下位互換', '一部が重なる', '空いている軸を使う'],
+      H3: ['0 になる構成がある', '構成によって大きく振れる', 'どの構成でも働く'],
+      H4: ['効く前に都市が壊れやすい', '効くが短い', '早く効く、または予備の都市へ引き継ぐ'],
+      H5: ['勝率 45〜55% に入る都市・型の数を減らす', '変えない', '増やす、または相性の循環を作る'],
+      M1: ['面に収まらない', '3行以上', '2行以内'],
+      M2: ['3つ以上', '1〜2つ', 'ない'],
+      M3: ['新しい用語・仕組みが要る', '既存の仕組みの組み合わせ', '既存の仕組みのまま'],
+      M4: ['協力・デイリーにも波及し、実装が重い', '対戦だけで、実装は中程度', '定数か数行の変更で済む'],
+    });
+    /** 人が付けた点とメモ（summary の名前と版ごと）と、読み込んだ保存ファイル（作る前）
+     * @type {{human: Record<string, Record<string, {score: number | null, memo: string}>>, before: Array<{name: string, data: any}>}} */
+    let _ddEs = { human: {}, before: [] };
+
+    /** @param {any} x */ function _ddEvalIs012(x) { return x === 0 || x === 1 || x === 2; }
+    /** @param {any} it */ function _ddEvalValid(it) { return !!it && typeof it === 'object' && typeof it.id === 'string' && /^[KSHM][0-9]$/.test(it.id); }
+    /** @param {any} t */ function _ddEvalTargetOk(t) { return !!t && typeof t === 'object' && (t.type === 'city' || t.type === 'card') && typeof t.id === 'string' && !!t.id; }
+    /** @param {any} a @param {any} b */ function _ddEvalSame(a, b) { return _ddEvalTargetOk(a) && _ddEvalTargetOk(b) && a.type === b.type && a.id === b.id; }
+    /** @param {any} t */ function _ddEvalTargetLabel(t) { return (t.type === 'city' ? _ddCityName(t.id) : _ddCardName(t.id)) + '（' + (t.type === 'city' ? '都市' : 'カード') + '）'; }
+    /** 割合（0〜1）を 1 桁の %。値なしは「--」 @param {any} r */
+    function _ddEvalPct(r) { return _ddNum(r) ? (r * 100).toFixed(1) + '%' : '--'; }
+
+    /** 読み込んだ summary.json のうち、評価シートを持つ版の一覧
+     * @returns {Array<{file: string, key: string, hkey: string, sheet: any, exp: any, thresholds: any}>} */
+    function _ddEvalSheets() {
+      /** @type {Array<{file: string, key: string, hkey: string, sheet: any, exp: any, thresholds: any}>} */ const out = [];
+      _dd.sums.forEach(s => {
+        const es = s.data && s.data.evalSheet;
+        if (!es || typeof es !== 'object' || !es.variants || typeof es.variants !== 'object') return;
+        Object.keys(es.variants).forEach(k => { const sh = es.variants[k]; if (sh && Array.isArray(sh.items) && _ddEvalTargetOk(sh.target)) out.push({ file: s.name, key: k, hkey: s.name + '|' + k, sheet: sh, exp: s.data.experiment || {}, thresholds: es.thresholds || null }); });
+      });
+      return out;
+    }
+    /** 人の点を入れた後の点（人の点があればそれ、無ければ提案の点、どちらも無ければ null）
+     * @param {any} it @param {Record<string, {score: number | null, memo: string}> | undefined} hum */
+    function _ddEvalEff(it, hum) { const h = hum && hum[it.id]; if (h && _ddEvalIs012(h.score)) return h.score; return _ddEvalIs012(it.score) ? it.score : null; }
+    /** 観点ごとの割合（入った項目の合計 ÷ その項目の満点）、足切り、合計点（4観点の割合の平均）
+     * @param {Array<{id: string, star: boolean, score: any}>} items */
+    function _ddEvalCalc(items) {
+      /** @type {Record<string, {r: number | null, got: number, all: number}>} */ const per = {};
+      DD_EVAL_PERSP.forEach(p => {
+        const all = items.filter(i => i.id[0] === p[0]), sc = all.filter(i => _ddEvalIs012(i.score));
+        per[p[0]] = { r: sc.length ? sc.reduce((s, i) => s + i.score, 0) / (2 * sc.length) : null, got: sc.length, all: all.length };
+      });
+      const stars = items.filter(i => i.star);
+      const failed = stars.filter(i => i.score === 0).map(i => i.id), pending = stars.filter(i => !_ddEvalIs012(i.score)).map(i => i.id);
+      const rs = DD_EVAL_PERSP.map(p => per[p[0]].r).filter(_ddNum);
+      return { per, failed, pending, state: failed.length ? 'fail' : pending.length ? 'pending' : 'pass', total: rs.length ? rs.reduce((s, x) => s + x, 0) / rs.length : null };
+    }
+    /** @param {any} sh @param {Record<string, any> | undefined} hum */
+    function _ddEvalAfterCalc(sh, hum) { return _ddEvalCalc(sh.sheet.items.filter(_ddEvalValid).map((/** @type {any} */ it) => ({ id: it.id, star: !!it.star, score: _ddEvalEff(it, hum) }))); }
+    /** @param {any} data */
+    function _ddEvalBeforeCalc(data) { return _ddEvalCalc(data.items.filter(_ddEvalValid).map((/** @type {any} */ it) => ({ id: it.id, star: !!it.star, score: _ddEvalIs012(it.score) ? it.score : null }))); }
+
+    /** 保存した評価シートを足す（同じ名前なら置き換え） @param {string} name @param {any} data */
+    function devDashAddEvalSheet(name, data) {
+      if (!data || typeof data !== 'object' || data.type !== 'evalsheet' || !Array.isArray(data.items) || !_ddEvalTargetOk(data.target) || !data.items.some(_ddEvalValid)) { _dd.msg = name + '：評価シートの形ではありません'; _ddRefresh(); return false; }
+      const i = _ddEs.before.findIndex(b => b.name === name);
+      if (i >= 0) _ddEs.before[i] = { name, data }; else _ddEs.before.push({ name, data });
+      _dd.msg = ''; _ddRefresh(); return true;
+    }
+    /** 人の点を付ける。同じ点をもう一度選ぶと外れて、提案の点に戻る @param {number} si @param {string} id @param {number} score */
+    function devDashEvalSet(si, id, score) {
+      const sh = _ddEvalSheets()[si];
+      if (!sh || !_ddEvalIs012(score) || !sh.sheet.items.some((/** @type {any} */ i) => _ddEvalValid(i) && i.id === id)) return;
+      const h = _ddEs.human[sh.hkey] || (_ddEs.human[sh.hkey] = {});
+      const cur = h[id] || (h[id] = { score: null, memo: '' });
+      cur.score = cur.score === score ? null : score;
+      _ddRefresh();
+    }
+    /** 一言のメモ（入力のたびに呼ぶので、画面は描き直さない） @param {number} si @param {string} id @param {string} text */
+    function devDashEvalMemo(si, id, text) {
+      const sh = _ddEvalSheets()[si];
+      if (!sh || !sh.sheet.items.some((/** @type {any} */ i) => _ddEvalValid(i) && i.id === id)) return;
+      const h = _ddEs.human[sh.hkey] || (_ddEs.human[sh.hkey] = {});
+      const cur = h[id] || (h[id] = { score: null, memo: '' });
+      cur.memo = String(text == null ? '' : text).slice(0, 200);
+    }
+    /** 保存するファイルの名前と中身（人の点・メモ・実測の値・提案の点・境目の値・実験の名前） @param {number} si */
+    function devDashEvalSaveData(si) {
+      const sh = _ddEvalSheets()[si]; if (!sh) return null;
+      const hum = _ddEs.human[sh.hkey] || {};
+      const items = sh.sheet.items.filter(_ddEvalValid).map((/** @type {any} */ it) => {
+        const h = hum[it.id];
+        return { id: it.id, name: it.name, star: !!it.star, basis: it.basis, value: _ddNum(it.value) ? it.value : null, n: _ddNum(it.n) ? it.n : null, lo: _ddNum(it.lo) ? it.lo : null, hi: _ddNum(it.hi) ? it.hi : null, unit: it.unit || null, skill: it.skill || null, tentative: !!it.tentative, note: it.note || '', rule: it.rule || '',
+          suggested: _ddEvalIs012(it.score) ? it.score : null, human: h && _ddEvalIs012(h.score) ? h.score : null, memo: h ? h.memo : '', score: _ddEvalEff(it, hum) };
+      });
+      const calc = _ddEvalCalc(items);
+      /** @type {Record<string, number | null>} */ const perspective = {};
+      DD_EVAL_PERSP.forEach(p => { perspective[p[0]] = calc.per[p[0]].r; });
+      const obj = { type: 'evalsheet', v: 1, savedAt: new Date().toISOString(), experiment: sh.exp.name || null, games: _ddNum(sh.exp.games) ? sh.exp.games : null, source: sh.file, target: sh.sheet.target, band: sh.sheet.band || null, skills: sh.sheet.skills || [], thresholds: sh.thresholds, items, perspective, gate: { state: calc.state, failed: calc.failed, pending: calc.pending }, total: calc.total };
+      return { name: devFileName('evalsheet', sh.sheet.target.id), text: JSON.stringify(obj, null, 2) };
+    }
+    /** 評価シートをファイルに保存する（ブラウザ） @param {number} si */
+    function devDashEvalSave(si) {
+      const d = devDashEvalSaveData(si); if (!d) return;
+      try {
+        const url = URL.createObjectURL(new Blob([d.text], { type: 'application/json' }));
+        const a = document.createElement('a'); a.href = url; a.download = d.name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {}
+    }
+
+    /** 実測の値を「23.1%  n=160  95%CI 17.3–30.2」の文字に。値なしは理由の注記か「—」 @param {any} it */
+    function _ddEvalValText(it) {
+      if (!_ddNum(it.value)) return it.note ? _ddEsc(it.note) : '—';
+      const u = it.unit;
+      const f = (/** @type {any} */ x, /** @type {boolean} */ unit) => {
+        if (!_ddNum(x)) return '—';
+        if (u === 'rate') return (x * 100).toFixed(1) + (unit ? '%' : '');
+        if (u === 'diff') return (x * 100).toFixed(1) + (unit ? 'pt' : '');
+        if (u === 'ratio') return x.toFixed(2) + (unit ? '倍' : '');
+        if (u === 'count') return (unit && x > 0 ? '+' : '') + String(Math.round(x));
+        return String(Math.round(x * 1000) / 1000);
+      };
+      return _ddEsc(f(it.value, true) + '  n=' + (_ddNum(it.n) ? it.n : '—') + (_ddNum(it.lo) && _ddNum(it.hi) ? '  95%CI ' + f(it.lo, false) + '–' + f(it.hi, false) : ''));
+    }
+    /** @param {any} score */
+    function _ddEvalScoreHtml(score) { return _ddEvalIs012(score) ? '<b class="dd-s' + score + '">' + score + '</b>' : '<span class="dd-nc0">—</span>'; }
+    /** 足切りの 1 行 @param {ReturnType<typeof _ddEvalCalc>} c @param {string} label */
+    function _ddEvalGateHtml(c, label) {
+      const st = c.state === 'fail' ? '<b class="dd-g-fail">不採用</b>　' + c.failed.map(id => _ddEsc(id) + '★').join('・') + ' が 0'
+        : c.state === 'pending' ? '<span class="dd-g-pend">判断の★が未入力</span>　' + c.pending.map(_ddEsc).join('・')
+          : '<b class="dd-g-ok">通過</b>';
+      return '<div class="dd-gate"><span class="dd-gl">' + (label ? _ddEsc(label) + '　' : '') + '足切り</span>' + st + '</div>';
+    }
+    /** 4観点の割合を横に並べた帯。列が 2 つ以上のときだけ合計点の欄を足す
+     * @param {Array<{label: string, c: ReturnType<typeof _ddEvalCalc>}>} cols */
+    function _ddEvalPerspHtml(cols) {
+      const withTotal = cols.length > 1;
+      const cell = (/** @type {number | null} */ r, /** @type {string} */ sub) => '<span class="dd-pc"><b>' + _ddEvalPct(r) + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '<i class="dd-pbar"><u style="width:' + (_ddNum(r) ? (r * 100).toFixed(1) : '0') + '%"></u></i></span>';
+      let h = '<div class="dd-persp' + (withTotal ? ' dd-pt' : '') + '"><div class="dd-pr dd-ph"><span></span>' + DD_EVAL_PERSP.map(p => '<span><kbd>' + p[0] + '</kbd>' + _ddEsc(p[1]) + '</span>').join('') + (withTotal ? '<span>合計</span>' : '') + '</div>';
+      cols.forEach(col => {
+        h += '<div class="dd-pr"><span class="dd-pl">' + _ddEsc(col.label) + '</span>' + DD_EVAL_PERSP.map(p => cell(col.c.per[p[0]].r, col.c.per[p[0]].got + '/' + col.c.per[p[0]].all)).join('') + (withTotal ? cell(col.c.total, '') : '') + '</div>';
+      });
+      return h + '</div>';
+    }
+
+    /** 評価シートの節 1 つ。sh は実測のある版（無ければ null）、bf は並べる作る前のファイル（無ければ null）
+     * @param {number} si @param {any} sh @param {{name: string, data: any} | null} bf @param {string[]} mismatch */
+    function _ddEvalSecHtml(si, sh, bf, mismatch) {
+      const target = sh ? sh.sheet.target : bf ? bf.data.target : null; if (!target) return '';
+      const hum = sh ? _ddEs.human[sh.hkey] : undefined;
+      const aCalc = sh ? _ddEvalAfterCalc(sh, hum) : null, bCalc = bf ? _ddEvalBeforeCalc(bf.data) : null;
+      const two = !!(aCalc && bCalc);
+      const src = sh ? sh.sheet : bf.data;
+      const band = Array.isArray(src.band) && src.band.length === 2 && src.band.every(_ddNum) ? '狙いの帯 ' + src.band.map((/** @type {number} */ x) => (x * 100).toFixed(1)).join('〜') + '%　' : '';
+      const skills = Array.isArray(src.skills) && src.skills.length ? '打ち方 ' + src.skills.map(_ddEsc).join('・') + '　' : '';
+      const exp = sh ? sh.exp : { name: bf.data.experiment, games: bf.data.games };
+      const meta = band + skills + (exp && exp.name ? '実験 ' + _ddEsc(exp.name) + (_ddNum(exp.games) ? '　' + exp.games + '試合' : '') + '　' : '') + _ddEsc(sh ? sh.file : bf.name);
+      let html = '<div class="dd-meta">' + meta + '</div>';
+      if (mismatch.length) html += '<div class="dd-nc dd-block">' + mismatch.map(_ddEsc).join('、') + '：対象が違う。並べない</div>';
+      if (aCalc) html += _ddEvalGateHtml(aCalc, two ? '入れた後' : '');
+      if (bCalc) html += _ddEvalGateHtml(bCalc, two || !aCalc ? '作る前' : '');
+      /** @type {Array<{label: string, c: ReturnType<typeof _ddEvalCalc>}>} */ const cols = [];
+      if (bCalc) cols.push({ label: '作る前', c: bCalc });
+      if (aCalc) cols.push({ label: two ? '入れた後' : '現在', c: aCalc });
+      html += _ddEvalPerspHtml(cols);
+      // 項目の行
+      const bmap = /** @type {Record<string, any>} */ ({});
+      if (bf) bf.data.items.filter(_ddEvalValid).forEach((/** @type {any} */ it) => { bmap[it.id] = it; });
+      const items = (sh ? sh.sheet.items : bf.data.items).filter(_ddEvalValid);
+      const ncol = sh ? (two ? 9 : 8) : 5;
+      let head = '<tr><th></th><th>項目</th><th>実測の値</th>' + (sh ? '<th>提案</th><th>人の点</th><th>点</th>' : '') + '<th>根拠</th>' + (two ? '<th>作る前</th>' : '') + (sh ? '<th>メモ</th>' : '<th>作る前</th>') + '</tr>';
+      let body = '', cur = '';
+      items.forEach((/** @type {any} */ it) => {
+        const k = it.id[0];
+        if (k !== cur) { cur = k; const p = DD_EVAL_PERSP.find(x => x[0] === k); body += '<tr class="dd-grp"><th colspan="' + ncol + '"><kbd>' + k + '</kbd>' + _ddEsc(p ? p[1] : '') + '</th></tr>'; }
+        const h = hum && hum[it.id], anc = DD_EVAL_ANCHORS[it.id] || [];
+        const eff = sh ? _ddEvalEff(it, hum) : null;
+        const over = !!(h && _ddEvalIs012(h.score) && _ddEvalIs012(it.score) && h.score !== it.score);
+        const tip = [it.rule, it.note].filter(Boolean).join('\n');
+        const b = bmap[it.id];
+        const bScore = b && _ddEvalIs012(b.score) ? b.score : null;
+        const bCell = '<td class="dd-bf">' + _ddEvalScoreHtml(bScore) + (b && b.memo ? '<small>' + _ddEsc(b.memo) + '</small>' : '') + '</td>';
+        body += '<tr class="dd-ev-row" data-id="' + it.id + '"><th class="dd-id">' + it.id + (it.star ? '★' : '') + '</th><td class="dd-en"' + (tip ? ' title="' + _ddEsc(tip) + '"' : '') + '>' + _ddEsc(it.name) + '</td>'
+          + '<td class="dd-ev-v">' + _ddEvalValText(it) + (it.skill && _ddNum(it.value) ? ' <span class="dd-sk">' + _ddEsc(it.skill) + '</span>' : '') + '</td>';
+        if (sh) {
+          body += '<td class="dd-sgc">' + (_ddEvalIs012(it.score) ? '<span class="dd-sg dd-s' + it.score + '">' + it.score + (it.tentative ? '（仮）' : '') + '</span>' : '<span class="dd-nc0">—</span>') + '</td>'
+            + '<td class="dd-hc">' + [0, 1, 2].map(n => '<button type="button" class="dd-sc' + (h && h.score === n ? ' on' : '') + '" title="' + n + '：' + _ddEsc(anc[n] || '') + '" aria-pressed="' + (h && h.score === n ? 'true' : 'false') + '" onclick="devDashEvalSet(' + si + ',\'' + it.id + '\',' + n + ')">' + n + '</button>').join('') + '</td>'
+            + '<td class="dd-ef">' + _ddEvalScoreHtml(eff) + (over ? '<small class="dd-ov">上書き</small>' : '') + '</td>';
+        }
+        body += '<td class="dd-ba">' + _ddEsc(it.basis || '') + '</td>';
+        if (two) body += bCell;
+        if (sh) body += '<td class="dd-mc"><input type="text" class="dd-memo" maxlength="200" aria-label="' + _ddEsc(it.id + ' のメモ') + '" value="' + _ddEsc(h ? h.memo : '') + '" oninput="devDashEvalMemo(' + si + ',\'' + it.id + '\',this.value)"></td>';
+        else body += bCell;
+        body += '</tr>';
+      });
+      html += '<div class="dd-scroll"><table class="dd-ev">' + head + body + '</table></div>';
+      if (sh) html += '<div class="dd-load"><button type="button" class="dd-btn" onclick="devDashEvalSave(' + si + ')">評価シートを保存</button></div>';
+      return _ddSec('評価シート　' + _ddEsc(_ddEvalTargetLabel(target)), html);
+    }
+    /** 評価シートの節（実測のある版ごと。実測が無く、保存したファイルだけがあるときはそのファイルの節）。評価シートが何も無ければ空 */
+    function _ddEvalHtml() {
+      const sheets = _ddEvalSheets();
+      let html = '';
+      if (sheets.length) {
+        sheets.forEach((sh, si) => {
+          const same = _ddEs.before.filter(b => _ddEvalSame(b.data.target, sh.sheet.target));
+          const bf = same.length ? same[same.length - 1] : null;
+          const mismatch = _ddEs.before.filter(b => !_ddEvalSame(b.data.target, sh.sheet.target)).map(b => b.name + '（' + _ddEvalTargetLabel(b.data.target) + '）');
+          html += _ddEvalSecHtml(si, sh, bf, bf ? [] : mismatch);
+        });
+      } else {
+        _ddEs.before.forEach(b => { html += _ddEvalSecHtml(-1, null, b, []); });
+      }
       return html;
     }
 
@@ -24499,6 +24730,7 @@
 
     function devDashRender() {
       const inputs = '<div class="dd-load"><label class="dd-btn">summary.json を選ぶ（複数可）<input type="file" accept=".json,application/json" multiple onchange="devDashLoadSummary(this.files)"></label>'
+        + '<label class="dd-btn">評価シートを選ぶ<input type="file" accept=".json,application/json" onchange="devDashLoadSummary(this.files)"></label>'
         + '<label class="dd-btn">プレイ記録を選ぶ（1試合を追う）<input type="file" accept=".json,application/json" onchange="devDashLoadLog(this.files[0])"></label>'
         + ((_dd.sums.length || _dd.logs.length) ? '<button type="button" class="dd-btn" onclick="devDashClearAll()">全部消す</button>' : '') + '</div>'
         + (_dd.msg ? '<div class="dd-err">' + _ddEsc(_dd.msg) + '</div>' : '');
@@ -24545,6 +24777,17 @@
       // 1 試合の追跡：手番ごとに左辺の線と水平罫線（個々の箱にしない）
       '#dev-hub .dh-dash .dd-turn,#dev-hub .dh-dash .dd-prep{margin-top:10px;padding:2px 4px 8px 12px;border-left:2px solid var(--blue);border-bottom:1px solid var(--bg3)}#dev-hub .dh-dash .dd-prep{border-left-color:var(--bg3)}',
       '#dev-hub .dh-dash .dd-turn ul,#dev-hub .dh-dash .dd-prep ul{margin:4px 0 0;padding-left:1.1em;font-size:.8rem;line-height:1.7}',
+      // 評価シート
+      '#dev-hub .dh-dash .dd-gate{margin-top:8px;padding:6px 4px 6px 12px;border-left:2px solid var(--blue);border-bottom:1px solid var(--bg3);font-size:.82rem}#dev-hub .dh-dash .dd-gl{color:var(--t2);font-size:.74rem;margin-right:6px}#dev-hub .dh-dash .dd-g-fail{color:var(--red)}#dev-hub .dh-dash .dd-g-ok{color:var(--green)}#dev-hub .dh-dash .dd-g-pend{color:var(--yellow)}',
+      '#dev-hub .dh-dash .dd-persp{margin-top:12px}#dev-hub .dh-dash .dd-pr{display:grid;grid-template-columns:6.5em repeat(4,minmax(0,1fr));column-gap:20px;align-items:end;padding:6px 0;border-bottom:1px solid var(--bg3)}#dev-hub .dh-dash .dd-pt .dd-pr{grid-template-columns:6.5em repeat(5,minmax(0,1fr))}',
+      '#dev-hub .dh-dash .dd-ph{font-size:.72rem;font-weight:700;color:var(--t2);border-bottom:2px solid var(--bg3)}#dev-hub .dh-dash .dd-ph kbd,#dev-hub .dh-dash .dd-grp kbd{display:inline;margin:0 6px 0 0;padding:0;border:0;background:none;font:700 .78rem ' + DH_MONO + ';color:var(--t0)}#dev-hub .dh-dash .dd-pl{font-size:.74rem;color:var(--t2)}',
+      '#dev-hub .dh-dash .dd-pc{display:block}#dev-hub .dh-dash .dd-pc b{font:700 1rem ' + DH_MONO + ';color:var(--t0);font-variant-numeric:tabular-nums}#dev-hub .dh-dash .dd-pc small{display:inline;margin-left:8px}#dev-hub .dh-dash .dd-pbar{display:block;height:3px;margin-top:4px;background:var(--bg2)}#dev-hub .dh-dash .dd-pbar u{display:block;height:3px;background:var(--blue);text-decoration:none}',
+      '#dev-hub .dh-dash .dd-ev{border-collapse:collapse;font-size:.8rem;min-width:100%;margin-top:6px}#dev-hub .dh-dash .dd-ev th,#dev-hub .dh-dash .dd-ev td{padding:5px 7px;border:0;border-bottom:1px solid var(--bg3);text-align:left;vertical-align:middle}',
+      '#dev-hub .dh-dash .dd-ev tr:first-child th{font-size:.74rem;font-weight:700;color:var(--t0);border-bottom:2px solid var(--bg3);white-space:nowrap}#dev-hub .dh-dash .dd-ev .dd-grp th{padding-top:14px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:var(--t2)}#dev-hub .dh-dash .dd-ev-row:hover{background:rgba(56,139,253,.06)}',
+      '#dev-hub .dh-dash .dd-id{font:700 .8rem ' + DH_MONO + ';white-space:nowrap;color:var(--t0)}#dev-hub .dh-dash .dd-en{min-width:13em;color:var(--t0)}#dev-hub .dh-dash .dd-ev-v{font:.76rem ' + DH_MONO + ';white-space:pre;color:var(--t1);font-variant-numeric:tabular-nums}#dev-hub .dh-dash .dd-sk{color:var(--t2);font-size:.7rem}#dev-hub .dh-dash .dd-ba{color:var(--t2);font-size:.72rem;white-space:nowrap}#dev-hub .dh-dash .dd-nc0{color:var(--t2)}',
+      '#dev-hub .dh-dash .dd-s0{color:var(--red)}#dev-hub .dh-dash .dd-s1{color:var(--yellow)}#dev-hub .dh-dash .dd-s2{color:var(--green)}#dev-hub .dh-dash .dd-sgc,#dev-hub .dh-dash .dd-ef b,#dev-hub .dh-dash .dd-bf b{font:700 .84rem ' + DH_MONO + ';white-space:nowrap}#dev-hub .dh-dash .dd-ef{white-space:nowrap}#dev-hub .dh-dash .dd-ov{display:inline;margin-left:6px;color:var(--yellow);font-size:.7rem}#dev-hub .dh-dash .dd-bf small{display:block;max-width:9em;white-space:normal}',
+      '#dev-hub .dh-dash .dd-hc{white-space:nowrap}#dev-hub .dh-dash .dd-sc{width:26px;height:24px;padding:0;border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--t2);font:700 .8rem ' + DH_MONO + ';cursor:pointer}#dev-hub .dh-dash .dd-sc:hover{background:rgba(56,139,253,.1);color:var(--t0)}#dev-hub .dh-dash .dd-sc.on{background:rgba(56,139,253,.16);border-bottom-color:var(--blue);color:var(--t0)}',
+      '#dev-hub .dh-dash .dd-memo{width:100%;min-width:9em;padding:3px 0;border:0;border-bottom:1px solid var(--bg3);border-radius:0;background:none;color:var(--t0);font:inherit;font-size:.78rem}#dev-hub .dh-dash .dd-memo:focus{outline:0;border-bottom-color:var(--blue)}',
       '@media (max-width:520px){#dev-hub .dh-dash .dd-row{grid-template-columns:1fr}#dev-hub .dh-dash .dd-table{font-size:.72rem}}',
     ].join('');
 
@@ -25050,7 +25293,7 @@
       ['テスター番号', '区分', '記録のオン・オフ', '未送信の記録', '最近の記録'].forEach(s => add(s, 1, '記録'));
       ['デッキの型', '打ち方', 'CPU の都市', '先攻・後攻', '乱数の種', '使えないカード', '自分の都市を自由に選ぶ', 'CPU 戦を始める'].forEach(s => add(s, 2, 'CPU 戦'));
       ['盤面コード', '盤面から始める', '盤面の書き出し'].forEach(s => add(s, 3, '盤面'));
-      ['summary.json', 'プレイ記録', '結果のまとめ'].forEach(s => add(s, 4, '分析'));
+      ['summary.json', 'プレイ記録', '結果のまとめ', '評価シート'].forEach(s => add(s, 4, '分析'));
       DEV_JUMP_KINDS.forEach(k => add(k[1], 5, '画面'));
       ALL_CARDS.forEach(c => add(c.name, 2, 'カード（使えないカード）'));
       CITIES.forEach(c => add(c.name, 2, '都市（CPU の都市）'));
@@ -25173,14 +25416,15 @@
     }
 
     // ── ファイルの落とし込み ──
-    /** 読み込んだ JSON の種類を中身から見分ける。盤面コード・結果のまとめ・プレイ記録のどれでもなければ null
-     * @param {any} obj @returns {'board' | 'summary' | 'playlog' | null} */
+    /** 読み込んだ JSON の種類を中身から見分ける。盤面コード・結果のまとめ・評価シート・プレイ記録のどれでもなければ null
+     * @param {any} obj @returns {'board' | 'summary' | 'evalsheet' | 'playlog' | null} */
     function devHubDetectFile(obj) {
       const hasEvents = (/** @type {any} */ l) => !!l && typeof l === 'object' && Array.isArray(l.events);
       if (Array.isArray(obj)) return obj.length > 0 && obj.every(hasEvents) ? 'playlog' : null;
       if (!obj || typeof obj !== 'object') return null;
       if (obj.state && typeof obj.state === 'object') return 'board';
       if (obj.full && typeof obj.full === 'object' && obj.full.state && typeof obj.full.state === 'object') return 'board';
+      if (obj.type === 'evalsheet' && Array.isArray(obj.items)) return 'evalsheet';
       if (obj.variants && typeof obj.variants === 'object' && !Array.isArray(obj.variants)) return 'summary';
       if (Array.isArray(obj.logs) && obj.logs.some(hasEvents)) return 'playlog';
       if (Array.isArray(obj.events)) return 'playlog';
@@ -25195,10 +25439,11 @@
       /** @type {any} */ let obj;
       try { obj = JSON.parse(String(text)); } catch (e) { return fail(name + '：JSON として読めない（壊れている）。何も変えていない'); }
       const kind = devHubDetectFile(obj);
-      if (!kind) return fail(name + '：種類が分からない（盤面コード・結果のまとめ summary.json・プレイ記録のどれでもない）。何も変えていない');
+      if (!kind) return fail(name + '：種類が分からない（盤面コード・結果のまとめ summary.json・評価シート・プレイ記録のどれでもない）。何も変えていない');
       let ok = false, why = '';
       if (kind === 'board') { ok = devScenarioLoad(obj, name); why = _sc.msg; }
       else if (kind === 'summary') { ok = devDashAddSummary(name, obj); why = _dd.msg; }
+      else if (kind === 'evalsheet') { ok = devDashAddEvalSheet(name, obj); why = _dd.msg; }
       else { ok = devDashAddLog(name, obj); why = _dd.msg; }
       if (!ok) return fail(why || name + '：読み込めなかった');
       _dh.msg = '';
