@@ -9877,6 +9877,7 @@
     function pushState() {
       if (isCpuMode || (G && G._devPreview)) return;
       if (!db || !roomId || myRole === 'spectator') return;
+      plSyncPoint();
       const s = JSON.stringify({ ...G, confirm: null }); myLastPush = s;
       db.ref(`rooms/${roomId}/state`).set(s);
       db.ref(`rooms/${roomId}/lastActiveAt`).set(Date.now());
@@ -23212,13 +23213,13 @@
     // プレイ記録（開発者モード 第1段）
     // 対戦1試合の行動を、イベントの列として端末のモジュール変数に持つ。
     // ⚠️ 記録を G に入れてはならない（G は手を打つたびに丸ごと rooms/{id}/state へ送られる）。
-    // 開発者モードがオフ、またはテスター未登録の端末では、plStart が何もしないので記録は一切作られない。
+    // 開発者モードがオフ、または記録がオフの端末では、plStart が何もしないので記録は一切作られない。
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '2522845';
+    const BUILD_ID = '08c06f3';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
-    const PLAYLOG_VERSION = 2;
+    const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
     const PL_KEY_CURRENT = 'ron_playlog_current';
     const PL_KEY_RECENT = 'ron_playlog_recent';
@@ -23226,6 +23227,9 @@
     /** 記録中の試合（無ければ null） @type {any} */
     let _plCur = null;
     let _plT0 = 0;
+    /** @type {Set<string>} */ let _plSyncSeen = new Set();
+    /** @type {(() => void) | null} */ let _plGuestStop = null;
+    function _plStopGuest() { if (_plGuestStop) _plGuestStop(); }
     /** 送信待ち・未送信の記録 @type {any[]} */
     let _plPending = [];
     /** 直近に終えた記録（ゲームオーバー画面の一言の送り先） @type {{gameId: string, seat: string} | null} */
@@ -23261,14 +23265,16 @@
     /** @returns {any[]} */
     function plPending() { return _plPending; }
 
-    /** 記録を新しく始める。開発者モードがオフ・テスター未登録なら何もしない
+    /** 記録を新しく始める。開発者モードがオフ・記録がオフなら何もしない
      * @param {{gameId: string, mode: string, cpuDifficulty?: string, seat: string, build: string, opponent?: {deck: string, skill: string} | null, seed?: number | null, startFrom?: string | null, ban?: string[] | null}} meta */
     function plStart(meta) {
       if (!devLoggingOn()) return;
+      _plStopGuest();
       if (_plCur) plAbandon(); // 前の試合が終わっていなければ、未完了のまま保留リストへ移す
-      const t = devTester();
+      const t = devTesterForLog();
       _plCur = {
         v: PLAYLOG_VERSION, gameId: meta.gameId, mode: meta.mode,
+        room: meta.mode === 'cpu' ? null : (roomId || null), device: devDeviceInfo(),
         cpuDifficulty: meta.mode === 'cpu' ? (meta.cpuDifficulty || null) : null,
         opponent: meta.opponent || null, seed: meta.seed == null ? null : meta.seed,
         seat: meta.seat, build: meta.build,
@@ -23277,6 +23283,7 @@
       };
       if (meta.startFrom) _plCur.startFrom = meta.startFrom; // 盤面コードから始めた試合だけ、その番号を残す（普通の試合の記録は変わらない）
       if (meta.ban && meta.ban.length) _plCur.ban = meta.ban.slice().sort(); // 使えないカードを設定した試合だけ、その一覧を残す
+      _plSyncSeen = new Set();
       _plT0 = Date.now();
     }
 
@@ -23295,17 +23302,19 @@
      * @param {{winner: number | null, endReason: string, turns: number[], hpSum: number[]}} result */
     function plEnd(result) {
       if (!_plCur) return;
+      _plStopGuest();
       const log = _plCur;
       log.result = result; log.complete = true;
       _plCur = null; _plSaveCurrent();
       _plPending.push(log); _plSavePending(); _plNoteRecent(log, 'unsent');
       _plLastEnded = { gameId: log.gameId, seat: log.seat };
-      plUpload(log).catch(() => {}); // 送信は待たない。失敗しても画面は進み、記録は保留リストに残る
+      plUpload(log).then(() => plUploadPending()).catch(() => {}); // 送信は待たない。失敗しても画面は進み、記録は保留リストに残る
     }
 
     /** 記録中の試合を、未完了のまま保留リストへ移す（pagehide・ロビーへ戻る・次の試合の開始時に呼ぶ） */
     function plAbandon() {
       if (!_plCur) return;
+      _plStopGuest();
       const log = _plCur;
       log.complete = false; log.result = null;
       _plCur = null; _plSaveCurrent();
@@ -23357,6 +23366,7 @@
       _plLastGameId = hostId === _plLastGameId ? hostId + 'b' : hostId; // 同じミリ秒に続けて始めても前と同じ番号にしない
       try { if (db) Promise.resolve(db.ref('rooms/' + roomId + '/devGameId').set(_plLastGameId)).catch(() => {}); } catch (e) {}
       plStart({ gameId: _plLastGameId, mode: 'online', seat: myRole === 'p2' ? 'p2' : 'p1', build: BUILD_ID });
+      _plCur.hostGameId = _plLastGameId;
     }
     /** オンライン対戦の記録を始める（ゲスト）。ホストが決めた gameId を読む。ホストが開発者モードでなければ自前の番号にする
      * @returns {Promise<void>} */
@@ -23364,34 +23374,96 @@
       if (!devLoggingOn() || !roomId || myRole === 'spectator') return Promise.resolve();
       _plDrew = []; _plDeckOpenAt = 0; _plGachaCands = null; _plDevPick = false; _plRecycleEv = null;
       const rid = roomId, seat = myRole === 'p2' ? 'p2' : 'p1';
-      const begin = (/** @type {any} */ hostId) => {
-        const id = (typeof hostId === 'string' && hostId && hostId !== _plLastGameId) ? hostId : rid + '_g' + Date.now();
-        _plLastGameId = id;
-        plStart({ gameId: id, mode: 'online', seat, build: BUILD_ID });
-      };
+      const previousId = _plLastGameId, started = Date.now();
+      _plLastGameId = rid + '_g' + started;
+      plStart({ gameId: _plLastGameId, mode: 'online', seat, build: BUILD_ID });
+      const log = _plCur;
+      _plSaveCurrent();
       try {
-        if (!db) { begin(null); return Promise.resolve(); }
-        return Promise.resolve(db.ref('rooms/' + rid + '/devGameId').get()).then(snap => begin(snap && snap.val ? snap.val() : null), () => begin(null));
-      } catch (e) { begin(null); return Promise.resolve(); }
+        if (!db) return Promise.resolve();
+        const ref = db.ref('rooms/' + rid + '/devGameId');
+        let stopped = false;
+        /** @type {ReturnType<typeof setTimeout> | null} */ let timer = null;
+        const stop = () => {
+          if (stopped) return;
+          stopped = true;
+          if (timer !== null) clearTimeout(timer);
+          try { ref.off('value', receive); } catch (e) {}
+          if (_plGuestStop === stop) _plGuestStop = null;
+        };
+        const receive = (/** @type {any} */ snap) => {
+          if (stopped) return;
+          if (_plCur !== log || !log || log.room !== rid || roomId !== rid) { stop(); return; }
+          const id = snap && snap.val ? snap.val() : null;
+          if (typeof id !== 'string' || !id.startsWith(rid + '_') || id === previousId) return;
+          const stamp = /^(\d{13})b?$/.exec(id.slice(rid.length + 1));
+          if (!stamp || Math.abs(Number(stamp[1]) - started) > 120000) return;
+          log.gameId = id; log.hostGameId = id; _plLastGameId = id;
+          _plSaveCurrent(); stop();
+        };
+        _plGuestStop = stop;
+        timer = setTimeout(stop, 60000);
+        try { ref.on('value', receive, stop); } catch (e) { stop(); }
+      } catch (e) { _plStopGuest(); }
+      return Promise.resolve();
+    }
+    /** 中断したオンライン記録を戻す。保留が無ければ途中からの記録を始める */
+    function plResumeOnline() {
+      if (!devLoggingOn() || !roomId || myRole === 'spectator' || isCpuMode || _plCur || G._devPreview) return;
+      const seat = myRole === 'p2' ? 'p2' : 'p1';
+      let index = -1;
+      for (let i = _plPending.length - 1; i >= 0; i--) {
+        const log = _plPending[i];
+        if (log.mode === 'online' && log.complete === false && typeof log.gameId === 'string' && log.gameId.startsWith(roomId + '_') && log.seat === seat) { index = i; break; }
+      }
+      if (index >= 0) {
+        _plCur = _plPending.splice(index, 1)[0];
+        _plSyncSeen = new Set(_plCur.events.filter(e => e.t === 'sync').map(e => e.turn[0] + ':' + e.turn[1] + ':' + e.ap));
+        const last = _plCur.events[_plCur.events.length - 1];
+        _plT0 = Date.now() - (last && last.at || 0);
+        _plCur.resumed = (typeof _plCur.resumed === 'number' ? _plCur.resumed : 0) + 1;
+        _plLastGameId = _plCur.gameId;
+        plEvent('resume', {});
+        _plSavePending(); _plSaveCurrent();
+      } else {
+        _plLastGameId = roomId + '_r' + Date.now();
+        plStart({ gameId: _plLastGameId, mode: 'online', seat, build: BUILD_ID });
+        _plCur.midway = true;
+        _plSaveCurrent();
+      }
     }
     /** 相手側の端末が進めた状態を受け取ったときに呼ぶ（listenToState）。ガチャの開始・相手の攻撃宣言・決着を拾う
      * @param {string} prevScreen @param {any} prevAtk */
     function plOnRemoteState(prevScreen, prevAtk) {
       if (myRole === 'spectator') return;
       if (myRole === 'p2' && G.screen === 'gacha' && prevScreen !== 'gacha') plStartOnlineGuest();
-      if (!_plCur) return;
+      if (!['lobby', 'waiting_connection', 'gacha', 'gameover'].includes(G.screen)) plResumeOnline();
+      if (!_plCur) {
+        if (G.screen === 'gameover' && prevScreen !== 'gameover') plEndFromG();
+        return;
+      }
       const atk = G.pendingAttack;
       if (atk && !prevAtk && atk.attackerIdx !== myPlayerIdx) plEvent('play', { pi: atk.attackerIdx, card: atk.card.id });
       if (G.screen === 'gameover' && prevScreen !== 'gameover') plEndFromG();
+      if (_plCur) plSyncPoint();
     }
     /** 決着した盤面 G から結果を作って記録を閉じる（checkWin・finishByTurnLimit・相手の決着を受け取ったとき） */
     function plEndFromG() {
+      if (!_plCur && !isCpuMode && roomId) plResumeOnline();
       if (!_plCur) return;
       const hpSum = G.players.map((/** @type {any} */ p) => p.cityHps.reduce((/** @type {number} */ s, /** @type {number} */ h) => s + Math.max(0, h), 0));
       plEnd({ winner: G.winner == null ? null : G.winner, endReason: G._endReason || 'destroyed', turns: [G.turnsEach[0], G.turnsEach[1]], hpSum });
     }
     /** 切断オーバーレイが出たとき：記録中のデータを端末へ書いておく（試合はまだ続けられるので、保留リストへは移さない） */
     function plCheckpoint() { _plSaveCurrent(); }
+
+    function plSyncPoint() {
+      if (!_plCur || isCpuMode || G._devPreview || G.screen !== 'main' || _DSC_PENDING_KEYS.some(k => G[k] != null)) return;
+      const key = G.turnsEach[0] + ':' + G.turnsEach[1] + ':' + G.activePlayer;
+      if (_plSyncSeen.has(key)) return;
+      plEvent('sync', { ap: G.activePlayer, h: devSnapshotHash(_dsBoardOf(_dsFullState())) });
+      _plSyncSeen.add(key);
+    }
 
     // ── ガチャ・順番・デッキ・初期手札 ──
     /** @param {string[]} ids */
@@ -23454,7 +23526,7 @@
     // ═══════════════════════════════════════
     /** @param {any} log */
     function _plMeta(log) {
-      return { v: log.v, mode: log.mode, seat: log.seat, tier: log.tester.tier, testerId: log.tester.id, date: log.startedAt, complete: !!log.complete, build: log.build, opponent: log.opponent || null, seed: log.seed == null ? null : log.seed, ...(log.ban ? { ban: log.ban } : {}) };
+      return { v: log.v, room: log.room || null, device: log.device ? log.device.cls : null, mode: log.mode, seat: log.seat, tier: log.tester.tier, testerId: log.tester.id, date: log.startedAt, complete: !!log.complete, build: log.build, opponent: log.opponent || null, seed: log.seed == null ? null : log.seed, ...(log.ban ? { ban: log.ban } : {}) };
     }
     /** 記録を Firebase の playLogs/{gameId}/{seat} へ送る。成功したら保留リストから外す。db が無い・失敗・大きすぎるときは false で、保留リストに残す
      * @param {any} log @returns {Promise<boolean>} */
@@ -23463,9 +23535,19 @@
         if (!db || !log) return false;
         const json = JSON.stringify(log);
         if (json.length >= 1000000) return false; // Firebase のルールの上限。ファイル保存で逃がす
-        await db.ref('playLogs/' + log.gameId + '/' + log.seat).set({ meta: _plMeta(log), json });
+        const ref = db.ref('playLogs/' + log.gameId + '/' + log.seat);
+        let denied = false;
+        try { await ref.set({ meta: _plMeta(log), json }); }
+        catch (err) {
+          const e = /** @type {any} */ (err);
+          if (!e || !(String(e.code).toUpperCase() === 'PERMISSION_DENIED' || /permission_denied/i.test(String(e.message)))) return false;
+          denied = true;
+        }
         _plPending = _plPending.filter(l => !(l.gameId === log.gameId && l.seat === log.seat));
         _plSavePending(); _plNoteRecent(log, 'sent');
+        if (denied && log.comment) {
+          try { await db.ref('playLogs/' + log.gameId + '/' + log.seat + '/comment').set(log.comment); } catch (ignored) {}
+        }
         return true;
       } catch (e) { return false; }
     }
@@ -23481,7 +23563,7 @@
     function plDownloadData(only) {
       const logs = only ? [only] : _plPending.slice();
       if (!only && _plCur) logs.push(_plCur);
-      const t = devTester();
+      const t = devTesterForLog();
       const d = new Date();
       return { name: devFileName('playlog', (only && only.tester && only.tester.id) || (t ? t.id : 'unknown'), d), text: JSON.stringify({ v: PLAYLOG_VERSION, exportedAt: d.toISOString(), logs }) };
     }
@@ -23550,6 +23632,21 @@
     const DEV_KEY_ON = 'ron_dev_on';
     const DEV_KEY_TESTER = 'ron_dev_tester';
 
+    /** @returns {{cls: string, os: string, browser: string, standalone: boolean}} */
+    function devDeviceInfo() {
+      const fallback = { cls: 'other', os: 'other', browser: 'other', standalone: false };
+      try {
+        if (typeof window === 'undefined' || typeof navigator === 'undefined' || typeof window.matchMedia !== 'function') return fallback;
+        const ua = navigator.userAgent || '';
+        const os = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) ? 'ios'
+          : /Android/i.test(ua) ? 'android' : /Windows/i.test(ua) ? 'windows' : /Macintosh|Mac OS X/i.test(ua) ? 'mac' : 'other';
+        const browser = / Line\//i.test(ua) ? 'line' : /SamsungBrowser/i.test(ua) ? 'samsung' : /Edg\//i.test(ua) ? 'edge'
+          : /Firefox\/|FxiOS/i.test(ua) ? 'firefox' : /Chrome\/|CriOS/i.test(ua) ? 'chrome' : /Safari\//i.test(ua) ? 'safari' : 'other';
+        return { cls: window.matchMedia('(pointer: coarse)').matches ? 'mobile' : 'desktop', os, browser,
+          standalone: window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && navigator.standalone === true) };
+      } catch (e) { return fallback; }
+    }
+
     /** @param {{protocol?: string, hostname?: string} | null | undefined} loc */
     function devModeAvailable(loc) {
       if (!loc) return false;
@@ -23593,8 +23690,21 @@
       try { if (on) localStorage.removeItem(DEV_KEY_REC); else localStorage.setItem(DEV_KEY_REC, '0'); } catch (e) {}
       devApplyBand();
     }
-    /** 記録を取る端末か：開発者モードがオンで、テスター登録があり、記録がオン */
-    function devLoggingOn() { return devModeOn() && devTester() !== null && devRecOn(); }
+    /** 記録を取る端末か：開発者モードと記録がオン */
+    function devLoggingOn() { return devModeOn() && devRecOn(); }
+    let _devDeviceId = '';
+    function devDeviceId() {
+      if (_devDeviceId) return _devDeviceId;
+      try { _devDeviceId = localStorage.getItem('ron_dev_device') || ''; } catch (e) {}
+      if (!/^D-[A-Z0-9]{4}$/.test(_devDeviceId)) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        _devDeviceId = 'D-';
+        for (let i = 0; i < 4; i++) _devDeviceId += chars[Math.floor(Math.random() * chars.length)];
+        try { localStorage.setItem('ron_dev_device', _devDeviceId); } catch (e) {}
+      }
+      return _devDeviceId;
+    }
+    function devTesterForLog() { return devTester() || { id: devDeviceId(), tier: '未登録' }; }
     /** 保存するファイルの名前：ron_<種類>_<番号か内容>_<YYYYMMDD-HHmm>.json（例：ron_board_a3f9c2d1_20261024-2130.json）
      * @param {string} kind board・playlog・summary など @param {string} idOrLabel @param {Date | number} [date] 省略すると今 */
     function devFileName(kind, idOrLabel, date) {
@@ -25171,15 +25281,15 @@
 
     // ── 状態の表示（ステータスバー・試合中の帯） ──
     function devHubStatusHtml() {
-      const t = devTester();
+      const t = devLoggingOn() ? devTesterForLog() : null;
       const rec = devLoggingOn() && t ? '記録中 ' + _escHtml(t.id) + '（' + _escHtml(t.tier) + '）' : '記録なし';
       if (_dhNarrow()) return '<span class="dh-pill">DEV オン</span><span>' + rec + '</span><span>未送信 ' + plPending().length + ' 件</span>';
       return '<span class="dh-pill">開発者モード オン</span><span>' + rec + '</span><span>未送信 ' + plPending().length + ' 件</span><span>ビルド ' + _escHtml(BUILD_ID) + '</span><span class="dh-grow"></span><label class="dh-file">ファイルをここに落とせます（押して選ぶ）<input type="file" multiple accept=".json,application/json" onchange="devHubLoadFiles(this.files)"></label>';
     }
     /** 試合中の上の端に出す帯の文言 */
     function devBandText() {
-      const t = devTester();
-      return 'DEV｜' + (devLoggingOn() && t ? '記録中 ' + t.id : '記録なし') + '｜' + DEV_KEYS.hub + ' でハブ';
+      const t = devLoggingOn() ? devTesterForLog() : null;
+      return 'DEV｜' + (devLoggingOn() && t ? '記録中 ' + t.id + (devTester() ? '' : '（' + t.tier + '）') : '記録なし') + '｜' + DEV_KEYS.hub + ' でハブ';
     }
     /** オンのあいだ、画面の上の端に細い帯を重ねる（ゲームの画面を押し下げない）。押すとハブが開く */
     function devApplyBand() {
