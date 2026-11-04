@@ -23217,7 +23217,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '6b7f2a1';
+    const BUILD_ID = '2e6b555';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -24310,7 +24310,7 @@
     // 画面は開発者ハブの作業面（「4 分析」）に入る。ゲームの G・render()・同期には触れない。
     // グラフは SVG を自前で描く（外部ライブラリなし）。入口は開発者ハブの「分析」の項目だけ。
     // ═══════════════════════════════════════
-    /** @type {{sums: Array<{name: string, data: any}>, sel: number, logs: Array<{name: string, log: any}>, logSel: number, msg: string, sortKey: number, sortDesc: boolean, cell: number[] | null, cellKind: string}} */
+    /** @type {{sums: Array<{name: string, data: any}>, sel: number, logs: Array<{name: string, log: any, seat?: string, archive?: any}>, logSel: number, msg: string, sortKey: number, sortDesc: boolean, cell: number[] | null, cellKind: string}} */
     let _dd = { sums: [], sel: 0, logs: [], logSel: 0, msg: '', sortKey: 0, sortDesc: true, cell: null, cellKind: '' };
     /** ティアのランクごとの色（バーとランクの文字で同じ。色だけに頼らず、ランクの文字を必ず添える） */
     const DD_TIER_COLOR = /** @type {Record<string, string>} */ ({ S: 'var(--yellow)', A: 'var(--green)', B: 'var(--blue)', C: 'var(--t2)', D: 'var(--red)' });
@@ -24395,6 +24395,13 @@
     }
     /** プレイ記録の中身を足す。1試合の記録・{v, logs:[...]}・配列のどれでも読む @param {string} name @param {any} data */
     function devDashAddLog(name, data) {
+      if (data && data.v === 1 && data.seats && !Array.isArray(data.events)) {
+        const seats = ['p1', 'p2'].filter(seat => data.seats[seat] && Array.isArray(data.seats[seat].events));
+        if (seats.length) {
+          _dd.logs = seats.map(seat => ({ name, seat, archive: data, log: data.seats[seat] }));
+          _dd.logSel = 0; _dd.msg = ''; _ddRefresh(); return true;
+        }
+      }
       /** @type {any[]} */ const list = Array.isArray(data) ? data : (data && Array.isArray(data.logs) ? data.logs : (data && Array.isArray(data.events) ? [data] : []));
       const ok = list.filter(l => l && Array.isArray(l.events));
       if (!ok.length) { _dd.msg = name + '：プレイ記録の形ではありません'; _ddRefresh(); return false; }
@@ -24441,6 +24448,57 @@
     // ── 各部の HTML ──
     /** @param {string} title @param {string} body */
     function _ddSec(title, body) { return '<section class="dd-sec"><h3>' + title + '</h3>' + body + '</section>'; }
+
+    /** @param {any} d */
+    function _ddDevice(d) { return d && d.cls && d.os && d.browser ? [d.cls, d.os, d.browser].join('/') + (d.standalone ? '/app' : '') : 'unknown'; }
+    /** @param {any[]} issues */
+    function _ddIssues(issues) { return (issues || []).map(i => i.type + (Array.isArray(i.turn) ? ' ' + i.turn.join('/') : '')).join('、'); }
+    /** @param {any} at */
+    function _ddPullTime(at) {
+      const d = new Date(at), ms = d.getTime();
+      if (!at || !Number.isFinite(ms)) return '—';
+      const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
+      const mins = Math.max(0, Math.floor((Date.now() - ms) / 60000));
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + '（' + (mins < 60 ? mins + '分前' : mins < 1440 ? Math.floor(mins / 60) + '時間前' : Math.floor(mins / 1440) + '日前') + '）';
+    }
+    /** @param {any} c */
+    function _ddCollectionHtml(c) {
+      if (!c || typeof c !== 'object') return '';
+      const statuses = ['both', 'oneSide', 'conflict', 'midway', 'cpu'];
+      const facts = [['最後に取り出した時刻', _ddPullTime(c.lastPullAt)], ['試合', c.games], ['待ち', (c.waiting || 0) + '席'], ['読めない', c.broken], ['合わせ失敗', c.mergeFailed], ['Firebase から消した', c.removedTotal]];
+      let body = '<div class="dd-facts">' + facts.map(x => '<span><small>' + x[0] + '</small> <b>' + _ddEsc(x[1] == null ? '—' : x[1]) + '</b></span>').join('') + '</div>';
+      body += _ddBars(statuses.map(name => ({ name, v: (c.byStatus || {})[name] || 0, lo: null, hi: null, text: String((c.byStatus || {})[name] || 0) })), null, 'var(--blue)', false);
+      const devices = Object.keys(c.byDevice || {}).sort();
+      body += '<div class="dd-scroll"><table class="dd-table dd-device"><tr><th>端末の種類</th>' + ['席', '完了', 'both', 'oneSide', 'conflict', 'midway'].map(x => '<th>' + x + '</th>').join('') + '</tr>' + devices.map(name => {
+        const d = c.byDevice[name], st = (c.byDeviceStatus || {})[name] || {};
+        return '<tr><th>' + _ddEsc(name) + '</th>' + [d.seats, d.complete, st.both, st.oneSide, st.conflict, st.midway].map(n => '<td>' + (_ddNum(n) ? n : 0) + '</td>').join('') + '</tr>';
+      }).join('') + '</table></div>';
+      body += '<h4>テスターごとの試合数</h4><div class="dd-counts">' + Object.keys(c.byTester || {}).sort().map(k => '<span>' + _ddEsc(k) + ' <b>' + _ddEsc(c.byTester[k]) + '</b></span>').join('') + '</div>';
+      const last = new Date(c.lastPullAt), end = Number.isFinite(last.getTime()) ? last.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+      const begin = new Date(end + 'T00:00:00Z'); begin.setUTCDate(begin.getUTCDate() - 13);
+      body += '<h4>日ごとの試合数</h4><div class="dd-counts">' + Object.keys(c.byDay || {}).sort().filter(k => k >= begin.toISOString().slice(0, 10) && k <= end).map(k => '<span>' + _ddEsc(k) + ' <b>' + _ddEsc(c.byDay[k]) + '</b></span>').join('') + '</div>';
+      let html = _ddSec('集まり具合', body);
+      if (Array.isArray(c.problems) && c.problems.length) {
+        const rows = c.problems.map((/** @type {any} */ p) => '<tr' + (p.status === 'conflict' ? ' class="dd-conflict"' : '') + '>' + [String(p.startedAt || '').slice(0, 10), p.gameId, p.status, [_ddIssues(p.issues), p.mergeFailed ? 'mergeFailed' : ''].filter(Boolean).join('、'), (p.testers || []).join('、'), (p.devices || []).join('、'), p.file].map(x => '<td>' + _ddEsc(x) + '</td>').join('') + '</tr>').join('');
+        html += _ddSec('不一致', '<div class="dd-scroll"><table class="dd-table dd-problems"><tr>' + ['日付', '試合', 'status', '食い違い', 'テスター', '端末', 'ファイル'].map(x => '<th>' + x + '</th>').join('') + '</tr>' + rows + '</table></div>');
+      }
+      return html;
+    }
+    /** 表示中の版と同名の版、別名のファイルでは先頭の版を比較する。 @param {string} key */
+    function _ddDecisionsHtml(key) {
+      /** @type {Array<{name: string, file: string, d: any}>} */ const rows = [];
+      _dd.sums.forEach(s => {
+        const variants = s.data.variants || {}, v = variants[key] || variants[Object.keys(variants)[0]] || {};
+        Object.keys(v.decisions || {}).forEach(name => rows.push({ name, file: s.name, d: v.decisions[name] }));
+      });
+      if (!rows.length) return '';
+      rows.sort((a, b) => Number(b.name.startsWith('human/')) - Number(a.name.startsWith('human/')) || a.name.localeCompare(b.name) || a.file.localeCompare(b.file));
+      const body = rows.map((r, i) => {
+        const d = r.d, t = d.thinkMs, split = i > 0 && rows[i - 1].name.startsWith('human/') && !r.name.startsWith('human/');
+        return '<tr' + (split ? ' class="dd-cpu-start"' : '') + '><th>' + _ddEsc(r.name) + '<small>' + _ddEsc(r.file) + '</small></th>' + [d.seats, d.turns, _ddMean(d.playsPerTurn, 2), _ddRate(d.passRate), _ddRate(d.respondRate), t ? _ddFix(t.median, 0) + ' ms（' + _ddFix(t.q1, 0) + '–' + _ddFix(t.q3, 0) + '）  n=' + t.n : '—'].map(x => '<td>' + _ddEsc(x) + '</td>').join('') + '</tr>';
+      }).join('');
+      return _ddSec('人の打ち方', '<div class="dd-scroll"><table class="dd-table"><tr>' + ['打ち方', '席', '手番', '1手番の枚数', '使える札を残して終えた率', '対応した率', '迷った時間の中央値（q1–q3）'].map(x => '<th>' + x + '</th>').join('') + '</tr>' + body + '</table></div>');
+    }
 
     /** @param {Array<{file: string, key: string, v: any, data: any}>} flat */
     function _ddCompareHtml(flat) {
@@ -24553,7 +24611,7 @@
     /** 読み込んだ版の詳細 */
     function _ddSummariesHtml() {
       const flat = _ddFlat();
-      if (!flat.length) return _ddEvalHtml();
+      if (!flat.length) return _dd.sums.map(s => _ddCollectionHtml(s.data.collection)).join('') + _ddEvalHtml();
       if (_dd.sel >= flat.length || _dd.sel < 0) _dd.sel = 0;
       const f = flat[_dd.sel], v = f.v;
       let html = '';
@@ -24562,6 +24620,7 @@
         html += '<div class="dd-notice"><b>注意</b>　' + _ddEsc(d.notice || '（この summary.json には注意の文がありません）') + '<div class="dd-meta">' + _ddEsc(s.name) + (e.name ? '：実験 ' + _ddEsc(e.name) : '') + (_ddNum(e.games) ? '、' + e.games + '試合' : '') + (_ddNum(e.seed) ? '、種 ' + e.seed : '') + (e.startFrom ? '、盤面 #' + _ddEsc(e.startFrom) + ' から' + (e.reshuffleDecks ? '（山札は混ぜ直し）' : '') : '') + (Array.isArray(e.ban) && e.ban.length ? '、使えないカード ' + e.ban.map((/** @type {any} */ id) => _ddEsc(_ddCardName(String(id)))).join('・') : '') + '</div>'
           + (Array.isArray(d.notComputedForHuman) && d.notComputedForHuman.length ? '<div class="dd-meta dd-nc">未計算：' + d.notComputedForHuman.map(_ddEsc).join('、') + '</div>' : '') + '</div>';
       });
+      html += _dd.sums.map(s => _ddCollectionHtml(s.data.collection)).join('') + _ddDecisionsHtml(f.key);
       html += _ddEvalHtml();
       html += _ddCompareHtml(flat);
       const applied = f.data.applied && f.data.applied[f.key] ? Object.keys(f.data.applied[f.key]).map(k => k + '：' + _ddEsc(f.data.applied[f.key][k] && f.data.applied[f.key][k].from) + ' → ' + _ddEsc(f.data.applied[f.key][k] && f.data.applied[f.key][k].to)).join('、') : '';
@@ -24826,13 +24885,15 @@
     function _ddLogHtml() {
       if (!_dd.logs.length) return '';
       if (_dd.logSel >= _dd.logs.length || _dd.logSel < 0) _dd.logSel = 0;
-      const L = _dd.logs[_dd.logSel].log;
-      const me = L.mode === 'online' || L.mode === 'cpu' ? (L.seat === 'p2' ? 1 : 0) : null;
+      const entry = _dd.logs[_dd.logSel], L = entry.log, archive = entry.archive;
+      const me = L.seat !== 'both' && (L.mode === 'online' || L.mode === 'cpu') ? ((L.seat || entry.seat) === 'p2' ? 1 : 0) : null;
       let html = '';
-      if (_dd.logs.length > 1) html += '<div class="dh-seg dd-seg">' + _dd.logs.map((l, i) => '<button type="button" class="dh-segbtn' + (i === _dd.logSel ? ' on' : '') + '" onclick="devDashPickGame(' + i + ')">' + (i + 1) + '試合目</button>').join('') + '</div>';
+      if (_dd.logs.length > 1 || archive) html += '<div class="dh-seg dd-seg">' + _dd.logs.map((l, i) => '<button type="button" class="dh-segbtn' + (i === _dd.logSel ? ' on' : '') + '" onclick="devDashPickGame(' + i + ')">' + (l.seat || (i + 1) + '試合目') + '</button>').join('') + '</div>';
       const res = L.result;
-      html += '<p class="dd-detail">記録 v' + _ddEsc(L.v) + '、' + _ddEsc(L.gameId) + '、' + _ddEsc(L.mode) + (L.cpuDifficulty ? '（' + _ddEsc(L.cpuDifficulty) + '）' : '') + '、記録した席 ' + _ddEsc(L.seat) + '、ビルド ' + _ddEsc(L.build)
-        + (L.opponent ? '、相手 ' + _ddEsc(L.opponent.deck) + '/' + _ddEsc(L.opponent.skill) : '') + (_ddNum(L.seed) ? '、種 ' + L.seed : '') + (L.tester && L.tester.id ? '、テスター ' + _ddEsc(L.tester.id) : '') + '<br>'
+      html += '<p class="dd-detail">記録 v' + _ddEsc(L.v) + '、' + _ddEsc(L.gameId || (archive && archive.gameId)) + '、' + _ddEsc(L.mode) + (L.cpuDifficulty ? '（' + _ddEsc(L.cpuDifficulty) + '）' : '') + '、記録した席 ' + _ddEsc(L.seat || entry.seat) + '、ビルド ' + _ddEsc(L.build)
+        + (archive ? '、status ' + _ddEsc(archive.status) + '、' + _ddEsc(_ddIssues(archive.issues)) : '')
+        + (L.seat === 'both' ? '、' + ['p1', 'p2'].map(seat => { const s = (L.seats || {})[seat] || {}; return seat + ' ' + _ddEsc(s.tester && s.tester.id) + ' ' + _ddEsc(_ddDevice(s.device)); }).join('、') : '')
+        + (L.opponent ? '、相手 ' + _ddEsc(L.opponent.deck) + '/' + _ddEsc(L.opponent.skill) : '') + (_ddNum(L.seed) ? '、種 ' + L.seed : '') + (L.seat !== 'both' && L.tester && L.tester.id ? '、テスター ' + _ddEsc(L.tester.id) : '') + '<br>'
         + (res ? '結果：席' + _ddEsc(res.winner) + ' の勝ち（' + _ddEsc(res.endReason || '全壊') + '）、ターン ' + _ddEsc(Array.isArray(res.turns) ? res.turns.join(' / ') : '—') + '、残り HP 合計 ' + _ddEsc(Array.isArray(res.hpSum) ? res.hpSum.join(' / ') : '—') : '結果の記録なし（未完了）')
         + (L.comment ? '<br>一言：' + _ddEsc(L.comment) : '') + '</p>';
       const evs = /** @type {any[]} */ (L.events);
@@ -24871,6 +24932,8 @@
     // 数字の行の空白 2 つは詰めずに見せる（61.2%  n=799  95%CI 57.8–64.5）
     // 見た目（spec §6）：節は上の罫線 1 本、表は見出し太字＋下罫線・行は 1 本の罫線・乗せた行を薄く塗る、数字は右寄せ・等幅。箱・角丸・影なし
     const DD_CSS = [
+      '#dev-hub .dh-dash .dd-facts,#dev-hub .dh-dash .dd-counts{display:flex;flex-wrap:wrap;gap:8px 20px;margin:6px 0 12px;font-size:.8rem}#dev-hub .dh-dash .dd-facts small{display:inline;font-size:.72rem}#dev-hub .dh-dash .dd-facts b,#dev-hub .dh-dash .dd-counts b,#dev-hub .dh-dash .dd-num{font-family:' + DH_MONO + ';font-variant-numeric:tabular-nums}',
+      '#dev-hub .dh-dash .dd-device th:not(:first-child),#dev-hub .dh-dash .dd-device td:not(:first-child){text-align:center}#dev-hub .dh-dash .dd-problems th,#dev-hub .dh-dash .dd-problems td{text-align:left}#dev-hub .dh-dash .dd-conflict td{background:rgba(248,81,73,.08)}#dev-hub .dh-dash .dd-cpu-start th,#dev-hub .dh-dash .dd-cpu-start td{border-top:3px solid var(--bg3)}',
       '#dev-hub .dh-dash{color:var(--t1)}',
       '#dev-hub .dh-dash .dd-load{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px}',
       '#dev-hub .dh-dash .dd-btn{display:inline-flex;align-items:center;height:34px;padding:0 14px;border:1px solid var(--bg3);border-radius:0;background:none;color:var(--t0);font-size:.82rem;cursor:pointer;font-family:inherit}#dev-hub .dh-dash .dd-btn:hover{background:rgba(56,139,253,.1);border-color:var(--blue)}',
