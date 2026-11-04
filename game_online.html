@@ -23217,7 +23217,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '2e6b555';
+    const BUILD_ID = '49c6cf7';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -24407,6 +24407,25 @@
       if (!ok.length) { _dd.msg = name + '：プレイ記録の形ではありません'; _ddRefresh(); return false; }
       _dd.logs = ok.map(l => ({ name, log: l })); _dd.logSel = 0; _dd.msg = ''; _ddRefresh(); return true;
     }
+    async function devDashLoadShared() {
+      if (typeof db === 'undefined' || !db) { _dd.msg = 'Firebase につながっていません'; _ddRefresh(); return; }
+      try {
+        const snap = await db.ref('playLogsShared/latest').once('value');
+        const data = snap.val();
+        if (!data) { _dd.msg = 'まだ上げられていません'; _ddRefresh(); return; }
+        // 全件を先に解析し、壊れた JSON があれば読み込みを止める。
+        const summary = JSON.parse(data.summary);
+        const games = Object.values(data.games || {}).map(value => JSON.parse(value));
+        games.sort((a, b) => (Date.parse(b.startedAt) || 0) - (Date.parse(a.startedAt) || 0));
+        const date = new Date(data.publishedAt);
+        if (!Number.isFinite(date.getTime())) throw new Error('日時が不正です');
+        const pad = n => String(n).padStart(2, '0');
+        const stamp = date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+        if (!devDashAddSummary('最新 ' + stamp, summary)) throw new Error('集計が不正です');
+        if (games.length && !devDashAddLog('最新', games)) throw new Error('記録が不正です');
+      } catch (e) { _dd.msg = '最新を読めませんでした'; }
+      _ddRefresh();
+    }
     /** @param {any} file */
     function _ddReadText(file) {
       if (file && typeof file.text === 'function') return file.text();
@@ -24920,7 +24939,7 @@
     }
 
     function devDashRender() {
-      const inputs = '<div class="dd-load"><label class="dd-btn">summary.json を選ぶ（複数可）<input type="file" accept=".json,application/json" multiple onchange="devDashLoadSummary(this.files)"></label>'
+      const inputs = '<div class="dd-load"><button class="dd-btn" onclick="devDashLoadShared()">最新を読む</button><label class="dd-btn">summary.json を選ぶ（複数可）<input type="file" accept=".json,application/json" multiple onchange="devDashLoadSummary(this.files)"></label>'
         + '<label class="dd-btn">評価シートを選ぶ<input type="file" accept=".json,application/json" onchange="devDashLoadSummary(this.files)"></label>'
         + '<label class="dd-btn">プレイ記録を選ぶ（1試合を追う）<input type="file" accept=".json,application/json" onchange="devDashLoadLog(this.files[0])"></label>'
         + ((_dd.sums.length || _dd.logs.length) ? '<button type="button" class="dd-btn" onclick="devDashClearAll()">全部消す</button>' : '') + '</div>'
