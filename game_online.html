@@ -4689,6 +4689,7 @@
       box-shadow:0 0 24px rgba(63,185,80,.25);
     }
     .reconnect-title { font-size:1rem; font-weight:700; color:var(--green); }
+    .reconnect-sub { font-size:.8rem; color:var(--t2); }
 
     /* IntersectionObserver — fadeInUp on scroll */
     .go-inview {
@@ -12783,7 +12784,6 @@
     <div class="go-inview go-turns-badge">総手番数 <strong>${totalTurns}</strong></div>
     ${cityBadgesHtml}
     ${vsDeckResultHtml()}
-    ${devCommentHtml()}
     ${karte}
     ${jinzaiKarte}
     ${terrainStat}
@@ -23217,7 +23217,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '08c06f3';
+    const BUILD_ID = '6b7f2a1';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -23266,9 +23266,11 @@
     function plPending() { return _plPending; }
 
     /** 記録を新しく始める。開発者モードがオフ・記録がオフなら何もしない
-     * @param {{gameId: string, mode: string, cpuDifficulty?: string, seat: string, build: string, opponent?: {deck: string, skill: string} | null, seed?: number | null, startFrom?: string | null, ban?: string[] | null}} meta */
+     * @param {{gameId: string, mode: string, cpuDifficulty?: string, seat: string, build: string, opponent?: {deck: string, skill: string} | null, seed?: number | null, startFrom?: string | null, ban?: string[] | null, hostDriven?: boolean}} meta */
     function plStart(meta) {
-      if (!devLoggingOn()) return;
+      const logging = devLoggingOn();
+      const hostDriven = !logging && meta.hostDriven === true && meta.mode === 'online' && !isCpuMode && myRole !== 'spectator' && devHostRecAllowed();
+      if (!logging && !hostDriven) return;
       _plStopGuest();
       if (_plCur) plAbandon(); // 前の試合が終わっていなければ、未完了のまま保留リストへ移す
       const t = devTesterForLog();
@@ -23281,10 +23283,12 @@
         tester: { id: t ? t.id : '', tier: t ? t.tier : '' },
         startedAt: _plDate(), events: [], result: null, complete: false, comment: '',
       };
+      if (hostDriven) _plCur.hostDriven = true;
       if (meta.startFrom) _plCur.startFrom = meta.startFrom; // 盤面コードから始めた試合だけ、その番号を残す（普通の試合の記録は変わらない）
       if (meta.ban && meta.ban.length) _plCur.ban = meta.ban.slice().sort(); // 使えないカードを設定した試合だけ、その一覧を残す
       _plSyncSeen = new Set();
       _plT0 = Date.now();
+      if (typeof devApplyBand === 'function') devApplyBand();
     }
 
     /** 今の記録にイベントを足す。記録が無い、または画面へ飛ぶための仮の盤面のときは何もしない
@@ -23306,9 +23310,27 @@
       const log = _plCur;
       log.result = result; log.complete = true;
       _plCur = null; _plSaveCurrent();
+      if (typeof devApplyBand === 'function') devApplyBand();
       _plPending.push(log); _plSavePending(); _plNoteRecent(log, 'unsent');
       _plLastEnded = { gameId: log.gameId, seat: log.seat };
-      plUpload(log).then(() => plUploadPending()).catch(() => {}); // 送信は待たない。失敗しても画面は進み、記録は保留リストに残る
+      const showSent = typeof document !== 'undefined' && !(G && G._devPreview);
+      plUpload(log).then(ok => {
+        if (showSent && !(G && G._devPreview)) plShowSentPopup(ok);
+        return plUploadPending();
+      }).catch(() => {}); // 送信は待たない。失敗しても画面は進み、記録は保留リストに残る
+    }
+
+    /** @param {boolean} ok */
+    function plShowSentPopup(ok) {
+      if (typeof document === 'undefined') return;
+      const old = document.getElementById('playlog-popup'); if (old) old.remove();
+      const pop = document.createElement('div'); pop.id = 'playlog-popup'; pop.className = 'reconnect-popup';
+      const icon = ok
+        ? '<svg style="width:52px;height:52px;color:var(--green)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+        : '<svg style="width:52px;height:52px;color:var(--yellow)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>';
+      pop.innerHTML = '<div class="reconnect-box">' + icon + '<div class="reconnect-title"' + (ok ? '' : ' style="color:var(--yellow)"') + '>' + (ok ? '記録を送りました' : '記録を送れませんでした') + '</div>' + (ok ? '' : '<div class="reconnect-sub">次の試合のあとに送ります</div>') + '</div>';
+      document.body.appendChild(pop);
+      setTimeout(() => { if (pop.parentNode) pop.remove(); }, 3200);
     }
 
     /** 記録中の試合を、未完了のまま保留リストへ移す（pagehide・ロビーへ戻る・次の試合の開始時に呼ぶ） */
@@ -23318,6 +23340,7 @@
       const log = _plCur;
       log.complete = false; log.result = null;
       _plCur = null; _plSaveCurrent();
+      if (typeof devApplyBand === 'function') devApplyBand();
       _plPending.push(log); _plSavePending(); _plNoteRecent(log, 'unsent');
     }
 
@@ -23371,14 +23394,18 @@
     /** オンライン対戦の記録を始める（ゲスト）。ホストが決めた gameId を読む。ホストが開発者モードでなければ自前の番号にする
      * @returns {Promise<void>} */
     function plStartOnlineGuest() {
-      if (!devLoggingOn() || !roomId || myRole === 'spectator') return Promise.resolve();
+      const logging = devLoggingOn();
+      if ((!logging && !devHostRecAllowed()) || !roomId || myRole === 'spectator' || isCpuMode) return Promise.resolve();
+      _plStopGuest();
       _plDrew = []; _plDeckOpenAt = 0; _plGachaCands = null; _plDevPick = false; _plRecycleEv = null;
       const rid = roomId, seat = myRole === 'p2' ? 'p2' : 'p1';
       const previousId = _plLastGameId, started = Date.now();
-      _plLastGameId = rid + '_g' + started;
-      plStart({ gameId: _plLastGameId, mode: 'online', seat, build: BUILD_ID });
+      if (logging) {
+        _plLastGameId = rid + '_g' + started;
+        plStart({ gameId: _plLastGameId, mode: 'online', seat, build: BUILD_ID });
+        _plSaveCurrent();
+      }
       const log = _plCur;
-      _plSaveCurrent();
       try {
         if (!db) return Promise.resolve();
         const ref = db.ref('rooms/' + rid + '/devGameId');
@@ -23393,12 +23420,17 @@
         };
         const receive = (/** @type {any} */ snap) => {
           if (stopped) return;
-          if (_plCur !== log || !log || log.room !== rid || roomId !== rid) { stop(); return; }
+          if (_plCur !== log || (logging && (!log || log.room !== rid)) || roomId !== rid || myRole !== seat || isCpuMode) { stop(); return; }
           const id = snap && snap.val ? snap.val() : null;
           if (typeof id !== 'string' || !id.startsWith(rid + '_') || id === previousId) return;
           const stamp = /^(\d{13})b?$/.exec(id.slice(rid.length + 1));
           if (!stamp || Math.abs(Number(stamp[1]) - started) > 120000) return;
-          log.gameId = id; log.hostGameId = id; _plLastGameId = id;
+          if (!logging) {
+            stop();
+            plStart({ gameId: id, mode: 'online', seat, build: BUILD_ID, hostDriven: true });
+            if (!_plCur) return;
+          }
+          _plCur.gameId = id; _plCur.hostGameId = id; _plLastGameId = id;
           _plSaveCurrent(); stop();
         };
         _plGuestStop = stop;
@@ -23409,14 +23441,16 @@
     }
     /** 中断したオンライン記録を戻す。保留が無ければ途中からの記録を始める */
     function plResumeOnline() {
-      if (!devLoggingOn() || !roomId || myRole === 'spectator' || isCpuMode || _plCur || G._devPreview) return;
+      const logging = devLoggingOn();
+      if ((!logging && !devHostRecAllowed()) || !roomId || myRole === 'spectator' || isCpuMode || _plCur || G._devPreview) return;
       const seat = myRole === 'p2' ? 'p2' : 'p1';
       let index = -1;
       for (let i = _plPending.length - 1; i >= 0; i--) {
         const log = _plPending[i];
-        if (log.mode === 'online' && log.complete === false && typeof log.gameId === 'string' && log.gameId.startsWith(roomId + '_') && log.seat === seat) { index = i; break; }
+        if ((logging || log.hostDriven === true) && log.mode === 'online' && log.complete === false && typeof log.gameId === 'string' && log.gameId.startsWith(roomId + '_') && log.seat === seat) { index = i; break; }
       }
       if (index >= 0) {
+        _plStopGuest();
         _plCur = _plPending.splice(index, 1)[0];
         _plSyncSeen = new Set(_plCur.events.filter(e => e.t === 'sync').map(e => e.turn[0] + ':' + e.turn[1] + ':' + e.ap));
         const last = _plCur.events[_plCur.events.length - 1];
@@ -23425,7 +23459,9 @@
         _plLastGameId = _plCur.gameId;
         plEvent('resume', {});
         _plSavePending(); _plSaveCurrent();
+        if (typeof devApplyBand === 'function') devApplyBand();
       } else {
+        if (!logging) return;
         _plLastGameId = roomId + '_r' + Date.now();
         plStart({ gameId: _plLastGameId, mode: 'online', seat, build: BUILD_ID });
         _plCur.midway = true;
@@ -23692,6 +23728,7 @@
     }
     /** 記録を取る端末か：開発者モードと記録がオン */
     function devLoggingOn() { return devModeOn() && devRecOn(); }
+    function devHostRecAllowed() { return devModeAvailable(window.location) && devRecOn(); }
     let _devDeviceId = '';
     function devDeviceId() {
       if (_devDeviceId) return _devDeviceId;
@@ -23971,23 +24008,6 @@
     }
     /** @param {number} i DEV_TIERS の添字 */
     function devUiSetTier(i) { _devUiTier = DEV_TIERS[i] || DEV_TIERS[0]; devUiApplyTester(); }
-    // ── ゲームオーバー画面の「意識したこと（任意）」 ──
-    let _devCommentDraft = '';
-    let _devCommentSentFor = '';
-    /** @param {string} v */
-    function devCommentInput(v) { _devCommentDraft = v; }
-    function devCommentSend() {
-      const le = plLastEnded(); if (!le) return;
-      plSetComment(le.gameId, _devCommentDraft);
-      _devCommentSentFor = le.gameId; render();
-    }
-    function devCommentHtml() {
-      const le = plLastEnded();
-      if (!devLoggingOn() || !le || G._devPreview) return '';
-      if (_devCommentSentFor === le.gameId) return '<div class="go-inview go-stats-table go-deck-save"><div class="go-stats-section-header go-karte-header">意識したこと</div><div style="padding:10px 14px;font-size:.82rem;color:var(--t1)">送りました</div></div>';
-      return '<div class="go-inview go-stats-table go-deck-save"><div class="go-stats-section-header go-karte-header">意識したこと（任意）</div><div style="display:flex;gap:8px;padding:10px 14px"><input type="text" maxlength="200" value="' + _escHtml(_devCommentDraft) + '" oninput="devCommentInput(this.value)" placeholder="一言" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg1);color:var(--t0);font-size:.85rem"><button type="button" class="go-deck-mini go-deck-mini-green" onclick="devCommentSend()">' + uiIcoUpload(13) + ' 送る</button></div></div>';
-    }
-
     // ── 開発者ハブの「記録」から使う送り直し ──
     let _devUiMsg = '';
     async function devUiSendPending() {
@@ -25288,6 +25308,7 @@
     }
     /** 試合中の上の端に出す帯の文言 */
     function devBandText() {
+      if (!devModeOn() && plCurrent() && plCurrent().hostDriven === true) return 'REC｜記録中 ' + devTesterForLog().id;
       const t = devLoggingOn() ? devTesterForLog() : null;
       return 'DEV｜' + (devLoggingOn() && t ? '記録中 ' + t.id + (devTester() ? '' : '（' + t.tier + '）') : '記録なし') + '｜' + DEV_KEYS.hub + ' でハブ';
     }
@@ -25296,12 +25317,15 @@
       try {
         if (typeof document === 'undefined' || !document.createElement || !document.body) return;
         const old = document.getElementById('dev-band');
-        if (!devModeOn() || devPreviewActive()) { if (old) old.remove(); return; }
+        const dev = devModeOn();
+        const hostDriven = plCurrent() && plCurrent().hostDriven === true;
+        if ((!dev && !hostDriven) || devPreviewActive()) { if (old) old.remove(); return; }
         const el = old || document.createElement('button');
         el.id = 'dev-band'; el.type = 'button'; el.textContent = devBandText();
-        el.setAttribute('aria-label', '開発者ハブを開く');
-        el.setAttribute('onclick', 'devHubOpen()');
-        el.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9600;height:18px;padding:0 12px;border:0;border-radius:0 0 8px 8px;font:700 .62rem/18px "Roboto Condensed",sans-serif;letter-spacing:.06em;white-space:nowrap;color:#fff;background:rgba(248,81,73,.85);cursor:pointer;opacity:.92';
+        el.setAttribute('aria-label', dev ? '開発者ハブを開く' : devBandText());
+        if (dev) el.setAttribute('onclick', 'devHubOpen()');
+        else el.removeAttribute('onclick');
+        el.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9600;height:18px;padding:0 12px;border:0;border-radius:0 0 8px 8px;font:700 .62rem/18px "Roboto Condensed",sans-serif;letter-spacing:.06em;white-space:nowrap;color:#fff;background:rgba(248,81,73,.85);cursor:' + (dev ? 'pointer' : 'default') + ';opacity:.92';
         if (!old) document.body.appendChild(el);
       } catch (e) {}
     }
