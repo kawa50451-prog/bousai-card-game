@@ -270,8 +270,53 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
   </div>
 </section>
 
-<section class="v6-placeholder" id="s02" data-placeholder>
-  <div class="wrap"><h2>二つの遊び方</h2><p>対戦の画面・協力の画面・赤と青の面</p></div>
+<section class="v6-ways" id="s02" aria-labelledby="ways-heading">
+  <header class="wrap ways-heading"><h2 class="jpAccent" id="ways-heading">遊んで学べる2モード</h2></header>
+  <div class="wayFull">
+    <a class="wayFullHalf wayFullHalf--vs" href="modes/versus.html">
+      <span class="wayArtWord enAccent" aria-hidden="true"><span>V</span><span>E</span><span>R</span><span>S</span><span>U</span><span>S</span></span>
+      <div class="wayInner">
+        <h3 class="wayMode jpAccent">対戦モード</h3>
+        <p class="waySub">シンプル・王道カードバトル</p>
+        <p class="wayCount">
+          <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>1人</span><small class="en">CPU</small></span>
+          <span aria-hidden="true">/</span>
+          <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>2人</span></span>
+        </p>
+      </div>
+      <img class="wayShot" src="assets/shots/ss02_vs_battle.webp" alt="対戦モード。大阪に津波が来た場面" width="800" height="1733" loading="lazy">
+    </a>
+    <a class="wayFullHalf wayFullHalf--coop" href="modes/co-op.html">
+      <span class="wayArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>-</span><span>O</span><span>P</span></span>
+      <div class="wayInner">
+        <h3 class="wayMode jpAccent">協力モード</h3>
+        <p class="waySub">激動のサバイバル</p>
+        <p class="wayCount"><span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>3人〜5人</span></span></p>
+      </div>
+      <img class="wayShot" src="assets/shots/ss03_coop_battle.webp" alt="協力モードのバトル画面" width="800" height="1733" loading="lazy">
+    </a>
+    <svg class="wayCross" viewBox="0 0 100 100" aria-hidden="true">
+      <line x1="8" y1="8" x2="92" y2="92" pathLength="1"></line>
+      <line x1="92" y1="8" x2="8" y2="92" pathLength="1"></line>
+    </svg>
+  </div>
+  <script>
+  (function(){
+    var section = document.getElementById('s02');
+    var html = document.documentElement;
+    if (new URLSearchParams(location.search).get('motion') === 'lite') html.setAttribute('data-motion-lite', '');
+    if (html.hasAttribute('data-motion-lite') ||
+        (matchMedia('(prefers-reduced-motion: reduce)').matches && html.dataset.motion !== 'on') ||
+        !('IntersectionObserver' in window)) return;
+    section.classList.add('ways-animated');
+    var observer = new IntersectionObserver(function(entries){
+      if (!entries[0].isIntersecting) return;
+      section.classList.add('ways-in');
+      observer.disconnect();
+    }, {threshold:0.18});
+    observer.observe(section);
+  })();
+  </script>
 </section>
 
 <section class="v6-placeholder" id="s03" data-placeholder>
