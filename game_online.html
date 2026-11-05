@@ -7975,6 +7975,7 @@
     }
     function goMain() {
       G.screen = 'main'; const ap = G.activePlayer; const p = G.players[ap];
+      plCaptureTurnBoard();
       if (!G.pendingAttack && p.hand.length > 0 && !canPlayAny(ap)) { addLog(`${p.name}：使用可能なカードがないためターン自動終了`, 'sys'); endTurn(); return; }
       commit();
     }
@@ -8257,8 +8258,8 @@
       if (target === 0) {
         const reason = wanted === 0 ? '手札満杯のためドローなし' : '山札が尽きているためドローなし';
         addLog(`─── ${p.name}のターン開始（予算${getBudget(pi)}・${reason}）`, 'sys');
-        if (plMine(pi)) plTurnStart(pi, []);
         G.screen = 'main';
+        plTurnStart(pi, []);
       }
       else { G.turnDrawState = { pi, drawn: 0, target, revealed: null }; G.screen = 'turnDraw'; }
     }
@@ -14718,6 +14719,7 @@
       _removeBootSplash();
       _registerServiceWorker();
       const params = new URLSearchParams(window.location.search);
+      if (typeof devApplyRegistrationParams === 'function') devApplyRegistrationParams(window.location);
       const coopParam = params.get('coop');          // 協力モードの招待リンク（対戦の ?room= とは分離）
       const roomParam = coopParam ? null : params.get('room');
       const savedRoom = localStorage.getItem('ron_lastRoom');
@@ -23217,7 +23219,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '49c6cf7';
+    const BUILD_ID = '00dbc11';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -23497,6 +23499,8 @@
       if (!_plCur || isCpuMode || G._devPreview || G.screen !== 'main' || _DSC_PENDING_KEYS.some(k => G[k] != null)) return;
       const key = G.turnsEach[0] + ':' + G.turnsEach[1] + ':' + G.activePlayer;
       if (_plSyncSeen.has(key)) return;
+      // 相手のドロー完了や、前の席が進めたドローなしの手番も、両端末で残す。
+      plCaptureTurnBoard(true);
       plEvent('sync', { ap: G.activePlayer, h: devSnapshotHash(_dsBoardOf(_dsFullState())) });
       _plSyncSeen.add(key);
     }
@@ -23537,6 +23541,15 @@
       };
       if (plMine(pi)) d.hand = plHand(G.players[pi].hand);
       plEvent('turnStart', d);
+      plCaptureTurnBoard();
+    }
+    /** ドロー直後はまだ画面が切り替わっていないため、再開可能になった最初の時点で埋める。 @param {boolean} [ensure] */
+    function plCaptureTurnBoard(ensure) {
+      if (!_plCur || _plCur.sim || G._devPreview || G.screen !== 'main' || _DSC_PENDING_KEYS.some(k => G[k] != null)) return;
+      const pi = G.activePlayer;
+      const ev = _plCur.events.find(e => e.t === 'turnStart' && e.pi === pi && e.turn[0] === G.turnsEach[0] && e.turn[1] === G.turnsEach[1]);
+      if (!ev && ensure) { plTurnStart(pi, []); return; }
+      if (ev && !ev.board) ev.board = devSnapshot('full');
     }
     /** ドローが終わったとき（acceptTurnCard）。ローリングストックの引いた札を埋め、通常のドローなら turnStart を足す
      * @param {number} pi @param {any} ts */
@@ -23694,6 +23707,24 @@
         if (!devModeAvailable(window.location)) return false;
         return localStorage.getItem(DEV_KEY_ON) === '1';
       } catch (e) { return false; }
+    }
+    /** 招待先の端末で登録し、番号が履歴に残らないよう登録用の引数だけを除く。 @param {Location} loc */
+    function devApplyRegistrationParams(loc) {
+      if (!devModeAvailable(loc)) return false;
+      const params = new URLSearchParams(loc.search);
+      if (!params.has('tester')) return false;
+      devSetOn(true); devSetRec(true); devSetTester(params.get('tester'), params.get('tier'));
+      params.delete('tester'); params.delete('tier');
+      const query = params.toString();
+      history.replaceState(history.state, '', loc.pathname + (query ? '?' + query : '') + (loc.hash || ''));
+      const old = document.getElementById('devreg-popup'); if (old) old.remove();
+      const pop = document.createElement('div'); pop.id = 'devreg-popup'; pop.className = 'reconnect-popup';
+      pop.innerHTML = '<div class="reconnect-box"><svg style="width:52px;height:52px;color:var(--green)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div class="reconnect-title"></div></div>';
+      const t = devTester();
+      pop.querySelector('.reconnect-title').textContent = (t ? t.id + '・' + t.tier : '未登録') + ' で記録します';
+      document.body.appendChild(pop);
+      setTimeout(() => { if (pop.parentNode) pop.remove(); }, 3200);
+      return true;
     }
     /** @param {boolean} on */
     function devSetOn(on) {
@@ -24310,8 +24341,8 @@
     // 画面は開発者ハブの作業面（「4 分析」）に入る。ゲームの G・render()・同期には触れない。
     // グラフは SVG を自前で描く（外部ライブラリなし）。入口は開発者ハブの「分析」の項目だけ。
     // ═══════════════════════════════════════
-    /** @type {{sums: Array<{name: string, data: any}>, sel: number, logs: Array<{name: string, log: any, seat?: string, archive?: any}>, logSel: number, msg: string, sortKey: number, sortDesc: boolean, cell: number[] | null, cellKind: string}} */
-    let _dd = { sums: [], sel: 0, logs: [], logSel: 0, msg: '', sortKey: 0, sortDesc: true, cell: null, cellKind: '' };
+    /** @type {{compare: any, sums: Array<{name: string, data: any}>, sel: number, logs: Array<{name: string, log: any, seat?: string, archive?: any}>, logSel: number, msg: string, sortKey: number, sortDesc: boolean, cell: number[] | null, cellKind: string}} */
+    let _dd = { compare: null, sums: [], sel: 0, logs: [], logSel: 0, msg: '', sortKey: 0, sortDesc: true, cell: null, cellKind: '' };
     /** ティアのランクごとの色（バーとランクの文字で同じ。色だけに頼らず、ランクの文字を必ず添える） */
     const DD_TIER_COLOR = /** @type {Record<string, string>} */ ({ S: 'var(--yellow)', A: 'var(--green)', B: 'var(--blue)', C: 'var(--t2)', D: 'var(--red)' });
     /** 相性表で「薄く表示」する試合数の下限 */
@@ -24385,9 +24416,13 @@
     }
 
     // ── 状態の操作 ──
-    function devDashReset() { _ddEs = { human: {}, before: [] }; _dd.sums = []; _dd.logs = []; _dd.sel = 0; _dd.logSel = 0; _dd.msg = ''; _dd.cell = null; _ddRefresh(); }
+    function devDashReset() { _ddEs = { human: {}, before: [] }; _dd.compare = null; _dd.sums = []; _dd.logs = []; _dd.sel = 0; _dd.logSel = 0; _dd.msg = ''; _dd.cell = null; _ddRefresh(); }
     /** summary.json の中身を足す（同じ名前なら置き換え） @param {string} name @param {any} data */
     function devDashAddSummary(name, data) {
+      if (data && data.type === 'compare') {
+        if (data.v !== 1 || !Array.isArray(data.turns) || !data.byTier || typeof data.byTier !== 'object') { _dd.msg = name + '：compare.json の形ではありません'; _ddRefresh(); return false; }
+        _dd.compare = data; _dd.msg = ''; _ddRefresh(); return true;
+      }
       if (!data || typeof data !== 'object' || !data.variants || typeof data.variants !== 'object') { _dd.msg = name + '：summary.json の形ではありません'; _ddRefresh(); return false; }
       const i = _dd.sums.findIndex(s => s.name === name);
       if (i >= 0) _dd.sums[i] = { name, data }; else _dd.sums.push({ name, data });
@@ -24415,6 +24450,7 @@
         if (!data) { _dd.msg = 'まだ上げられていません'; _ddRefresh(); return; }
         // 全件を先に解析し、壊れた JSON があれば読み込みを止める。
         const summary = JSON.parse(data.summary);
+        const compare = data.compare ? JSON.parse(data.compare) : null;
         const games = Object.values(data.games || {}).map(value => JSON.parse(value));
         games.sort((a, b) => (Date.parse(b.startedAt) || 0) - (Date.parse(a.startedAt) || 0));
         const date = new Date(data.publishedAt);
@@ -24422,6 +24458,7 @@
         const pad = n => String(n).padStart(2, '0');
         const stamp = date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
         if (!devDashAddSummary('最新 ' + stamp, summary)) throw new Error('集計が不正です');
+        if (compare && !devDashAddSummary('CPU との比較', compare)) throw new Error('比較が不正です');
         if (games.length && !devDashAddLog('最新', games)) throw new Error('記録が不正です');
       } catch (e) { _dd.msg = '最新を読めませんでした'; }
       _ddRefresh();
@@ -24517,6 +24554,22 @@
         return '<tr' + (split ? ' class="dd-cpu-start"' : '') + '><th>' + _ddEsc(r.name) + '<small>' + _ddEsc(r.file) + '</small></th>' + [d.seats, d.turns, _ddMean(d.playsPerTurn, 2), _ddRate(d.passRate), _ddRate(d.respondRate), t ? _ddFix(t.median, 0) + ' ms（' + _ddFix(t.q1, 0) + '–' + _ddFix(t.q3, 0) + '）  n=' + t.n : '—'].map(x => '<td>' + _ddEsc(x) + '</td>').join('') + '</tr>';
       }).join('');
       return _ddSec('人の打ち方', '<div class="dd-scroll"><table class="dd-table"><tr>' + ['打ち方', '席', '手番', '1手番の枚数', '使える札を残して終えた率', '対応した率', '迷った時間の中央値（q1–q3）'].map(x => '<th>' + x + '</th>').join('') + '</tr>' + body + '</table></div>');
+    }
+
+    function _ddHumanCompareHtml() {
+      const c = _dd.compare; if (!c) return '';
+      const pt = (/** @type {any} */ n) => _ddNum(n) ? (n > 0 ? '+' : '') + (100 * n).toFixed(1) + 'pt' : '—';
+      const names = (/** @type {string} */ hand) => hand === 'なし' ? hand : String(hand || '').split('+').map(_ddCardName).join('＋');
+      const table = (/** @type {string[]} */ heads, /** @type {string} */ rows) => '<div class="dd-scroll"><table class="dd-table dd-human-compare"><tr>' + heads.map(h => '<th>' + h + '</th>').join('') + '</tr>' + rows + '</table></div>';
+      const groups = Object.keys(c.byTier).sort().map(key => {
+        const r = c.byTier[key], m = r.deltaMean || {};
+        return '<tr><th>' + _ddEsc(key) + '</th>' + [r.turns, _ddRate(r.sameRate, r.turns), pt(m.mean) + '  95%CI ' + pt(m.lo) + '–' + pt(m.hi), r.bigDrop].map(x => '<td>' + _ddEsc(x) + '</td>').join('') + '</tr>';
+      }).join('');
+      const drops = c.turns.filter((/** @type {any} */ r) => r.delta <= -0.10 + Number.EPSILON).slice().sort((a, b) => a.delta - b.delta).slice(0, 15).map((/** @type {any} */ r) => {
+        const top = r.cpuTop && r.cpuTop[0];
+        return '<tr><th>' + _ddEsc(String(r.startedAt || '').slice(0, 10)) + '</th>' + [r.gameId, r.turnNo, r.tester, names(r.human), top ? names(top.choice) + ' ' + _ddPct(top.share) : '—', pt(r.delta)].map(x => '<td>' + _ddEsc(x) + '</td>').join('') + '</tr>';
+      }).join('');
+      return _ddSec('CPU との比較 <span class="dd-compare-config">' + _ddEsc(c.skill) + '・' + _ddEsc(c.gamesPerTurn) + '試合</span>', table(['区分', '手番', 'CPU と同じ手の率', '見込みの差の平均', '大きく下げた手番'], groups) + '<h4>見込みを大きく下げた手番</h4>' + table(['日付', '試合', '手番', 'テスター', '人の手', 'CPU の手', '見込みの差'], drops));
     }
 
     /** @param {Array<{file: string, key: string, v: any, data: any}>} flat */
@@ -24630,7 +24683,7 @@
     /** 読み込んだ版の詳細 */
     function _ddSummariesHtml() {
       const flat = _ddFlat();
-      if (!flat.length) return _dd.sums.map(s => _ddCollectionHtml(s.data.collection)).join('') + _ddEvalHtml();
+      if (!flat.length) return _dd.sums.map(s => _ddCollectionHtml(s.data.collection)).join('') + _ddHumanCompareHtml() + _ddEvalHtml();
       if (_dd.sel >= flat.length || _dd.sel < 0) _dd.sel = 0;
       const f = flat[_dd.sel], v = f.v;
       let html = '';
@@ -24639,7 +24692,7 @@
         html += '<div class="dd-notice"><b>注意</b>　' + _ddEsc(d.notice || '（この summary.json には注意の文がありません）') + '<div class="dd-meta">' + _ddEsc(s.name) + (e.name ? '：実験 ' + _ddEsc(e.name) : '') + (_ddNum(e.games) ? '、' + e.games + '試合' : '') + (_ddNum(e.seed) ? '、種 ' + e.seed : '') + (e.startFrom ? '、盤面 #' + _ddEsc(e.startFrom) + ' から' + (e.reshuffleDecks ? '（山札は混ぜ直し）' : '') : '') + (Array.isArray(e.ban) && e.ban.length ? '、使えないカード ' + e.ban.map((/** @type {any} */ id) => _ddEsc(_ddCardName(String(id)))).join('・') : '') + '</div>'
           + (Array.isArray(d.notComputedForHuman) && d.notComputedForHuman.length ? '<div class="dd-meta dd-nc">未計算：' + d.notComputedForHuman.map(_ddEsc).join('、') + '</div>' : '') + '</div>';
       });
-      html += _dd.sums.map(s => _ddCollectionHtml(s.data.collection)).join('') + _ddDecisionsHtml(f.key);
+      html += _dd.sums.map(s => _ddCollectionHtml(s.data.collection)).join('') + _ddDecisionsHtml(f.key) + _ddHumanCompareHtml();
       html += _ddEvalHtml();
       html += _ddCompareHtml(flat);
       const applied = f.data.applied && f.data.applied[f.key] ? Object.keys(f.data.applied[f.key]).map(k => k + '：' + _ddEsc(f.data.applied[f.key][k] && f.data.applied[f.key][k].from) + ' → ' + _ddEsc(f.data.applied[f.key][k] && f.data.applied[f.key][k].to)).join('、') : '';
@@ -24977,6 +25030,7 @@
       '#dev-hub .dh-dash .dd-table td{font-family:' + DH_MONO + ';font-size:.78rem}#dev-hub .dh-dash .dd-table td small{font-family:inherit}',
       '#dev-hub .dh-dash .dd-table tr:first-child th{font-weight:700;color:var(--t0);border-bottom:2px solid var(--bg3);white-space:nowrap;vertical-align:bottom}',
       '#dev-hub .dh-dash .dd-table th:first-child,#dev-hub .dh-dash .dd-table td:first-child{text-align:left}',
+      '#dev-hub .dh-dash .dd-human-compare td,#dev-hub .dh-dash .dd-human-compare tr:first-child th{text-align:center}#dev-hub .dh-dash .dd-human-compare tr:first-child th:first-child{text-align:left}#dev-hub .dh-dash .dd-compare-config{font:700 .8rem ' + DH_MONO + ';font-variant-numeric:tabular-nums}',
       '#dev-hub .dh-dash .dd-table tr+tr th:first-child{font-weight:700;color:var(--t0);white-space:nowrap}',
       '#dev-hub .dh-dash .dd-table tr+tr:hover{background:rgba(56,139,253,.06)}',
       '#dev-hub .dh-dash .dd-sel th:first-child{box-shadow:none;border-left:2px solid var(--blue)}',
@@ -25506,7 +25560,7 @@
       const out = [];
       const add = (/** @type {string} */ label, /** @type {number} */ panel, /** @type {string} */ note) => out.push({ label, panel, note });
       DEV_PANELS.forEach(p => add(p.label, p.n, '項目'));
-      ['テスター番号', '区分', '記録のオン・オフ', '未送信の記録', '最近の記録'].forEach(s => add(s, 1, '記録'));
+      ['テスター番号', '区分', '登録用の URL', '記録のオン・オフ', '未送信の記録', '最近の記録'].forEach(s => add(s, 1, '記録'));
       ['デッキの型', '打ち方', 'CPU の都市', '先攻・後攻', '乱数の種', '使えないカード', '自分の都市を自由に選ぶ', 'CPU 戦を始める'].forEach(s => add(s, 2, 'CPU 戦'));
       ['盤面コード', '盤面から始める', '盤面の書き出し'].forEach(s => add(s, 3, '盤面'));
       ['summary.json', 'プレイ記録', '結果のまとめ', '評価シート'].forEach(s => add(s, 4, '分析'));
@@ -25553,6 +25607,7 @@
       const tester = _dhSec('テスター', '<div class="dh-field"><label for="dev-tester-id">番号</label><input type="text" id="dev-tester-id" maxlength="20" value="' + (t ? _escHtml(t.id) : '') + '" placeholder="T01" onchange="devUiApplyTester()"></div>'
         + '<div class="dh-field"><span>区分</span><div class="dh-seg">' + seg + '</div></div>'
         + '<div class="dh-field"><span>記録</span>' + _dhSwitch(recOn, 'devHubSetRec(!devRecOn())', '記録') + '<span class="dh-note">' + state + '</span></div>');
+      const registration = _dhSec('登録用の URL', '<div class="dh-field"><label for="devreg-id">番号</label><input id="devreg-id" type="text" maxlength="20" placeholder="T03"><label for="devreg-tier">区分</label><select id="devreg-tier">' + DEV_TIERS.map(x => '<option>' + _escHtml(x) + '</option>').join('') + '</select><button type="button" class="dh-btn" onclick="devHubCopyRegistration()">写す</button></div>');
       const recent = _dhSec('最近の記録', plRecent().map(r => {
         const res = r.complete ? (r.winner == null ? '引き分け' : '席' + r.winner + ' の勝ち（' + (DD_END_NAMES[/** @type {'destroyed'} */ (r.endReason)] || '全壊') + '）') : '未完了';
         const st = r.status === 'sent' ? '送信済み' : r.status === 'removed' ? '消した' : '未送信';
@@ -25565,7 +25620,17 @@
           + '<div class="dh-item-btns"><button type="button" class="dh-btn" onclick="devHubSendOne(' + i + ')">送る</button><button type="button" class="dh-btn" onclick="plDownload(plPending()[' + i + '])">ファイルに保存</button><button type="button" class="dh-btn danger" onclick="devHubDel(' + i + ')">' + (ask ? '本当に消す' : '消す') + '</button></div></div>';
       }).join('') || '<div class="dh-empty">未送信の記録はない</div>';
       const bar = '<div class="dh-bar"><button type="button" class="dh-btn primary"' + (pend.length ? '' : ' disabled') + ' onclick="devUiSendPending()">' + uiIcoUpload(13) + ' すべて送る' + _dhKbd(DEV_KEYS.primary) + '</button><button type="button" class="dh-btn" onclick="plDownload()">すべてファイルに保存</button>' + (plCurrent() ? '<span class="dh-note">記録中の試合あり</span>' : '') + (_devUiMsg ? '<span class="dh-note">' + _escHtml(_devUiMsg) + '</span>' : '') + '</div>';
-      return '<div class="dh-grid">' + tester + recent + '</div>' + _dhSec('未送信の記録（' + pend.length + ' 件）', bar + items);
+      return '<div class="dh-grid">' + tester + recent + '</div>' + registration + _dhSec('未送信の記録（' + pend.length + ' 件）', bar + items);
+    }
+    /** 配布先の番号は、この端末のテスター登録とは分けて扱う。 */
+    async function devHubCopyRegistration() {
+      const id = /** @type {HTMLInputElement | null} */ (document.getElementById('devreg-id'));
+      const tier = /** @type {HTMLSelectElement | null} */ (document.getElementById('devreg-tier'));
+      if (!id || !id.value.trim()) return;
+      const url = location.origin + location.pathname + '?tester=' + encodeURIComponent(id.value.trim()) + '&tier=' + encodeURIComponent(tier ? tier.value : DEV_TIERS[0]);
+      try { await navigator.clipboard.writeText(url); _dh.msg = '写しました'; }
+      catch (e) { _dh.msg = '写せませんでした'; }
+      _dhRefresh();
     }
     /** 2 CPU 戦：左に相手の CPU の設定一式、右に CPU 戦を始める・自分の都市を自由に選ぶか */
     function _dhPanelCpu() {
@@ -25641,6 +25706,7 @@
       if (obj.state && typeof obj.state === 'object') return 'board';
       if (obj.full && typeof obj.full === 'object' && obj.full.state && typeof obj.full.state === 'object') return 'board';
       if (obj.type === 'evalsheet' && Array.isArray(obj.items)) return 'evalsheet';
+      if (obj.type === 'compare') return 'summary';
       if (obj.variants && typeof obj.variants === 'object' && !Array.isArray(obj.variants)) return 'summary';
       if (Array.isArray(obj.logs) && obj.logs.some(hasEvents)) return 'playlog';
       if (Array.isArray(obj.events)) return 'playlog';
