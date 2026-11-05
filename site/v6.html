@@ -7,31 +7,23 @@
 <title>Ready or Not ｜ v6 骨格</title>
 <meta name="theme-color" content="#00244f">
 <link rel="icon" href="assets/icons/app_icon.webp">
-<!-- 起動演出の事前クラス付与（新規）。ちらつき防止のため、body の内容が描画される
-     前に同期実行し、html へ intro-lock（今回は出す）／intro-skip（2回目以降・
-     出さない）のどちらかを必ず1つ付ける。sessionStorage が使えない環境
-     （プライベートモード等の例外）では毎回 intro-lock 側に倒し、出す方を既定にする。
-     prefers-reduced-motion はここでは判定しない（<style> 側の @media だけで
-     JS非依存に確実へ無効化するため。§本文の「守るべき規律」参照）。 -->
-<script>/* ?motion=on は JS だけでなく CSS の縮退も解除する。
-   これがないと OS でアニメーションを切っている環境では、罫の描画・文字の
-   立ち上がり・ゲージなど CSS 駆動の演出が検証パラメータを付けても動かない。 */
-if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttribute('data-motion','on');
-/* 検証用：?introfreeze=1 でローディング演出を一時停止する。任意の時点を
-   getAnimations() で走査できるようにするための開発用の逃げ道。 */
-if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribute('data-introfreeze','1');</script>
+<!-- v6 owns the hero; site.js sees no overlay and never locks scrolling. -->
 <script>
 (function(){
-  var h = document.documentElement;
-  try{
-    if (sessionStorage.getItem('ronIntroSeen') === '1') { h.classList.add('intro-skip'); }
-    else { h.classList.add('intro-lock'); sessionStorage.setItem('ronIntroSeen', '1'); }
-  } catch(e){ h.classList.add('intro-lock'); }
+  var h=document.documentElement, q=new URLSearchParams(location.search);
+  if(q.get('motion')==='on') h.dataset.motion='on';
+  if(q.get('motion')==='lite') h.setAttribute('data-motion-lite','');
+  h.classList.add('intro-skip');
+  h.dataset.hero=q.get('hero')==='b'?'b':'a';
+  var seen=false;
+  try{seen=sessionStorage.getItem('ronIntroSeen')==='1';sessionStorage.setItem('ronIntroSeen','1');}catch(e){}
+  if(!seen && !h.hasAttribute('data-motion-lite') &&
+    (!matchMedia('(prefers-reduced-motion:reduce)').matches || h.dataset.motion==='on')) h.classList.add('hero-pending');
 })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
 <!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
      下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
      画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
@@ -52,56 +44,6 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
   </symbol>
 </svg>
 
-<!-- ══════ 起動演出オーバーレイ（§20.1・2026-08-12：4幕へ作り直し） ══════
-     装飾専用（実体は直後のヒーロー h1 が持つ）なので aria-hidden にする。
-     4幕の進行は assets/site.css の animation-delay だけで完結し、JS非依存。
-     幕1＝produced/by Ready or Lab、幕2＝feTurbulence+feDisplacementMapの
-     黒インク（SVGのみ・WebGL不使用）、幕3＝ロゴのイーズイン、幕4＝全体
-     フェードでファーストビューへ。 -->
-<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
-  <div class="loadCredit">
-    <span class="loadCreditLine enBase">produced</span>
-    <span class="loadCreditLine enBase">by Ready or Lab</span>
-    <span class="loadCreditRule" aria-hidden="true"></span>
-  </div>
-  <!-- 幕0（0.10〜1.40秒）：素材の読み込みを見せるゲージ（2026-08-16作り直し）。
-       ⚠️ このローディングの目的は「produced by 以降のモーションがカクついたり
-          飛んだりしないための時間稼ぎ」である。見た目のためだけの尺ではない。
-       画面中心に円が回り、LOAD の下で 0→100 が進む。数字はダイヤルのように
-       上から降りてくる（緩急つき）。0→100 が終わってから produced by が始まる。
-       進捗の唯一の出どころは CSS の --n（@propertyで登録した整数）。円弧の
-       stroke-dashoffset も数字も同じ --n を読むため、両者がずれることがない。
-       JSはその --n を読んで桁を組み替えるだけの装飾で、止まっても
-       counter() のフォールバックが出る（オーバーレイの退場は完全にCSS側）。 -->
-  <div class="loadGauge" aria-hidden="true">
-    <div class="loadRing">
-      <svg class="loadRingSvg" viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="loadRingTrack" cx="60" cy="60" r="54"></circle>
-        <circle class="loadRingArc" cx="60" cy="60" r="54"></circle>
-      </svg>
-      <span class="loadRingWord enBase">LOAD</span>
-    </div>
-    <span class="loadCount" aria-hidden="true"><span class="loadNum"></span><span class="loadPct">%</span></span>
-  </div>
-  <div class="loadInk" aria-hidden="true">
-      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
-           重ね、白を透過させて黒だけを残す（§20.1改）。
-           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
-              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
-              確実に引っかかる。再生は等速1回きりにすること。 -->
-      <video class="loadInkVid" src="assets/ink/ink_load_timed.mp4"
-             muted playsinline preload="auto" aria-hidden="true"></video>
-    </div>
-  <div class="loadBlackout" aria-hidden="true"></div>
-</div>
-
-<!-- 背景の粒子と幾何学的な線。本文より後ろに敷く奥行き演出。
-     ⚠️ 2026-08-17：粒子は縦（下→上）に流れる。--x が横位置、--y は
-        prefers-reduced-motion で静止させるときの縦位置。遅延は各層の
-        秒数（a=95s / b=76s / c=58s）いっぱいに散らして、同じ帯に固まって
-        流れないようにしてある。
-     18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
-     transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
 <div class="bgField" aria-hidden="true">
   <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
   <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
@@ -168,54 +110,20 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
   </div>
 </nav>
 
-<!-- ══════ pageScale：ページ本体（今回新設。ハンバーガーメニューを開くと
-     ここだけがわずかに縮む）。固定要素（loadOverlay/siteLogo/hamburgerBtn/
-     navScrim/navMenu/カーソルレティクル/inkGLキャンバス）は意図してこの外に
-     置く。transform は position:fixed 子孫の containing block を書き換える
-     ため、固定要素を内側に入れると画面に張り付かなくなる（安全条件）。
-     .fvIntro（sticky）は内側にあるが、overflow:hidden を持たせていないため
-     stickyの基準（最も近いスクロールコンテナ）は変わらず、§23.10で見つかった
-     居座り対策には影響しない。 ══════ -->
+<!-- Page content scales while the shared navigation is open. -->
 <div class="pageScale">
-
-<!-- ══════ 00i ファーストビュー：地震カード突入＋ストロボ＋READY OR NOT
-     （2026-08-15 全面作り直し） ══════
-     装飾専用（実体は次の00ヒーローの<h1 class="logo">が持つ）なので
-     aria-hidden にする。.loadOverlay と同じ考え方。 -->
-<div class="fvHold">
-<section class="fvIntro sec" id="fvIntro" aria-hidden="true">
-  <div class="fvStage">
-    <div class="fvStrobe"></div>
-    <img class="fvCard" src="assets/cards/earthquake.webp" alt="" aria-hidden="true" width="288" height="450">
-    <!-- 1文字ずつ <i> に割る（2026-08-16）。行の出現（--ri）と文字の出現（--ci）を
-         別々にずらすため。--conv は幕3で「生き残る1行」へ寄せる段数
-         （+が下から上へ、−が上から下へ）。 -->
-    <div class="fvRows">
-      <span class="fvRow fvRow--fade" style="--ri:0;--conv:2"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i></span>
-      <span class="fvRow fvRow--fade fvRow--outline" style="--ri:1;--conv:1"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i></span>
-      <span class="fvRow fvRow--keep" style="--ri:2;--conv:0"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i><span class="fvMark" aria-hidden="true"></span></span>
-      <span class="fvRow fvRow--fade fvRow--solid" style="--ri:3;--conv:-1"><i style="--ci:0">R</i><i style="--ci:1">E</i><i style="--ci:2">A</i><i style="--ci:3">D</i><i style="--ci:4">Y</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:5">O</i><i style="--ci:6">R</i><i class="fvSp" aria-hidden="true"></i><i style="--ci:7">N</i><i style="--ci:8">O</i><i style="--ci:9">T</i></span>
-    </div>
-    <div class="fvGrain"></div>
-    <!-- スクロール誘導（7-4／2026-08-17改訂）。演出が終わってから右下に出す。
-         英字は縦組み、その下の区間を小さな丸が上下に往復する。 -->
-    <div class="fvScroll" aria-hidden="true">
-      <span class="fvScrollLabel enBase"><span>S</span><span>C</span><span>R</span><span>O</span><span>L</span><span>L</span></span>
-      <span class="fvScrollTrack"><i class="fvScrollDot"></i></span>
-    </div>
-  </div>
-</section>
-</div>
 
 <!-- ══════ 00 ヒーロー ══════ -->
 <section class="sec hero" id="s00">
   <div class="heroKV" aria-hidden="true"></div>
+  <div class="hero-black" aria-hidden="true"></div>
+  <p class="hero-caption jpAccent" aria-hidden="true">防災カードバトル</p>
   <img class="heroFigure" src="assets/kv/person_900.webp" alt="" aria-hidden="true" width="900" height="1350">
   <div class="wrap g12" style="width:100%">
     <div class="heroL">
-      <h1 class="logo enBase reveal" data-d="0"><span>READY</span><span class="l2">OR NOT</span></h1>
-      <p class="tagline jpAccent reveal" data-d="1">―防災カードバトル―</p>
-      <div class="cta reveal" data-d="2">
+      <h1 class="hero-title"><span class="hero-fill"><span>READY</span><span>OR NOT</span></span><span class="hero-rim" aria-hidden="true"><span>READY</span><span>OR NOT</span></span></h1>
+      <p class="tagline jpAccent">―防災カードバトル―</p>
+      <div class="cta">
         <a class="ctaMain" href="https://toshibousai-cardgame.web.app/">
           <b>ブラウザですぐ遊ぶ</b>
           <i>ダウンロード不要・登録不要</i>
@@ -244,6 +152,11 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
       </div>
     </div>
   </div>
+<div class="hero-compare" data-placeholder role="group" aria-label="hero の比較">
+  <button type="button" data-hero-variant="a" aria-pressed="true">A</button>
+  <button type="button" data-hero-variant="b" aria-pressed="false">B</button>
+  <button type="button" data-hero-replay>もう一度再生</button>
+</div>
 </section>
 
 <div class="wrap v6-update" aria-label="最新の更新"><time></time><span></span></div>
@@ -284,16 +197,16 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
           <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>2人</span></span>
         </p>
       </div>
-      <img class="wayShot" src="assets/shots/v6/vs_response_you.webp" alt="対戦モード。大阪に津波が来た場面" width="780" height="878" loading="lazy">
+      <div class="v6-phone way-phone vs_battle-phone"><img src="assets/shots/v6/vs_battle_focus.webp" alt="通常のCPU対戦。両者の都市・HPと手札" width="780" height="1280" loading="lazy"></div>
     </a>
     <a class="wayFullHalf wayFullHalf--coop" href="modes/co-op.html">
-      <span class="wayArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>-</span><span>O</span><span>P</span></span>
+      <span class="wayArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>O</span><span>P</span></span>
       <div class="wayInner">
         <h3 class="wayMode jpAccent">協力モード</h3>
         <p class="waySub">激動のサバイバル</p>
         <p class="wayCount"><span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>3人〜5人</span></span></p>
       </div>
-      <img class="wayShot" src="assets/shots/v6/coop_battle.webp" alt="協力モードのバトル画面" width="780" height="1688" loading="lazy">
+      <div class="v6-phone way-phone coop_battle-phone"><img src="assets/shots/v6/coop_battle_focus.webp" alt="協力の複数都市・共有予算と手札" width="780" height="920" loading="lazy"></div>
     </a>
     <svg class="wayCross" viewBox="0 0 100 100" aria-hidden="true">
       <line x1="8" y1="8" x2="92" y2="92" pathLength="1"></line>
@@ -326,20 +239,20 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
       <ol class="deck-track">
         <li class="deck-step">
           <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DECK</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">DECK</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DECK</text></svg><h3 class="deck-verb">組む</h3><span class="deck-label en">DECK</span></div>
-          <img class="deck-shot" src="assets/shots/v6/deck_build.webp" alt="デッキ構築画面" width="780" height="1688" loading="lazy">
+          <div class="v6-phone deck-phone deck_build-phone"><img src="assets/shots/v6/deck_build_focus.webp" alt="都市と24枚の配分、カード枚数の増減" width="780" height="1688" loading="lazy"></div>
         </li>
         <li class="deck-step">
           <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DRAFT</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">DRAFT</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DRAFT</text></svg><h3 class="deck-verb">選ぶ</h3><span class="deck-label en">DRAFT</span></div>
-          <img class="deck-shot" src="assets/shots/v6/draft.webp" alt="ドラフトのカード選択画面" width="780" height="1688" loading="lazy">
+          <div class="v6-phone deck-phone draft-phone"><img src="assets/shots/v6/draft_focus.webp" alt="初期手札4枚の選択と確定" width="780" height="1430" loading="lazy"></div>
         </li>
         <li class="deck-step">
           <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">MY DECK</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">MY DECK</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">MY DECK</text></svg><h3 class="deck-verb">残す</h3><span class="deck-label en">MY DECK</span></div>
-          <img class="deck-shot deck-shot--saved" src="assets/shots/v6/mydeck.webp" alt="マイデッキの保存ダイアログ" width="780" height="1688" loading="lazy">
+          <div class="v6-phone deck-phone result_save-phone"><img src="assets/shots/v6/result_save_focus.webp" alt="対戦結果と使ったデッキのMyデッキ保存" width="780" height="1600" loading="lazy"></div>
         </li>
       </ol>
     </div>
   </div>
-  <script src="assets/v6.js" defer></script>
+  
 </section>
 
 <section class="v6-placeholder" id="s04" data-placeholder>
@@ -347,6 +260,13 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
 </section>
 
 <section class="v6-placeholder" id="s05" data-placeholder>
+  <svg class="continue-geometry" viewBox="0 0 1440 720" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+    <g fill="#193f68"><path d="M1440 -130 640 720H330L1180 -130Z"/><path d="M1540 100 1000 720H780L1400 100Z"/></g>
+    <g fill="#25486c"><path d="M1370 -90 775 540 1040 290Z"/><path d="M1170 270 720 745 1050 745Z"/></g>
+    <path d="M1440 40 900 610 1320 610Z" fill="#10355e"/>
+    <g fill="none" stroke="#416080" stroke-width="1"><path d="M1440 -70 690 720M1380 -120 590 720M1510 250 1070 720"/><path d="m1160 130-330 350h520Z"/></g>
+    <g stroke="#59718b" stroke-width="1"><path d="M1000 120h16m-8-8v16M1280 530h16m-8-8v16"/></g>
+  </svg>
   <div class="wrap"><h2>続ける・つくる</h2><p>デイリー・問題工房・カード工房</p></div>
 </section>
 <!-- ══════ 04 締め（新設。§13）。タグライン再掲＋PLAY への大きな導線を1つ。
@@ -389,6 +309,7 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
 </div><!-- /.pageScale -->
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
 <script src="assets/site.js"></script>
+<script src="assets/v6.js"></script>
 <script src="assets/updates.js"></script>
 <script src="assets/try/try.js"></script>
 </body>
