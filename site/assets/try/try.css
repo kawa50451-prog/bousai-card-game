@@ -19,8 +19,8 @@
 .try-ticker-group span{display:flex;align-items:center;gap:28px;padding-right:28px}
 .try-ticker-group span::after{content:'';height:10px;border-left:1px solid currentColor;transform:skewX(-25deg)}
 .try-scene:not([data-state="forecast"]) .try-ticker{opacity:.35}
-.try-scene:not([data-state="forecast"]) .try-ticker-track{animation-play-state:paused}
-.try-forecast h1{font:800 clamp(28px,3.5vw,54px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em}
+.try-scene:not(.try-in-view) .try-ticker-track,.try-scene:not([data-state="forecast"]) .try-ticker-track{animation-play-state:paused}
+.try-forecast :is(h1,h2){font:800 clamp(28px,3.5vw,54px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em}
 .try-prompt{margin:0 0 20px;font:800 clamp(28px,3.5vw,48px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em;white-space:nowrap;text-align:center}
 .try-prompt span{display:inline-block}
 .try-prompt-visible span{animation:try-text .65s var(--char-delay) var(--e) both}
@@ -78,7 +78,7 @@ html[data-motion-lite] .not-image{mask-image:none}
 @media(prefers-reduced-motion:reduce){html:not([data-motion="on"]) .try-scene *,html:not([data-motion="on"]) .try-scene *::after{animation:none!important;transition-duration:0s!important}html:not([data-motion="on"]) .seawall path{stroke-dashoffset:0}html:not([data-motion="on"]) .not-image{mask-image:none}}
 @media(max-width:600px){
   .try-scene{--try-pad:16px;padding:56px 16px 24px;gap:24px}
-  .try-forecast h1{font-size:28px}
+  .try-forecast :is(h1,h2){font-size:28px}
   .try-prompt{font-size:clamp(20px,6.8vw,28px);margin-bottom:16px}
   .try-verdict{font-size:clamp(80px,23vw,104px)}
   .try-verdict::after{height:6px}

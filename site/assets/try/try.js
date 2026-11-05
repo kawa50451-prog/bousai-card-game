@@ -5,6 +5,7 @@
   if (motion === 'on') html.dataset.motion = 'on';
   if (motion === 'lite') html.setAttribute('data-motion-lite', '');
   const scene = document.querySelector('.try-scene');
+  if (!scene) return;
   const result = scene.querySelector('.try-result');
   const forecast = scene.querySelector('.try-forecast');
   const actions = scene.querySelector('.try-actions');
@@ -33,6 +34,11 @@
     }
     ticker.append(group);
   }
+  // HOME内でも、この区画が見えている間だけ帯を流す。
+  const sceneObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => scene.classList.toggle('try-in-view', entry.isIntersecting));
+  });
+  sceneObserver.observe(scene);
   const promptText = prompt.textContent;
   prompt.setAttribute('aria-label', promptText);
   prompt.replaceChildren(...[...promptText].map((char, i) => {
@@ -109,7 +115,7 @@
   }
   Promise.all([load('assets/try/osaka_tsunami.json'),load('assets/try/osaka_overlays.json')]).then(([scenario, overlays]) => {
     data = scenario;
-    forecast.querySelector('h1').textContent = `翌朝、${data.city.name}に${data.disaster.name}`;
+    forecast.querySelector('h1, h2').textContent = `翌朝、${data.city.name}に${data.disaster.name}`;
     const svg = scene.querySelector('.try-lines');
     svg.setAttribute('viewBox',overlays.viewBox.join(' '));
     ['seawall'].forEach(kind => overlays[kind].forEach((points, i) => {

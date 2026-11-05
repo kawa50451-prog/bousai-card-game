@@ -1,0 +1,658 @@
+:root{
+  /* ── ヒーローのキービジュアル（§10.2.1）。背景２＝2枚目のポスターの背景。
+     左＝夜明けの東京タワー／右＝竜巻と落雷。3344×1881 の原版から WebP を
+     2段用意し、幅で読み分ける。§5.2 のとおりヒーロー画像は遅延読み込みしない。 ── */
+  --kv: url('kv/hero_1400.webp');
+  --kv-fallback: linear-gradient(104deg,#0d3a66 0%,#2f6ea8 45%,#4a1a63 52%,#1b0526 100%);
+
+  /* ── 04 締めのキービジュアル。背景１＝1枚目のポスターの背景。
+     左＝青空の東京タワー／右＝紫の雷とスカイツリー。--kv と同じ構造。 ── */
+  --kv2: url('kv/storm_1400.webp');
+  --kv2-fallback: linear-gradient(104deg,#123a63 0%,#2c5f92 42%,#4a1f70 58%,#1c0733 100%);
+}
+
+@media (min-width:1200px){
+  :root{ --kv: url('kv/hero.webp'); --kv2: url('kv/storm.webp'); }
+}
+
+/* ══════ 00i ファーストビュー（2026-08-15 全面作り直し）══════
+   旧「Ready ? → Ready or Not」の赤青分割は破棄した。新しい指示は3幕・4秒：
+
+     幕1 [0.0–0.4s] 純黒の画面に、地震カード（assets/cards/earthquake.webp）が
+                    右から3D回転＋カメラシェイクで中央へ突き刺さる
+     幕2 [0.4–2.0s] 衝撃で白黒の激しいストロボ。同時に大文字「READY OR NOT」を
+                    4行スタックで表示し、各行が塗り⇄輪郭をストロボと同期して
+                    ランダムに切り替える
+     幕3 [2.0–4.0s] 点滅が瞬時に止み、3行が消えて1行だけが画面中央に残る。
+                    直後、行の下にアクセント赤のマーカーが慣性を伴って
+                    左から右へ伸び、静止したまま残り時間を持つ
+
+   スクロールに頼らず、読み込み直後に自動で最後まで進む時間駆動アニメーション。
+   ⚠️ 巨大レイヤーを作らない。カードは実寸（288×450）に近いclampサイズのまま
+      transformで動かすだけで、画面ごと拡大するような指定はしていない。
+   ⚠️ JSが1行も動かなくても、既定値（各要素の「素の」CSS宣言）が幕3終了後の
+      最終状態と一致するように作ってある（下の「既定値の設計」参照）。
+   ⚠️ 実機レビューで発覚した不具合の修正（2026-08-15第2次）：白フラッシュの
+      瞬間、文字が白いまま（塗りでも輪郭でも）で白地に埋もれて読めなくなって
+      いた。地の明滅（.fvStrobe）と全く同じ delay/duration/iteration-count/
+      direction で文字の色（白⇄黒）を反転させることで解決した（詳細は
+      .fvRow の定義コメント参照）。 */
+
+/* ⚠️ sticky は包含ブロックの中でしか貼り付かない。.fvIntro を直接 body の子に
+   すると、包含ブロックが body になりページ末尾まで貼り付き続け、01以降の節の
+   余白から演出が透けて見える（実際に踏んだ）。
+   高さ1画面ぶんの .fvHold で包み、貼り付く範囲をその中に閉じ込める。
+   JSの監視に頼らないので、rAFが止まる環境でも必ず正しく振る舞う。
+   🚫 この入れ子を外さないこと。 */
+.fvHold{height:100svh}
+.fvIntro{position:sticky;top:0;height:100svh;overflow:hidden;background:#000}
+
+/* ══════ 点滅の強さはここの3変数だけで調整できる ══════
+   --fvFlipCount … 点滅の「回数」（1回＝黒→白の1サイクル。1反復の前半49.9%が
+                   黒、後半50%〜が白というキーフレーム構造を animation-
+                   iteration-count 回だけ繰り返す設計。§29実装記録参照）
+   --fvFlipMs    … 1サイクルあたりの時間＝「間隔」（小さいほど速く激しい。
+                   前半・後半はこの半分ずつの長さになる）
+   --fvStrobeBright … 白フラッシュの「明るさ」（0〜1）
+   既定は 16回 × .1s＝1.6s で、幕2の長さ（0.4〜2.0s＝1.6s）にちょうど収まる。
+   ⚠️ 幕の長さを変えると後続の幕の開始が連動してずれる（--fvT1〜--fvEnd が
+      自動計算されるため見た目は破綻しない）が、site.js の TOTAL_MS だけは
+      自動連動しない。合計尺に合わせて手動で計算し直すこと。
+   ⚠️ steps()+animation-direction:alternate は使わない。1区間の steps()は
+      順再生・逆再生を問わず常に終端値を返すため、alternateと組み合わせると
+      「最初の1回しか切り替わらない」事故になる（実機検証で発見。詳細は
+      直下の .fvStrobe 定義コメント）。 */
+/* ══════ 2026-08-16：幕の構成を組み替え、時刻を全部この1か所から導く ══════
+   旧構成は「カード突入 → 地の点滅と文字の点滅が完全同期」だった。実機で
+   ①カードが横から一瞬で通り過ぎてカードだと分からない ②明滅が強すぎる
+   ③文字の点滅が地と同調していて単調、と指摘を受けたため次の4幕に組み替えた。
+     幕1  カードが奥から手前へ来て、表が画面と平行になって刺さる
+     幕2a 白黒の点滅だけを数回（文字はまだ出さない）
+     幕2b 行ごと・文字ごとにタイポグラフィが出現。文字の輪郭⇄塗りの点滅は
+          地の点滅と**わざと非同期**にする（周期も位相も揃えない）
+     幕3  3行が生き残る1行へ集約し、下線が伸びて光る
+   ⚠️ 幕2bで地の点滅は止めてある。地が白い瞬間に白い文字が埋もれて読めない
+      という過去の不具合を、同期させずに避けるための構成である。
+      幕2bで地を点滅させ直す場合は文字色の反転を必ず戻すこと。 */
+.fvIntro{ --fvT0:4.90s }          /* ローディング直後。ここだけで起点を動かせる */
+html.intro-skip .fvIntro{ --fvT0:0s }  /* 2回目以降はローディングが無いので即開始 */
+.fvStage{
+  /* 点滅の強さ（幕2a）。実機で「強すぎる」と指摘を受け 16回/.1s/明るさ1 から落とした。 */
+  --fvFlipCount:2; --fvFlipMs:.275s; --fvStrobeBright:.72;   /* 2026-11-05 5回→2回（1秒に3回以下）。幕2aの長さ .55s は変えない */
+  /* 文字だけの点滅（幕2b）。地とは周期を変える（同調させない）。 */
+  --fvRowFlickMs:.19s;
+  --fvCardDur:.90s;                                        /* 幕1 */
+  --fvAct2aDur:calc(var(--fvFlipCount) * var(--fvFlipMs)); /* 幕2a＝.55s */
+  --fvAct2bDur:1.10s;                                      /* 幕2b */
+  --fvAct3Dur:.60s;                                        /* 幕3 */
+  --fvT1:var(--fvCardDur);                                             /* 幕2a開始 */
+  --fvT2:calc(var(--fvCardDur) + var(--fvAct2aDur));                   /* 幕2b開始 */
+  --fvT3:calc(var(--fvT2) + var(--fvAct2bDur));                        /* 幕3開始 */
+  --fvEnd:calc(var(--fvT3) + var(--fvAct3Dur));                        /* 演出終了 */
+  /* 集約と下線で共有するイージング。指定どおり両者を同じ曲線で揃える。 */
+  --fvEase:cubic-bezier(.16,1,.24,1);
+  /* 行の送り幅。.fvRows（親）と .fvRow（子）でフォントサイズが違うため、
+     em ではなくこの変数で揃える。1.05 は .fvRow の line-height。 */
+  --fvFS:clamp(2rem,9.2vw,6.6rem);
+  --fvStep:calc(var(--fvFS) * 1.05 + var(--s1));
+  position:absolute;inset:0;perspective:1100px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transform:translate(0,0)}
+
+/* ── 幕1：地震カードの突入 ──
+   既定（＝最終形）は opacity:0（画面に無い）。0%キーフレームで画面右外・
+   3D回転・縮小の状態へ戻し（animation-fill-mode:both の逆方向フィルにより
+   delay中もこの0%の見えになる）、そこから中央へ突き刺す。 */
+.fvCard{position:absolute;inset:0;margin:auto;z-index:2;
+  width:clamp(120px,24vw,260px);height:auto;aspect-ratio:288/450;
+  border-radius:6px;object-fit:cover;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 18px 48px rgba(0,0,0,.55);
+  opacity:0}
+/* 2026-08-16：横から一瞬で通り過ぎる動きをやめ、奥から手前へ近づける。
+   ⚠️ 「カードであること」が読み取れる時間を作るのが目的なので、表が画面と
+      平行になった状態（rotate が全部0）を 62%〜88% の約0.25秒ぶん保持する。
+      ここを詰めると元の「速すぎて分からない」に戻る。
+   奥行きは translateZ で出す（親の perspective:1100px が効く）。
+   🚫 巨大な scale で寄せないこと。画面の数倍のレイヤーになり、iPhone
+      （画素密度3）でテクスチャ上限を超えて描画ごと消える（過去に踏んだ）。 */
+@keyframes fvCardIn{
+  0%  {opacity:0;transform:translateZ(-1500px) rotateY(-42deg) rotateX(16deg) rotateZ(-9deg)}
+  14% {opacity:1}
+  46% {opacity:1;transform:translateZ(-320px) rotateY(-14deg) rotateX(5deg) rotateZ(-3deg)}
+  62% {opacity:1;transform:translateZ(90px) rotateY(0deg) rotateX(0deg) rotateZ(0deg)}
+  88% {opacity:1;transform:translateZ(90px) rotateY(0deg) rotateX(0deg) rotateZ(0deg)}
+  100%{opacity:0;transform:translateZ(150px) rotateY(0deg) rotateX(0deg) rotateZ(0deg)}
+}
+/* カメラシェイク：突入の衝撃で画面全体（.fvStage）が揺れる。 */
+@keyframes fvShake{
+  0%  {transform:translate(0,0) rotate(0deg)}
+  20% {transform:translate(-7px,4px) rotate(-.5deg)}
+  40% {transform:translate(6px,-5px) rotate(.6deg)}
+  60% {transform:translate(-4px,4px) rotate(-.3deg)}
+  80% {transform:translate(2px,-2px) rotate(.15deg)}
+  100%{transform:translate(0,0) rotate(0deg)}
+}
+
+/* ── 幕2：白黒ストロボ（背景の面） ──
+   既定は opacity:0（黒地のまま）。steps()＋animation-iteration-countを
+   --fvFlipCount/--fvFlipMs だけで駆動するため、この2変数を変えるだけで
+   回数と間隔の両方が変わる。 */
+.fvStrobe{position:absolute;inset:0;z-index:1;background:#fff;opacity:0}
+/* ⚠️ 実装中に踏んだ事故（2026-08-15第2次）：steps(1,jump-start)は「1区間の
+   関数」であり、区間内のどの入力値（0でも1でも、順再生でも逆再生でも）に
+   対しても出力は常に「終端の値」に固定される。そのため
+   animation-direction:alternate と組み合わせても、偶数番目（逆再生）の
+   反復も steps(1) を通すと同じ終端値になり、実質「最初の1回だけ切り替わって
+   あとは変化しない」（＝点滅していないのと同じ）という不具合を実機検証で
+   発見した（コーディネーターの実画面レビューで「白フラッシュの間ずっと
+   文字が読めない」と指摘され、原因調査の過程で判明）。
+   対策：steps()には頼らず、1回の反復（--fvFlipMsぶん）の中に「前半＝黒
+   （49.9%まで）→後半＝白（50%から）」という2値をキーフレーム自体に
+   直接埋め込み、animation-direction は normal（alternateをやめる）にした。
+   反復のたびに同じ0%→100%を律儀に繰り返すだけで、黒→白→黒→白…の
+   点滅がキーフレームの構造そのものから機械的に生まれる。49.9%→50%という
+   ごく短い遷移幅はほぼ瞬時の切り替わりに見える（linearで十分。stepsは
+   もう使わない）。 */
+@keyframes fvStrobeFlip{
+  0%,49.9%{opacity:0}
+  50%,100%{opacity:var(--fvStrobeBright)}
+}
+/* 幕2が終わる瞬間に強制的に opacity:0（黒）へ固定する専用アニメーション。
+   fvStrobeFlipの直後（コンポジット順で後＝優先）に重ねる。
+   animation-fill-mode は forwardsのみ（bothにしない）。delay前は
+   「効果なし」にして幕2の間 fvStrobeFlipの点滅をそのまま透過させ、
+   delay後だけ黒で上書きする。 */
+@keyframes fvStrobeSettle{ to{opacity:0} }
+
+/* 既存グレインと同じ作り（新しい仕組みを増やさない）。常時ごく薄く重ねる。 */
+.fvGrain{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:.06;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='fvn'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23fvn)'/%3E%3C/svg%3E")}
+
+/* ── 「READY OR NOT」4行スタック ──
+   .fvRows は幕1では空（4行とも既定 opacity:0）。幕2の頭で4行そろって現れ、
+   塗り⇄輪郭をストロボと同じ変数で切り替える。幕3で3行（.fvRow--fade）が
+   消え、1行（.fvRow--keep）だけが残る。
+   ⚠️ 3行が消えるとき、opacityだけでなく line-height も0へ畳む。.fvRows が
+   display:flex かつ justify-content:center のため、消えた行の分だけ
+   自動的に再センタリングされ、残る1行が「完全に中央」になる（transformで
+   個別に動かす必要がない）。 */
+/* 4行のうち生き残るのは3行目。素のままだと4行の中心（1行目と2行目の間）が
+   画面中心になり、集約後の1行が中心からずれる。幕3で半段ぶん持ち上げて、
+   残る1行が画面の真ん中に来るようにする。 */
+.fvRows{position:relative;z-index:3;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:var(--s1)}
+@keyframes fvRowsRecenter{ to{ transform:translateY(calc(var(--fvStep) * -.5)) } }
+/* 1文字ずつの出現（幕2b）。行（--ri）と文字（--ci）で遅延をずらす。
+   ⚠️ 行そのものの opacity とは別軸。掛け合わさるだけなので競合しない。 */
+/* ⚠️ 素の宣言は「見えている」最終形にすること（2026-08-17）。opacity:0 を
+   素にすると、site.js が intro-lock を外した瞬間（TOTAL_MS+200ms＝8.5秒）に
+   html.intro-lock 配下のアニメーションが fill-mode:both ごと外れ、文字が
+   素の不可視へ戻る。一方 .fvMark は素が「見えている」ため残るので、
+   「赤い下線だけが残って READY OR NOT が消える」という実機の不具合になる
+   （実測で再現・確認済み）。.fvRow--keep ＋ fvRowEnter と同じ作法へ揃える。 */
+.fvRow > i{display:inline-block;font-style:normal;opacity:1;transform:none}
+.fvRow > i.fvSp{width:.34em}
+@keyframes fvCharIn{ from{ opacity:0;transform:translateY(.14em) } to{ opacity:1;transform:translateY(0) } }
+.fvRow{position:relative;display:inline-block;margin:0;white-space:nowrap;
+  font-family:'Outfit','Archivo',sans-serif;font-weight:900;letter-spacing:-.02em;
+  font-size:clamp(2rem,9.2vw,6.6rem);line-height:1.05;text-transform:uppercase;
+  color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0);
+  filter:drop-shadow(0 2px 14px rgba(0,0,0,.5));
+  opacity:0;
+  /* ⚠️ 実機レビューで発覚した不具合の修正（2026-08-15第2次）：白フラッシュの
+     瞬間、文字が白いまま（塗りでも輪郭でも）で白地に埋もれて読めなくなって
+     いた。.fvStrobe と .fvRow の点滅が完全に同位相のため、地が白の瞬間は
+     必ず文字も「白」側の状態だったのが原因。地の色（.fvStrobeの明滅）に
+     文字色を連動反転させて解く：黒地では白、白地では黒。
+     形（塗りか輪郭か）と色（白か黒か）を別軸にするため、色は
+     var(--rowShapeAnim) が指す各キーフレーム内で「形とセットの色」として
+     一緒に持たせる（形だけ・色だけを別アニメーションに分けると、CSSは
+     同一プロパティを複数アニメーションで持てず、後勝ちで片方が消える
+     ため）。--rowShapeAnim はキーフレーム名を差し込むためのカスタム
+     プロパティで、行ごとに参照するキーフレームだけを差し替える
+     （タイミング指定＝delay/duration/iteration-countは共通のまま）。 */
+  --rowShapeAnim:fvRowFlip}
+/* 既定＝最終形。生き残る1行だけ、素の宣言そのものを「見えている」にしておく。 */
+.fvRow--keep{opacity:1}
+/* ── 形のバリエーション（3種）。すべて .fvStrobe と全く同じ delay/duration/
+   iteration-count/direction で駆動するため、地の色の切り替わりと1フレーム
+   もずれない。4行のうち2行はこの既定（fvRowFlip＝塗り⇄輪郭のトグル）を使い、
+   残り2行に .fvRow--outline／.fvRow--solid を明示的に付けて「塗りの行と
+   輪郭だけの行が混在する」見た目を保つ（実装記録：地の色と関係なく形だけを
+   固定した行を混ぜることで、常読める塗り／輪郭を保ったまま雑然とした
+   グリッチ感を残せる）。 */
+/* ⚠️ 2026-08-16：全ての相を「白」にした。旧実装は白地フェーズ用に黒い文字相を
+   持っていたが、幕2bでは地の点滅が既に終わって黒地に固定されるため、黒相に
+   入った瞬間に文字が黒地へ溶けて消える（実測で生き残る行が丸ごと消えた）。
+   地と同期させない（7-2c）以上、文字は常に白で読める側に倒すのが正しい。
+   ⚠️ fvStrobeFlip と同じ理由・同じ作法（steps()×alternateを使わない）。
+   1回の反復の中に「前半＝黒地フェーズの色（49.9%まで）→後半＝白地
+   フェーズの色（50%から）」を直接埋め込み、animation-direction は
+   normal。.fvStrobe と全く同じ delay/duration/iteration-count/direction
+   で駆動するため、地の色の切り替わりと1フレームもずれない。 */
+@keyframes fvRowFlip{
+  0%,49.9%  { color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0) }
+  50%,100%  { color:#fff;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #fff }
+}
+/* 輪郭のまま線の太さだけ揺れる行。 */
+.fvRow--outline{--rowShapeAnim:fvRowFlipOutline;--fvRowFlickMs:.23s}
+@keyframes fvRowFlipOutline{
+  0%,49.9%  { color:#fff;-webkit-text-fill-color:transparent;-webkit-text-stroke:.05em #fff }
+  50%,100%  { color:#fff;-webkit-text-fill-color:transparent;-webkit-text-stroke:.10em #fff }
+}
+/* 塗りのまま濃さだけ揺れる行。 */
+.fvRow--solid{--rowShapeAnim:fvRowFlipSolid;--fvRowFlickMs:.29s}
+@keyframes fvRowFlipSolid{
+  0%,49.9%  { color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0) }
+  50%,100%  { color:rgba(255,255,255,.5);-webkit-text-fill-color:rgba(255,255,255,.5);-webkit-text-stroke:0 rgba(255,255,255,0) }
+}
+/* 生き残る行は最も速い周期。4行それぞれ .19 / .23 / .17 / .29 秒と割り切れない比に
+   してあり、幕2bのあいだ一度も位相が揃わない＝機械的な同調に見えない（7-2c）。 */
+.fvRow--keep{--fvRowFlickMs:.17s}
+@keyframes fvRowSettle{ to{ color:#fff;-webkit-text-fill-color:#fff;-webkit-text-stroke:0 rgba(255,255,255,0) } }
+/* 0秒アニメーション＝指定した瞬間に値を切り替えるだけのトリガー
+   （.loadInkHide などサイト内の既存の作法と同じ）。
+   ⚠️ from/to を両方明示すること。.fvRow--keep の素の宣言は opacity:1
+   （既定＝最終形）のため、to だけのキーフレームだと暗黙のfromがその1を
+   拾ってしまい、delay中（幕1の間）から常時 opacity:1 のまま＝生き残る行が
+   カード突入の裏で先に見えてしまう事故を実際に踏んだ。 */
+@keyframes fvRowEnter{ from{opacity:0} to{opacity:1} }
+/* ⚠️ .fvRow--fade はこの1本だけで opacity を持つこと（enterと2本立てに
+   しない）。同じプロパティを複数アニメーションで触ると、delay中（まだ
+   どちらも発火していない間）は「後に列挙したアニメーションのfrom」が勝つ
+   （Web Animationsのコンポジット順）。enter用とvanish用を分けたところ、
+   3本目（vanish）のfrom=opacity:1が2本目（enter）のfrom=opacity:0を
+   上書きし、消える3行が幕1の間から見えてしまう事故を実際に踏んだ。
+   duration を幕2bの長さ（--fvAct2bDur）そのものにして、登場を1本の
+   キーフレームで完結させる（消滅＝集約は幕3の fvRowConverge が担う）。 */
+/* 幕2b：3行は出たまま。opacity は行の在／不在だけを担う（1本で完結させる）。 */
+@keyframes fvRowFadeLifecycle{
+  0%  {opacity:0}
+  8%  {opacity:1}
+  100%{opacity:1}
+}
+/* 幕3（7-3a）：3行が「生き残る1行」の位置へ寄って集約する。
+   --conv は行ごとの段数（マークアップ側で指定）。下から上・上から下の
+   両方向へ寄るため符号を持たせてある。
+   ⚠️ 旧実装は line-height を0へ畳んで再センタリングしていた。畳むと
+      「消える」だけで「集まる」に見えないため、位置を動かす方式へ変えた。
+      再センタリングは .fvRows 側の fvRowsRecenter が担う。 */
+@keyframes fvRowConverge{
+  0%  {opacity:1;transform:translateY(0) scale(1)}
+  70% {opacity:.45}
+  100%{opacity:0;transform:translateY(calc(var(--fvStep) * var(--conv) * 1)) scale(.92)}
+}
+
+/* ── マーカー：生き残った行の下に、キーカラーの赤が慣性を伴って伸びる ── */
+/* 2026-08-16（7-3b・7-3c）：下線を太くし、文字の下2〜3割に重ねて背景側へ回す。
+   ⚠️ top/height は em で書く。em は .fvRow から継承したフォントサイズに
+      解決されるので、clamp で可変になる見出しにそのまま追随する。
+   ⚠️ z-index:-1 で文字の後ろへ。.fvRow は filter:drop-shadow を持つため
+      それ自体が合成グループになっており、負のz-indexでも行の外へは抜けない。 */
+.fvMark{position:absolute;left:-.04em;right:-.04em;top:.62em;z-index:-1;
+  height:.26em;border-radius:1px;background:var(--accent);
+  transform-origin:left center;transform:scaleX(1)}
+@keyframes fvMarkDraw{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
+/* 最後に光る。伸び切ってから追いかけて発光させる（伸びと同時に光らせない）。 */
+@keyframes fvMarkGlow{
+  0%  {box-shadow:0 0 0 rgba(250,42,78,0)}
+  55% {box-shadow:0 0 26px 4px rgba(250,42,78,.72)}
+  100%{box-shadow:0 0 12px 1px rgba(250,42,78,.34)}
+}
+
+/* ══════ スクロール誘導（7-4）。演出が終わってから右下に出す ══════ */
+/* ⚠️ .fvRow > i と全く同じ理由で、素の宣言は「見えている」最終形にする
+   （2026-08-17）。旧実装は opacity:0 が素だったため、8.5秒に intro-lock が
+   外れた時点でスクロール誘導が消えていた（実測で確認）。 */
+.fvScroll{position:absolute;right:var(--s4);bottom:var(--s4);z-index:5;
+  display:flex;flex-direction:column;align-items:center;gap:var(--s2);
+  color:rgba(255,255,255,.72);pointer-events:none;opacity:1}
+@keyframes fvScrollIn{ from{opacity:0} to{opacity:1} }
+/* 縦組みの英字（2026-08-17）。
+   ⚠️ writing-mode は使わない。1語のまま縦に流すと、面の高さより文字列が
+      長くなったときに端の文字が欠ける（.wayArtWord で実際に踏んだ）。
+      1文字ずつの子要素を縦のflexで積む、サイト内の既存の作法へ揃える。 */
+.fvScrollLabel{display:flex;flex-direction:column;align-items:center;
+  font-size:var(--fs-xs);letter-spacing:0;line-height:1.3}
+/* 各文字を90度・時計回りに回す（2026-08-17 ユーザー指示）。
+   ⚠️ 回転は見た目だけを変える。縦に積む構造（flex）はそのまま。
+      1em四方の枠を与えてから回すことで、回転後も行送りが揃う。 */
+.fvScrollLabel > span{display:grid;place-items:center;
+  width:1em;height:1em;transform:rotate(90deg)}
+/* 丸が上下する区間。⚠️ 2026-08-17：区間を示す線は消した（ユーザー指示）。
+   要素は丸の移動距離を決めるためだけに残す（高さが移動量の基準）。 */
+.fvScrollTrack{position:relative;display:block;width:8px;height:46px}
+.fvScrollDot{position:absolute;left:50%;top:0;width:8px;height:8px;
+  margin-left:-4px;border-radius:50%;background:currentColor}
+/* 46px の区間を、丸の直径8pxぶん引いた38pxだけ動く。
+   ⚠️ イージングは両端で行き過ぎて戻る easeInOutBack を使う（ユーザー指示で
+      戻り値を強めた）。線を消したので、区間の外へ少しはみ出しても破綻しない。 */
+@keyframes fvScrollDotRun{ from{transform:translateY(0)} to{transform:translateY(38px)} }
+
+/* ══════ タイミング（intro-lock：ローディング直後＝4.40秒起点） ══════
+   .loadOverlay は 4.45〜4.90秒で消える（site.css。2026-08-16に幕0＝0→100のゲージを
+   前へ挿したぶん、全工程を +0.50秒ずらした）。ファーストビューはその直後、4.90秒から始める。
+   ⚠️ ローディング側の遅延を動かしたら、この intro-lock 配下の遅延も同じだけ動かすこと。
+      片方だけ動かすと、オーバーレイが消えきる前にファーストビューが走り出して重なる。
+   site.js の TOTAL_MS はこの合計尺（既定で 4.40+4.0=8.40秒）の終わりに
+   合わせてある。TOTAL_MS+200ms で intro-lock が剥がされ、剥がれた瞬間に
+   html.intro-lock 配下の animation は既定値（＝幕3終了後の最終状態）へ飛ぶため、
+   8.40秒より前に剥がしてはいけない。 */
+/* ══════ タイミング表（2026-08-16に1本化） ══════
+   起点は .fvIntro の --fvT0 だけ。ローディングありは 4.90s、2回目以降
+   （html.intro-skip）は 0s を入れてある。以前は intro-lock 用と intro-skip 用に
+   同じ表を2つ持っていて、片方だけ直して食い違う事故が起きやすかった。
+   ⚠️ ローディング側の遅延を動かしたら .fvIntro の --fvT0 を同じだけ動かすこと。
+      片方だけだとオーバーレイが消えきる前にファーストビューが走り出して重なる。 */
+
+/* ── 幕1：カードが奥から手前へ来て刺さる ── */
+html.intro-lock .fvCard,
+html.intro-skip .fvCard{animation:fvCardIn var(--fvCardDur) var(--e) var(--fvT0) both}
+/* 突き刺さった瞬間の衝撃。カードが正対する 62% の時点に合わせる。 */
+html.intro-lock .fvStage,
+html.intro-skip .fvStage{animation:fvShake .3s var(--e)
+  calc(var(--fvT0) + var(--fvCardDur) * .62) both}
+
+/* ── 幕2a：白黒の点滅だけ（文字はまだ出さない） ── */
+html.intro-lock .fvStrobe,
+html.intro-skip .fvStrobe{
+  animation-name:fvStrobeFlip,fvStrobeSettle;
+  animation-duration:var(--fvFlipMs),0s;
+  animation-timing-function:linear,linear;
+  animation-iteration-count:var(--fvFlipCount),1;
+  animation-direction:normal,normal;
+  animation-delay:calc(var(--fvT0) + var(--fvT1)),calc(var(--fvT0) + var(--fvT2));
+  animation-fill-mode:both,forwards}
+
+/* ── 幕2b：行が出る。文字の輪郭⇄塗りの点滅は地とは別の周期で回す（7-2c） ──
+   ⚠️ --fvRowFlickMs は --fvFlipMs（地）と揃えない。揃えると同調して
+      単調になるうえ、過去に「白地で白い文字が読めない」事故を起こした
+      組み合わせに戻ってしまう。幕2bでは地の点滅自体が止まっている。 */
+html.intro-lock .fvRow,
+html.intro-skip .fvRow{
+  animation-name:fvRowEnter,var(--rowShapeAnim),fvRowSettle;
+  animation-duration:0s,var(--fvRowFlickMs),0s;
+  animation-timing-function:linear,linear,linear;
+  animation-iteration-count:1,infinite,1;
+  animation-direction:normal,normal,normal;
+  animation-delay:calc(var(--fvT0) + var(--fvT2)),
+                  calc(var(--fvT0) + var(--fvT2) + var(--ri) * .06s),
+                  calc(var(--fvT0) + var(--fvT3));
+  animation-fill-mode:both,both,forwards}
+/* 1文字ずつの出現。行（--ri）と文字（--ci）でずらす。 */
+html.intro-lock .fvRow > i,
+html.intro-skip .fvRow > i{
+  animation:fvCharIn .34s var(--fvEase)
+    calc(var(--fvT0) + var(--fvT2) + var(--ri) * .09s + var(--ci) * .026s) both}
+/* 3行は出たまま維持し、幕3で集約する。 */
+html.intro-lock .fvRow--fade,
+html.intro-skip .fvRow--fade{
+  animation-name:fvRowFadeLifecycle,var(--rowShapeAnim),fvRowConverge;
+  animation-duration:var(--fvAct2bDur),var(--fvRowFlickMs),var(--fvAct3Dur);
+  animation-timing-function:linear,linear,var(--fvEase);
+  animation-iteration-count:1,infinite,1;
+  animation-direction:normal,normal,normal;
+  animation-delay:calc(var(--fvT0) + var(--fvT2)),
+                  calc(var(--fvT0) + var(--fvT2) + var(--ri) * .06s),
+                  calc(var(--fvT0) + var(--fvT3));
+  animation-fill-mode:both,both,forwards}
+
+/* ── 幕3：集約の受け皿（残る1行を画面中心へ）と、下線 ── */
+html.intro-lock .fvRows,
+html.intro-skip .fvRows{animation:fvRowsRecenter var(--fvAct3Dur) var(--fvEase)
+  calc(var(--fvT0) + var(--fvT3)) both}
+/* 下線は集約と同じイージングで伸ばし、伸び切ってから追いかけて光らせる。 */
+html.intro-lock .fvMark,
+html.intro-skip .fvMark{
+  animation-name:fvMarkDraw,fvMarkGlow;
+  animation-duration:var(--fvAct3Dur),.7s;
+  animation-timing-function:var(--fvEase),var(--e);
+  animation-delay:calc(var(--fvT0) + var(--fvT3)),
+                  calc(var(--fvT0) + var(--fvT3) + var(--fvAct3Dur) * .8);
+  animation-fill-mode:both,forwards}
+
+/* ── スクロール誘導：一連の演出が終わってから出す ── */
+html.intro-lock .fvScroll,
+html.intro-skip .fvScroll{
+  animation:fvScrollIn .5s var(--e) calc(var(--fvT0) + var(--fvEnd) + .1s) both}
+/* ⚠️ 丸の往復は intro-lock/intro-skip の配下に置かない。8.5秒でクラスが
+   外れた瞬間に往復が止まるため（12-1と同じ構造の事故）。--fvT0 は .fvIntro、
+   --fvEnd は .fvStage から継承されるので素のセレクタに直接書ける。 */
+.fvScrollDot{
+  animation:fvScrollDotRun 1.9s cubic-bezier(.68,-.55,.27,1.55)
+    calc(var(--fvT0, 0s) + var(--fvEnd, 0s) + .6s) infinite alternate}
+
+/* ⚠️ 点滅は体調に影響しうるため、reduced-motion では完全に止める。
+   全アニメーションを無効化し、幕3終了後の最終状態（黒地＋1行＋マーカー）を
+   即座に固定表示する。 */
+@media (prefers-reduced-motion: reduce){
+  html:not([data-motion="on"]) .fvCard,
+  html:not([data-motion="on"]) .fvStage,
+  html:not([data-motion="on"]) .fvStrobe,
+  html:not([data-motion="on"]) .fvRows,
+  html:not([data-motion="on"]) .fvRow,
+  html:not([data-motion="on"]) .fvRow > i,
+  html:not([data-motion="on"]) .fvMark,
+  html:not([data-motion="on"]) .fvScroll,
+  html:not([data-motion="on"]) .fvScrollDot{animation:none!important}
+  html:not([data-motion="on"]) .fvCard{opacity:0!important}
+  html:not([data-motion="on"]) .fvStage{transform:translate(0,0)!important}
+  html:not([data-motion="on"]) .fvStrobe{opacity:0!important}
+  html:not([data-motion="on"]) .fvRow{opacity:0!important}
+  html:not([data-motion="on"]) .fvRow--keep{opacity:1!important}
+  /* 1文字ずつの出現も止め、最終状態（全部見えている）で固定する。
+     ⚠️ ここを書き忘れると文字が opacity:0 のまま残り、生き残る行が空になる。 */
+  html:not([data-motion="on"]) .fvRow > i{opacity:1!important;transform:none!important}
+  /* 集約後の位置（残る1行が画面中心）で固定する。 */
+  html:not([data-motion="on"]) .fvRows{transform:translateY(calc(var(--fvStep) * -.5))!important}
+  html:not([data-motion="on"]) .fvMark{transform:scaleX(1)!important}
+  html:not([data-motion="on"]) .fvScroll{opacity:1!important}
+}
+
+@media(max-width:899px){
+  .fvRow{font-size:clamp(1.6rem,10.5vw,3.2rem)}
+}
+
+/* ══════ 00 ヒーロー（全画面キービジュアル＋左7カラムの文字。2026-08-11改訂・
+   §10.2.1）。実機画面は主役から外した（03の詳細でのみ使う）。§10.7 の
+   非対称分割そのものは、文字を置くカラムの基準として残す。 ══════ */
+.hero{position:relative;min-height:100svh;display:flex;align-items:stretch;
+  padding-top:var(--s6);overflow:hidden}
+
+.heroKV{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:var(--kv,var(--kv-fallback));background-size:cover;background-position:center}
+/* 稲妻はキービジュアル画像が持つため、CSSでの擬似稲妻は廃止した。 */
+/* 文字側（左）の可読性確保。キービジュアルは明るい夜明けの青のため、
+   白文字がそのままでは沈む。左からごく暗いスクリムを敷く。 */
+.heroKV::after{content:'';position:absolute;inset:0;
+  /* 文字側（左）の可読性。キービジュアルの左は夜明けで明るく、ロゴタイプの帯に
+     そのまま白文字を置くと沈む。実測でこの強度にすると帯の平均輝度が67/255まで
+     下がり、白文字とのコントラスト比は約10.1（AAA）になる。 */
+  background:linear-gradient(100deg,
+    rgba(3,8,16,.78) 0%, rgba(3,8,16,.52) 40%, transparent 74%)}
+
+/* ══════ パララックス（§20.7）。背景（キービジュアル）とテキストが時間差で
+   動く視差をはっきり分かる程度に付ける。.hero 自身の view-timeline を使い、
+   節がビューポートを通過する間、背景はゆっくり／文字はやや速く動かす
+   （速度差が視差として読める程度に留め、酔わない範囲の移動量にする）。
+   scale(1.12) は.maskRevealのパララックス（§12.1）と同じ考え方のブリードで、
+   translateYで動かしても.hero側のoverflow:hiddenの内側に端が透けない余白を
+   確保する（background-size:coverの計算自体は変えない）。
+   非対応ブラウザ・prefers-reduced-motionでは静止（既存の共通@mediaが
+   animationごと無効化する）。 ══════ */
+@supports (animation-timeline: view()){
+  .heroKV{animation:heroKVParallax linear both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+  .heroL{animation:heroLParallax linear both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+}
+@keyframes heroKVParallax{
+  from{transform:translateY(-4%) scale(1.12)}
+  to{transform:translateY(4%) scale(1.12)}
+}
+@keyframes heroLParallax{ from{transform:translateY(calc(var(--s3) * -1))} to{transform:translateY(var(--s3))} }
+
+/* 人物：ポスターと同じく、晴れと嵐の境界に背を向けて立たせる。
+   下端を切って地面に接地させる。文字は左7カラムなので重ならない。 */
+.heroFigure{position:absolute;right:6vw;bottom:0;z-index:1;pointer-events:none;
+  height:min(66svh,640px);width:auto;
+  filter:drop-shadow(0 0 var(--s5) rgba(0,0,0,.55))}
+/* 不透明度が低すぎて後ろ姿が沈んでいた（実機で確認）。上げて見えるようにする。 */
+@media(max-width:899px){ .heroFigure{right:-4vw;height:48svh;opacity:.9} }
+
+
+/* ⚠️ スマホは画面が縦長なので、cover だと横方向が大きく切られる。
+   background-position:center のままだと左側しか見えない（実機で確認）。
+   絵の主題が右側にあるため、スマホでは右へ寄せて見せる。 */
+@media(max-width:899px){
+  .heroKV{background-position:78% center}
+}
+.heroL{position:relative;z-index:2;grid-column:1 / 8;min-width:0;align-self:center}
+/* 左上のロゴは position:fixed のため、スマホではヒーローのロゴタイプと
+   重なる。上に余白を取って逃がす。 */
+@media(max-width:899px){ .heroL{padding-top:var(--s7)} }
+
+.logo{position:relative;line-height:.92;
+  font-size:clamp(var(--fs-d1),8.4vw,var(--fs-d3));margin-left:-.04em}
+.logo span{display:block}
+.logo .l2{padding-left:.09em}
+/* グランジのかすれ（§10.4.1）。
+   ⚠️ 擬似要素を矩形で重ねてはいけない。ロゴの箱ぜんたいが灰色の四角として
+   浮き上がり、演出ではなく不具合に見える。ノイズは background-clip:text で
+   「文字の内側」に閉じ込める。白ベタとノイズを multiply で合成し、白い文字に
+   暗いかすれが入るポスターの見えを再現する。
+   非対応ブラウザでは color:var(--t1) のまま素の白文字になる（劣化して崩れない）。 */
+.logo{color:var(--t1)}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .logo{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E"),
+      linear-gradient(var(--t1),var(--t1));
+    background-size:180px 180px, 100% 100%;
+    background-blend-mode:multiply;
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent}
+}
+
+.tagline{margin-top:var(--s3);font-size:clamp(var(--fs-h3),3.2vw,var(--fs-h1))}
+
+.cta{margin-top:var(--s5);display:flex;flex-direction:column;gap:var(--s2);
+  align-items:flex-start}
+/* 斜め塗りホバー（項目9）。詳細な設計判断は assets/site.css の該当コメントに
+   まとめてある（同じ仕組みを .closeCta／.btnFill／.barPlay にも適用）。 */
+.ctaMain{position:relative;isolation:isolate;display:flex;flex-direction:column;gap:var(--s1);
+  padding:var(--s3) var(--s4);background:var(--accent);color:#fff;font-weight:700;
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  transition:color .2s var(--e),transform .2s var(--e)}
+.ctaMain::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--gold);
+  clip-path:polygon(0 0,0 0,0 100%,0 100%);transition:clip-path .32s var(--e)}
+.ctaMain:hover::before,.ctaMain:focus-visible::before,.ctaMain:active::before{
+  clip-path:polygon(0 0,100% 0,calc(100% - 1.2em) 100%,0 100%)}
+.ctaMain:hover,.ctaMain:focus-visible,.ctaMain:active{color:var(--ground)}
+.ctaMain b{font-size:var(--fs-h3);line-height:1.2}
+.ctaMain i{font-style:normal;font-size:var(--fs-s);opacity:.86;line-height:1.2}
+.ctaMain:hover i,.ctaMain:focus-visible i,.ctaMain:active i{opacity:1}
+@media(hover:hover){ .ctaMain:hover{transform:translateY(-2px)} }
+.ctaMain:focus-visible{outline:2px solid var(--t1);outline-offset:3px}
+.stores{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
+/* ⚠️ stretch にすると、バッジ画像の原寸（270x80）が基準になって隣の
+   「App Store 準備中」の枠まで80pxへ引き伸ばされ、枠の中に空白が残った
+   （実測で確認）。バッジ側を枠の高さに近い実寸で指定し、中央で揃える。 */
+.storeLink{display:block;line-height:0}
+.storeLink img{display:block;width:clamp(8rem, 12vw, 9.5rem);height:auto}
+@media(hover:hover){ .storeLink:hover{filter:brightness(1.1)} }
+.storeLink:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+/* 二次元コード。⚠️ 読み取れることが機能そのものなので、白の余白（静穏域）ごと
+   出す。地が濃紺なので白場は四角のまま残し、角丸や枠で飾らない。 */
+.heroQr{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s1)}
+.storeQr{display:flex;flex-direction:column;align-items:center;gap:6px}
+.storeQr img{display:block;width:clamp(3.9rem,6.4vw,4.8rem);height:auto;
+  background:#fff;padding:4px}
+.storeQrCap{font-size:var(--fs-xs);letter-spacing:var(--tr-label);
+  color:var(--t3)}
+.store{font-size:var(--fs-s);color:var(--t3);border:1px solid var(--border);
+  padding:var(--s1) var(--s3);line-height:1.5}
+.store em{font-style:normal;display:block;font-size:var(--fs-xs);
+  letter-spacing:var(--tr-label);color:var(--t3)}
+
+/* ══════ 04 締め（新設。§13。00 と同じキービジュアル構造でタグラインを再掲し、
+   PLAY への大きな導線を1つだけ置く。全画面（min-height:100svh）。下部固定バー
+   （§13.2）の高さぶんの下余白を padding-bottom で確保し、align-items:center が
+   コンテンツをその分だけ上へ寄せる。これにより演出（全面余白そのものの効果）を
+   下バーが潰さない。 ══════ */
+.close{position:relative;min-height:100svh;display:flex;align-items:center;
+  padding-bottom:var(--s6);overflow:hidden}
+
+.closeKV{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:var(--kv2,var(--kv2-fallback));background-size:cover;background-position:center}
+/* ⚠️ この指定は .closeKV の定義より後ろに置くこと。詳細度が同じ(0,1,0)なので、
+   定義より前に書くと後勝ちで打ち消される（実際に効いていなかった）。
+   スマホは縦長で cover の横方向が大きく切られるため、右へ寄せて見せる。 */
+@media(max-width:899px){ .closeKV{background-position:100% center} }
+/* 左スクリムは00と同じ考え方（§10.2.1・§11.4）。文字が乗る左側の輝度を落として
+   可読性を確保する。 */
+.closeKV::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(100deg,
+    rgba(3,8,16,.78) 0%, rgba(3,8,16,.52) 40%, transparent 74%)}
+
+/* パララックス（§20.7）。00 のヒーローと同じ考え方（scale(1.12)のブリード＋
+   translateY）で、storm.webp（背景）とタグライン（文字）に速度差を付ける。 */
+@supports (animation-timeline: view()){
+  .closeKV{animation:closeKVParallax linear both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+  .closeL{animation:closeLParallax linear both;animation-timeline:view();
+    animation-range:cover 0% cover 100%}
+}
+@keyframes closeKVParallax{
+  from{transform:translateY(-4%) scale(1.12)}
+  to{transform:translateY(4%) scale(1.12)}
+}
+@keyframes closeLParallax{ from{transform:translateY(calc(var(--s3) * -1))} to{transform:translateY(var(--s3))} }
+
+/* §20.8：8:4だった旧比率を6:6ぶんさらに右へ寄せ、キービジュアルの見える
+   面積を増やす（左エッジ＝カラム1は不変。崩すのは右側だけの原則どおり）。 */
+.closeL{position:relative;z-index:2;grid-column:1 / 7;min-width:0}
+/* タグラインの再掲。00 の .tagline（clamp上限 --fs-h1）より大きく出す。 */
+.closeTag{font-size:clamp(var(--fs-d1),6.4vw,var(--fs-d3));line-height:var(--lh-d)}
+/* ⚠️ 「失敗できる／災害はここだけ」の2行組みと、平仮名の縮小は、
+   スマホだけでなく全幅で効かせること。PCでも改行が入らないと、
+   「失敗でき／る災害は／ここだけ」のように語の途中で3行に割れる
+   （実機で発生）。改行位置と字の大小は文の意味に属する組版であり、
+   画面幅で変えるべきものではない。 */
+.closeTag .tagKana{font-size:.66em}
+.closeTag .tagBr{display:block}
+/* 2026-08-16：実機で「失敗できる／災害はここだ／け」と3行に割れた報告への対処。
+   ヘッドレスChromeの実測では 390〜1440px の全幅で2行に収まっており、原因は
+   本文フォントの読み込み前に代替フォント（字幅が広い）で組まれて溢れる FOUT である。
+   <br> があっても自動折返しは止まらないため、行を跨がせない指定を足して構造で封じる。
+   最長行「災害はここだけ」は 2em＋5×.66em＝5.3em で、900px時に使える幅の78%。
+   代替フォントが1割広くても収まるため、はみ出しは起きない。 */
+.closeTag{white-space:nowrap}
+/* 斜め塗りホバー（項目9。.ctaMain と同じ仕組み）。 */
+.closeCta{position:relative;isolation:isolate;margin-top:var(--s5);display:inline-flex;align-items:center;
+  padding:var(--s3) var(--s6);background:var(--accent);color:#fff;font-weight:700;
+  font-size:var(--fs-h3);letter-spacing:var(--tr-label);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  transition:color .2s var(--e),transform .2s var(--e)}
+.closeCta::before{content:'';position:absolute;inset:0;z-index:-1;background:var(--gold);
+  clip-path:polygon(0 0,0 0,0 100%,0 100%);transition:clip-path .32s var(--e)}
+.closeCta:hover::before,.closeCta:focus-visible::before,.closeCta:active::before{
+  clip-path:polygon(0 0,100% 0,calc(100% - 1.2em) 100%,0 100%)}
+.closeCta:hover,.closeCta:focus-visible,.closeCta:active{color:var(--ground)}
+@media(hover:hover){ .closeCta:hover{transform:translateY(-2px)} }
+.closeCta:focus-visible{outline:2px solid var(--t1);outline-offset:3px}
+
+/* .foot（フッター文字組）は assets/site.css の共通ユーティリティを使う。 */
+
+/* v6 骨格。開幕・hero・締めの既存演出は上の移植ルールを使う。 */
+body{font-variant-numeric:tabular-nums}
+.v6-update{display:flex;align-items:baseline;gap:var(--s3);border-block:1px solid var(--border);padding-block:var(--s2);color:var(--t1)}
+.v6-update time{flex:none;font:400 .75rem/1.8 'Archivo',sans-serif;font-variant-numeric:tabular-nums}
+.v6-update span{font-size:var(--fs-s);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.v6-placeholder{min-height:70svh;display:flex;align-items:center;border-top:1px solid var(--border);background:var(--ground)}
+.v6-placeholder h2{font:800 clamp(28px,4.5vw,64px)/1.4 'Shippori Mincho B1',serif}
+.v6-placeholder p{margin-top:var(--s3);font-size:var(--fs-s);color:var(--t1)}
+.v6-home .try-scene{box-sizing:border-box;scroll-margin-top:0}
+.v6-home .try-choice::before{content:none}
+.v6-home .try-forecast,.v6-home .try-prompt,.v6-home .try-result{text-shadow:none}
+.close .stores{margin-top:var(--s3)}
+.close .heroQr{margin-top:var(--s3)}
