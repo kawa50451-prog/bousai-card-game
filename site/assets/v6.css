@@ -663,8 +663,8 @@ body{font-variant-numeric:tabular-nums}
 .v6-ways .ways-heading h2{font-size:clamp(28px,4.5vw,64px);line-height:1.4}
 .v6-ways .wayFull{--ways-split:50%;position:relative;display:grid;grid-template-columns:var(--ways-split) 1fr;flex:1;min-height:0;transition:grid-template-columns .65s var(--e)}
 .v6-ways .wayFullHalf{position:relative;display:block;overflow:hidden;min-width:0;padding:clamp(32px,4.5vw,72px);color:#fff;text-decoration:none;transition:transform .85s var(--e)}
-.v6-ways .wayFullHalf--vs{background:var(--accent);--way-angle:-4deg;--way-enter:-100%}
-.v6-ways .wayFullHalf--coop{background:#388bfd;--way-angle:4deg;--way-enter:100%}
+.v6-ways .wayFullHalf--vs{background:#E60B00;--way-angle:-4deg;--way-enter:-100%}
+.v6-ways .wayFullHalf--coop{background:#002A6C;--way-angle:4deg;--way-enter:100%}
 .v6-ways .wayInner{position:relative;z-index:1}
 .v6-ways .wayMode{margin:0;font-size:clamp(32px,4.5vw,64px);line-height:1.25;white-space:nowrap}
 .v6-ways .waySub{margin-top:var(--s2);font-size:clamp(14px,1.35vw,20px);line-height:1.6;white-space:nowrap}
