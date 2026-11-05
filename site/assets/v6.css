@@ -719,3 +719,76 @@ html[data-motion-lite] .v6-ways *{transition:none!important}
 }
 /* 対戦の写真は「あなた」の半分だけに切った短い画像なので、スマホでは下にはみ出す量を減らす */
 @media(max-width:600px){.v6-ways .wayFullHalf--vs .wayShot{bottom:-40px}}
+
+/* 03: static first; only supported desktop timelines get the sticky journey. */
+.v6-deck{position:relative;background:var(--ground)}
+.v6-deck .deck-heading{width:fit-content;padding-block:var(--s5);margin-block:0}
+.v6-deck .deck-heading h2{font-size:clamp(28px,4.5vw,64px);line-height:1.4}
+.v6-deck .deck-window{overflow:clip}
+.v6-deck .deck-track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));max-width:1280px;margin:0 auto;padding:0 var(--pad) var(--s6);list-style:none;gap:var(--s4)}
+.v6-deck .deck-step{position:relative;min-width:0;display:flex;flex-direction:column;align-items:center;gap:var(--s3)}
+.v6-deck .deck-step:not(:last-child)::after{content:"";position:absolute;top:76px;right:calc(var(--s4) / -2 - 20px);width:40px;height:1px;background:var(--t1);opacity:.35}
+.v6-deck .deck-type{flex:none;text-align:center}
+.v6-deck .deck-label{font-size:var(--fs-s);letter-spacing:var(--tr-label)}
+.v6-deck .deck-verb{margin:var(--s1) 0 0;font:800 clamp(64px,6.5vw,104px)/1.3 'Shippori Mincho B1',serif;letter-spacing:var(--tr-jp-accent);color:#fff}
+.v6-deck .deck-shot{display:block;width:min(100%,200px);height:auto;border:0;border-radius:0;box-shadow:none}
+.v6-deck .deck-shot--saved{aspect-ratio:1/1.05;height:auto;object-fit:cover;object-position:50% 50%;margin-block:auto}
+@supports (animation-timeline:view()){
+  @media(min-width:901px){
+    html:not([data-motion-lite]) .v6-deck{height:300svh;view-timeline-name:--deck;view-timeline-axis:block}
+    html:not([data-motion-lite]) .v6-deck .deck-sticky{position:sticky;top:0;height:100svh;display:flex;flex-direction:column}
+    html:not([data-motion-lite]) .v6-deck .deck-window{flex:1;min-height:0;display:flex;align-items:center}
+    html:not([data-motion-lite]) .v6-deck .deck-track{display:flex;flex:none;gap:0;width:210vw;max-width:none;margin:0 0 0 15vw;padding:0 0 var(--s5);animation:deck-travel linear both;animation-timeline:--deck;animation-range:contain 0% contain 100%}
+    html:not([data-motion-lite]) .v6-deck .deck-step{flex:0 0 70vw;flex-direction:row;justify-content:center;gap:clamp(40px,7vw,120px)}
+    html:not([data-motion-lite]) .v6-deck .deck-step:not(:last-child)::after{top:50%;right:-32px;width:64px}
+    html:not([data-motion-lite]) .v6-deck .deck-type{text-align:left}
+    html:not([data-motion-lite]) .v6-deck .deck-verb{font-size:clamp(88px,9vw,160px);animation:deck-first linear both;animation-timeline:--deck;animation-range:contain 0% contain 100%}
+    html:not([data-motion-lite]) .v6-deck .deck-step:nth-child(2) .deck-verb{animation-name:deck-second}
+    html:not([data-motion-lite]) .v6-deck .deck-step:nth-child(3) .deck-verb{animation-name:deck-third}
+    html:not([data-motion-lite]) .v6-deck .deck-shot{width:auto;height:min(54svh,540px);max-width:30vw;object-fit:contain}
+    html:not([data-motion-lite]) .v6-deck .deck-shot--saved{width:min(32vw,400px);height:min(44svh,420px);object-fit:cover;margin-block:0}
+  }
+}
+@keyframes deck-travel{0%,10%{transform:translateX(0)}45%,55%{transform:translateX(-70vw)}90%,100%{transform:translateX(-140vw)}}
+@keyframes deck-first{0%,27.49%{opacity:1}27.5%,100%{opacity:.22}}
+@keyframes deck-second{0%,27.49%{opacity:.22}27.5%,72.49%{opacity:1}72.5%,100%{opacity:.22}}
+@keyframes deck-third{0%,72.49%{opacity:.22}72.5%,100%{opacity:1}}
+/* The OS preference wins unless the v5 inspection override is explicit. */
+@media(prefers-reduced-motion:reduce){
+  html:not([data-motion="on"]) .v6-deck{height:auto;view-timeline-name:none}
+  html:not([data-motion="on"]) .v6-deck .deck-sticky{position:static;height:auto;display:block}
+  html:not([data-motion="on"]) .v6-deck .deck-window{display:block}
+  html:not([data-motion="on"]) .v6-deck .deck-track{display:grid;width:auto;max-width:1280px;margin:0 auto;padding:0 var(--pad) var(--s6);gap:var(--s4);animation:none}
+  html:not([data-motion="on"]) .v6-deck .deck-step{flex-direction:column;gap:var(--s3)}
+  html:not([data-motion="on"]) .v6-deck .deck-step:not(:last-child)::after{top:76px;right:calc(var(--s4) / -2 - 20px);width:40px}
+  html:not([data-motion="on"]) .v6-deck .deck-type{text-align:center}
+  html:not([data-motion="on"]) .v6-deck .deck-verb{font-size:clamp(64px,6.5vw,104px);animation:none;opacity:1}
+  html:not([data-motion="on"]) .v6-deck .deck-shot{width:min(100%,200px);height:auto;max-width:none}
+  html:not([data-motion="on"]) .v6-deck .deck-shot--saved{object-fit:cover;margin-block:auto}
+  html:not([data-motion="on"]) .v6-deck *{transition:none!important}
+}
+@media(max-width:900px){
+  .v6-deck .deck-track{grid-template-columns:1fr;gap:var(--s6)}
+  .v6-deck .deck-step{gap:var(--s3)}
+  .v6-deck .deck-step:not(:last-child)::after{top:auto;bottom:calc(var(--s6) / -2);right:calc(50% - 24px);width:48px}
+  .v6-deck .deck-shot{width:min(64vw,240px)}
+  .v6-deck .deck-shot--saved{width:min(80vw,340px);margin-block:0}
+  html:not([data-motion-lite]) .v6-deck.deck-reveal .deck-type,
+  html:not([data-motion-lite]) .v6-deck.deck-reveal .deck-shot{transition:transform .85s var(--e),opacity .85s var(--e)}
+  html:not([data-motion-lite]) .v6-deck.deck-reveal .deck-step:not(.deck-in) .deck-type,
+  html:not([data-motion-lite]) .v6-deck.deck-reveal .deck-step:not(.deck-in) .deck-shot{transform:translateY(48px);opacity:0}
+  html:not([data-motion-lite]) .v6-deck.deck-reveal .deck-shot{transition-delay:.18s}
+}
+@media(max-width:600px){
+  .v6-deck .deck-heading{padding-top:88px;padding-bottom:24px}
+  .v6-deck .deck-heading h2{font-size:clamp(24px,6.4vw,36px);white-space:nowrap}
+}
+@media(max-width:900px) and (prefers-reduced-motion:reduce){
+  html:not([data-motion="on"]) .v6-deck .deck-step:not(:last-child)::after{top:auto;bottom:calc(var(--s6) / -2);right:calc(50% - 24px);width:48px}
+  html:not([data-motion="on"]) .v6-deck .deck-shot{width:min(64vw,240px)}
+  html:not([data-motion="on"]) .v6-deck .deck-shot--saved{width:min(80vw,340px);margin-block:0}
+}
+@media(prefers-reduced-motion:reduce){
+  html:not([data-motion="on"]) .v6-deck.deck-reveal .deck-type,
+  html:not([data-motion="on"]) .v6-deck.deck-reveal .deck-shot{transform:none!important;opacity:1!important}
+}

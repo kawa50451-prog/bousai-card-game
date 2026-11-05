@@ -319,8 +319,27 @@ if(/[?&]introfreeze=1/.test(location.search))document.documentElement.setAttribu
   </script>
 </section>
 
-<section class="v6-placeholder" id="s03" data-placeholder>
-  <div class="wrap"><h2>デッキを組む</h2><p>デッキ構築・ドラフト・Myデッキ</p></div>
+<section class="v6-deck" id="s03" aria-labelledby="deck-heading">
+  <div class="deck-sticky">
+    <header class="wrap deck-heading"><h2 class="jpAccent" id="deck-heading">デッキを組む</h2></header>
+    <div class="deck-window">
+      <ol class="deck-track">
+        <li class="deck-step">
+          <div class="deck-type"><span class="deck-label en">DECK</span><h3 class="deck-verb">組む</h3></div>
+          <img class="deck-shot" src="assets/shots/v6/deck_build.webp" alt="デッキ構築画面" width="780" height="1688" loading="lazy">
+        </li>
+        <li class="deck-step">
+          <div class="deck-type"><span class="deck-label en">DRAFT</span><h3 class="deck-verb">選ぶ</h3></div>
+          <img class="deck-shot" src="assets/shots/v6/draft.webp" alt="ドラフトのカード選択画面" width="780" height="1688" loading="lazy">
+        </li>
+        <li class="deck-step">
+          <div class="deck-type"><span class="deck-label en">MY DECK</span><h3 class="deck-verb">残す</h3></div>
+          <img class="deck-shot deck-shot--saved" src="assets/shots/v6/mydeck.webp" alt="マイデッキの保存ダイアログ" width="780" height="1688" loading="lazy">
+        </li>
+      </ol>
+    </div>
+  </div>
+  <script src="assets/v6.js" defer></script>
 </section>
 
 <section class="v6-placeholder" id="s04" data-placeholder>
