@@ -717,3 +717,5 @@ html[data-motion-lite] .v6-ways *{transition:none!important}
 @media(max-width:600px){
   .v6-home .try-scene{padding-top:100px;padding-bottom:112px}
 }
+/* 対戦の写真は「あなた」の半分だけに切った短い画像なので、スマホでは下にはみ出す量を減らす */
+@media(max-width:600px){.v6-ways .wayFullHalf--vs .wayShot{bottom:-40px}}
