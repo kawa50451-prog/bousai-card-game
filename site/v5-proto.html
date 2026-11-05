@@ -450,7 +450,7 @@ html.ink-gl .inkLayer{display:none}
 html.intro-skip .fvIntro{ --fvT0:0s }  /* 2回目以降はローディングが無いので即開始 */
 .fvStage{
   /* 点滅の強さ（幕2a）。実機で「強すぎる」と指摘を受け 16回/.1s/明るさ1 から落とした。 */
-  --fvFlipCount:5; --fvFlipMs:.11s; --fvStrobeBright:.72;
+  --fvFlipCount:2; --fvFlipMs:.275s; --fvStrobeBright:.72;   /* 2026-11-05 5回→2回（1秒に3回以下）。幕2aの長さ .55s は変えない */
   /* 文字だけの点滅（幕2b）。地とは周期を変える（同調させない）。 */
   --fvRowFlickMs:.19s;
   --fvCardDur:.90s;                                        /* 幕1 */
