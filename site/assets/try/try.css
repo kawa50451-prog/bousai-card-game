@@ -1,0 +1,117 @@
+/* 絵と防潮堤を同じ座標系に重ね、文字は空の上に直接置く。 */
+.try-scene{--not:#388bfd;--try-pad:clamp(24px,4vw,64px);--try-mono:var(--DH_MONO,'Archivo',monospace);position:relative;isolation:isolate;min-height:100svh;display:flex;flex-direction:column;justify-content:space-between;padding:calc(var(--try-pad) + 32px) var(--try-pad) var(--try-pad);gap:32px;color:var(--t1)}
+.try-art{position:absolute;inset:0;z-index:-1;overflow:hidden}
+.try-image,.try-lines{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 50%}
+.try-image{opacity:0;transition:opacity .6s var(--e)}
+.forecast-image{opacity:1}
+.try-scene[data-state="ready"] .ready-image,.try-scene[data-state="not"] .not-image{opacity:1}
+.try-lines{pointer-events:none;fill:none;stroke-width:1.5}
+.try-lines path{vector-effect:non-scaling-stroke}
+.seawall{stroke:var(--accent);opacity:0}
+.seawall path{stroke-dasharray:1;stroke-dashoffset:1}
+.try-scene[data-state="ready"] .seawall{opacity:1}
+.try-scene[data-state="ready"] .seawall path{animation:try-draw var(--line-duration) var(--e) both;animation-delay:calc(.6s + var(--line-delay))}
+.try-top{max-width:min(900px,100%);align-self:flex-start}
+/* 同じ文を2組流し、結果ではその場に止める。 */
+.try-ticker{position:absolute;inset:0 0 auto;overflow:hidden;border-block:1px solid var(--t2);font:600 11px/30px 'Archivo','Zen Kaku Gothic New',sans-serif;letter-spacing:.14em;white-space:nowrap;transition:opacity .3s var(--e)}
+.try-ticker-track{display:flex;width:max-content;animation:try-ticker 30s linear infinite}
+.try-ticker-group{display:flex;flex:none}
+.try-ticker-group span{display:flex;align-items:center;gap:28px;padding-right:28px}
+.try-ticker-group span::after{content:'';height:10px;border-left:1px solid currentColor;transform:skewX(-25deg)}
+.try-scene:not([data-state="forecast"]) .try-ticker{opacity:.35}
+.try-scene:not([data-state="forecast"]) .try-ticker-track{animation-play-state:paused}
+.try-forecast h1{font:800 clamp(28px,3.5vw,54px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em}
+.try-prompt{margin:0 0 20px;font:800 clamp(28px,3.5vw,48px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em;white-space:nowrap;text-align:center}
+.try-prompt span{display:inline-block}
+.try-prompt-visible span{animation:try-text .65s var(--char-delay) var(--e) both}
+.try-forecast,.try-prompt,.try-result{text-shadow:0 1px 3px rgb(0 0 0 / .7)}
+.try-result{padding:0}
+.try-verdict{position:relative;display:table;padding-bottom:12px;color:var(--t1);font:800 clamp(88px,11vw,160px)/1 'Archivo',sans-serif;letter-spacing:-.035em}
+.try-verdict::after{content:'';position:absolute;bottom:0;left:calc(-1 * var(--try-pad));right:0;height:8px;background:var(--accent);transform-origin:left;animation:try-band .6s var(--e) both}
+.try-scene[data-state="not"] .try-verdict::after{background:var(--not)}
+.try-hp{display:flex;align-items:center;gap:12px;margin-top:24px;font-family:var(--try-mono);font-variant-numeric:tabular-nums}
+.try-icon{width:40px;height:40px;object-fit:contain;flex:none}
+.try-hp-ticks{display:flex;gap:4px;height:32px}
+.try-tick{width:10px;border:1px solid var(--t1);background:var(--t1)}
+.try-tick-lost{background:transparent;border-color:var(--t3);animation:try-tick-off .2s var(--tick-delay) both}
+.try-hp strong{font-size:clamp(56px,6vw,84px);font-weight:800;line-height:1}
+.try-hp small{font-size:1.33rem;align-self:flex-end;margin:0 0 6px -8px}
+.try-breakdown{display:flex;flex-wrap:nowrap;gap:24px;margin-top:24px;font-family:var(--try-mono);font-variant-numeric:tabular-nums}
+.try-term{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.try-term-picture{display:flex;flex-direction:column;align-items:center;gap:2px}
+.try-term-label{font:700 10px/1.4 'Zen Kaku Gothic New',sans-serif}
+.try-term-value{font-size:28px;font-weight:600}
+.try-term-inactive .try-icon{filter:grayscale(1) brightness(.4)}
+.try-result .try-hp{animation:try-text .5s .12s var(--e) both}
+.try-result .try-breakdown{animation:try-text .5s .24s var(--e) both}
+.try-bottom{width:min(760px,100%);align-self:center}
+.try-choices{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(6px,1.6vw,20px);align-items:stretch}
+.try-choice{appearance:none;border:0;border-radius:0;box-shadow:none;background:none;isolation:isolate;color:var(--t1);padding:8px 6px 10px;font:700 .75rem/1.5 'Zen Kaku Gothic New',sans-serif;cursor:pointer;position:relative;min-width:0;transition:filter .3s var(--e),transform .3s var(--e);display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.try-choice img{width:100%;height:auto;aspect-ratio:2/3;object-fit:contain;margin-bottom:8px}
+.try-choice .try-name{min-height:3em;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere}
+.try-cost{font:600 .75rem/1.5 'Archivo',monospace;font-variant-numeric:tabular-nums;letter-spacing:.05em}
+.try-cost span{font-size:.563rem;letter-spacing:var(--tr-label);margin-right:5px}
+.try-choice::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .3s var(--e)}
+.try-scene[data-state="not"] .try-choice::after{background:var(--not)}
+.try-choice:hover,.try-choice:focus-visible{transform:translateY(-6px)}
+.try-choice:focus-visible,.try-actions :focus-visible{outline:2px solid var(--t1);outline-offset:4px}
+.try-scene:not([data-state="forecast"]) .try-choice[aria-pressed="false"]{filter:grayscale(1) brightness(.45)}
+.try-choice[aria-pressed="true"]::after{transform:scaleX(1)}
+.try-choice[aria-pressed="true"]{transform:translateY(-8px)}
+.try-choice .try-none{filter:brightness(.4)}
+.try-actions{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:24px;padding-top:16px;border-top:1px solid var(--t2);font-size:.875rem}
+.try-actions button{appearance:none;border:0;background:none;padding:0;color:inherit;font:inherit;cursor:pointer}
+.try-actions a{font-weight:700}
+[hidden]{display:none!important}
+/* 消灯は下から上へのマスク。閾値フィルタを毎フレーム再計算しない軽い代用。 */
+.try-scene.try-arriving-not .not-image{animation:try-blackout 1.6s var(--e) both;mask-image:linear-gradient(to top,#000 45%,transparent 55%);mask-size:100% 240%;mask-repeat:no-repeat}
+@keyframes try-blackout{from{mask-position:0 0;opacity:1}to{mask-position:0 100%;opacity:1}}
+@keyframes try-ticker{to{transform:translateX(-50%)}}
+@keyframes try-band{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes try-tick-off{from{background:var(--t1);border-color:var(--t1)}to{background:transparent;border-color:var(--t3)}}
+@keyframes try-draw{to{stroke-dashoffset:0}}
+@keyframes try-text{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+html[data-motion-lite] .try-image{transition-duration:.3s}
+html[data-motion-lite] .try-scene *,html[data-motion-lite] .try-scene *::after{animation:none!important}
+html[data-motion-lite] .seawall path{stroke-dashoffset:0}
+html[data-motion-lite] .not-image{mask-image:none}
+@media(prefers-reduced-motion:reduce){html:not([data-motion="on"]) .try-scene *,html:not([data-motion="on"]) .try-scene *::after{animation:none!important;transition-duration:0s!important}html:not([data-motion="on"]) .seawall path{stroke-dashoffset:0}html:not([data-motion="on"]) .not-image{mask-image:none}}
+@media(max-width:600px){
+  .try-scene{--try-pad:16px;padding:56px 16px 24px;gap:24px}
+  .try-forecast h1{font-size:28px}
+  .try-prompt{font-size:clamp(20px,6.8vw,28px);margin-bottom:16px}
+  .try-verdict{font-size:clamp(80px,23vw,104px)}
+  .try-verdict::after{height:6px}
+  .try-hp{gap:8px;margin-top:20px}
+  .try-hp .try-icon{width:28px;height:28px}
+  .try-hp-ticks{gap:3px;height:26px}
+  .try-tick{width:7px}
+  .try-hp small{font-size:18px;margin-bottom:4px;margin-left:-4px}
+  .try-breakdown{gap:clamp(8px,3.5vw,16px);margin-top:20px}
+  .try-term{gap:4px}
+  .try-term .try-icon{width:30px;height:30px}
+  .try-term-value{font-size:22px}
+  .try-term-label{font-size:9px}
+  .try-choice{padding:5px 3px 8px;font-size:10px}
+  .try-cost{font-size:12px}
+  .try-cost span{font-size:8px;margin-right:3px}
+  .try-actions{font-size:12px;margin-top:20px;padding-top:12px}
+}
+
+/* PCでは幅110pxと下余白15pxで、選択列を海の下端に置く。 */
+@media(min-width:601px){
+  .try-scene{padding-bottom:15px}
+  .try-bottom{width:min(640px,100%)}
+  .try-choices{gap:10px}
+  .try-choice{padding:0;background:none}
+  .try-choice img,.try-none{width:110px;max-width:100%;margin-bottom:0}
+  .try-choice .try-name{min-height:0;height:18px;white-space:nowrap}
+  .try-cost{height:12px;font-size:10px;line-height:12px}
+  .try-choice:hover,.try-choice:focus-visible,.try-choice[aria-pressed="true"]{transform:none}
+  .try-actions{position:absolute;right:24px;bottom:240px;width:160px;flex-direction:column;align-items:flex-start;margin:0}
+}
+@media(min-width:1100px){.try-actions{bottom:24px}}
+/* 2026-11-05 本人指定：カードの下に青い光の帯。帯に近いほど明るく、上へ行くほど薄くなる（下から照らすライト） */
+.try-choice::before{content:'';position:absolute;inset:auto 0 0 0;height:72%;z-index:-1;pointer-events:none;
+  background:linear-gradient(#388bfd,#388bfd) bottom/100% 2px no-repeat,
+             linear-gradient(to top,rgb(56 139 253 / .55),rgb(56 139 253 / .18) 35%,rgb(56 139 253 / 0) 100%)}

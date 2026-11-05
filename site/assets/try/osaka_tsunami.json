@@ -1,0 +1,146 @@
+{
+  "v": 1,
+  "generatedFrom": "6dcbb43",
+  "city": {
+    "id": "osaka",
+    "name": "大阪",
+    "hp": 60,
+    "abilityValue": 5,
+    "abilityDesc": "ターン終了時 HP +5"
+  },
+  "disaster": {
+    "id": "tsunami",
+    "name": "津波",
+    "baseDamage": 40
+  },
+  "choices": [
+    {
+      "id": "dam",
+      "name": "堤防建設",
+      "cost": 2,
+      "img": "assets/cards/dam.webp",
+      "realConcept": "洪水・津波に対するハード対策（治水インフラ）。",
+      "effective": true,
+      "note": "洪水・津波に対するハード対策（治水インフラ）。",
+      "total": 25,
+      "mods": [
+        {
+          "label": "津波",
+          "delta": 40
+        },
+        {
+          "label": "海岸",
+          "delta": 10
+        },
+        {
+          "label": "堤防",
+          "delta": -25
+        }
+      ],
+      "regen": 5,
+      "hpAfter": 40,
+      "verdict": "READY"
+    },
+    {
+      "id": "evacuation",
+      "name": "広域避難指示",
+      "cost": 2,
+      "img": "assets/cards/evacuation.webp",
+      "realConcept": "「逃げる」という判断を制度化したソフト対策。",
+      "effective": true,
+      "note": "「逃げる」という判断を制度化したソフト対策。",
+      "total": 30,
+      "mods": [
+        {
+          "label": "津波",
+          "delta": 40
+        },
+        {
+          "label": "避難指示",
+          "delta": -10
+        }
+      ],
+      "regen": 5,
+      "hpAfter": 35,
+      "verdict": "READY"
+    },
+    {
+      "id": "quake_wall",
+      "name": "耐震補強",
+      "cost": 2,
+      "img": "assets/cards/quake_wall.webp",
+      "realConcept": "ハード対策の代表。",
+      "effective": false,
+      "note": "耐震補強は次の地震・大火災 −30。津波には効かない。",
+      "total": 50,
+      "mods": [
+        {
+          "label": "津波",
+          "delta": 40
+        },
+        {
+          "label": "海岸",
+          "delta": 10
+        },
+        {
+          "label": "耐震",
+          "delta": 0
+        }
+      ],
+      "regen": 5,
+      "hpAfter": 15,
+      "verdict": "NOT"
+    },
+    {
+      "id": "bousai_cho",
+      "name": "防災庁設置",
+      "cost": 3,
+      "img": "assets/cards/bousai_cho.webp",
+      "realConcept": "包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。",
+      "effective": true,
+      "note": "包括的な防災組織・制度的基盤の整備（日本では2025年に設置）。",
+      "total": 35,
+      "mods": [
+        {
+          "label": "津波",
+          "delta": 40
+        },
+        {
+          "label": "海岸",
+          "delta": 10
+        },
+        {
+          "label": "防災庁",
+          "delta": -15
+        }
+      ],
+      "regen": 5,
+      "hpAfter": 30,
+      "verdict": "READY"
+    },
+    {
+      "id": null,
+      "name": "何もしない",
+      "cost": null,
+      "img": null,
+      "realConcept": null,
+      "effective": false,
+      "note": "何も置かずに朝を迎えた。",
+      "total": 50,
+      "mods": [
+        {
+          "label": "津波",
+          "delta": 40
+        },
+        {
+          "label": "海岸",
+          "delta": 10
+        }
+      ],
+      "regen": 5,
+      "hpAfter": 15,
+      "verdict": "NOT"
+    }
+  ],
+  "threshold": 30
+}

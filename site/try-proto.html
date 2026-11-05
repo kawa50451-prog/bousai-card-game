@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>01 TRY｜Ready or Not</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/try/try.css">
+<script src="assets/try/try.js" defer></script>
+</head>
+<body>
+<main class="try-scene" data-state="forecast" aria-label="01 TRY">
+  <div class="try-art">
+    <img class="try-image forecast-image" src="assets/try/osaka_1.webp" alt="予報が出た夜の大阪。湾と街の灯、沖に暗い雲">
+    <img class="try-image ready-image" src="assets/try/osaka_2.webp" alt="備えた夜。津波は岸壁で止まり、街の灯は点いている" aria-hidden="true">
+    <img class="try-image not-image" src="assets/try/osaka_3.webp" alt="備えなかった夜。湾岸と川沿いが浸水し、灯が消えている" aria-hidden="true">
+    <svg class="try-lines" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="seawall"></g></svg>
+  </div>
+  <div class="try-ticker" aria-label="FORECAST　TSUNAMI　OSAKA BAY　翌朝"><div class="try-ticker-track" aria-hidden="true"></div></div>
+  <div class="try-top">
+    <header class="try-forecast"><h1></h1></header>
+    <section class="try-result" aria-live="polite" aria-atomic="true" aria-label="夜明けの結果" hidden></section>
+    <p class="try-error" role="alert" hidden></p>
+  </div>
+  <div class="try-bottom">
+    <p class="try-prompt">今夜、置けるのは1枚</p>
+    <div class="try-choices" role="group" aria-label="今夜の備え"></div>
+    <nav class="try-actions" aria-label="体験の続き" hidden>
+      <button type="button" class="try-reset">もう一度、予報から</button>
+      <a href="https://toshibousai-cardgame.web.app/">このゲームで遊ぶ <span aria-hidden="true">↗</span></a>
+    </nav>
+  </div>
+</main>
+</body>
+</html>
