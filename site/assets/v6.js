@@ -39,11 +39,15 @@
   var reduced = matchMedia('(prefers-reduced-motion:reduce)');
   var animations = [];
   var buttons = document.querySelectorAll('[data-hero-variant]');
+  var overlay = document.getElementById('loadOverlay');
+  var loadingTimer;
   function quiet() {
     return html.hasAttribute('data-motion-lite') ||
       (reduced.matches && html.dataset.motion !== 'on');
   }
   function settle() {
+    clearTimeout(loadingTimer);
+    if (overlay) { overlay.remove(); overlay = null; }
     animations.forEach(function (a) { a.cancel(); });
     animations = [];
     html.classList.remove('hero-pending');
@@ -67,21 +71,21 @@
       {opacity:1,letterSpacing:'.4em',transform:'scale(1)',offset:.22},
       {opacity:1,letterSpacing:'.4em',transform:'scale(1)',offset:.57},
       {opacity:0,letterSpacing:'.95em',transform:'scale(1.12)',offset:1}
-    ], {duration:1120});
-    animate('.hero-black', [{opacity:.94},{opacity:0}], {duration:1100,delay:650});
+    ], {duration:2240});
+    animate('.hero-black', [{opacity:.94},{opacity:0}], {duration:2200,delay:1300});
     if (html.dataset.hero === 'a') {
       animate('.hero-title', [
         {opacity:0,offset:0},{opacity:.8,offset:.14},{opacity:.15,offset:.26},
         {opacity:1,offset:.5},{opacity:.32,offset:.63},{opacity:1,offset:1}
-      ], {duration:1000,delay:1200});
-      animate('.hero-fill', [{opacity:0},{opacity:1}], {duration:550,delay:1850});
-      animate('.hero-rim', [{opacity:1},{opacity:1,offset:.79},{opacity:0}], {duration:2650});
+      ], {duration:2000,delay:2400});
+      animate('.hero-fill', [{opacity:0},{opacity:1}], {duration:1100,delay:3700});
+      animate('.hero-rim', [{opacity:1},{opacity:1,offset:.79},{opacity:0}], {duration:5300});
     } else {
-      animate('.hero-title', [{opacity:0},{opacity:1}], {duration:850,delay:1200,easing:'ease-out'});
+      animate('.hero-title', [{opacity:0},{opacity:1}], {duration:1700,delay:2400,easing:'ease-out'});
     }
     ['.tagline','.cta'].forEach(function (selector) {
       animate(selector, [{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],
-        {duration:800,delay:2250,easing:'ease-out'});
+        {duration:1600,delay:4500,easing:'ease-out'});
     });
   }
   syncButtons();
@@ -97,12 +101,23 @@
   });
   document.querySelector('[data-hero-replay]').addEventListener('click', play);
   reduced.addEventListener('change', function () { if (quiet()) settle(); });
-  // The final state is the CSS default, including when scripting is unavailable.
-  // Bound the font wait so a blocked font service cannot leave the hero hidden.
-  var pending = html.classList.contains('hero-pending');
-  if (pending) {
-    Promise.race([document.fonts.ready, new Promise(function (resolve) { setTimeout(resolve, 1500); })])
-      .then(function () { if (html.classList.contains('hero-pending')) play(); });
+  // The shared CSS keeps the original 4.90s loading sequence. Start the
+  // hero on its actual fade completion, even if script loading was delayed.
+  if (html.classList.contains('hero-pending') && !quiet()) {
+    var fade = overlay && overlay.getAnimations().find(function (a) {
+      return a.animationName === 'loadOverlayOut';
+    });
+    function startHero() {
+      if (html.classList.contains('hero-pending')) play();
+    }
+    if (fade) {
+      fade.finished.then(startHero, function () {});
+      loadingTimer = setTimeout(startHero, Math.max(0, 5200 - (fade.currentTime || 0)));
+    } else {
+      startHero();
+    }
+  } else {
+    settle();
   }
   window.addEventListener('pagehide', settle);
 })();
