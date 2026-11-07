@@ -44,12 +44,21 @@ document.addEventListener('visibilitychange',()=>body.querySelectorAll('.bgDot')
  const tabs=[...document.querySelectorAll('[data-card-tab]')];
  const dialog=document.querySelector('.card-dialog'),zoom=dialog.querySelector('.zoom-content');
  let returnFocus;
+ function fitCard(){
+   if(!dialog.open||!matchMedia('(max-width:600px)').matches){zoom.style.removeProperty('--card-width');return;}
+   const copy=zoom.lastElementChild,available=zoom.clientHeight-copy.getBoundingClientRect().height-12;
+   zoom.style.setProperty('--card-width',Math.max(0,Math.min(280,zoom.clientWidth,available*288/450))+'px');
+ }
+ window.addEventListener('resize',fitCard);
+ window.visualViewport?.addEventListener('resize',fitCard);
+ document.fonts.ready.then(fitCard);
  const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function openCard(c,trigger){
    returnFocus=trigger;
    zoom.innerHTML='<span class="site-card">'+RonCardFace.html(c.id,true)+'</span><div><h2 id="card-dialog-title">'+esc(c.name)+'</h2><p>'+esc(c.description)+'</p><div class="card-mode-toggle" aria-label="効果文のモード"><button type="button" data-mode="vs" aria-pressed="true">対戦</button><button type="button" data-mode="co" aria-pressed="false">協力</button></div></div>';
    zoom.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{zoom.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));zoom.querySelector('.site-card').innerHTML=RonCardFace.html(c.id,button.dataset.mode==='vs');}));
    dialog.showModal();
+   fitCard();
  }
  dialog.querySelector('.dialog-close').addEventListener('click',()=>dialog.close());
  dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
@@ -58,7 +67,7 @@ document.addEventListener('visibilitychange',()=>body.querySelectorAll('.bgDot')
    function tile(c){
      const button=document.createElement('button');button.type='button';button.className='library-card';button.setAttribute('aria-label',c.name+'を拡大する');
      const label=esc(c.name).replace('ニューオーリンズ','ニュー<wbr>オーリンズ');
-     button.innerHTML='<span class="site-card">'+RonCardFace.html(c.id,true)+'</span><span>'+label+'</span>';button.addEventListener('click',()=>openCard(c,button));return button;
+     button.innerHTML='<span class="site-card">'+RonCardFace.html(c.id,true)+'<span class="library-magnifier" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span></span><span>'+label+'</span>';button.addEventListener('click',()=>openCard(c,button));return button;
    }
    function render(kind){
      library.replaceChildren();library.setAttribute('aria-labelledby','tab-'+kind);

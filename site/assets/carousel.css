@@ -1,0 +1,39 @@
+/* Review 14: one feature per view on a sliding track; chevrons sit beside the phone. */
+.lab-controls,.lab-clone{display:none}
+.carousel-phone-window{display:none}
+@media(min-width:601px){
+ .lab-carousel .lab-clone{display:none}
+ .about-carousel .about-screen-stack figure{margin-top:0}
+ .about-carousel .about-screen-stack figure:nth-child(3){margin-top:60px}
+ .about-carousel .about-screen-stack figure:nth-child(4){margin-top:120px}
+}
+@media(max-width:600px){
+ .carousel-phone-window{display:block;position:absolute;left:50%;transform:translateX(-50%);overflow:hidden;pointer-events:none}
+ .carousel-phone-track{position:relative;display:flex;height:100%}
+ .carousel-phone-cell{flex:0 0 100%;display:flex;justify-content:center;align-items:flex-start;min-width:0}
+ .lab-carousel> :first-child .v6-phone{opacity:0}
+ .carousel-phone-window .v6-phone{opacity:1;margin:0;flex-shrink:0}
+ .lab-carousel{position:relative;min-width:0;overflow:hidden}
+ .v6-create .labList{display:flex;gap:0;overflow:visible;padding:4px 0 0;scroll-snap-type:none;will-change:transform}
+ .v6-create .labItem,.v6-create .lab-clone{display:flex;flex:0 0 100%;width:100%;max-width:none;align-items:center;gap:16px;text-align:center}
+ .v6-create .lab-phone{width:160px;max-width:100%}
+ .v6-create .labName{font-size:26px}
+ .v6-create .labText{font-size:15px;margin-top:8px}
+ .lab-controls{display:flex;justify-content:center;margin-top:18px}
+ .lab-arrow{position:absolute;z-index:3;bottom:200px;width:44px;height:44px;display:grid;place-items:center;border:1px solid #ffffffb3;border-radius:50%;background:transparent;cursor:pointer;padding:0}
+ .lab-arrow::before{content:'';width:14px;height:14px;border-top:2px solid #fff;border-right:2px solid #fff}
+ .lab-prev{left:calc(50% - 80px - 58px)}.lab-prev::before{transform:translateX(3px) rotate(-135deg)}
+ .lab-next{right:calc(50% - 80px - 58px)}.lab-next::before{transform:translateX(-3px) rotate(45deg)}
+ .lab-arrow:focus-visible{outline:2px solid #fff;outline-offset:2px}
+ .lab-dots{display:flex;gap:10px}.lab-dots i{width:6px;height:6px;border-radius:50%;background:#ffffff40;transition:background .3s var(--ease)}.lab-dots .is-current{background:#fff}
+}
+
+@media(max-width:600px){
+ .about-carousel{width:100%;margin:auto}
+ .about-carousel .about-screen-stack{display:flex;gap:0;overflow:visible;padding:10px 0 18px;scroll-snap-type:none;align-items:flex-start;max-width:none}
+ .about-carousel .about-screen-stack figure{display:block;flex:0 0 100%;width:100%;max-width:none;margin:0!important;text-align:center}
+ .about-carousel .v6-phone{width:160px;margin:auto}
+ .about-carousel .lab-arrow{top:160px;bottom:auto}
+ .about-carousel .lab-prev{left:calc(50% - 138px)}
+ .about-carousel .lab-next{right:calc(50% - 138px)}
+}

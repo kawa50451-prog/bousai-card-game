@@ -707,21 +707,3 @@ html[data-motion-lite] .road-action{opacity:1}
  .coop-city-pair{display:grid;grid-template-columns:32% 32%;gap:12px 0}
  .coop-city-label>span{width:32%}
 }
-
-/* Review 14: one feature per view on a sliding track; chevrons sit beside the phone. */
-.lab-controls,.lab-clone{display:none}
-@media(max-width:600px){
- .lab-carousel{position:relative;min-width:0;overflow:hidden}
- .v6-create .labList{display:flex;gap:0;overflow:visible;padding:4px 0 0;scroll-snap-type:none;will-change:transform}
- .v6-create .labItem,.v6-create .lab-clone{display:flex;flex:0 0 100%;width:100%;max-width:none;align-items:center;gap:16px;text-align:center}
- .v6-create .lab-phone{width:160px;max-width:100%}
- .v6-create .labName{font-size:26px}
- .v6-create .labText{font-size:15px;margin-top:8px}
- .lab-controls{display:flex;justify-content:center;margin-top:18px}
- .lab-arrow{position:absolute;z-index:3;bottom:200px;width:44px;height:64px;display:grid;place-items:center;border:0;background:transparent;cursor:pointer;padding:0}
- .lab-arrow::before{content:'';width:14px;height:14px;border-top:2px solid #fff;border-right:2px solid #fff}
- .lab-prev{left:calc(50% - 80px - 58px)}.lab-prev::before{transform:translateX(3px) rotate(-135deg)}
- .lab-next{right:calc(50% - 80px - 58px)}.lab-next::before{transform:translateX(-3px) rotate(45deg)}
- .lab-arrow:focus-visible{outline:2px solid #fff;outline-offset:2px}
- .lab-dots{display:flex;gap:10px}.lab-dots i{width:6px;height:6px;border-radius:50%;background:#ffffff40;transition:background .3s var(--ease)}.lab-dots .is-current{background:#fff}
-}
