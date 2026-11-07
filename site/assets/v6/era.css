@@ -1,0 +1,109 @@
+@property --era-zenith{syntax:'<color>';inherits:true;initial-value:#071323}
+@property --era-horizon{syntax:'<color>';inherits:true;initial-value:#20314a}
+#s04 #era-journey{position:relative;view-timeline:--era-journey block}
+#s04 .pin{position:sticky;top:0;height:100vh;overflow:clip;isolation:isolate}
+#s04 #era-sky{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,var(--era-zenith),var(--era-horizon) 54%,#00244f)}
+#s04 .track{display:flex;gap:2vw;padding:0 7vw;width:max-content;height:100%;will-change:transform}
+#s04 article{flex:0 0 86vw;width:86vw;height:100%;position:relative}
+#s04 .stage{position:relative;height:100%;width:100%}
+#s04 .en{position:absolute;top:3vh;left:0;margin:0;font:clamp(72px,8vw,140px)/1 Anton,Impact,'Arial Narrow',sans-serif;letter-spacing:-.01em;color:#eef3f9;z-index:2;font-weight:400}
+#s04 .grid2 .en{font-size:clamp(64px,7vw,125px)}
+#s04 .visual{position:absolute;top:12vh;left:50%;transform:translateX(-50%);width:80vw;height:68vh}
+#s04 .visual svg{display:block;width:100%;height:100%}
+#s04 .fact{position:absolute;left:430px;bottom:104px;z-index:3;max-width:calc(100% - 430px)}
+#s04 .ja{font:32px/1.4 'Shippori Mincho B1',serif;letter-spacing:.12em}
+#s04 .event{font:20px/1.6 'Shippori Mincho B1',serif;margin-top:4px;letter-spacing:.04em}
+#s04 .geo{display:none}
+#s04 .corner .visual{clip-path:polygon(10% 0,100% 0,100% 100%,0 100%,0 16%)}
+#s04 .corner2 .visual{clip-path:polygon(0 0,100% 0,100% 76%,84% 100%,0 100%)}
+#s04 .fade .visual{mask-image:linear-gradient(90deg,transparent,#000 16%),linear-gradient(#000 72%,transparent);mask-composite:intersect}
+#s04 .fade .visual,#s04 .grid2 .visual,#s04 .triangles .visual{filter:brightness(.78) saturate(.72)}
+#s04 #era-year{position:absolute;bottom:21px;left:7vw;display:flex;width:2.24em;font:180px/1 Anton,Impact,'Arial Narrow',sans-serif;font-weight:400;font-variant-numeric:tabular-nums;letter-spacing:0;white-space:nowrap}
+#s04 #era-year .digit{display:block;flex:0 0 .56em;width:.56em;text-align:center}
+#s04 #era-timeline{position:absolute;bottom:28px;left:calc(7vw + 430px);right:7vw;height:35px;font:14px 'Zen Kaku Gothic New',sans-serif;cursor:pointer;--progress:0%}
+#s04 #era-timeline:before,#s04 #era-timeline:after{content:'';position:absolute;left:0;top:3px;height:2px;pointer-events:none}
+#s04 #era-timeline:before{width:100%;background:#eef3f945}
+#s04 #era-timeline:after{width:var(--progress);background:#eef3f9}
+#s04 #era-timeline button{position:absolute;top:-19px;width:44px;height:60px;padding:0;border:0;background:none;color:#eef3f99c;font:inherit;transform:translateX(-50%);cursor:pointer;z-index:1;-webkit-tap-highlight-color:transparent}
+#s04 #era-timeline .dot{position:absolute;left:50%;top:22px;width:12px;height:12px;border:1px solid #eef3f9;border-radius:50%;background:#142b43;transform:translate(-50%,-50%);transition:width .15s,height .15s}
+#s04 #era-timeline .tick-year{position:absolute;top:38px;left:50%;transform:translateX(-50%)}
+#s04 #era-timeline button.passed .dot{background:#eef3f9}
+#s04 #era-timeline button[aria-current]{color:#fff}
+#s04 #era-timeline button[aria-current] .dot{width:20px;height:20px;background:#E60B00;border-color:#E60B00}
+#s04 #era-timeline button[aria-current] .dot:after{content:'';position:absolute;inset:-5px;border:1px solid #eef3f9a6;border-radius:50%}
+#s04 #era-timeline button:hover .dot,#s04 #era-timeline button:focus-visible .dot{width:16px;height:16px}
+#s04 #era-timeline button[aria-current]:hover .dot,#s04 #era-timeline button[aria-current]:focus-visible .dot{width:22px;height:22px}
+#s04 #era-timeline button:focus-visible{outline:1px solid #eef3f9;outline-offset:3px;border-radius:2px}
+#s04 #era-timeline .tip,#s04 #era-current-city{position:absolute;top:-29px;white-space:nowrap;font:13px/1.5 'Zen Kaku Gothic New',sans-serif;color:#eef3f9;pointer-events:none}
+#s04 #era-timeline .tip{top:-10px;left:50%;transform:translateX(-50%);visibility:hidden}
+#s04 #era-timeline button:hover .tip,#s04 #era-timeline button:focus-visible .tip{visibility:visible}
+#s04 #era-current-city{transform:translateX(-50%)}
+#s04 #era-timeline:has(button:hover) #era-current-city,#s04 #era-timeline:has(button:focus-visible) #era-current-city{visibility:hidden}
+#s04 #era-timeline button:first-of-type .tip{left:0;transform:none}
+#s04 #era-timeline button:last-of-type .tip{left:auto;right:0;transform:none}
+#s04 #era-current-city[data-edge="first"]{transform:none;left:0!important}
+#s04 #era-current-city[data-edge="last"]{transform:translateX(-100%)}
+@media(prefers-reduced-motion:reduce){
+#s04 #era-timeline .dot{transition:none}
+}
+@keyframes era-travel{to{transform:translateX(calc(-1 * var(--travel)))}}
+@supports(animation-timeline:view()){
+#s04 .era-native .track{animation:era-travel linear both;animation-timeline:--era-journey;animation-range:contain 0% contain 100%}
+#s04 .era-native .pin{animation:era-sky-colors linear both;animation-timeline:--era-journey;animation-range:contain 0% contain 100%}
+}
+@media(min-width:1024px){
+#s04 .grid2 .visual{top:8vh;height:72vh}
+}
+@media(max-width:1023px){
+#s04 .heading{height:140px;font-size:20px}
+#s04 .pin{display:contents}
+#s04 .track{display:block;padding:0;width:100%;transform:none!important;will-change:auto}
+#s04 article{width:100%;height:100svh}
+#s04 .en,#s04 .grid2 .en{left:4%;top:16svh;font-size:clamp(48px,13.5vw,100px)}
+#s04 .visual{left:2%;transform:none;width:96%;top:24svh;height:auto;aspect-ratio:1.5}
+#s04 .visual svg{width:100%;height:100%}
+#s04 .fact{left:5%;top:calc(24svh + 64vw + 18px);bottom:auto;max-width:90%}
+#s04 .ja{font-size:26px}
+#s04 .event{font-size:18px}
+#s04 #era-sky{position:fixed}
+#s04 .fade .visual{mask-image:linear-gradient(#000 75%,transparent)}
+#s04 #era-year{position:fixed;left:5%;top:calc(24svh + 64vw + 122px + var(--era-entry-offset,0px));bottom:auto;font-size:var(--era-year-size,108px);z-index:5}
+#s04 #era-timeline{position:fixed;top:34px;bottom:auto;left:8%;right:8%;font-size:12px;z-index:5}
+#s04 #era-current-city{top:43px;font-size:12px}
+#s04 #era-timeline .tip{top:62px;font-size:12px}
+@supports(animation-timeline:scroll()){
+#s04 .era-native .pin{animation:none}
+#s04 .era-native #era-sky{animation:era-sky-colors linear both;animation-timeline:scroll(root block);animation-range:var(--mobile-start) var(--mobile-end)}
+}
+}
+@keyframes era-sky-colors{0.00000000%{--era-zenith:#071323;--era-horizon:#20314a}16.66666667%{--era-zenith:#354c61;--era-horizon:#697a83}33.33333333%{--era-zenith:#060f21;--era-horizon:#233950}50.00000000%{--era-zenith:#35434e;--era-horizon:#677170}66.66666667%{--era-zenith:#35414d;--era-horizon:#68727a}83.33333333%{--era-zenith:#070e18;--era-horizon:#1b2935}100.00000000%{--era-zenith:#080f20;--era-horizon:#1b2b41}}
+
+#s04{position:relative;background:#00244f;color:#eef3f9;isolation:isolate}
+#s04 .era-heading{padding-block:var(--s5);margin-block:0}
+#s04 .era-heading h2{font-size:clamp(28px,4.5vw,64px);line-height:1.4}
+#s04 .en{font-family:Anton,Impact,'Arial Narrow',sans-serif;font-weight:400;text-transform:none}
+#s04 .stage{margin:0;padding:0}
+#s04 .en,#s04 .ja,#s04 .event{margin:0}
+#s04 .event{margin-top:4px}
+#s04 .track{list-style:none;margin:0}
+@media(min-width:1024px){
+ /* Keep the existing logo and PLAY link clear of the city title and timeline. */
+ #s04 .en{top:max(3vh,88px)}
+ #s04 .fact{left:430px;bottom:104px;transform:translateX(var(--fact-offset,0px))}
+ #s04 #era-timeline{right:calc(7vw + 160px)}
+}
+@media(max-width:1023px){
+ #s04 #era-journey{background:linear-gradient(180deg,var(--era-zenith),var(--era-horizon) 54%,#00244f)}
+ #s04 .track{position:relative;z-index:1}
+ #s04 #era-sky{z-index:0;clip-path:inset(var(--era-clip-top,100vh) 0 var(--era-clip-bottom,0px) 0)}
+ #s04 #era-year,#s04 #era-timeline{visibility:hidden}
+ #s04 .era-active #era-year,#s04 .era-active #era-timeline{visibility:visible}
+ /* Place the timeline below the existing fixed navigation. */
+ #s04 #era-timeline{top:var(--era-timeline-top,98px)}
+ #s04 #era-current-city{top:-25px}
+ #s04 #era-timeline .tip{top:-6px}
+}
+@media(max-width:600px){
+ #s04 .era-heading{padding-top:88px;padding-bottom:24px}
+ #s04 .era-heading h2{font-size:clamp(24px,6.4vw,36px);white-space:nowrap}
+}

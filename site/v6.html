@@ -7,7 +7,7 @@
 <title>Ready or Not ｜ v6 骨格</title>
 <meta name="theme-color" content="#00244f">
 <link rel="icon" href="assets/icons/app_icon.webp">
-<!-- Shared loading screen hands off to the v6 hero; no fvIntro. -->
+<!-- Shared loading screen → opening mix → settled v6 hero. -->
 <script>
 (function(){
   var h=document.documentElement, q=new URLSearchParams(location.search);
@@ -19,11 +19,17 @@
   try{seen=sessionStorage.getItem('ronIntroSeen')==='1';sessionStorage.setItem('ronIntroSeen','1');}catch(e){}
   if(!seen && !h.hasAttribute('data-motion-lite') &&
     (!matchMedia('(prefers-reduced-motion:reduce)').matches || h.dataset.motion==='on')) {h.classList.remove('intro-skip');h.classList.add('intro-lock','hero-pending');}
+  if(h.classList.contains('hero-pending')){
+    window.openingImages=['nagoya','niigata','kobe','new_orleans','sendai','hiroshima','kumamoto'].map(function(city){
+      var image=new Image();image.src='assets/v6/era/'+city+(innerWidth<=900?'_900':'')+'.webp';return image;
+    });
+    window.openingDecoded=Promise.all(window.openingImages.map(function(image){return image.decode().catch(function(){});}));
+  }
 })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
      下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
      画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
@@ -32,6 +38,10 @@
 <link rel="stylesheet" href="assets/site.css">
 <link rel="stylesheet" href="assets/try/try.css">
 <link rel="stylesheet" href="assets/v6.css">
+<link rel="stylesheet" href="assets/v6/opening.css">
+<link rel="stylesheet" href="assets/v6/era.css">
+<link rel="preload" as="image" href="assets/v6/era/nagoya.webp" media="(min-width:901px)">
+<link rel="preload" as="image" href="assets/v6/era/nagoya_900.webp" media="(max-width:900px)">
 </head>
 <body class="v6-home">
 
@@ -70,6 +80,15 @@
              muted playsinline preload="auto" aria-hidden="true"></video>
     </div>
   <div class="loadBlackout" aria-hidden="true"></div>
+</div>
+
+<div id="opening" hidden role="dialog" aria-modal="true" aria-label="READY OR NOT">
+<div id="opening-scenes" aria-hidden="true"></div>
+<div class="intro" id="opening-intro" aria-hidden="true"><div class="intro-type" id="opening-introType"></div></div>
+<div id="opening-timeline" aria-hidden="true"><b id="opening-current"></b></div>
+<div id="opening-title"><h1 aria-hidden="true"><span>READY</span><span>OR NOT</span></h1></div>
+<div id="opening-tagline">失敗できる災害はここだけ</div>
+<button id="opening-skip" type="button">スキップ</button>
 </div>
 
 <!-- SVGスプライト（項目7・03の人数表記）。絵文字を使わず、線画の人物アイコンを
@@ -199,9 +218,9 @@
 <div class="wrap v6-update" aria-label="最新の更新"><time></time><span></span></div>
 <section id="s01" class="try-scene" data-state="forecast" aria-label="試す">
   <div class="try-art">
-    <img class="try-image forecast-image" src="assets/try/osaka_1.webp" alt="予報が出た夜の大阪。湾と街の灯、沖に暗い雲">
-    <img class="try-image ready-image" src="assets/try/osaka_2.webp" alt="備えた夜。津波は岸壁で止まり、街の灯は点いている" aria-hidden="true">
-    <img class="try-image not-image" src="assets/try/osaka_3.webp" alt="備えなかった夜。湾岸と川沿いが浸水し、灯が消えている" aria-hidden="true">
+    <img loading="lazy" class="try-image forecast-image" src="assets/try/osaka_1.webp" alt="予報が出た夜の大阪。湾と街の灯、沖に暗い雲">
+    <img loading="lazy" class="try-image ready-image" src="assets/try/osaka_2.webp" alt="備えた夜。津波は岸壁で止まり、街の灯は点いている" aria-hidden="true">
+    <img loading="lazy" class="try-image not-image" src="assets/try/osaka_3.webp" alt="備えなかった夜。湾岸と川沿いが浸水し、灯が消えている" aria-hidden="true">
     <svg class="try-lines" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="seawall"></g></svg>
   </div>
   <div class="try-ticker" aria-label="FORECAST　TSUNAMI　OSAKA BAY　翌朝"><div class="try-ticker-track" aria-hidden="true"></div></div>
@@ -292,8 +311,9 @@
   
 </section>
 
-<section class="v6-placeholder" id="s04" data-placeholder>
-  <div class="wrap"><h2>都市と現実</h2><p>都市カード・災害史</p></div>
+<section id="s04" aria-labelledby="era-heading">
+  <header class="wrap era-heading"><h2 class="jpAccent" id="era-heading">都市と現実</h2></header>
+<div id="era-journey"><div class="pin"><div id="era-sky" aria-hidden="true"></div><div class="track"><article id="era-nagoya" class="grid"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="名古屋の街並み"><defs><mask id="era-mask-nagoya"><rect width="1536" height="1024" fill="white"/><path d="M400 0V1024M620 0V1024M0 95H1536" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="nagoya" width="1536" height="1024" mask="url(#era-mask-nagoya)"/></svg></div><h3 class="en">NAGOYA</h3><div class="fact"><div class="ja">名古屋</div><div class="event">伊勢湾台風</div></div></div></article><article id="era-niigata" class="fade"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="新潟の街並み"><image data-era-src="niigata" width="1536" height="1024"/></svg></div><h3 class="en">NIIGATA</h3><div class="fact"><div class="ja">新潟</div><div class="event">新潟地震</div></div></div></article><article id="era-kobe" class="corner"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="神戸の街並み"><image data-era-src="kobe" width="1536" height="1024"/></svg></div><h3 class="en">KOBE</h3><div class="fact"><div class="ja">神戸</div><div class="event">阪神・淡路大震災</div></div></div></article><article id="era-new_orleans" class="grid2"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="ニューオーリンズの街並み"><defs><mask id="era-mask-new_orleans"><rect width="1536" height="1024" fill="white"/><path d="M480 0V1024M1080 0V1024M0 885H1536" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="new_orleans" width="1536" height="1024" mask="url(#era-mask-new_orleans)"/></svg></div><h3 class="en">NEW ORLEANS</h3><div class="fact"><div class="ja">ニューオーリンズ</div><div class="event">ハリケーン・カトリーナ</div></div></div></article><article id="era-sendai" class="triangles"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="仙台の街並み"><defs><mask id="era-mask-sendai"><rect width="1536" height="1024" fill="white"/><path d="M0 0L1536 430M1536 430L0 1024" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="sendai" width="1536" height="1024" mask="url(#era-mask-sendai)"/></svg></div><h3 class="en">SENDAI</h3><div class="fact"><div class="ja">仙台</div><div class="event">東日本大震災</div></div></div></article><article id="era-hiroshima" class="letters"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="広島の街並み"><image data-era-src="hiroshima" width="1536" height="1024"/></svg></div><h3 class="en">HIROSHIMA</h3><div class="fact"><div class="ja">広島</div><div class="event">8月豪雨災害</div></div></div></article><article id="era-kumamoto" class="corner2"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="熊本の街並み"><image data-era-src="kumamoto" width="1536" height="1024"/></svg></div><h3 class="en">KUMAMOTO</h3><div class="fact"><div class="ja">熊本</div><div class="event">熊本地震</div></div></div></article></div><div id="era-year" aria-label="年"><span class="digit" aria-hidden="true">1</span><span class="digit" aria-hidden="true">9</span><span class="digit" aria-hidden="true">5</span><span class="digit" aria-hidden="true">9</span></div><nav id="era-timeline" aria-label="年表"><button type="button" data-index="0" aria-label="1959年 名古屋 伊勢湾台風" aria-controls="era-nagoya" style="left:0.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1959</span><span class="tip" aria-hidden="true">1959年 名古屋</span></button><button type="button" data-index="1" aria-label="1964年 新潟 新潟地震" aria-controls="era-niigata" style="left:16.66666667%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1964</span><span class="tip" aria-hidden="true">1964年 新潟</span></button><button type="button" data-index="2" aria-label="1995年 神戸 阪神・淡路大震災" aria-controls="era-kobe" style="left:33.33333333%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1995</span><span class="tip" aria-hidden="true">1995年 神戸</span></button><button type="button" data-index="3" aria-label="2005年 ニューオーリンズ ハリケーン・カトリーナ" aria-controls="era-new_orleans" style="left:50.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2005</span><span class="tip" aria-hidden="true">2005年 ニューオーリンズ</span></button><button type="button" data-index="4" aria-label="2011年 仙台 東日本大震災" aria-controls="era-sendai" style="left:66.66666667%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2011</span><span class="tip" aria-hidden="true">2011年 仙台</span></button><button type="button" data-index="5" aria-label="2014年 広島 8月豪雨災害" aria-controls="era-hiroshima" style="left:83.33333333%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2014</span><span class="tip" aria-hidden="true">2014年 広島</span></button><button type="button" data-index="6" aria-label="2016年 熊本 熊本地震" aria-controls="era-kumamoto" style="left:100.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2016</span><span class="tip" aria-hidden="true">2016年 熊本</span></button><span id="era-current-city" aria-hidden="true"></span></nav></div></div>
 </section>
 
 <section class="v6-placeholder" id="s05" data-placeholder>
@@ -344,9 +364,11 @@
 
 <footer class="wrap foot">Ready or Not ／ Ready or Lab ── v6 骨格</footer>
 </div><!-- /.pageScale -->
+<script src="assets/v6/opening.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
 <script src="assets/site.js"></script>
 <script src="assets/v6.js"></script>
+<script src="assets/v6/era.js"></script>
 <script src="assets/updates.js"></script>
 <script src="assets/try/try.js"></script>
 </body>

@@ -415,3 +415,6 @@ html[data-motion-lite] .v6-ways *{transition:none!important}
 }
 
 @media(min-width:601px){.v6-ways .wayFullHalf--vs .wayInner{margin-left:64px}}
+
+/* Keep fine Bodoni strokes visible in every title layer. */
+.hero-title,.hero-title *{font-optical-sizing:none;font-variation-settings:'opsz' 24}

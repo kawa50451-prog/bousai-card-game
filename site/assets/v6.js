@@ -30,94 +30,17 @@
   reduced.addEventListener('change', setup);
 })();
 
-/* v6 hero: finite Web Animations only, no animation frame loop. */
-(function () {
-  'use strict';
-  var html = document.documentElement;
-  var hero = document.getElementById('s00');
-  if (!hero) return;
-  var reduced = matchMedia('(prefers-reduced-motion:reduce)');
-  var animations = [];
-  var buttons = document.querySelectorAll('[data-hero-variant]');
-  var overlay = document.getElementById('loadOverlay');
-  var loadingTimer;
-  function quiet() {
-    return html.hasAttribute('data-motion-lite') ||
-      (reduced.matches && html.dataset.motion !== 'on');
-  }
-  function settle() {
-    clearTimeout(loadingTimer);
-    if (overlay) { overlay.remove(); overlay = null; }
-    animations.forEach(function (a) { a.cancel(); });
-    animations = [];
-    html.classList.remove('hero-pending');
-    html.classList.remove('intro-lock');
-  }
-  function animate(selector, frames, options) {
-    var element = hero.querySelector(selector);
-    var a = element.animate(frames, Object.assign({fill:'backwards'}, options));
-    animations.push(a);
-  }
-  function syncButtons() {
-    buttons.forEach(function (b) {
-      b.setAttribute('aria-pressed', String(b.dataset.heroVariant === html.dataset.hero));
-    });
-  }
-  function play() {
-    settle();
-    if (quiet() || !hero.animate) return;
-    animate('.hero-caption', [
-      {opacity:0,letterSpacing:'.4em',transform:'scale(1)',offset:0},
-      {opacity:1,letterSpacing:'.4em',transform:'scale(1)',offset:.22},
-      {opacity:1,letterSpacing:'.4em',transform:'scale(1)',offset:.57},
-      {opacity:0,letterSpacing:'.95em',transform:'scale(1.12)',offset:1}
-    ], {duration:2240});
-    animate('.hero-black', [{opacity:.94},{opacity:0}], {duration:2200,delay:1300});
-    if (html.dataset.hero === 'a') {
-      animate('.hero-title', [
-        {opacity:0,offset:0},{opacity:.8,offset:.14},{opacity:.15,offset:.26},
-        {opacity:1,offset:.5},{opacity:.32,offset:.63},{opacity:1,offset:1}
-      ], {duration:2000,delay:2400});
-      animate('.hero-fill', [{opacity:0},{opacity:1}], {duration:1100,delay:3700});
-      animate('.hero-rim', [{opacity:1},{opacity:1,offset:.79},{opacity:0}], {duration:5300});
-    } else {
-      animate('.hero-title', [{opacity:0},{opacity:1}], {duration:1700,delay:2400,easing:'ease-out'});
-    }
-    ['.tagline','.cta'].forEach(function (selector) {
-      animate(selector, [{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],
-        {duration:1600,delay:4500,easing:'ease-out'});
-    });
-  }
-  syncButtons();
-  buttons.forEach(function (b) {
-    b.addEventListener('click', function () {
-      html.dataset.hero = b.dataset.heroVariant;
-      var url = new URL(location.href);
-      url.searchParams.set('hero', html.dataset.hero);
-      history.replaceState(null, '', url);
-      syncButtons();
-      play();
-    });
-  });
-  document.querySelector('[data-hero-replay]').addEventListener('click', play);
-  reduced.addEventListener('change', function () { if (quiet()) settle(); });
-  // The shared CSS keeps the original 4.90s loading sequence. Start the
-  // hero on its actual fade completion, even if script loading was delayed.
-  if (html.classList.contains('hero-pending') && !quiet()) {
-    var fade = overlay && overlay.getAnimations().find(function (a) {
-      return a.animationName === 'loadOverlayOut';
-    });
-    function startHero() {
-      if (html.classList.contains('hero-pending')) play();
-    }
-    if (fade) {
-      fade.finished.then(startHero, function () {});
-      loadingTimer = setTimeout(startHero, Math.max(0, 5200 - (fade.currentTime || 0)));
-    } else {
-      startHero();
-    }
-  } else {
-    settle();
-  }
-  window.addEventListener('pagehide', settle);
+/* The opening owns playback; hero stays in its final state throughout handoff. */
+(function(){
+ 'use strict';
+ var html=document.documentElement;
+ var buttons=document.querySelectorAll('[data-hero-variant]');
+ function sync(){buttons.forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.heroVariant===html.dataset.hero));});}
+ sync();
+ buttons.forEach(function(b){b.addEventListener('click',function(){
+  html.dataset.hero=b.dataset.heroVariant;
+  var url=new URL(location.href);url.searchParams.set('hero',html.dataset.hero);
+  history.replaceState(null,'',url);sync();
+ });});
+ document.querySelector('[data-hero-replay]').addEventListener('click',function(){window.opening.start();});
 })();
