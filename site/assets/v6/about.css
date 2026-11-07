@@ -1,0 +1,42 @@
+/* Reading column stays narrow; the comparison figure and table can span wider. */
+.about-main{padding-top:174px;padding-bottom:48px}
+.about-page-heading{max-width:700px;margin:0 auto 88px}
+.about-page-heading h1{font-size:clamp(64px,8vw,112px);line-height:1;letter-spacing:.02em}
+.about-page-heading p{font-size:clamp(21px,2.5vw,32px);line-height:1.7;margin-top:24px}
+.about-section{max-width:700px;margin:0 auto;padding-block:44px;border-top:1px solid var(--border)}
+.about-section h2{font-size:clamp(25px,2.3vw,34px);line-height:1.65;letter-spacing:.015em;margin-bottom:24px;text-wrap:pretty}
+.about-section h2 span{display:inline-block}
+.about-section>p{font-size:17px;line-height:2.15;text-wrap:pretty}
+.about-section>p+p{margin-top:22px}
+.about-section .about-source,.about-section .about-note{font-size:12px;line-height:1.9;color:var(--t2)}
+.about-section-wide{max-width:960px}
+.about-section-wide>h2,.about-section-wide>.about-note{max-width:700px;margin-inline:auto}
+.learning-map{display:block;width:100%;max-width:780px;margin:32px auto}
+.learning-map .map-hug tspan{font-size:16px}
+.learning-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:15px;line-height:1.85;margin:32px 0 20px;text-wrap:pretty}
+.learning-table th,.learning-table td{padding:18px 16px;text-align:left;vertical-align:top;border:0;border-bottom:1px solid var(--border);background:transparent;font-weight:400}
+.learning-table thead th{font-weight:700;border-top:2px solid var(--border);border-bottom-width:2px}
+.learning-table tbody tr:last-child>*{border-bottom-width:2px}
+.learning-loops{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:32px}
+.learning-loops svg{display:block;width:100%;height:auto}
+@media(max-width:600px){
+ .about-main{padding-top:138px}
+ .about-page-heading{margin-bottom:48px}
+ .about-section{padding-block:32px}
+ .about-section h2{font-size:24px;line-height:1.75}
+ .about-section>p{font-size:15px;line-height:2.1}
+ .learning-map{width:calc(100% + 24px);margin-left:-12px}
+ .learning-map text{font-size:21px}
+ .learning-map .map-hug{font-size:21px}
+ .learning-map .map-hug tspan{font-size:17px}
+ .learning-map text[y="155"]{font-size:27px}
+ .learning-map text[y="92"],.learning-map text[y="513"]{font-size:19px}
+ .learning-map text[text-anchor="end"]{font-size:15px}
+ .learning-map text[transform]{font-size:17px}
+ .learning-table{font-size:12px;line-height:1.85}
+ .learning-table th,.learning-table td{padding:12px 6px}
+ .learning-table th:first-child{padding-left:0;width:31%}
+ .learning-table td:last-child,.learning-table th:last-child{padding-right:0}
+ .learning-loops{grid-template-columns:1fr;gap:8px}
+ .learning-loops svg{max-width:340px;margin:auto}
+}

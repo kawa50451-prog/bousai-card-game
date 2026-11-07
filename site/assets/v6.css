@@ -422,3 +422,65 @@ html[data-motion-lite] .v6-ways *{transition:none!important}
 
 /* Keep fine Bodoni strokes visible in every title layer. */
 .hero-title,.hero-title *{font-optical-sizing:none;font-variation-settings:'opsz' 24}
+
+/* HOME additions; shared navigation also serves ABOUT and NEWS. */
+.navMenuType{display:grid;place-items:center;background:#002A6C;color:#fff;font:600 15px/1 'Archivo',sans-serif;letter-spacing:.08em;border-radius:0;box-shadow:none}
+.v6-about{padding-block:clamp(72px,8vw,128px);background:var(--ground);border-bottom:1px solid var(--border)}
+.about-grid{display:grid;grid-template-columns:6fr 5fr;gap:clamp(30px,4vw,64px);align-items:center}
+.about-grid>*{min-width:0}
+.about-bridge{display:block;width:100%;height:auto;overflow:visible}
+.about-eyebrow{font-size:12px;margin-bottom:22px}
+.about-copy h2{font-size:clamp(28px,2.65vw,42px);line-height:1.5;letter-spacing:.025em}
+.about-copy h2 span{display:inline-block}
+.about-lead{margin-top:24px;font-size:clamp(16px,1.25vw,19px);line-height:1.9}
+.about-body{margin-top:22px;font-size:15px;line-height:2}
+.about-facts{display:flex;align-items:baseline;flex-wrap:wrap;gap:12px 26px;margin:28px 0}
+.about-facts>span{white-space:nowrap}
+.about-facts b{font:400 clamp(30px,3vw,44px)/1 'Archivo',sans-serif;letter-spacing:-.04em}
+.about-facts small{font-size:13px}
+.about-free{font-size:14px}
+.v6-text-link{display:inline-block;font-size:14px;border-bottom:1px solid currentColor;padding-bottom:5px;text-decoration:none}
+.v6-text-link span{margin-left:20px}
+.bridge-armed:not(.bridge-in) .bridge-card{transform:translateY(-75px);opacity:0}
+.bridge-armed.bridge-in .bridge-card{animation:bridge-land .8s ease-out both}
+@keyframes bridge-land{from{transform:translateY(-75px);opacity:0}to{transform:translateY(0);opacity:1}}
+html[data-motion-lite] .bridge-card{animation:none!important;transform:none!important;opacity:1!important}
+@media(prefers-reduced-motion:reduce){.bridge-card{animation:none!important;transform:none!important;opacity:1!important}}
+/* Reuse the v5 create lab's green surface, vertical outline type and ruled list. */
+.v6-create{position:relative;overflow:hidden;background:#0E6B3A;color:#fff}
+.v6-create .wayFullCreate{display:grid;grid-template-columns:5fr 7fr;gap:50px;padding-block:80px;align-items:start}
+.v6-create header{position:relative;z-index:1}
+.v6-create h2{font-size:clamp(28px,3.1vw,48px);line-height:1.4;white-space:nowrap}
+.create-sub{font-size:14px;line-height:1.9;margin-top:22px}
+.create-sub span{display:inline-block}
+.create-word{position:absolute;left:3%;top:230px;writing-mode:vertical-rl;font-size:clamp(72px,8vw,120px);line-height:1;color:transparent;-webkit-text-stroke:1px #ffffff70;letter-spacing:.04em;pointer-events:none}
+.v6-create .labList{position:relative;z-index:1;min-width:0}
+.v6-create .labItem{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:28px;align-items:center;padding:22px 0;border-top:1px solid #ffffff50;text-decoration:none;color:inherit}
+.v6-create .labItem:first-child{padding-top:0;border-top:0}
+.v6-create .labItem:last-child{padding-bottom:0}
+.labName{font-size:26px;line-height:1.5}
+.labText{margin-top:10px;font-size:14px;line-height:1.9;text-wrap:pretty}
+.v6-create .lab-phone{width:112px;height:140px;border-radius:13px;padding:10px 5px 7px;box-shadow:0 8px 18px #0003}
+.v6-create .lab-phone img{border-radius:7px;object-fit:cover;object-position:top}
+.labItem:hover .labName,.labItem:focus-visible .labName{text-decoration:underline;text-underline-offset:6px}
+.labItem:focus-visible{outline:2px solid white;outline-offset:5px}
+.v6-subpage .bottomBar{opacity:1}
+.v6-subpage{background:var(--ground)}
+@media(max-width:900px){
+ .about-grid{grid-template-columns:1fr;gap:28px}
+ .v6-about{padding-block:48px 64px}
+ .about-bridge{max-width:550px;margin:auto}
+ .about-copy h2{font-size:30px}
+ .about-copy h2 span{display:block}
+ .about-lead{font-size:16px}
+ .about-body{font-size:14px;text-wrap:pretty}
+ .about-facts{gap:16px 24px}
+ .about-free{flex-basis:100%}
+ .v6-create .wayFullCreate{grid-template-columns:1fr;gap:40px;padding-block:56px}
+ .v6-create h2{font-size:32px}
+ .create-word{left:auto;right:10px;top:38px;font-size:68px;opacity:.45}
+ .v6-create .labItem{grid-template-columns:1fr;gap:18px;padding-block:28px}
+ .v6-create .lab-phone{width:140px;height:160px}
+ .labName{font-size:26px}
+ .labText{font-size:14px;max-width:36em}
+}

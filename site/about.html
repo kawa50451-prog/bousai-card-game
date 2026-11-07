@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ABOUT ｜ Ready or Not</title>
+<meta name="theme-color" content="#00244f">
+<link rel="icon" href="assets/icons/app_icon.webp">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
+     下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
+     画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
+     LPの各節のレイアウト（ヒーロー・なぜ作ったか・カードマーキー・軌道セレクタ・
+     遊び方・締め）は下のページ固有 <style> に残す。 -->
+<link rel="stylesheet" href="assets/site.css">
+
+<link rel="stylesheet" href="assets/v6.css">
+<link rel="stylesheet" href="assets/v6/about.css">
+</head>
+<body class="v6-subpage about-page"><a class="siteLogo" href="v6.html" aria-label="ホーム">
+  <span class="brandTile"><img src="assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
+  <span class="siteLogoText enBase">Ready or Not</span>
+</a>
+
+<!-- ハンバーガー：ロゴの対角（画面右上）に固定。押すとページ一覧（.navMenu）が
+     開閉する（今回新設。下部バーはPLAY専用に縮めたため、ページ移動はここへ
+     集約した）。開閉の実処理は assets/site.js の initNavMenu が担う。 -->
+<button type="button" class="hamburgerBtn" id="navToggle" aria-expanded="false" aria-controls="navMenu" aria-label="メニューを開く">
+  <span class="hamburgerBox" aria-hidden="true"><span></span><span></span><span></span></span>
+</button>
+
+<nav class="bottomBar en" aria-label="PLAYへ">
+  <a class="barPlay" href="https://toshibousai-cardgame.web.app/"><span class="barPlayText">PLAY</span></a>
+</nav>
+
+<!-- 背後の暗転スクリム。押すと閉じる。 -->
+<div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<!-- ページ一覧。JSが完全に落ちてもリンク自体はDOMに存在し続け、Tabで
+     フォーカスが入れば :focus-within により可視化される（§13.2の下部バーが
+     採っていた縮退方針をそのまま踏襲。§10.0.1段階2）。 -->
+<nav class="navMenu" id="navMenu" aria-label="ページ一覧">
+  <div class="navMenuPanel">
+    <ul class="navMenuList en">
+      <li><a href="v6.html"><img class="navMenuImg" src="assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
+      <li><a href="about.html" aria-current="page"><span class="navMenuImg navMenuType" aria-hidden="true">ABOUT</span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="modes/versus.html"><img class="navMenuImg" src="assets/navicons/versus.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="modes/co-op.html"><img class="navMenuImg" src="assets/navicons/coop.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="features.html"><img class="navMenuImg" src="assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
+      <li><a href="cards.html"><img class="navMenuImg" src="assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="news.html"><span class="navMenuImg navMenuType" aria-hidden="true">NEWS</span><span class="navMenuLabel">NEWS</span></a></li>
+      <li><a href="contact.html"><img class="navMenuImg" src="assets/navicons/contact.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CONTACT</span></a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="pageScale"><main class="about-main wrap">
+<header class="about-page-heading"><h1 class="enAccent">ABOUT</h1><p class="jpAccent">失敗できる災害はここだけ</p></header>
+<section class="about-section"><h2 class="jpAccent"><span>防災教育のゴールは</span><wbr><span>「知っている」ではなく</span><wbr><span>「動ける」</span></h2><p>文部科学省は防災教育のねらいに、知識だけでなく、状況に応じて判断し、行動を選べる力を挙げています。災害のときに必要なのは、覚えたことを思い出す力より、その場で選ぶ力です。</p><p class="about-source">文部科学省「『生きる力』を育む防災教育の展開」</p></section>
+<section class="about-section about-section-wide"><h2 class="jpAccent"><span>今ある学び方と、</span><wbr><span>まだ届いていないところ</span></h2>
+<svg class="learning-map" viewBox="0 0 600 570" role="img" aria-labelledby="map-title"><title id="map-title">学び方の比較。判断の練習と、結果を見てやり直す機会の両方が多い位置に Ready or Not を置いた、私たちの整理。</title>
+<rect x="317" y="60" width="229" height="217" fill="white" fill-opacity=".045"/>
+<g fill="none" stroke="white" stroke-width="1.5"><path d="M60 480V45m-5 9 5-9 5 9M60 480H567m-9-5 9 5-9 5"/></g>
+<g fill="white" font-family="inherit" font-size="19"><text x="430" y="92" text-anchor="middle" font-size="16">まだ空いている場所</text><text x="312" y="551" text-anchor="middle">判断を練習できる</text><text x="63" y="513" font-size="15">少ない</text><text x="533" y="513" font-size="15">多い</text><text transform="translate(28 260) rotate(-90)" text-anchor="middle">結果が返り、やり直せる</text><text x="50" y="467" text-anchor="end" font-size="15">少ない</text><text x="50" y="69" text-anchor="end" font-size="15">多い</text>
+<circle cx="120" cy="423" r="5"/><text x="130" y="430">講義・教科書</text><circle cx="213" cy="362" r="5"/><text x="223" y="369">避難訓練</text><circle cx="380" cy="419" r="5"/><text x="392" y="426" class="map-hug">HUG<tspan x="392" dy="27">（避難所運営ゲーム）</tspan></text><circle cx="410" cy="325" r="5"/><text x="421" y="332">クロスロード</text><circle cx="443" cy="180" r="8" fill="#E60B00"/><text x="443" y="155" text-anchor="middle" font-size="26">Ready or Not</text></g></svg>
+<table class="learning-table"><thead><tr><th scope="col">学び方</th><th scope="col">得意なこと</th><th scope="col">まだ届いていないこと</th></tr></thead><tbody>
+<tr><th scope="row">講義・教科書・<wbr>ハザードマップ</th><td>何が起きるかを知る</td><td>受け身で、忘れやすい</td></tr>
+<tr><th scope="row">避難訓練</th><td>身を守る手順を体で覚える</td><td>手順をなぞるだけになりやすい</td></tr>
+<tr><th scope="row">HUG<wbr>（避難所運営ゲーム）</th><td>避難所を運営する判断</td><td>準備と進行役が要る</td></tr>
+<tr><th scope="row">クロスロード</th><td>正解のないジレンマを考え、話し合う</td><td>選んだ結果が返ってこない</td></tr></tbody></table>
+<p class="about-note">※ 私たちの整理です。それぞれの手法の価値を否定するものではありません。</p></section>
+<section class="about-section"><h2 class="jpAccent"><span>なぜ、そこが</span><wbr><span>空いているのか</span></h2><p>人は、試して、結果を見て、直すことで上達します。けれど現実の防災では、判断の結果が分かるのは災害が来たときだけで、そのときにはやり直せません。だから「試す→結果→直す」の輪が、一人ひとりの中で一度も回らないのです。</p>
+<div class="learning-loops"><svg viewBox="0 0 340 260" role="img" aria-label="現実の防災。試す、結果が分からない、直す。結果のところで輪が途切れている"><g fill="none" stroke="white" stroke-width="1.5"><path d="M90 66a93 76 0 0 0 65 140M198 201a93 76 0 0 0 62-128M86 67l3 11m-3-11 12 1"/></g><g fill="white" text-anchor="middle" font-family="inherit"><text x="170" y="30" font-size="17">現実の防災</text><text x="170" y="111" font-size="21">試す → ？ → 直す</text><text x="170" y="160" font-size="40">？</text></g></svg><svg viewBox="0 0 340 260" role="img" aria-label="Ready or Not。選ぶ、数分で結果、やり直す。輪を繰り返せる"><g fill="none" stroke="#E60B00" stroke-width="1.5"><path d="M90 66a93 76 0 1 0 10-6m-10 6 3 11m-3-11 12 1"/></g><g fill="white" text-anchor="middle" font-family="inherit"><text x="170" y="30" font-size="17">Ready or Not</text><text x="170" y="109" font-size="21">選ぶ → 結果（数分）</text><text x="170" y="150" font-size="21">↑　やり直す　↓</text></g></svg></div></section>
+<section class="about-section"><h2 class="jpAccent"><span>Ready or Not が</span><wbr><span>すること</span></h2><p>この輪を、ゲームの中で回せるようにすること。それが Ready or Not の役割です。プレイヤーは街を守る役になり、限られた予算で備えを選びます。災害が来ると、その選択の結果が数分で返ってきます。失敗しても、何度でもやり直せます。</p><p>防災の知識そのものを教えることは、教科書や講義にお任せします。Ready or Not は、知っていることを判断と行動につなげる練習の場です。ほかの教材と組み合わせて使ってください。</p></section>
+<section class="about-section"><h2 class="jpAccent">約束しないこと</h2><p>ゲームなので、現実を単純化している部分があります。「これだけで防災が学べる」とは考えていません。興味を持つきっかけと、判断を練習する場であることを目指しています。</p></section>
+<section class="about-section"><h2 class="jpAccent">つくっている人</h2><p>Ready or Lab（大学生のチーム）がつくっています。授業・研修での利用や、取材のご相談は<a class="v6-text-link" href="contact.html">お問い合わせ</a>からどうぞ。</p><a class="btnFill en" href="https://toshibousai-cardgame.web.app/">PLAY <span aria-hidden="true">↗</span></a></section>
+</main><footer class="wrap foot">Ready or Not ／ Ready or Lab</footer></div><script src="assets/site.js"></script><script src="assets/updates.js"></script></body></html>

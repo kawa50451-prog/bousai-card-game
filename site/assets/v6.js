@@ -42,5 +42,22 @@
   var url=new URL(location.href);url.searchParams.set('hero',html.dataset.hero);
   history.replaceState(null,'',url);sync();
  });});
- document.querySelector('[data-hero-replay]').addEventListener('click',function(){window.opening.start();});
+ var replay=document.querySelector('[data-hero-replay]');
+ if(replay) replay.addEventListener('click',function(){window.opening.start();});
+})();
+
+/* Arm only when motion is allowed; the bridge remains visible without JS. */
+(function(){
+ 'use strict';
+ var section=document.getElementById('s-about');
+ if(!section || !('IntersectionObserver' in window)) return;
+ var reduced=matchMedia('(prefers-reduced-motion:reduce)');
+ if(document.documentElement.hasAttribute('data-motion-lite') || reduced.matches) return;
+ section.classList.add('bridge-armed');
+ var observer=new IntersectionObserver(function(entries){
+  if(!entries.some(function(entry){return entry.isIntersecting;})) return;
+  section.classList.add('bridge-in');observer.disconnect();
+ },{threshold:.22});
+ observer.observe(section);
+ reduced.addEventListener('change',function(event){if(event.matches){section.classList.add('bridge-in');observer.disconnect();}});
 })();

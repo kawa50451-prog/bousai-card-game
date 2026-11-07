@@ -13,7 +13,7 @@
 .try-scene[data-state="ready"] .seawall path{animation:try-draw var(--line-duration) var(--e) both;animation-delay:calc(.6s + var(--line-delay))}
 .try-top{max-width:min(900px,100%);align-self:flex-start}
 /* 同じ文を2組流し、結果ではその場に止める。 */
-.try-ticker{position:absolute;inset:0 0 auto;overflow:hidden;border-block:1px solid var(--t2);font:600 11px/30px 'Archivo','Zen Kaku Gothic New',sans-serif;letter-spacing:.14em;white-space:nowrap;transition:opacity .3s var(--e)}
+.try-ticker{background:#E60B00;color:#fff;position:absolute;inset:0 0 auto;overflow:hidden;border-block:1px solid #E60B00;font:600 11px/30px 'Archivo','Zen Kaku Gothic New',sans-serif;letter-spacing:.14em;white-space:nowrap;transition:opacity .3s var(--e)}
 .try-ticker-track{display:flex;width:max-content;animation:try-ticker 30s linear infinite}
 .try-ticker-group{display:flex;flex:none}
 .try-ticker-group span{display:flex;align-items:center;gap:28px;padding-right:28px}

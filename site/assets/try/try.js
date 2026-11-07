@@ -30,7 +30,7 @@
   for (let copy = 0; copy < 2; copy++) {
     const group = node('span', 'try-ticker-group');
     for (let repeat = 0; repeat < 4; repeat++) {
-      ['FORECAST', 'TSUNAMI', 'OSAKA BAY', '翌朝'].forEach(word => group.append(node('span', '', word)));
+      ['TSUNAMI WARNING', 'OSAKA BAY', 'EXPECTED BY DAWN', 'MOVE TO HIGHER GROUND'].forEach(word => group.append(node('span', '', word)));
     }
     ticker.append(group);
   }
