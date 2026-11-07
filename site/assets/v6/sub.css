@@ -70,10 +70,9 @@ html[data-motion-still] .sub-page .bgDot{animation:none;left:var(--x,40%)}html[d
  .terrain-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
-/* Only interactive library cards carry the game's magnifier, in a clear gutter. */
-.library-card>.site-card{padding-bottom:26px;aspect-ratio:auto}
-.library-magnifier{position:absolute;right:3px;bottom:3px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.4);border-radius:50%;color:#fff}
-.library-magnifier svg{width:11px;height:11px}
+/* Only interactive library cards carry the game's magnifier, laid on the card's lower-right corner. */
+.library-magnifier{position:absolute;z-index:2;right:3%;bottom:2%;width:clamp(28px,14%,44px);aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.4);border-radius:50%;color:#fff}
+.library-magnifier svg{width:56%;height:56%}
 .news-article{max-width:850px;margin-inline:auto}
 .news-article time{font:500 15px Archivo,sans-serif}
 .news-article h2{margin:20px 0 32px}
