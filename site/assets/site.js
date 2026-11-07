@@ -248,10 +248,10 @@ window.RonSite = (function(){
   }
   function collectReveals(){
     document.querySelectorAll(automaticQuery).forEach(function(el){
-      if (!el.matches('section') && !el.closest('#opening, #s04, .navMenu, .bottomBar')) el.classList.add('reveal');
+      if (!el.matches('section, .sub-watermark, .map-zone > span') && !el.closest('#opening, #s04, .navMenu, .bottomBar, .about-experience')) el.classList.add('reveal');
     });
     document.querySelectorAll(revealQuery).forEach(function(el){
-      if (revealTargets.has(el) || el.closest('#opening, #s04, .navMenu, .bottomBar')) return;
+      if (revealTargets.has(el) || el.matches('.sub-watermark, .map-zone > span') || el.closest('#opening, #s04, .navMenu, .bottomBar, .about-experience')) return;
       revealTargets.add(el);el.setAttribute('data-scroll-reveal', '');
     });
     paintReveals();

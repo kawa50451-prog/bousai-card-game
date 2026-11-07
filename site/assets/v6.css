@@ -707,3 +707,21 @@ html[data-motion-lite] .road-action{opacity:1}
  .coop-city-pair{display:grid;grid-template-columns:32% 32%;gap:12px 0}
  .coop-city-label>span{width:32%}
 }
+
+/* Review 14: contain each mobile feature and keep both controls in reach. */
+.lab-controls{display:none}
+@media(max-width:600px){
+ .lab-carousel{position:relative;min-width:0}
+ .v6-create .labList{display:block;overflow:visible;padding:4px 0 0;scroll-snap-type:none}
+ .v6-create .labItem{width:100%;max-width:none;align-items:center;gap:16px;text-align:center}
+ .v6-create .labItem[hidden]{display:none}
+ .v6-create .lab-phone{width:160px;max-width:100%}
+ .v6-create .labName{font-size:26px}
+ .v6-create .labText{font-size:15px;margin-top:8px}
+ .lab-controls{position:relative;z-index:3;display:flex;align-items:center;justify-content:center;gap:12px;margin-top:18px}
+ .lab-controls button{position:absolute;bottom:260px;width:48px;height:48px;display:grid;place-items:center;border:1px solid #ffffff70;border-radius:50%;background:transparent;color:#fff;font:400 24px/1 Archivo,sans-serif;cursor:pointer}
+ .lab-prev{left:0}.lab-next{right:0}
+ .lab-controls button:disabled{opacity:.25;cursor:default}
+ .lab-controls button:focus-visible{outline:3px solid #fff;outline-offset:4px}
+ .lab-dots{display:flex;gap:10px}.lab-dots i{width:6px;height:6px;border-radius:50%;background:#ffffff40}.lab-dots .is-current{background:#fff}
+}

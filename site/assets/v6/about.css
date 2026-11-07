@@ -22,14 +22,45 @@
 .cycle-game[data-step='3'] .tip-retry{fill:#0E6B3A}
 /* Review 12: one scroll-driven valley, learning tools, and a playable loop. */
 .about-goal{display:block;padding-top:36px}.about-goal .about-prose{max-width:760px;margin:auto}.about-goal .sub-watermark{display:none}
-.valley-scroll{height:1150px;position:relative;--bridge:0}.valley-figure{position:sticky;top:90px;margin:0;width:100%;height:min(560px,68vh);isolation:isolate}.valley-figure svg{width:100%;height:100%;overflow:visible}.valley-axis{fill:none;stroke:#ffffff45;stroke-width:2}.valley-land{fill:#ffffff05}.valley-curve{fill:none;stroke:#fff;stroke-width:6;stroke-linecap:round}.valley-label{fill:#fff;font:700 31px 'Zen Kaku Gothic New',sans-serif}.valley-bridge{clip-path:inset(0 calc((1 - var(--bridge)) * 100%) 0 0)}.bridge-deck{fill:none;stroke:#E60B00;stroke-width:14}.bridge-arch,.bridge-hangers{fill:none;stroke:#E60B00;stroke-width:5}.valley-brand{position:absolute;left:50%;top:12%;translate:-50% 14px;font:400 clamp(28px,4vw,57px)/1.1 'Bodoni Moda',serif;opacity:0;white-space:nowrap;transition:opacity .6s var(--ease),translate .6s var(--ease)}.bridge-visible .valley-brand{opacity:1;translate:-50% 0}
 .map-layout{grid-template-columns:minmax(0,2fr) minmax(260px,1fr)}.learning-map{height:740px}.map-badge{width:145px;height:145px}.map-badge img{width:88%;height:88%}.map-ron .map-badge{width:145px;height:145px;background:transparent;box-shadow:none}.map-ron img{width:92%;height:92%;border-radius:22%}.map-detail .map-detail-lead{font-size:clamp(25px,2.5vw,36px)}.map-detail-lead span{display:block;text-wrap:balance}.map-zone b{font-size:18px}.map-know .map-badge,.map-hazard .map-badge{width:116px;height:116px}.map-quadrants{inset:48px 24px 62px}
 .cycle-layout{display:block;margin-top:20px}.cycle-game{width:min(900px,100%);margin:0 auto;aspect-ratio:1}.cycle-rotor{animation:none}.cycle-core{font-size:clamp(36px,5vw,65px)}.cycle-scene{position:absolute;margin:0;width:23%;z-index:2;text-align:center;translate:-50% -50%}.scene-choose{left:82%;top:28%}.scene-result{left:50%;top:85%}.scene-retry{left:18%;top:28%}.cycle-scene figcaption{font-size:18px;font-weight:700;line-height:1.5;margin-top:12px;text-wrap:balance}.cycle-cards,.cycle-result-art{display:flex;justify-content:center;align-items:center;height:130px;gap:10px}.cycle-cards>.site-card,.cycle-result-art>.site-card{width:48%;max-width:87px;box-shadow:0 8px 16px #00122f66}.cycle-cards>.site-card:first-child{rotate:-9deg}.cycle-cards>.site-card:last-child{rotate:9deg}.cycle-result-art>.site-card:first-child{rotate:-7deg}.cycle-result-art>.site-card:last-child{rotate:7deg}.cycle-scene{opacity:.3;transition:opacity .6s var(--ease)}.cycle-game[data-step='1'] .scene-choose,.cycle-game[data-step='2'] :is(.scene-choose,.scene-result),.cycle-game[data-step='3'] .cycle-scene{opacity:1}
 @media(max-width:1000px){.map-layout{grid-template-columns:1fr}.learning-map{max-width:800px}.map-detail{margin-top:20px}}
-@media(max-width:600px){.valley-scroll{height:830px;margin-inline:-8px}.valley-figure{top:105px;height:340px;display:flex;align-items:center}.valley-figure svg{height:auto}.valley-label{font-size:39px}.valley-brand{font-size:28px;top:23%}.about-goal{padding-top:0}.learning-map{height:740px}.map-quadrants{inset:48px 0 78px}.map-zone b{font-size:14px}.map-badge{width:124px;height:124px}.map-ron .map-badge{width:124px;height:124px}.map-know .map-badge,.map-hazard .map-badge{width:88px;height:88px}.map-group{font-size:12px}.map-detail .map-detail-lead{font-size:27px}.cycle-game{margin-top:40px;margin-bottom:35px}.cycle-core{font-size:32px;top:39%}.cycle-core small{font-size:12px}.cycle-cards,.cycle-result-art{height:73px;gap:3px}.cycle-scene{width:27%}.cycle-scene figcaption{font-size:12px;margin-top:10px}.scene-choose{left:84%;top:25%}.scene-retry{left:16%;top:25%}.scene-result{top:88%}.cycle-ring text{font-size:27px;letter-spacing:1px}.cycle-core{left:29%;right:29%}}
-html[data-motion-still] .valley-scroll{--bridge:1!important}html[data-motion-still] .valley-brand{opacity:1;translate:-50% 0}
+@media(max-width:600px){.about-goal{padding-top:0}.learning-map{height:740px}.map-quadrants{inset:48px 0 78px}.map-zone b{font-size:14px}.map-badge{width:124px;height:124px}.map-ron .map-badge{width:124px;height:124px}.map-know .map-badge,.map-hazard .map-badge{width:88px;height:88px}.map-group{font-size:12px}.map-detail .map-detail-lead{font-size:27px}.cycle-game{margin-top:40px;margin-bottom:35px}.cycle-core{font-size:32px;top:39%}.cycle-core small{font-size:12px}.cycle-cards,.cycle-result-art{height:73px;gap:3px}.cycle-scene{width:27%}.cycle-scene figcaption{font-size:12px;margin-top:10px}.scene-choose{left:84%;top:25%}.scene-retry{left:16%;top:25%}.scene-result{top:88%}.cycle-ring text{font-size:27px;letter-spacing:1px}.cycle-core{left:29%;right:29%}}
+
 /* Keep the stage images clear of the lettering on each band. */
 .map-badge,.map-ron .map-badge,.map-know .map-badge,.map-hazard .map-badge{width:160px;height:160px}.learning-map{height:820px}.map-hazard{--my:83%!important}.map-know{--my:65%!important}
 @media(max-width:600px){.learning-map{height:900px}.map-badge,.map-ron .map-badge,.map-know .map-badge,.map-hazard .map-badge{width:124px;height:124px}.map-hazard{--my:82%!important}.map-know{--my:63%!important}}
-.valley-mobile{display:none}html[data-motion-still] .valley-scroll{height:600px}
-@media(max-width:600px){.valley-figure{height:420px}.valley-figure .valley-desktop{display:none}.valley-figure .valley-mobile{display:block;width:100%;height:auto}.valley-mobile .valley-label{font-size:21px}.valley-mobile .valley-curve{stroke-width:3}.valley-mobile .bridge-deck{stroke-width:7}.valley-mobile .bridge-arch,.valley-mobile .bridge-hangers{stroke-width:2}.valley-brand{top:4%;font-size:29px}html[data-motion-still] .valley-scroll{height:470px}}
+
+
+/* Review 14: one filled landscape, with a deck assembled across the open valley. */
+.valley-scroll{height:1150px;position:relative;--bridge:0}
+.valley-figure{position:sticky;top:90px;margin:0;width:100%;height:min(600px,70svh);isolation:isolate}
+.valley-figure .valley-art{display:block;width:100%;height:100%;overflow:visible}
+.valley-label{fill:#fff;font:700 44px 'Shippori Mincho B1',serif}
+.valley-bridge{clip-path:inset(0 calc((1 - var(--bridge)) * 100%) 0 0)}
+.valley-brand{fill:#fff;font:400 66px 'Bodoni Moda',serif;font-optical-sizing:none;font-variation-settings:'opsz' 24;opacity:0;transition:opacity .6s var(--ease)}
+.bridge-visible .valley-brand{opacity:1}
+html[data-motion-still] .valley-scroll{--bridge:1!important;height:650px}
+html[data-motion-still] .valley-brand{opacity:1}
+@media(max-width:600px){
+ .valley-scroll{height:880px;margin-inline:0}
+ .valley-figure{top:100px;height:360px;display:grid;align-items:center}
+ .valley-label{font-size:48px}
+ .valley-brand{font-size:70px}
+ html[data-motion-still] .valley-scroll{height:380px}
+ .learning-map{height:480px}
+ .map-quadrants{inset:44px 0 46px}
+ .map-zone{padding:12px 8px}.map-zone b{font-size:13px}
+ .map-zone>span{font-size:32px;opacity:.06}
+ .map-axis-x{top:calc(50% - 1px)}.map-axis-y{top:34px;bottom:34px}
+ .map-axis-left,.map-axis-right{top:calc(50% - 16px)}
+ .map-badge,.map-ron .map-badge,.map-know .map-badge,.map-hazard .map-badge{width:58px;height:58px;margin-bottom:12px}
+ .map-badge::before{height:12px;bottom:-10px}.map-badge::after{width:6px;height:6px;left:calc(50% - 3px);bottom:-14px}
+ .map-group{width:48%;font-size:12px;line-height:1.5}
+ .map-talk,.map-ron{--my:30%!important}
+ .map-know{--mx:22%!important;--my:64%!important}
+ .map-hazard{--mx:26%!important;--my:83%!important}
+ .map-body{--my:73%!important}
+ .about-promise .sub-watermark{top:20px;bottom:auto}
+}
+@media(prefers-reduced-motion:reduce){.valley-scroll{--bridge:1!important}.valley-brand{opacity:1}}

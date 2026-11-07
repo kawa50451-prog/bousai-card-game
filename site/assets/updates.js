@@ -1,4 +1,5 @@
 const RON_UPDATES = [
+  {date:'2026-11-07', text:'Ready or Not 公式ホームページを開設'},
   {date:'2026-11-05', text:'デッキ構築とドラフトを追加'}
 ];
 

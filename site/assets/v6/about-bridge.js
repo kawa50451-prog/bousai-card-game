@@ -1,4 +1,4 @@
-﻿/* Scroll-driven road: one coalesced frame per scroll, no idle clock. */
+/* Scroll-driven road: one coalesced frame per scroll, no idle clock. */
 (function(){
  'use strict';
  var root=document.documentElement,reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -7,16 +7,16 @@
  var section=document.getElementById('s-about'),road=section&&section.querySelector('.card-road');
  if(lite)document.querySelectorAll('a[href="about.html"]').forEach(function(a){a.href='about.html?motion=lite';});
  if(!road)return;
- var cards=Array.from(road.querySelectorAll('.road-span')),frame=0;
- var native=CSS.supports('animation-timeline: view()') && 'registerProperty' in CSS;
+ var cards=Array.from(road.querySelectorAll('.road-span')),frame=0,maxProgress=0;
+
  function still(){return lite||reduced.matches;}
  function paint(){
   frame=0;section.classList.toggle('road-scroll',!still());
-  section.classList.toggle('road-native',native&&!still());
-  road.dataset.driver=native&&!still()?'css':'raf';
-  if(native&&!still()){cards.forEach(function(c){c.style.removeProperty('--drop');c.style.removeProperty('--placed');});return;}
+  section.classList.remove('road-native');
+  road.dataset.driver='raf';
   var rect=section.getBoundingClientRect(),count=innerWidth<=600?4:6;
   var progress=still()?1:Math.max(0,Math.min(1,-rect.top/Math.max(1,rect.height-innerHeight)));
+  maxProgress=Math.max(maxProgress,progress);progress=maxProgress;
   road.dataset.progress=progress.toFixed(3);
   cards.forEach(function(card,i){
    var drop=Math.max(0,Math.min(1,progress*count-i));
@@ -26,7 +26,7 @@
   road.style.setProperty('--road-action',.4+.6*Math.max(0,(progress-.85)/.15));
  }
  function schedule(){if(!frame)frame=requestAnimationFrame(paint);}
- if(!native)addEventListener('scroll',schedule,{passive:true});addEventListener('resize',schedule);reduced.addEventListener('change',schedule);
+ addEventListener('scroll',schedule,{passive:true});addEventListener('resize',schedule);reduced.addEventListener('change',schedule);
  // The road stays on HOME; page navigation uses the curtain.
  addEventListener('pageshow',schedule);paint();
 })();

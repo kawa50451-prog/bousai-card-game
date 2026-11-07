@@ -99,7 +99,45 @@
 
 <div class="pageScale"><main class="about-main sub-main wrap">
 <header class="about-page-heading sub-page-head" data-page-title="ABOUT"><nav class="sub-breadcrumb" aria-label="パンくず"><a href="./">HOME</a><span aria-hidden="true">/</span><span aria-current="page">ABOUT</span></nav><h1 class="sub-page-title">ABOUT</h1><p class="jpAccent sub-jp-heading">失敗できる災害はここだけ</p>
-</header><div class="valley-scroll" id="about-valley"><figure class="valley-figure" role="img" aria-label="知っていると動けるの間に深い谷。スクロールすると Ready or Not が橋を架ける"><svg class="valley-desktop" viewBox="0 0 1000 500" aria-hidden="true"><path class="valley-axis" d="M55 24V450H965"/><path class="valley-land" d="M90 167 C190 167 230 105 290 132 C360 165 355 415 495 415 C640 415 626 120 742 103 C825 90 873 72 930 55 L930 450H90Z"/><path class="valley-curve" d="M90 167 C190 167 230 105 290 132 C360 165 355 415 495 415 C640 415 626 120 742 103 C825 90 873 72 930 55"/><g class="valley-bridge"><path class="bridge-deck" d="M285 132L747 103"/><path class="bridge-arch" d="M290 132Q507 320 742 103"/><path class="bridge-hangers" d="M365 127V175 M445 122V208 M525 117V210 M605 112V178 M685 107V137"/></g><text class="valley-label" x="112" y="110">知っている</text><text class="valley-label" x="760" y="47">動ける</text></svg><svg class="valley-mobile" viewBox="0 0 390 420" aria-hidden="true"><path class="valley-axis" d="M20 28V390H375"/><path class="valley-land" d="M30 110C90 110 100 70 125 100C155 150 130 360 200 360C275 360 240 100 295 85C320 80 340 65 365 65L365 390H30Z"/><path class="valley-curve" d="M30 110C90 110 100 70 125 100C155 150 130 360 200 360C275 360 240 100 295 85C320 80 340 65 365 65"/><g class="valley-bridge"><path class="bridge-deck" d="M125 100L295 85"/><path class="bridge-arch" d="M125 100Q210 260 295 85"/><path class="bridge-hangers" d="M155 97V136M185 95V164M215 92V168M245 90V143M275 87V112"/></g><text class="valley-label" x="30" y="78">知っている</text><text class="valley-label" x="300" y="40">動ける</text></svg><div class="valley-brand" aria-hidden="true">Ready or Not</div></figure></div>
+</header><div class="valley-scroll" id="about-valley"><figure class="valley-figure" role="img" aria-label="知っていると動けるの間に深い谷。スクロールすると Ready or Not が橋を架ける"><svg class="valley-art" viewBox="0 0 1000 600" aria-hidden="true">
+<defs>
+<linearGradient id="valley-fade" x2="0" y2="1"><stop offset=".62" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="valley-side"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".12" stop-color="#fff"/><stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<mask id="valley-side-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="600"><rect width="1000" height="600" fill="url(#valley-side)"/></mask>
+<mask id="valley-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="600"><rect width="1000" height="600" fill="url(#valley-fade)"/></mask>
+<linearGradient id="valley-deep" x2="0" y2="1"><stop offset="0" stop-color="#001233" stop-opacity="0"/><stop offset="1" stop-color="#001233" stop-opacity=".75"/></linearGradient>
+<radialGradient id="valley-mist" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".14"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+</defs>
+<g mask="url(#valley-side-mask)"><g mask="url(#valley-mask)">
+<!-- Far ridges stay faint so the two near cliffs carry the picture. -->
+<path fill="#fff" opacity=".035" d="M0 150 70 118 150 134 230 96 320 140 400 120 470 150 540 112 620 136 700 100 790 130 870 104 1000 140V600H0Z"/>
+<path fill="#fff" opacity=".05" d="M0 196 110 160 210 182 300 150 380 200 440 236 500 250 560 232 630 196 700 156 800 178 900 150 1000 186V600H0Z"/>
+<path fill="url(#valley-deep)" d="M330 230H670V600H330Z"/>
+<ellipse cx="500" cy="470" rx="230" ry="44" fill="url(#valley-mist)"/>
+<!-- Near cliffs: lit plateau, mid body, shadowed rock face toward the gap. -->
+<path fill="#28488A" d="M0 246 330 236 342 214 356 262 340 304 364 352 352 410 382 470 372 600H0Z"/>
+<path fill="#1A3672" d="M342 214 356 262 340 304 364 352 352 410 382 470 372 600H296L318 470 298 398 318 330 304 270 330 236Z"/>
+<path fill="#3C5FA4" d="M0 300 300 290 306 270 312 300 0 318ZM0 380 296 372 304 398 0 400Z" opacity=".55"/>
+<path fill="#6F8CC6" d="M0 198 298 188 342 214 330 236 0 246Z"/>
+<path fill="#A9BDE4" d="M0 198 298 188 342 214 336 218 296 194 0 204Z" opacity=".7"/>
+<path fill="#28488A" d="M1000 240 672 232 660 210 646 256 664 302 638 348 650 412 620 468 630 600H1000Z"/>
+<path fill="#1A3672" d="M660 210 646 256 664 302 638 348 650 412 620 468 630 600H706L684 466 702 400 684 330 698 268 672 232Z"/>
+<path fill="#3C5FA4" d="M1000 296 702 288 696 268 690 298 1000 314ZM1000 378 704 370 698 396 1000 398Z" opacity=".55"/>
+<path fill="#6F8CC6" d="M1000 192 704 184 660 210 672 232 1000 240Z"/>
+<path fill="#A9BDE4" d="M1000 192 704 184 660 210 666 214 706 190 1000 198Z" opacity=".7"/>
+</g>
+</g>
+<g class="valley-bridge">
+<!-- A white arch springs from both rock faces and carries the red deck. -->
+<path fill="#fff" opacity=".92" d="M342 304Q500 160 658 304H644Q500 188 356 304Z"/>
+<path fill="#fff" opacity=".78" d="M387 222h6v45h-6ZM427 222h6v24h-6ZM467 222h6v13h-6ZM527 222h6v13h-6ZM567 222h6v24h-6ZM607 222h6v45h-6Z"/>
+<path fill="#E60B00" d="M318 204H682V218H318Z"/>
+<path fill="#A80800" d="M318 218H682V223H318Z"/>
+<path fill="#fff" opacity=".4" d="M318 204H682V206H318Z"/>
+</g>
+<text class="valley-label" x="150" y="160" text-anchor="middle">知っている</text><text class="valley-label" x="850" y="155" text-anchor="middle">動ける</text>
+<text class="valley-brand" x="500" y="400" text-anchor="middle">Ready or Not</text>
+</svg></figure></div>
 <section class="sub-section about-section about-goal" id="about-goal"><span class="sub-watermark" aria-hidden="true">ACTION</span><div class="about-prose"><h2 class="jpAccent sub-jp-heading"><span>防災教育のゴールは</span><wbr><span>「動ける」</span></h2><p>防災教育で育てたいのは、知識だけでなく、状況に応じて判断し、行動を選べる力です。災害のときに必要なのは、覚えたことを思い出す力より、その場で選ぶ力です。</p></div></section>
 <section class="sub-section about-section sub-paper about-map-section" id="about-map"><h2 class="jpAccent"><span>今ある学び方と、</span><wbr><span>まだ届いていないところ</span></h2><div class="map-layout"><div class="learning-map" role="group" aria-label="学び方の地図。縦軸は判断を練習できる、横軸は結果が返り、やり直せる。各バッジを選ぶと説明が切り替わります。">
 <div class="map-quadrants" aria-hidden="true"><div class="map-zone"><b>話し合って<br>判断する</b><span>DISCUSS</span></div><div class="map-zone"><b>Ready or Not</b><span>TRY AGAIN</span></div><div class="map-zone"><b>知る</b><span>KNOW</span></div><div class="map-zone"><b>体で覚える</b><span>PRACTICE</span></div></div>
