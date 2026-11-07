@@ -1,0 +1,3 @@
+# 公開しない作業用ファイル（wrangler の静的公開で除外）
+_cmp
+assets/og/src

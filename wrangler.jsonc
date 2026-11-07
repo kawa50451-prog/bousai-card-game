@@ -1,0 +1,18 @@
+// Cloudflare Workers の静的公開の設定（readyorlab.com）。main への push で Cloudflare が `npx wrangler deploy` を実行する。
+// site/ をそのまま公開し、存在しない URL には site/404.html を 404 で返す。
+// 独自ドメイン2つは管理画面で付けたものと同じものをここにも書く（書かないと deploy で外れることがあるため）。
+// workers.dev の住所は管理画面で無効にしてあるので、ここでも無効にする（有効にするとアカウント名が URL に出る）。
+{
+  "name": "readyorlab",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "readyorlab.com", "custom_domain": true },
+    { "pattern": "www.readyorlab.com", "custom_domain": true }
+  ],
+  "assets": {
+    "directory": "./site",
+    "not_found_handling": "404-page"
+  }
+}
