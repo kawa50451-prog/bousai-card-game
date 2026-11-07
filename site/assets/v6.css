@@ -540,3 +540,61 @@ html[data-motion-lite] .v6-ways *{transition:none!important}
 html[data-motion-lite] .bridge-title,html[data-motion-lite] .bridge-line,html[data-motion-lite] .bridge-phone img{transition:none}
 html[data-motion-lite] .knowledge-bridge{view-transition-name:none}
 html[data-motion-lite] .knowledge-bridge *{view-transition-name:none!important}
+
+/* Review 4: returning visitors, asymmetric teams, and room for the four screens. */
+.v6-home #s-news{padding-block:36px 40px}
+.v6-home #s-news .news-heading{margin-bottom:20px}
+.v6-home #s-news .news-heading h2{font-size:64px}
+.v6-home #s-news .news-row{padding-block:14px}
+.v6-home #s-news .news-row time{margin-bottom:3px}
+.v6-home #s-news .news-more{margin-top:20px}
+.wayStructure{margin-top:16px;font-size:clamp(14px,1.4vw,20px);font-weight:700;white-space:nowrap}
+.v6-ways .wayCount{margin-top:12px}
+.coop-phones{position:relative;width:min(96%,560px);height:455px;margin:30px auto 0;z-index:2}
+.coop-city-pair{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:flex-start;padding:0 5px}
+.coop-city{width:34%;height:315px;margin-top:16px}
+.coop-phones .v6-phone img{object-fit:cover;object-position:top;width:100%;height:100%}
+.coop-city-label{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:15px}
+.coop-nature{position:absolute;left:50%;top:62px;transform:translateX(-50%);width:39%;margin:0;text-align:center}
+.coop-nature .v6-phone{width:100%;height:350px;border:2px solid #E60B00}
+.coop-nature figcaption{font-size:15px;margin-top:10px}
+.v6-create .wayFullCreate{padding:112px var(--pad) 88px}
+.v6-create header{margin:0 0 36px}
+.v6-create .labList{grid-template-columns:repeat(2,minmax(0,1fr));gap:40px 48px}
+.v6-create .labItem{flex-direction:row;align-items:center;gap:24px}
+.v6-create .lab-phone{width:280px;max-width:none;height:360px;aspect-ratio:auto}
+.v6-create .lab-copy{min-width:0}
+.v6-create .labName{font-size:clamp(22px,2vw,30px);white-space:normal;text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
+.v6-create .labText{font-size:15px;line-height:1.9}
+.v6-create .create-word{opacity:.35;z-index:0}
+@media(min-width:601px){.v6-ways .wayFullHalf--coop{padding-bottom:40px}.v6-ways .wayFull{min-height:770px}}
+@media(min-width:601px) and (max-width:1100px){.v6-create .labList{gap:32px 24px}.v6-create .labItem{gap:16px}.v6-create .lab-phone{width:280px}.v6-create .labName{font-size:22px}}
+@media(max-width:900px) and (min-width:601px){.v6-create .labItem{flex-direction:column;align-items:flex-start}.v6-create .lab-phone{width:100%;max-width:320px}.coop-phones{height:400px}.coop-city{height:265px}.coop-nature .v6-phone{height:300px}}
+@media(max-width:600px){
+ .v6-home #s-news{padding-block:40px}.v6-home #s-news .news-heading h2{font-size:56px}
+ .v6-ways .wayFull{grid-template-rows:auto auto;min-height:0}
+ .v6-ways .wayFullHalf--vs{min-height:390px}
+ .v6-ways .wayFullHalf--coop{padding:28px 20px 32px;min-height:0}
+ .wayStructure{font-size:14px;margin-top:12px}
+ .coop-phones{display:flex;align-items:flex-start;gap:10px;width:100%;height:auto;margin-top:28px}
+ .coop-city-pair{position:relative;inset:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0;order:1;width:66%;min-width:0}
+ .coop-city{width:100%;height:205px;margin:0;border-radius:14px;padding:9px 4px 6px}
+ .coop-city-label{position:static;grid-column:1/-1;font-size:13px}
+ .coop-nature{position:static;transform:none;width:34%;margin:0;min-width:0}
+ .coop-nature .v6-phone{height:205px;border-radius:14px;padding:9px 4px 6px}
+ .coop-nature figcaption{font-size:13px;margin-top:10px}
+ .v6-create .wayFullCreate{padding:48px var(--pad)}
+ .v6-create .labList{gap:22px}
+ .v6-create .labItem{flex:0 0 78%;max-width:none;flex-direction:column;align-items:flex-start;gap:20px}
+ .v6-create .lab-phone{width:100%;max-width:none;height:410px}
+ .v6-create .labName{font-size:26px}
+}
+
+.v6-ways{height:auto;min-height:0}
+@media(min-width:601px){
+ .coop-phones{height:488px}
+ .coop-city-label{bottom:0}
+ .v6-ways .wayFullHalf--vs .way-phone{top:300px}
+}
+
+@media(max-width:600px){.v6-ways .wayCross{top:390px}}

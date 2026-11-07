@@ -218,7 +218,11 @@
 </div>
 </section>
 
-<div class="wrap v6-update" aria-label="最新の更新"><time></time><span></span></div>
+<section id="s-news" class="v6-news wrap" aria-labelledby="news-heading">
+  <header class="news-heading"><h2 class="enAccent" id="news-heading">NEWS</h2><span class="news-rules" aria-hidden="true"></span></header>
+  <div class="news-list" data-news-limit="3"></div>
+  <a class="news-more en" href="news.html">MORE <span aria-hidden="true">↗</span></a>
+</section>
 <section id="s-about" class="v6-about" aria-labelledby="about-heading">
   <div class="wrap about-grid">
     <div class="about-experience" data-learning-cycle>
@@ -283,6 +287,7 @@
       <div class="wayInner">
         <h3 class="wayMode jpAccent">対戦モード</h3>
         <p class="waySub">シンプル・王道カードバトル</p>
+        <p class="wayStructure">1対1</p>
         <p class="wayCount">
           <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>1人</span><small class="en">CPU</small></span>
           <span aria-hidden="true">/</span>
@@ -296,9 +301,13 @@
       <div class="wayInner">
         <h3 class="wayMode jpAccent">協力モード</h3>
         <p class="waySub">激動のサバイバル</p>
+        <p class="wayStructure">自然 1人 vs 都市 2〜4人</p>
         <p class="wayCount"><span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>3人〜5人</span></span></p>
       </div>
-      <div class="v6-phone way-phone coop_battle-phone"><img src="assets/shots/v6/coop_battle_focus.webp" alt="協力の複数都市・共有予算と手札" width="780" height="920" loading="lazy"></div>
+      <div class="coop-phones">
+        <div class="coop-city-pair"><div class="v6-phone coop-city"><img src="assets/shots/v6/coop_battle.webp" alt="協力モードの都市側の実機画面" loading="lazy"></div><div class="v6-phone coop-city"><img src="assets/shots/v6/coop_battle_focus.webp" alt="都市側の画面" loading="lazy"></div><span class="coop-city-label">都市 2〜4人</span></div>
+        <figure class="coop-nature"><div class="v6-phone"><img src="assets/shots/v6/coop_nature.webp" alt="自然側が災害カードを選ぶ実機画面" width="780" height="1688" loading="lazy"></div><figcaption>自然 1人</figcaption></figure>
+      </div>
     </a>
     <svg class="wayCross" viewBox="0 0 100 100" aria-hidden="true">
       <line x1="8" y1="8" x2="92" y2="92" pathLength="1"></line>
@@ -360,11 +369,7 @@
     <div class="labList"><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">デイリー防災</h3><p class="labText">1日1回、2分で解ける1問。最善の手を探そう。</p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">カード工房</h3><p class="labText">自分の街のカードを作れる。共有コードで友だちにも。</p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/cardworks.webp" alt="カード工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">問題工房</h3><p class="labText">災害・手札・予算を決めて、詰め防災の問題を出題できる。</p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/puzzle.webp" alt="問題工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">図鑑</h3><p class="labText">集めたカードと都市を、いつでも見返せる。</p></div><div class="v6-phone lab-phone"><img src="assets/shots/s06_gallery.webp" alt="図鑑の実機画面" loading="lazy"></div></a></div></div></section>
 <!-- ══════ 04 締め（新設。§13）。タグライン再掲＋PLAY への大きな導線を1つ。
      00 と同じ左スクリム構造を storm.webp（--kv2）に対して掛ける。 ══════ -->
-<section id="s-news" class="v6-news wrap" aria-labelledby="news-heading">
-  <header class="news-heading"><h2 class="enAccent" id="news-heading">NEWS</h2><span class="news-rules" aria-hidden="true"></span></header>
-  <div class="news-list" data-news-limit="3"></div>
-  <a class="news-more en" href="news.html">MORE <span aria-hidden="true">↗</span></a>
-</section>
+
 <section class="sec close" id="s06">
   <div class="closeKV" aria-hidden="true"></div>
   <div class="wrap g12" style="width:100%">
