@@ -6,7 +6,7 @@
 - **ゲーム（toshibousai）に新しい機能をリリースしたら、ここに1行足して push する。**
 
 ## 公開先
-- 公式サイト：`https://readyorlab.com/`（Cloudflare Pages。このリポジトリの `site/` をそのまま公開。HOME は `site/index.html`）
+- 公式サイト：`https://readyorlab.com/`（Cloudflare Workers の静的公開。Worker 名 `readyorlab`。main への push で `site/` をそのまま公開。HOME は `site/index.html`。workers.dev の住所は無効化済み）
 - `site/v6.html` は旧URL用の転送ページ。HOME を直すときは `site/index.html` を編集する
 - ゲームの GitHub Pages 版（`kawa50451-prog.github.io/bousai-card-game/game_online.html`）は従来どおり GitHub Pages。独自ドメインは付けない（開発者モードの判定・保存データ・Firebase の許可ドメインが住所に依存するため）
 - DNS は Cloudflare（readyorlab.com）
