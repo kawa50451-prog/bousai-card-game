@@ -139,7 +139,7 @@
    コンテンツをその分だけ上へ寄せる。これにより演出（全面余白そのものの効果）を
    下バーが潰さない。 ══════ */
 .close{position:relative;min-height:100svh;display:flex;align-items:center;
-  padding-bottom:var(--s6);overflow:hidden}
+  padding-top:calc(var(--fs-h2) * 1.7 + var(--s3) * 2);padding-bottom:var(--s6);overflow:hidden}
 
 .closeKV{position:absolute;inset:0;z-index:0;pointer-events:none;
   background-image:var(--kv2,var(--kv2-fallback));background-size:cover;background-position:center}
@@ -232,9 +232,13 @@ body{font-variant-numeric:tabular-nums}
 .v6-ways .wayCount small{font-size:.5em;margin-left:.3em;align-self:flex-end}
 .v6-ways .wayIcon{width:1em;height:1em;flex:none}
 .v6-ways .wayArtWord{position:absolute;inset:24px 24px 24px auto;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.015em;font-size:clamp(64px,7.3vw,112px);line-height:.94;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.42);pointer-events:none}
+@media(min-width:601px){
+  /* Four letters span the same height as six letters with the original gap. */
+  .v6-ways .wayFullHalf--coop .wayArtWord{gap:calc((2 * .94em + 5 * .015em) / 3)}
+}
 .v6-ways .way-phone{position:absolute;width:clamp(240px,21vw,330px);height:auto;max-width:none;left:17%;top:max(300px,calc(100% - 365px));transform:rotate(var(--way-angle));transition:transform .65s var(--e),translate .85s var(--e),opacity .85s var(--e)}
-.v6-ways .wayCross{position:absolute;z-index:2;pointer-events:none;left:var(--ways-split);top:50%;translate:-50% -50%;width:clamp(72px,7vw,120px);height:auto;transition:left .65s var(--e)}
-.v6-ways .wayCross line{stroke:#fff;stroke-width:1.1;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:0;transition:stroke-dashoffset .65s var(--e) .65s}
+.v6-ways .wayCross{position:absolute;z-index:2;pointer-events:none;left:var(--ways-split);top:50%;translate:-50% -50%;width:calc(clamp(32px,4.5vw,64px) * 1.4);height:auto;transition:left .65s var(--e)}
+.v6-ways .wayCross line{stroke:#fff;stroke-width:1.8;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:0;transition:stroke-dashoffset .65s var(--e) .65s}
 .v6-ways .wayCross line + line{transition-delay:.85s}
 .v6-ways .wayFullHalf:focus-visible{outline:3px solid #fff;outline-offset:-8px}
 .v6-ways.ways-animated:not(.ways-in) .wayFullHalf{transform:translateX(var(--way-enter))}
@@ -267,7 +271,7 @@ html[data-motion-lite] .v6-ways *{transition:none!important}
   .v6-ways .wayCount{font-size:16px;margin-top:20px;gap:.5em}
   .v6-ways .way-phone{width:160px;left:auto;right:-20px;top:auto;bottom:-140px}
   .v6-ways .wayArtWord{inset:16px 16px 16px auto;font-size:53px}
-  .v6-ways .wayCross{left:50%;top:50%;width:64px}
+  .v6-ways .wayCross{left:50%;top:50%;width:44px}
   .v6-ways .wayFullHalf--vs{--way-enter:-100%}
   .v6-ways .wayFullHalf--coop{--way-enter:100%}
 }

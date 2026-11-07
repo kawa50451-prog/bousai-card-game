@@ -12,7 +12,7 @@ const mq=matchMedia('(min-width:1024px)'),reduced=matchMedia('(prefers-reduced-m
 const supportsNative=CSS.supports('animation-timeline: view()')&&CSS.supports('animation-range: contain 0% contain 100%')&&!new URLSearchParams(location.search).has('fallback');
 let native=supportsNative&&!quiet();
 root.classList.add(native?'era-native':'era-fallback');window.skyMode=native?'css-scroll':'raf-fallback';
-let travel=0,start=0,step=0,frame=0,countFrame=0,active=-1,displayed=cities[0].year;
+let travel=0,start=0,step=0,frame=0,active=-1;
 const clamp=x=>Math.max(0,Math.min(1,x));
 const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 const yearDigits=[...year.querySelectorAll('.digit')];
@@ -21,15 +21,8 @@ function renderYear(value){
  yearDigits.forEach((digit,i)=>{if(digit.textContent!==text[i])digit.textContent=text[i]});
  year.setAttribute('aria-label',text+'年');
 }
-function countTo(target,immediate=false){
- cancelAnimationFrame(countFrame);countFrame=0;
- const from=displayed,t0=performance.now();
- if(immediate||quiet()){displayed=target;renderYear(target);return}
- function tick(t){const p=clamp((t-t0)/900);displayed=from+(target-from)*ease(p);renderYear(displayed);if(p<1)countFrame=requestAnimationFrame(tick);else countFrame=0}
- countFrame=requestAnimationFrame(tick);
-}
 function mix(a,b,f){const x=a.match(/\w\w/g).map(x=>parseInt(x,16)),y=b.match(/\w\w/g).map(x=>parseInt(x,16));return 'rgb('+x.map((v,i)=>v+(y[i]-v)*f).join(',')+')'}
-function update(immediate=false){
+function update(){
  frame=0;
  const bounds=journey.getBoundingClientRect();
  const sectionTop=document.getElementById('s04').getBoundingClientRect().top;
@@ -56,17 +49,28 @@ function update(immediate=false){
  marks.forEach((mark,i)=>mark.classList.toggle('passed',i<=pos+0.0008));
  // The panel nearest the viewport center is current (switches at the midpoint between panels).
  const center=mq.matches?innerWidth/2:innerHeight/2;
- const distances=panels.map(panel=>{const r=panel.getBoundingClientRect();return Math.abs((mq.matches?(r.left+r.right):(r.top+r.bottom))/2-center)});
+ // Read each panel once, before updating labels or fact offsets.
+ const rects=panels.map(panel=>panel.getBoundingClientRect());
+ const yearRight=mq.matches?year.getBoundingClientRect().right:0;
+ const centers=rects.map(r=>(mq.matches?(r.left+r.right):(r.top+r.bottom))/2);
+ const distances=centers.map(value=>Math.abs(value-center));
  const nearest=distances.indexOf(Math.min(...distances));
  const index=nearest;
- if(index!==active){const initial=active<0;active=index;currentCity.textContent=cities[index].ja;currentCity.style.left=(index/6*100)+'%';currentCity.dataset.edge=index===0?'first':index===6?'last':'';marks.forEach((a,i)=>{if(i===index)a.setAttribute('aria-current','step');else a.removeAttribute('aria-current')});countTo(cities[index].year,immediate||initial)}
- else if(immediate)countTo(cities[index].year,true);
+ if(index!==active){active=index;currentCity.textContent=cities[index].ja;currentCity.style.left=(index/6*100)+'%';currentCity.dataset.edge=index===0?'first':index===6?'last':'';marks.forEach((a,i)=>{if(i===index)a.setAttribute('aria-current','step');else a.removeAttribute('aria-current')})}
+ let value=cities[index].year;
+ if(!quiet()&&!reduced.matches){
+  const left=Math.max(0,Math.min(cities.length-2,centers.findLastIndex(value=>value<=center)));
+  const fraction=clamp((center-centers[left])/(centers[left+1]-centers[left]));
+  // Hold the city year within 10% of either center; ease the remaining 80%.
+  const blend=ease(clamp((fraction-.1)/.8));
+  value=cities[left].year+(cities[left+1].year-cities[left].year)*blend;
+ }
+ renderYear(value);
  window.skyState={p,pos,active,travel,start,step,mode:window.skyMode};
  // Facts live in the moving panels; the year lives in the pin. Reserve the
  // year's actual screen-space width even when a panel stops slightly off-center.
  if(mq.matches){
-  const yearRight=year.getBoundingClientRect().right;
-  panels.forEach((panel,i)=>{const fact=panel.querySelector('.fact');const x=panel.getBoundingClientRect().left+430;fact.style.setProperty('--fact-offset',(i===nearest?Math.max(0,yearRight+24-x):0)+'px')});
+  panels.forEach((panel,i)=>{const fact=panel.querySelector('.fact');const x=rects[i].left+430;fact.style.setProperty('--fact-offset',(i===nearest?Math.max(0,yearRight+24-x):0)+'px')});
  }
 }
 function schedule(){if(!frame)frame=requestAnimationFrame(()=>update())}
@@ -86,7 +90,7 @@ timeline.addEventListener('click',e=>{
  const rect=timeline.getBoundingClientRect();seek((e.clientX-rect.left)/rect.width);
 });
 addEventListener('scroll',schedule,{passive:true});addEventListener('resize',scheduleMeasure,{passive:true});
-addEventListener('scrollend',()=>update(true),{passive:true});
+addEventListener('scrollend',schedule,{passive:true});
 window.RonSite?.lenis?.on('scroll',schedule);
 let resizeFrame=0;function scheduleMeasure(){if(!resizeFrame)resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;measure()})}
 // Earlier sections can change height after updates and fonts arrive.
@@ -96,7 +100,7 @@ reduced.addEventListener('change',()=>{
  root.classList.toggle('era-native',native);root.classList.toggle('era-fallback',!native);
  window.skyMode=native?'css-scroll':'raf-fallback';
  if(native){track.style.removeProperty('transform');for(const key of ['zenith','horizon'])sky.style.removeProperty('--era-'+key);}
- measure();if(quiet())countTo(cities[active].year,true);
+ scheduleMeasure();
 });
 measure();document.fonts.ready.then(()=>{measure();const index=cities.findIndex(c=>'#era-'+c.id===location.hash);if(index>=0)scrollTo(0,start+index*(mq.matches?travel/6:step))});
 
@@ -104,7 +108,7 @@ function loadImages(){root.querySelectorAll('[data-era-src]').forEach(image=>{co
 if('IntersectionObserver' in window){const loader=new IntersectionObserver(entries=>{if(entries[0].isIntersecting){loadImages();loader.disconnect();}},{rootMargin:'1200px'});loader.observe(journey);}else loadImages();
 mq.addEventListener('change',loadImages);
 const smallImages=matchMedia('(max-width:900px)');smallImages.addEventListener('change',()=>{if(root.querySelector('image[href]'))loadImages();});
-addEventListener('pagehide',()=>{cancelAnimationFrame(frame);cancelAnimationFrame(countFrame);cancelAnimationFrame(resizeFrame);});
+addEventListener('pagehide',()=>{cancelAnimationFrame(frame);cancelAnimationFrame(resizeFrame);});
 }
 // Defer initialization as well as SVG image requests until the opening releases
 // the page. Replays do not install a second observer or scroll listener.
