@@ -29,19 +29,3 @@
   mobile.addEventListener('change', setup);
   reduced.addEventListener('change', setup);
 })();
-
-/* The opening owns playback; hero stays in its final state throughout handoff. */
-(function(){
- 'use strict';
- var html=document.documentElement;
- var buttons=document.querySelectorAll('[data-hero-variant]');
- function sync(){buttons.forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.heroVariant===html.dataset.hero));});}
- sync();
- buttons.forEach(function(b){b.addEventListener('click',function(){
-  html.dataset.hero=b.dataset.heroVariant;
-  var url=new URL(location.href);url.searchParams.set('hero',html.dataset.hero);
-  history.replaceState(null,'',url);sync();
- });});
- var replay=document.querySelector('[data-hero-replay]');
- if(replay) replay.addEventListener('click',function(){window.opening.start();});
-})();

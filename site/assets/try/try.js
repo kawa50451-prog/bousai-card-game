@@ -131,8 +131,8 @@
       button.type = 'button';
       button.dataset.choice = choice.id ?? 'none';
       button.setAttribute('aria-pressed','false');
-      if (choice.img) {
-        const img = node('img'); img.src = choice.img; img.alt = ''; img.width = 200; img.height = 300; button.append(img);
+      if (choice.id) {
+        const face = node('span', 'site-card'); face.dataset.card = choice.id; button.append(face);
       } else {
         const empty = node('img','try-none');
         empty.src = 'assets/cards/back.webp';

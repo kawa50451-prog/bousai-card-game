@@ -371,10 +371,6 @@ html[data-motion-lite] .v6-ways *{transition:none!important}
 .hero-caption{position:absolute;z-index:3;left:50%;top:47%;translate:-50% -50%;font-size:23px;font-weight:400;letter-spacing:.45em;text-indent:.45em;white-space:nowrap;opacity:0;pointer-events:none}
 .hero-pending .hero-black{opacity:.94}
 .hero-pending .hero-title,.hero-pending .hero .tagline,.hero-pending .hero .cta{opacity:0}
-.hero-compare{position:absolute;z-index:3;right:24px;bottom:20px;display:flex;gap:14px}
-.hero-compare button{padding:5px 0;border:0;background:none;color:#b9c8d9;font:400 12px/1.5 'Zen Kaku Gothic New',sans-serif;cursor:pointer}
-.hero-compare button[aria-pressed="true"]{color:#fff;text-decoration:underline;text-underline-offset:4px}
-.hero-compare button:focus-visible{outline:1px solid #eef3f9;outline-offset:4px}
 /* Generic device: no model-specific silhouette, notch or logo. */
 .v6-phone{position:relative;box-sizing:border-box;flex:none;background:#090e15;border-radius:25px;padding:12px 7px 10px;overflow:hidden;box-shadow:0 12px 28px #0005}
 .v6-phone::before{content:'';position:absolute;z-index:1;top:5px;left:40%;width:20%;height:3px;background:#343c48;border-radius:3px}
@@ -406,7 +402,6 @@ html[data-motion-lite] .v6-ways *{transition:none!important}
 @media(max-width:600px){
  .hero .heroL{padding-top:0;align-self:start;grid-column:1/-1;margin-top:27svh}
  .hero .wrap{align-self:stretch}
- .hero-compare{right:20px;bottom:16px}
  .v6-ways .wayFullHalf{padding:28px 24px}
  .v6-ways .wayMode{font-size:30px}
  .v6-ways .waySub{font-size:12px}

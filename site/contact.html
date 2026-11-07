@@ -4,119 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>お問い合わせ（CONTACT）｜ Ready or Not</title>
-<meta name="theme-color" content="#00244f">
-<!-- 起動演出の事前クラス付与。modes/co-op.html と同じ同期スクリプトを複製している
-     （最初の描画より前に同期実行する必要があるため、外部化するとFOUCの原因になる）。 -->
-<script>/* ?motion=on は JS だけでなく CSS の縮退も解除する。
-   これがないと OS でアニメーションを切っている環境では、罫の描画・文字の
-   立ち上がり・ゲージなど CSS 駆動の演出が検証パラメータを付けても動かない。 */
-if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttribute('data-motion','on');</script>
-<script>
-(function(){
-  var h = document.documentElement;
-  try{
-    if (sessionStorage.getItem('ronIntroSeen') === '1') { h.classList.add('intro-skip'); }
-    else { h.classList.add('intro-lock'); sessionStorage.setItem('ronIntroSeen', '1'); }
-  } catch(e){ h.classList.add('intro-lock'); }
-})();
+<title>CONTACT ｜ 制作チーム Ready or Lab ｜ Ready or Not</title>
+<meta name="theme-color" content="#002A6C">
+<link rel="icon" href="assets/icons/app_icon.webp">
+<meta name="description" content="Ready or Not をつくるのは、大学生のチーム Ready or Lab。知っていることを判断と行動につなげる練習の場を目指す制作チームと、プライバシーポリシーへの案内を掲載しています。">
+<link rel="canonical" href="https://readyorlab.com/contact">
+<meta property="og:title" content="CONTACT ｜ 制作チーム Ready or Lab ｜ Ready or Not">
+<meta property="og:description" content="Ready or Not をつくるのは、大学生のチーム Ready or Lab。知っていることを判断と行動につなげる練習の場を目指す制作チームと、プライバシーポリシーへの案内を掲載しています。">
+<meta property="og:url" content="https://readyorlab.com/contact">
+<meta property="og:image" content="https://readyorlab.com/assets/og/og-a.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Ready or Not 防災カードバトル。夜明けの東京タワーと荒れる街。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ready or Not">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "HOME",
+      "item": "https://readyorlab.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "CONTACT",
+      "item": "https://readyorlab.com/contact"
+    }
+  ]
+}
 </script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Shippori+Mincho+B1:wght@800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
+     下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
+     画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
+     LPの各節のレイアウト（ヒーロー・なぜ作ったか・カードマーキー・軌道セレクタ・
+     遊び方・締め）は下のページ固有 <style> に残す。 -->
 <link rel="stylesheet" href="assets/site.css">
-<style>
-/* 地の色は全ページ共通の固定値（§18.1。design/official_site_spec.md §18）。
-   旧・地の軌跡（節ごとに異なる停止点）は廃止し、全ページ oklch(.265 .090 255) に
-   揃えた。site.css の :root 既定値と同じだが、このページ単体で開いた場合の
-   フォールバックとして明示している。 */
-:root{ --gL:.265; --gC:.090; --gH:255; }
 
-/* このページだけで使う枠コンポーネント。手段が未定のため、中身は空のまま
-   枠だけを用意する（コメントは実装委譲メモの指示どおり残す）。 */
-.contactFrame{margin-top:var(--s4);padding:var(--s5) var(--s4);
-  background:var(--surface);box-shadow:inset 0 0 0 1px var(--border);border-radius:4px;
-  text-align:center}
-.contactFrameNote{font-size:var(--fs-s);letter-spacing:var(--tr-label);color:var(--t3)}
+<link rel="stylesheet" href="assets/v6.css">
+<link rel="stylesheet" href="assets/v6/sub.css">
 
-/* 本文中のテキストリンク。a{color:inherit} が既定のため、本文内リンクだけ
-   視覚的な手がかり（金色・下線）を明示的に与える。 */
-.textLink{color:var(--gold);text-decoration:underline;text-underline-offset:.2em}
-.textLink:hover,.textLink:focus-visible{color:var(--t1);outline:2px solid var(--gold);outline-offset:3px}
-/* 押下の段階（§20.5）。ホバーの白から一段はっきりしたgoldへ、下線も太くする。 */
-.textLink:active{color:var(--gold);text-decoration-thickness:2px}
-</style>
-</head>
-<body>
-
-<!-- 起動演出オーバーレイ（LP・CO-OPと同一マークアップ・§20.1で4幕へ作り直し）。 -->
-<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
-  <div class="loadCredit">
-    <span class="loadCreditLine enBase">produced</span>
-    <span class="loadCreditLine enBase">by Ready or Lab</span>
-    <span class="loadCreditRule" aria-hidden="true"></span>
-  </div>
-  <!-- 幕0（0.10〜1.40秒）：素材の読み込みを見せるゲージ（2026-08-16作り直し）。
-       ⚠️ このローディングの目的は「produced by 以降のモーションがカクついたり
-          飛んだりしないための時間稼ぎ」である。見た目のためだけの尺ではない。
-       画面中心に円が回り、LOAD の下で 0→100 が進む。数字はダイヤルのように
-       上から降りてくる（緩急つき）。0→100 が終わってから produced by が始まる。
-       進捗の唯一の出どころは CSS の --n（@propertyで登録した整数）。円弧の
-       stroke-dashoffset も数字も同じ --n を読むため、両者がずれることがない。
-       JSはその --n を読んで桁を組み替えるだけの装飾で、止まっても
-       counter() のフォールバックが出る（オーバーレイの退場は完全にCSS側）。 -->
-  <div class="loadGauge" aria-hidden="true">
-    <div class="loadRing">
-      <svg class="loadRingSvg" viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="loadRingTrack" cx="60" cy="60" r="54"></circle>
-        <circle class="loadRingArc" cx="60" cy="60" r="54"></circle>
-      </svg>
-      <span class="loadRingWord enBase">LOAD</span>
-    </div>
-    <span class="loadCount" aria-hidden="true"><span class="loadNum"></span><span class="loadPct">%</span></span>
-  </div>
-  <div class="loadInk" aria-hidden="true">
-      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
-           重ね、白を透過させて黒だけを残す（§20.1改）。
-           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
-              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
-              確実に引っかかる。再生は等速1回きりにすること。 -->
-      <video class="loadInkVid" src="assets/ink/ink_load_timed.mp4"
-             muted playsinline preload="auto" aria-hidden="true"></video>
-    </div>
-  <div class="loadBlackout" aria-hidden="true"></div>
-</div>
-
-<!-- 背景の粒子と幾何学的な線（今回追加）。本文より後ろに敷く静的な奥行き演出。
-     18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
-     transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
-<div class="bgField" aria-hidden="true">
-  <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
-  <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
-  <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
-  <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
-  <span class="bgDot bgDot--a" style="--x:4%;--y:6%;animation-delay:-5s"></span>
-  <span class="bgDot bgDot--a" style="--x:17%;--y:22%;animation-delay:-16s"></span>
-  <span class="bgDot bgDot--a" style="--x:30%;--y:38%;animation-delay:-27s"></span>
-  <span class="bgDot bgDot--a" style="--x:43%;--y:54%;animation-delay:-38s"></span>
-  <span class="bgDot bgDot--a" style="--x:56%;--y:70%;animation-delay:-49s"></span>
-  <span class="bgDot bgDot--a" style="--x:69%;--y:86%;animation-delay:-60s"></span>
-  <span class="bgDot bgDot--b" style="--x:82%;--y:12%;animation-delay:-4s"></span>
-  <span class="bgDot bgDot--b" style="--x:95%;--y:28%;animation-delay:-11s"></span>
-  <span class="bgDot bgDot--b" style="--x:16%;--y:44%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--b" style="--x:29%;--y:60%;animation-delay:-25s"></span>
-  <span class="bgDot bgDot--b" style="--x:42%;--y:76%;animation-delay:-32s"></span>
-  <span class="bgDot bgDot--b" style="--x:55%;--y:92%;animation-delay:-39s"></span>
-  <span class="bgDot bgDot--c" style="--x:68%;--y:18%;animation-delay:-3s"></span>
-  <span class="bgDot bgDot--c" style="--x:81%;--y:34%;animation-delay:-8s"></span>
-  <span class="bgDot bgDot--c" style="--x:94%;--y:50%;animation-delay:-13s"></span>
-  <span class="bgDot bgDot--c" style="--x:15%;--y:66%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--c" style="--x:28%;--y:82%;animation-delay:-23s"></span>
-  <span class="bgDot bgDot--c" style="--x:41%;--y:98%;animation-delay:-28s"></span>
-</div>
-
-<!-- ロゴ：画面左上に固定（§20.4）。ナビではなくロゴの組み。リンク先はホーム。 -->
-<a class="siteLogo" href="./" aria-label="ホーム">
+<link rel="stylesheet" href="assets/v6/nav-art.css">
+<link rel="stylesheet" href="assets/v6/motion.css">
+<script src="assets/v6/motion.js"></script>
+<link rel="stylesheet" href="assets/card-face/card-face.css"><script src="assets/card-face/card-face.js"></script></head><body class="sub-page detail-page" style="--page:#E60B00"><a class="siteLogo" href="./" aria-label="ホーム">
   <span class="brandTile"><img src="assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
   <span class="siteLogoText enBase">Ready or Not</span>
 </a>
@@ -132,64 +76,24 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   <a class="barPlay" href="https://toshibousai-cardgame.web.app/"><span class="barPlayText">PLAY</span></a>
 </nav>
 
+<!-- 背後の暗転スクリム。押すと閉じる。 -->
 <div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<!-- ページ一覧。JSが完全に落ちてもリンク自体はDOMに存在し続け、Tabで
+     フォーカスが入れば :focus-within により可視化される（§13.2の下部バーが
+     採っていた縮退方針をそのまま踏襲。§10.0.1段階2）。 -->
 <nav class="navMenu" id="navMenu" aria-label="ページ一覧">
   <div class="navMenuPanel">
     <ul class="navMenuList en">
       <li><a href="./"><img class="navMenuImg" src="assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
-      <li><a href="modes/versus.html"><img class="navMenuImg" src="assets/navicons/versus.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">VERSUS</span></a></li>
-      <li><a href="modes/co-op.html"><img class="navMenuImg" src="assets/navicons/coop.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><span class="site-card" data-card="drill"></span><span class="site-card" data-card="dam"></span><span class="site-card" data-card="hazard_map"></span></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="modes/versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><span class="site-card" data-card="tokyo"></span><span class="site-card" data-card="osaka"></span></span><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="modes/co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><span class="site-card nav-coop-disaster" data-card="tsunami"></span><span class="nav-coop-vs">VS</span><span class="site-card nav-coop-city c1" data-card="tokyo"></span><span class="site-card nav-coop-city c2" data-card="osaka"></span><span class="site-card nav-coop-city c3" data-card="niigata"></span></span><span class="navMenuLabel">CO-OP</span></a></li>
       <li><a href="features.html"><img class="navMenuImg" src="assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
-      <li><a href="cards.html"><img class="navMenuImg" src="assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
-      <li><a href="contact.html" aria-current="page"><img class="navMenuImg" src="assets/navicons/contact.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CONTACT</span></a></li>
+      <li><a href="cards.html"><span class="navMenuImg nav-art nav-cardfan" aria-hidden="true"><span class="site-card" data-card="earthquake"></span><span class="site-card" data-card="drill"></span><span class="site-card" data-card="quake_wall"></span><span class="site-card" data-card="rumor"></span></span><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="news.html"><span class="navMenuImg nav-art nav-date" aria-hidden="true"><time></time></span><span class="navMenuLabel">NEWS</span></a></li>
+      <li><a href="contact.html" aria-current="page"><span class="navMenuImg nav-art nav-credit enBase" aria-hidden="true"><span>produced by</span><span>Ready or Lab</span></span><span class="navMenuLabel">CONTACT</span></a></li>
     </ul>
   </div>
 </nav>
 
-<div class="pageScale">
-<div class="wrap">
-  <!-- パンくず（§13.3） -->
-  <p class="crumb en"><a href="./">HOME</a><span>/</span><b>CONTACT</b></p>
-
-  <!-- 1. ページ名 -->
-  <header class="modeHead reveal" data-d="0">
-    <h1 class="modeName enBase">CONTACT</h1>
-    <p class="modeMeta en">Ready or Lab</p>
-  </header>
-
-  <!-- 2. 問い合わせについて -->
-  <section class="modeSec sec ink-blue">
-    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
-         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
-    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
-      <div class="inkStage near"></div>
-      <div class="inkStage far"></div>
-    </div>
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">問い合わせについて</span></span></h2>
-    <div class="modeBody reveal" data-d="2">
-      <p>Ready or Not は、Ready or Lab が制作している都市防災カードバトルである。ご意見・不具合の報告などの問い合わせ手段は、現在準備中である。</p>
-    </div>
-    <div class="contactFrame reveal" data-d="3">
-      <!-- 手段が決まったらここに入れる -->
-      <p class="contactFrameNote">準備中</p>
-    </div>
-  </section>
-
-  <!-- 3. プライバシーポリシーへの導線 -->
-  <section class="modeSec sec">
-    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
-         見える区間を残す（2026-08-23 ユーザー確定）。 -->
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">プライバシーポリシー</span></span></h2>
-    <div class="modeBody reveal" data-d="2">
-      <p><a class="textLink" href="../privacy.html">プライバシーポリシーを見る</a></p>
-    </div>
-  </section>
-
-  <footer class="foot">Ready or Not ／ Ready or Lab</footer>
-</div>
-</div><!-- /.pageScale -->
-
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
-<script src="assets/site.js"></script>
-</body>
-</html>
+<div class="pageScale"><main class="sub-main wrap"><header class="sub-page-head" data-page-title="CONTACT"><nav class="sub-breadcrumb" aria-label="パンくず"><a href="./">HOME</a><span aria-hidden="true">/</span><span aria-current="page">CONTACT</span></nav><h1 class="sub-page-title">CONTACT</h1><p class="jpAccent sub-jp-heading"><span>つくっているのは、</span><wbr><span>Ready or Lab。</span></p></header><section class="sub-section contact-team"><div class="lab-sign"><span>produced by</span><strong>Ready<br>or Lab</strong></div><div><h2 class="jpAccent sub-jp-heading">つくっている人</h2><p>Ready or Not は、Ready or Lab が制作している防災カードゲームです。</p><p>大学生のチームで、知っていることを判断と行動につなげる練習の場をつくっています。</p><div class="contact-mail"><p>ご相談・お問い合わせ・お仕事のご依頼は、<br>こちらのメールへお送りください。</p><a href="mailto:readyornot.support@gmail.com" data-contact-link>readyornot.support@gmail.com</a></div><a class="privacy-link" href="assets/v6/sub/privacy.html">プライバシーポリシーを読む <span aria-hidden="true">↗</span></a></div></section><section class="sub-ending" aria-labelledby="next-title"><h2 id="next-title" class="jpAccent sub-jp-heading">次に読む</h2><div class="sub-next-grid"><a class="sub-next" href="about.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="drill"></span></span><span class="sub-next-copy"><strong>ABOUT</strong>ゲームの狙いを知りたいなら<span class="sub-next-arrow" aria-hidden="true">→</span></span></a><a class="sub-next" href="news.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="rolling_stock"></span></span><span class="sub-next-copy"><strong>NEWS</strong>最近加わったものを見てみる<span class="sub-next-arrow" aria-hidden="true">→</span></span></a></div><a class="sub-play" href="https://toshibousai-cardgame.web.app/"><strong>PLAY</strong><span>ブラウザで遊ぶ ↗</span></a></section></main><footer class="wrap foot">Ready or Not ／ Ready or Lab</footer></div><script src="assets/site.js"></script><script src="assets/site-data.js"></script><script src="assets/updates.js"></script><script src="assets/v6/sub.js"></script><script src="assets/v6/nav-art.js"></script></body></html>

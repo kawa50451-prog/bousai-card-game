@@ -3,7 +3,8 @@
 'use strict';
 const html=document.documentElement, overlay=document.getElementById('opening');
 const query=new URLSearchParams(location.search), media=matchMedia('(prefers-reduced-motion:reduce)');
-const quiet=()=>html.hasAttribute('data-motion-lite')||(media.matches&&html.dataset.motion!=='on');
+const forced=query.has('opening')&&(query.get('opening')===''||query.get('opening')==='1');
+const quiet=()=>!forced&&(html.hasAttribute('data-motion-lite')||(media.matches&&html.dataset.motion!=='on'));
 let current=null,prepared=null,loadingTimer=0,watchdog=0,previousFocus=null,run=0;
 const imageURL=file=>'assets/v6/era/'+file+(innerWidth<=900?'_900':'')+'.webp';
 // Keep the portal viewport bounded: scaling the SVG itself allocates enormous

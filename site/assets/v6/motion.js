@@ -7,9 +7,11 @@
  const still=()=>lite||reduced.matches;
  if(lite)root.setAttribute('data-motion-lite','');
  function preference(){root.toggleAttribute('data-motion-still',still());if(still())clearCurtain();}
- let safety=0,departing=false,bridge=false,arrival=null,navigateTimer=0;
+ let safety=0,departing=false,arrival=null,navigateTimer=0;
  const key='ronMotionArrival';
- const pagePath=p=>/\/(v6|about|news)\.html$/.test(p);
+ const homePath=p=>/\/(?:(?:index|v6)(?:\.html)?)?$/.test(p);
+ const aboutPath=p=>/\/about(?:\.html)?$/.test(p);
+ const pagePath=p=>homePath(p)||aboutPath(p)||/\/news(?:\.html)?$/.test(p);
  function clearCurtain(){
   clearTimeout(safety);root.classList.remove('motion-covered','motion-arriving','motion-leaving');departing=false;
  }
@@ -33,17 +35,17 @@
   }));
  }
  addEventListener('pageshow',e=>{
-  if(e.persisted){clearTimeout(navigateTimer);clearCurtain();bridge=false;try{sessionStorage.removeItem(key);}catch(e){}}
+  if(e.persisted){clearTimeout(navigateTimer);clearCurtain();try{sessionStorage.removeItem(key);}catch(e){}}
   else reveal();
  });
- // Cross-document VT is reserved for the completed HOME -> ABOUT road.
+ // All internal page arrivals use the navy curtain.
  function skipTransition(transition){
   if(!transition)return;
   // A deliberately skipped VT rejects ready; consume that expected rejection.
   transition.ready.catch(()=>{});transition.skipTransition();
  }
- addEventListener('pageswap',e=>{if(!bridge||still())skipTransition(e.viewTransition);});
- addEventListener('pagereveal',e=>{if(arrival?.kind!=='bridge'||still())skipTransition(e.viewTransition);});
+ addEventListener('pageswap',e=>skipTransition(e.viewTransition));
+ addEventListener('pagereveal',e=>skipTransition(e.viewTransition));
  document.addEventListener('click',e=>{
   const a=e.target.closest('a[href]');
   if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||a.hasAttribute('download')||(a.target&&a.target!=='_self')||still())return;
@@ -51,11 +53,9 @@
   if(url.origin!==location.origin||!pagePath(url.pathname)||!pagePath(location.pathname)||
     (url.pathname===location.pathname&&url.search===location.search))return;
   if(departing){e.preventDefault();return;}
-  bridge=!!a.closest('.about-copy')&&/\/v6\.html$/.test(location.pathname)&&/\/about\.html$/.test(url.pathname)&&'onpageswap' in window&&CSS.supports('view-transition-name:knowledge-bridge');
   // Carrying state in the URL is the fallback when storage is unavailable.
   let stored=false;
-  try{sessionStorage.setItem(key,JSON.stringify({url:url.href,kind:bridge?'bridge':'curtain',time:Date.now()}));stored=true;}catch(err){}
-  if(bridge)return;
+  try{sessionStorage.setItem(key,JSON.stringify({url:url.href,kind:'curtain',time:Date.now()}));stored=true;}catch(err){}
   e.preventDefault();departing=true;
   if(!stored)url.searchParams.set('_ronCurtain',String(Date.now()));
   root.classList.add('motion-leaving');getComputedStyle(root,'::after').opacity;

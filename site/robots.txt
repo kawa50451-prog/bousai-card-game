@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /v5-proto
+Disallow: /preview
+Disallow: /try-proto
+Disallow: /_cmp/
+
+Sitemap: https://readyorlab.com/sitemap.xml

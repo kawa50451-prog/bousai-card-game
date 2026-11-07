@@ -73,3 +73,77 @@ function ronCardsOf(colorId){
 function ronImg(card){
   return (card.c === 'city' ? 'assets/cities/' : 'assets/cards/') + card.id + '.webp';
 }
+
+const RON_SITE = {contactUrl: "mailto:readyornot.support@gmail.com"};
+const RON_FEATURES = [
+  {
+    "id": "daily",
+    "name": "デイリー防災",
+    "shot": "assets/shots/v6/daily.webp",
+    "lines": [
+      "1日1回、今日の局面に挑戦。",
+      "政策カードを、災害に割り当てる。"
+    ],
+    "create": false
+  },
+  {
+    "id": "gallery",
+    "name": "図鑑",
+    "shot": "assets/shots/s06_gallery.webp",
+    "lines": [
+      "都市とカードの全種を見返せる。",
+      "タップで拡大し、防災の意味を読む。"
+    ],
+    "create": false
+  },
+  {
+    "id": "cardworks",
+    "name": "カード工房",
+    "shot": "assets/shots/v6/cardworks.webp",
+    "lines": [
+      "自分の街の都市カードをつくる。",
+      "共有コードで、友だちにも。"
+    ],
+    "create": true
+  },
+  {
+    "id": "puzzle",
+    "name": "問題工房",
+    "shot": "assets/shots/v6/puzzle.webp",
+    "lines": [
+      "災害・手札・予算を決めて出題。",
+      "共有コードで問題を配れる。"
+    ],
+    "create": true
+  },
+  {
+    "id": "mycity",
+    "name": "マイ都市",
+    "shot": "assets/v6/sub/mycity.webp",
+    "lines": [
+      "カード工房で保存した自分の街。",
+      "デイリー防災やソロ協力で使える。"
+    ],
+    "create": true
+  },
+  {
+    "id": "tutorial",
+    "name": "チュートリアル",
+    "shot": "assets/v6/sub/tutorial.webp",
+    "lines": [
+      "ガイドに沿って、1ターンを体験。",
+      "対戦・協力を90秒から2分で。"
+    ],
+    "create": false
+  },
+  {
+    "id": "theme",
+    "name": "テーマ設定",
+    "shot": "assets/v6/sub/theme.webp",
+    "lines": [
+      "テーマカラーを選んで遊べる。",
+      "書体・発光・モーションも選べる。"
+    ],
+    "create": false
+  }
+];

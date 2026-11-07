@@ -27,7 +27,6 @@
  }
  function schedule(){if(!frame)frame=requestAnimationFrame(paint);}
  if(!native)addEventListener('scroll',schedule,{passive:true});addEventListener('resize',schedule);reduced.addEventListener('change',schedule);
- // Arrive on ABOUT with the completed road as the shared transition surface.
- document.querySelectorAll('.about-copy a[href^="about.html"]').forEach(function(a){a.addEventListener('click',function(){section.classList.remove('road-native');cards.forEach(function(c){c.style.setProperty('--drop',1);c.style.setProperty('--placed',1);});road.style.setProperty('--road-action',1);});});
+ // The road stays on HOME; page navigation uses the curtain.
  addEventListener('pageshow',schedule);paint();
 })();

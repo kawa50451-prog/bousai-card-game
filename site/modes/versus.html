@@ -4,121 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>対戦（VERSUS）｜ Ready or Not</title>
-<meta name="theme-color" content="#00244f">
-<!-- 起動演出の事前クラス付与。v5-proto.html と同じ同期スクリプトを複製している
-     （最初の描画より前に同期実行する必要があるため、外部化するとFOUCの原因になる）。 -->
-<script>/* ?motion=on は JS だけでなく CSS の縮退も解除する。
-   これがないと OS でアニメーションを切っている環境では、罫の描画・文字の
-   立ち上がり・ゲージなど CSS 駆動の演出が検証パラメータを付けても動かない。 */
-if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttribute('data-motion','on');</script>
-<script>
-(function(){
-  var h = document.documentElement;
-  try{
-    if (sessionStorage.getItem('ronIntroSeen') === '1') { h.classList.add('intro-skip'); }
-    else { h.classList.add('intro-lock'); sessionStorage.setItem('ronIntroSeen', '1'); }
-  } catch(e){ h.classList.add('intro-lock'); }
-})();
+<title>VERSUS ｜ 対戦モードの遊び方 ｜ Ready or Not</title>
+<meta name="theme-color" content="#002A6C">
+<link rel="icon" href="../assets/icons/app_icon.webp">
+<meta name="description" content="都市とデッキを選び、1対1で街を守る対戦モード。毎ターン攻守を入れ替え、予算の範囲でカードを使います。1試合3〜5分、1人のCPU対戦からオンライン対戦まで、遊び方と判断のポイントを紹介します。">
+<link rel="canonical" href="https://readyorlab.com/modes/versus">
+<meta property="og:title" content="VERSUS ｜ 対戦モードの遊び方 ｜ Ready or Not">
+<meta property="og:description" content="都市とデッキを選び、1対1で街を守る対戦モード。毎ターン攻守を入れ替え、予算の範囲でカードを使います。1試合3〜5分、1人のCPU対戦からオンライン対戦まで、遊び方と判断のポイントを紹介します。">
+<meta property="og:url" content="https://readyorlab.com/modes/versus">
+<meta property="og:image" content="https://readyorlab.com/assets/og/og-a.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Ready or Not 防災カードバトル。夜明けの東京タワーと荒れる街。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ready or Not">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "HOME",
+      "item": "https://readyorlab.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "VERSUS",
+      "item": "https://readyorlab.com/modes/versus"
+    }
+  ]
+}
 </script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Shippori+Mincho+B1:wght@800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
+     下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
+     画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
+     LPの各節のレイアウト（ヒーロー・なぜ作ったか・カードマーキー・軌道セレクタ・
+     遊び方・締め）は下のページ固有 <style> に残す。 -->
 <link rel="stylesheet" href="../assets/site.css">
-<style>
-/* 地の色は全ページ共通の固定値（§18.1。design/official_site_spec.md §18）。
-   旧・地の軌跡（節ごとに異なる停止点）は廃止し、全ページ oklch(.265 .090 255) に
-   揃えた。site.css の :root 既定値と同じだが、このページ単体で開いた場合の
-   フォールバックとして明示している。 */
-:root{ --gL:.265; --gC:.090; --gH:255; }
 
-/* ══════ 手札の扇（2026-08-23） ══════
-   「緑のカード／黄のカード…」と文章で列挙していた箇所を実物に置き換えた。
-   1点を軸に角度を付けて、手札を持っている構図にする。 */
-/* ⚠️ 箱の高さを固定値で決めない。札の高さ（幅×450/288）＋回転で持ち上がる分を
-   札の幅から計算する。固定値にしていたときは上下に余白が残った（実測）。
-   係数1.98 = 1.5625（札の縦横比）＋ 0.42（±24°の回転で外側の札が上へ出る分）。 */
-.handFan{--cardW:clamp(6rem,11vw,9.5rem);
-  position:relative;margin-top:var(--s5);
-  height:calc(var(--cardW) * 1.98);pointer-events:none}
-.handFan img{position:absolute;left:50%;bottom:0;
-  width:var(--cardW);height:auto;border-radius:8px;
-  transform-origin:50% 145%;
-  transform:translateX(-50%) rotate(var(--r)) translateY(var(--ty,0));
-  box-shadow:0 18px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07)}
+<link rel="stylesheet" href="../assets/v6.css">
+<link rel="stylesheet" href="../assets/v6/sub.css">
 
-</style>
-</head>
-<body>
-
-<!-- 起動演出オーバーレイ（LPと同一マークアップ・§20.1で4幕へ作り直し）。 -->
-<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
-  <div class="loadCredit">
-    <span class="loadCreditLine enBase">produced</span>
-    <span class="loadCreditLine enBase">by Ready or Lab</span>
-    <span class="loadCreditRule" aria-hidden="true"></span>
-  </div>
-  <!-- 幕0（0.10〜1.40秒）：素材の読み込みを見せるゲージ（2026-08-16作り直し）。
-       ⚠️ このローディングの目的は「produced by 以降のモーションがカクついたり
-          飛んだりしないための時間稼ぎ」である。見た目のためだけの尺ではない。
-       画面中心に円が回り、LOAD の下で 0→100 が進む。数字はダイヤルのように
-       上から降りてくる（緩急つき）。0→100 が終わってから produced by が始まる。
-       進捗の唯一の出どころは CSS の --n（@propertyで登録した整数）。円弧の
-       stroke-dashoffset も数字も同じ --n を読むため、両者がずれることがない。
-       JSはその --n を読んで桁を組み替えるだけの装飾で、止まっても
-       counter() のフォールバックが出る（オーバーレイの退場は完全にCSS側）。 -->
-  <div class="loadGauge" aria-hidden="true">
-    <div class="loadRing">
-      <svg class="loadRingSvg" viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="loadRingTrack" cx="60" cy="60" r="54"></circle>
-        <circle class="loadRingArc" cx="60" cy="60" r="54"></circle>
-      </svg>
-      <span class="loadRingWord enBase">LOAD</span>
-    </div>
-    <span class="loadCount" aria-hidden="true"><span class="loadNum"></span><span class="loadPct">%</span></span>
-  </div>
-  <div class="loadInk" aria-hidden="true">
-      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
-           重ね、白を透過させて黒だけを残す（§20.1改）。
-           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
-              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
-              確実に引っかかる。再生は等速1回きりにすること。 -->
-      <video class="loadInkVid" src="../assets/ink/ink_load_timed.mp4"
-             muted playsinline preload="auto" aria-hidden="true"></video>
-    </div>
-  <div class="loadBlackout" aria-hidden="true"></div>
-</div>
-
-<!-- 背景の粒子と幾何学的な線（今回追加）。本文より後ろに敷く静的な奥行き演出。
-     18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
-     transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
-<div class="bgField" aria-hidden="true">
-  <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
-  <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
-  <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
-  <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
-  <span class="bgDot bgDot--a" style="--x:4%;--y:6%;animation-delay:-5s"></span>
-  <span class="bgDot bgDot--a" style="--x:17%;--y:22%;animation-delay:-16s"></span>
-  <span class="bgDot bgDot--a" style="--x:30%;--y:38%;animation-delay:-27s"></span>
-  <span class="bgDot bgDot--a" style="--x:43%;--y:54%;animation-delay:-38s"></span>
-  <span class="bgDot bgDot--a" style="--x:56%;--y:70%;animation-delay:-49s"></span>
-  <span class="bgDot bgDot--a" style="--x:69%;--y:86%;animation-delay:-60s"></span>
-  <span class="bgDot bgDot--b" style="--x:82%;--y:12%;animation-delay:-4s"></span>
-  <span class="bgDot bgDot--b" style="--x:95%;--y:28%;animation-delay:-11s"></span>
-  <span class="bgDot bgDot--b" style="--x:16%;--y:44%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--b" style="--x:29%;--y:60%;animation-delay:-25s"></span>
-  <span class="bgDot bgDot--b" style="--x:42%;--y:76%;animation-delay:-32s"></span>
-  <span class="bgDot bgDot--b" style="--x:55%;--y:92%;animation-delay:-39s"></span>
-  <span class="bgDot bgDot--c" style="--x:68%;--y:18%;animation-delay:-3s"></span>
-  <span class="bgDot bgDot--c" style="--x:81%;--y:34%;animation-delay:-8s"></span>
-  <span class="bgDot bgDot--c" style="--x:94%;--y:50%;animation-delay:-13s"></span>
-  <span class="bgDot bgDot--c" style="--x:15%;--y:66%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--c" style="--x:28%;--y:82%;animation-delay:-23s"></span>
-  <span class="bgDot bgDot--c" style="--x:41%;--y:98%;animation-delay:-28s"></span>
-</div>
-
-<!-- ロゴ：画面左上に固定（§20.4）。ナビではなくロゴの組み。リンク先はホーム。 -->
-<a class="siteLogo" href="../" aria-label="ホーム">
+<link rel="stylesheet" href="../assets/v6/nav-art.css">
+<link rel="stylesheet" href="../assets/v6/motion.css">
+<script src="../assets/v6/motion.js"></script>
+<link rel="stylesheet" href="../assets/card-face/card-face.css"><script src="../assets/card-face/card-face.js"></script></head><body class="sub-page detail-page" style="--page:#E60B00"><a class="siteLogo" href="../" aria-label="ホーム">
   <span class="brandTile"><img src="../assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
   <span class="siteLogoText enBase">Ready or Not</span>
 </a>
@@ -134,222 +76,24 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   <a class="barPlay" href="https://toshibousai-cardgame.web.app/"><span class="barPlayText">PLAY</span></a>
 </nav>
 
+<!-- 背後の暗転スクリム。押すと閉じる。 -->
 <div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<!-- ページ一覧。JSが完全に落ちてもリンク自体はDOMに存在し続け、Tabで
+     フォーカスが入れば :focus-within により可視化される（§13.2の下部バーが
+     採っていた縮退方針をそのまま踏襲。§10.0.1段階2）。 -->
 <nav class="navMenu" id="navMenu" aria-label="ページ一覧">
   <div class="navMenuPanel">
     <ul class="navMenuList en">
       <li><a href="../"><img class="navMenuImg" src="../assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
-      <li><a href="versus.html" aria-current="page"><img class="navMenuImg" src="../assets/navicons/versus.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">VERSUS</span></a></li>
-      <li><a href="co-op.html"><img class="navMenuImg" src="../assets/navicons/coop.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="../about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><span class="site-card" data-card="drill"></span><span class="site-card" data-card="dam"></span><span class="site-card" data-card="hazard_map"></span></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="versus.html" aria-current="page"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><span class="site-card" data-card="tokyo"></span><span class="site-card" data-card="osaka"></span></span><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><span class="site-card nav-coop-disaster" data-card="tsunami"></span><span class="nav-coop-vs">VS</span><span class="site-card nav-coop-city c1" data-card="tokyo"></span><span class="site-card nav-coop-city c2" data-card="osaka"></span><span class="site-card nav-coop-city c3" data-card="niigata"></span></span><span class="navMenuLabel">CO-OP</span></a></li>
       <li><a href="../features.html"><img class="navMenuImg" src="../assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
-      <li><a href="../cards.html"><img class="navMenuImg" src="../assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
-      <li><a href="../contact.html"><img class="navMenuImg" src="../assets/navicons/contact.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CONTACT</span></a></li>
+      <li><a href="../cards.html"><span class="navMenuImg nav-art nav-cardfan" aria-hidden="true"><span class="site-card" data-card="earthquake"></span><span class="site-card" data-card="drill"></span><span class="site-card" data-card="quake_wall"></span><span class="site-card" data-card="rumor"></span></span><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="../news.html"><span class="navMenuImg nav-art nav-date" aria-hidden="true"><time></time></span><span class="navMenuLabel">NEWS</span></a></li>
+      <li><a href="../contact.html"><span class="navMenuImg nav-art nav-credit enBase" aria-hidden="true"><span>produced by</span><span>Ready or Lab</span></span><span class="navMenuLabel">CONTACT</span></a></li>
     </ul>
   </div>
 </nav>
 
-<!-- 人数アイコン。HOME（v5-proto.html）と同じシンボル定義を複製している。
-     絵文字は使わない（design_system.md）。定義自体は非表示。 -->
-<svg style="display:none" aria-hidden="true">
-  <symbol id="iconPerson" viewBox="0 0 24 24">
-    <circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
-    <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-  </symbol>
-</svg>
-
-<div class="pageScale">
-<div class="wrap">
-  <!-- パンくず（§13.3） -->
-  <p class="crumb en"><a href="../">HOME</a><span>/</span>MODES<span>/</span><b>VERSUS</b></p>
-
-  <!-- 1. モード名＋人数・所要時間 -->
-  <header class="modeHead reveal" data-d="0">
-    <h1 class="modeName enBase">VERSUS</h1>
-    <p class="modeMeta en">対戦 ／ 1〜2人 ／ 3〜5分</p>
-  </header>
-
-  <!-- 2. 左＝対戦モードの面／右＝実機画面（2026-08-23 ユーザー指示）。
-       面はHOMEの赤青パネルと同じ組み。⚠️ リンクにしない（既にVERSUSにいる）。
-       ⚠️ スマホでは .modeHeroShot を display:none にして実機画面を出さない。 -->
-  <div class="modeHero reveal" data-d="1">
-    <div class="modePanel">
-      <span class="modeArtWord enAccent" aria-hidden="true" style="--n:6"><span>V</span><span>E</span><span>R</span><span>S</span><span>U</span><span>S</span></span>
-      <div class="modePanelInner">
-        <span class="modeLabel en">対戦モード</span>
-        <span class="modeSub jpAccent">シンプル・王道カードバトル</span>
-        <span class="modeCount">
-          <span class="modeCountGroup"><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">1人</span></span>
-          <span class="modeCountSep en" aria-hidden="true">/</span>
-          <span class="modeCountGroup"><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">2人</span></span>
-        </span>
-        <span class="modePanelBody">毎ターン攻守を入れ替えで行い、防災と災害をサクッと体験しながら学べる。始めるならまずはこれがオススメ。</span>
-        <span class="modePanelNote">CPU対戦で1人でもプレイできる。</span>
-      </div>
-    </div>
-    <div class="modeHeroShot">
-      <div class="modeShotWrap maskReveal">
-        <img src="../assets/shots/s02_vs_response.webp" alt="対戦モードの対応フェーズ画面。相手の自然災害カードに対し、政策カードで被害を軽減するか選ぶ" loading="lazy" width="800" height="1733">
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. 1ターンの流れ -->
-  <section class="flowSec sec ink-red">
-    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
-         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
-    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
-      <div class="inkStage near"></div>
-      <div class="inkStage far"></div>
-    </div>
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">1ターンの流れ</span></span></h2>
-    <ol class="flowList">
-      <li class="flowItem reveal" data-d="1"><span class="flowNum en">1</span><div>
-        <span class="flowLabel en">DRAW</span>
-        <span class="flowName">ドロー</span>
-        <span class="flowText">手札上限5枚との差分（最大2枚）を補充する。</span></div></li>
-      <li class="flowItem reveal" data-d="2"><span class="flowNum en">2</span><div>
-        <span class="flowLabel en">YOUR TURN</span>
-        <span class="flowName">あなたのターン</span>
-        <span class="flowText">予算の範囲でカードを使う。複数枚まとめて使ってもよい。</span></div></li>
-      <li class="flowItem reveal" data-d="3"><span class="flowNum en">3</span><div>
-        <span class="flowLabel en">RESPONSE</span>
-        <span class="flowName">対応フェーズ</span>
-        <span class="flowText">自然災害カードを使われた相手は、政策カード1枚をコスト無料で使い被害を減らせる。</span></div></li>
-      <li class="flowItem reveal" data-d="4"><span class="flowNum en">4</span><div>
-        <span class="flowLabel en">SUMMARY</span>
-        <span class="flowName">ターンまとめ</span>
-        <span class="flowText">結果を確認し、相手のターンへ交代する。</span></div></li>
-    </ol>
-  </section>
-
-  <!-- 4. 何を決めるゲームか -->
-  <!-- ⚠️ この節はインクを敷かない（1つおきに間引いて、素の地と粒子が
-       見える区間を残すため。2026-08-23 ユーザー確定）。 -->
-  <section class="modeSec sec">
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">何を決めるゲームか</span></span></h2>
-    <div class="modeBody reveal" data-d="2">
-      <p>対局の初めに、12都市からガチャで2都市を引き、手札を4枚引く。</p>
-      <p>都市は1枚ごとに地形が決まっている。海岸・内陸・山間部のどれかで、同じ災害でも受ける重さが変わる。さらに都市ごとに固有能力を持っている。</p>
-      <p>あとは毎ターン、予算の範囲でどのカードを切るかを決めるだけである。<b style="color:var(--gold)">緑・黄・赤・紫</b>。手札のこの4色が、そのまま選択肢になる。</p>
-      <!-- 棲み分け（2026-08-23）。⚠️ 面（HOMEと同じ文章）には書かず、ここに置く。 -->
-      <p>攻守は毎ターン入れ替わる。守りながら攻める判断を、1人で全部持つことになる。覚えることが少なく1試合3〜5分で終わるので、防災を知らない人が最初に触るならこちらである。</p>
-    </div>
-    <!-- 手札の扇。旧・文章での色の列挙（緑は…黄は…）を実物に置き換えた。
-         左から 緑（シールド）→黄（即時）→赤（自然災害）→紫（人為災害）。 -->
-    <div class="handFan reveal" data-d="3" aria-hidden="true">
-      <img style="--r:-24deg;--ty:.8em" src="../assets/cards/quake_wall.webp" alt="" loading="lazy" width="288" height="450">
-      <img style="--r:-8deg;--ty:0"    src="../assets/cards/drill.webp"      alt="" loading="lazy" width="288" height="450">
-      <img style="--r:8deg;--ty:0"     src="../assets/cards/earthquake.webp" alt="" loading="lazy" width="288" height="450">
-      <img style="--r:24deg;--ty:.8em" src="../assets/cards/terror.webp"     alt="" loading="lazy" width="288" height="450">
-    </div>
-  </section>
-
-  <!-- 5. ここで何が学べるか -->
-  <section class="modeSec sec ink-red">
-    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
-         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
-    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
-      <div class="inkStage near"></div>
-      <div class="inkStage far"></div>
-    </div>
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">学べること</span></span></h2>
-    <div class="modeBody reveal" data-d="2">
-      <p>災害リスクは国際的に、<b style="color:var(--gold)">リスク＝ハザード×曝露×脆弱性</b>という式で説明される。この3項が、そのままカードの3系統に対応している。</p>
-    </div>
-    <!-- 3円の図（第2版・2026-08-23）。受領スライドの構図に合わせて作り直した。
-         題→引出線→中心の点、という視線の順で「重なりが災害リスク」を示す。
-         実装は assets/site.css の「3円の図」ブロック。 -->
-    <figure class="venn reveal" data-d="2">
-      <div class="vennStage">
-        <span class="vennTitle jpAccent">災害リスク</span>
-        <svg class="vennArt" viewBox="0 0 2231 1762" aria-hidden="true">
-          <defs>
-            <clipPath id="vsh"><circle cx="1116.5" cy="630" r="528"/></clipPath>
-            <clipPath id="vse"><circle cx="811" cy="1223" r="528"/></clipPath>
-          </defs>
-          <circle class="vArc vArc--haz" cx="1116.5" cy="630" r="528"></circle>
-          <circle class="vArc vArc--exp" cx="811" cy="1223" r="528"></circle>
-          <circle class="vArc vArc--vul" cx="1422" cy="1223" r="528"></circle>
-          <g clip-path="url(#vsh)"><g clip-path="url(#vse)">
-            <circle class="vCore" cx="1422" cy="1223" r="528"></circle>
-          </g></g>
-          <line class="vLead" x1="700" y1="258" x2="1110" y2="1018"></line>
-          <circle class="vDot" cx="1116.5" cy="1025" r="16"></circle>
-        </svg>
-        <span class="vennLabel vennLabel--haz jpBase" aria-hidden="true">ハザード</span>
-        <span class="vennLabel vennLabel--exp jpBase" aria-hidden="true">曝露</span>
-        <span class="vennLabel vennLabel--vul jpBase" aria-hidden="true">脆弱性</span>
-        <img class="vennCard vennCard--haz" src="../assets/cards/earthquake.webp"
-             alt="ハザードの例：地震カード" loading="lazy" width="288" height="450">
-        <img class="vennCard vennCard--exp" src="../assets/cities/niigata.webp"
-             alt="曝露の例：内陸都市 新潟のカード" loading="lazy" width="288" height="450">
-        <img class="vennCard vennCard--vul" src="../assets/cards/quake_wall.webp"
-             alt="脆弱性の例：耐震補強の政策カード" loading="lazy" width="288" height="450">
-      </div>
-      <figcaption class="vennCap">3つが重なったところだけが、実際の被害になる。VERSUSでは、この3項すべてを自分ひとりで動かす。</figcaption>
-    </figure>
-
-    <div class="pairGrid reveal" data-d="3">
-      <div class="pairCard pairCard--haz">
-        <b class="en">HAZARD</b>
-        <h3>自然災害・人為災害カード</h3>
-        <p>地震・津波・洪水・台風・大火災・土砂崩れ・複合災害。公害・テロ攻撃・デマ拡散。どれが来るかは選べない。</p>
-        <div class="pairCards" aria-label="扱うカードの例">
-          <img src="../assets/cards/earthquake.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cards/typhoon.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cards/terror.webp" alt="" loading="lazy" width="288" height="450">
-        </div>
-      </div>
-      <div class="pairCard pairCard--exp">
-        <b class="en">EXPOSURE</b>
-        <h3>都市カードの属性</h3>
-        <p>津波は海岸都市に、土砂崩れは山間都市に追加被害を与える。神戸＝海岸、東京＝内陸という属性そのものが被害量を変える。</p>
-        <div class="pairCards" aria-label="扱う都市カードの例">
-          <img src="../assets/cities/kobe.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cities/tokyo.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cities/hiroshima.webp" alt="" loading="lazy" width="288" height="450">
-        </div>
-      </div>
-      <div class="pairCard pairCard--vul">
-        <b class="en">VULNERABILITY</b>
-        <h3>政策カード2系統</h3>
-        <p>耐震補強（1981年の新耐震基準）や堤防建設は構造的脆弱性を下げる。避難訓練や相互支援協定は社会的脆弱性を下げる。デマ拡散は逆に脆弱性を増やす。</p>
-        <div class="pairCards" aria-label="扱う政策カードの例">
-          <img src="../assets/cards/quake_wall.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cards/dam.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cards/drill.webp" alt="" loading="lazy" width="288" height="450">
-        </div>
-      </div>
-    </div>
-
-  </section>
-
-  <!-- 6. 設定でできること → PLAY -->
-  <!-- ⚠️ この節もインクを敷かない（1つおきの間引き）。 -->
-  <section class="modeSec sec">
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">設定でできること</span></span></h2>
-    <dl class="settingsList reveal" data-d="2">
-      <div class="settingsItem">
-        <dt>ひとりで練習</dt>
-        <dd>CPU対戦。難易度はEASY（ランダム行動）・NORMAL（バランス型）・HARDから選べる。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>オンライン対戦</dt>
-        <dd>部屋を作ってコードを発行するか、コードで部屋に参加する。ホストが先攻になる。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>都市選択</dt>
-        <dd>12都市からガチャで2都市を引く。地形と固有能力を確認してから、先に出す都市を選べる。</dd>
-      </div>
-    </dl>
-    <a class="btnFill en" href="https://toshibousai-cardgame.web.app/">PLAY VERSUS</a>
-  </section>
-
-  <footer class="foot">Ready or Not ／ Ready or Lab</footer>
-</div>
-</div><!-- /.pageScale -->
-
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
-<script src="../assets/site.js"></script>
-</body>
-</html>
+<div class="pageScale"><main class="sub-main wrap"><header class="sub-page-head" data-page-title="VERSUS"><nav class="sub-breadcrumb" aria-label="パンくず"><a href="../">HOME</a><span aria-hidden="true">/</span><span aria-current="page">VERSUS</span></nav><h1 class="sub-page-title">VERSUS</h1><p class="jpAccent sub-jp-heading">守りながら、攻める。</p></header><section class="mode-lead versus-lead"><span class="vertical-mode" aria-hidden="true">VERSUS</span><div class="mode-lead-copy"><p class="mode-kicker">対戦 ／ 1〜2人 ／ 3〜5分</p><h2 class="jpAccent">都市とデッキを選び、<br>1対1で街を守る</h2><p>毎ターン攻守を入れ替えで行い、防災と災害をサクッと体験しながら学べる。始めるならまずはこれがオススメ。</p></div><div class="detail-phone "><img src="../assets/shots/v6/vs_battle_focus.webp" alt="対戦モードで都市と手札を確認する実機画面" width="900" height="1950" loading="lazy"></div></section><section class="sub-section"><h2 class="jpAccent sub-jp-heading">1ターンの流れ</h2><div class="turn-flow"><figure><div class="detail-phone "><img src="../assets/shots/v6/vs_battle.webp" alt="ドローの実機画面" width="900" height="1950" loading="lazy"></div><figcaption><span class="flow-word">DRAW</span><h3>ドロー</h3><p>手札上限5枚との差分（最大2枚）を補充する。</p></figcaption></figure><figure><div class="detail-phone "><img src="../assets/shots/v6/vs_battle_focus.webp" alt="あなたのターンの実機画面" width="900" height="1950" loading="lazy"></div><figcaption><span class="flow-word">YOUR TURN</span><h3>あなたのターン</h3><p>予算の範囲でカードを使う。複数枚まとめて使ってもよい。</p></figcaption></figure><figure><div class="detail-phone "><img src="../assets/shots/v6/vs_response_you.webp" alt="対応フェーズの実機画面" width="900" height="1950" loading="lazy"></div><figcaption><span class="flow-word">RESPONSE</span><h3>対応フェーズ</h3><p>自然災害カードを使われた相手は、政策カード1枚をコスト無料で使い被害を減らせる。</p></figcaption></figure><figure><div class="detail-phone "><img src="../assets/shots/s03_vs_summary.webp" alt="ターンまとめの実機画面" width="900" height="1950" loading="lazy"></div><figcaption><span class="flow-word">SUMMARY</span><h3>ターンまとめ</h3><p>結果を確認し、相手のターンへ交代する。</p></figcaption></figure></div></section><section class="sub-section sub-paper"><h2 class="jpAccent sub-jp-heading">学べること</h2><p class="risk-equation">リスク ＝ ハザード × 曝露 × 脆弱性</p><div class="risk-layout"><div class="risk-venn" role="group" aria-label="ハザード・曝露・脆弱性の3円が重なる部分だけが被害になる"><svg viewBox="0 0 660 620" aria-hidden="true"><defs><clipPath id="risk-a"><circle cx="330" cy="210" r="184"/></clipPath><clipPath id="risk-b"><circle cx="230" cy="380" r="184"/></clipPath></defs><g stroke-width="3"><circle cx="330" cy="210" r="184" fill="#E60B0014" stroke="#E60B00"/><circle cx="230" cy="380" r="184" fill="#388bfd18" stroke="#388bfd"/><circle cx="430" cy="380" r="184" fill="#0E6B3A18" stroke="#0E6B3A"/></g><g clip-path="url(#risk-a)"><g clip-path="url(#risk-b)"><circle cx="430" cy="380" r="184" fill="#002A6C"/></g></g></svg><div class="risk-card risk-hazard"><b>ハザード</b><span class="site-card" data-card="earthquake"></span></div><div class="risk-card risk-exposure"><b>曝露</b><span class="site-card" data-card="tokyo"></span></div><div class="risk-card risk-vulnerability"><b>脆弱性</b><span class="site-card" data-card="quake_wall"></span></div><strong class="risk-damage">被害</strong></div><div class="risk-prose"><h3>3つが重なると、被害になる</h3><p>3つが重なったところだけが、実際の被害になる。VERSUSでは、この3項すべてを自分ひとりで動かす。</p><h3>自然災害・人為災害カード</h3><p>地震・津波・洪水・台風・大火災・土砂崩れ・複合災害。公害・テロ攻撃・デマ拡散。どれが来るかは選べない。</p><h3>都市カードの属性</h3><p>津波は海岸都市に、土砂崩れは山間都市に追加被害を与える。神戸＝海岸、東京＝内陸という属性そのものが被害量を変える。</p><h3>政策カード2系統</h3><p>耐震補強や堤防建設は構造的脆弱性を下げる。避難訓練や相互支援協定は社会的脆弱性を下げる。デマ拡散は逆に脆弱性を増やす。</p></div></div></section><section class="sub-section decision-section"><div><h2 class="jpAccent sub-jp-heading">何を決めるゲームか</h2><p>対局の初めに、12都市からガチャで2都市を引き、手札を4枚引く。</p><p>都市は1枚ごとに地形が決まっている。海岸・内陸・山間部のどれかで、同じ災害でも受ける重さが変わる。さらに都市ごとに固有能力を持っている。</p><p>あとは毎ターン、予算の範囲でどのカードを切るかを決めるだけである。緑・黄・赤・紫。手札のこの4色が、そのまま選択肢になる。</p><p>攻守は毎ターン入れ替わる。守りながら攻める判断を、1人で全部持つことになる。覚えることが少なく1試合3〜5分で終わるので、防災を知らない人が最初に触るならこちらである。</p></div><div class="detail-fan"><span class="site-card" data-card="quake_wall"></span><span class="site-card" data-card="drill"></span><span class="site-card" data-card="earthquake"></span><span class="site-card" data-card="terror"></span></div></section><section class="sub-section"><h2 class="jpAccent sub-jp-heading">設定でできること</h2><div class="setting-grid"><article><div class="detail-phone "><img src="../assets/shots/v6/vs_battle.webp" alt="ひとりで練習の実機画面" width="900" height="1950" loading="lazy"></div><h3>ひとりで練習</h3><p>CPU対戦。難易度はEASY・NORMAL・HARDから選べる。</p></article><article><div class="detail-phone "><img src="../assets/shots/s01_home.webp" alt="オンライン対戦の実機画面" width="900" height="1950" loading="lazy"></div><h3>オンライン対戦</h3><p>部屋を作ってコードを発行するか、コードで部屋に参加する。</p></article><article><div class="detail-phone "><img src="../assets/shots/v6/draft.webp" alt="都市選択の実機画面" width="900" height="1950" loading="lazy"></div><h3>都市選択</h3><p>12都市からガチャで2都市を引く。地形と固有能力を確認して、先に出す都市を選ぶ。</p></article></div></section><section class="sub-ending" aria-labelledby="next-title"><h2 id="next-title" class="jpAccent sub-jp-heading">次に読む</h2><div class="sub-next-grid"><a class="sub-next" href="co-op.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="niigata"></span></span><span class="sub-next-copy"><strong>CO-OP</strong>大人数で、力を合わせて守りたいなら<span class="sub-next-arrow" aria-hidden="true">→</span></span></a><a class="sub-next" href="../cards.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="kobe"></span></span><span class="sub-next-copy"><strong>CARDS</strong>どんな災害と都市があるか見てみる<span class="sub-next-arrow" aria-hidden="true">→</span></span></a></div><a class="sub-play" href="https://toshibousai-cardgame.web.app/"><strong>PLAY</strong><span>ブラウザで遊ぶ ↗</span></a></section></main><footer class="wrap foot">Ready or Not ／ Ready or Lab</footer></div><script src="../assets/site.js"></script><script src="../assets/site-data.js"></script><script src="../assets/updates.js"></script><script src="../assets/v6/sub.js"></script><script src="../assets/v6/nav-art.js"></script></body></html>

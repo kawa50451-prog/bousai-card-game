@@ -5,8 +5,74 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Ready or Not ｜ 防災カードバトル</title>
-<meta name="theme-color" content="#00244f">
+<meta name="theme-color" content="#002A6C">
 <link rel="icon" href="assets/icons/app_icon.webp">
+<meta name="description" content="街を守る役になり、限られたお金で備えを選ぶ防災カードバトル。結果は数分でわかり、失敗しても何度でもやり直せます。1人でのCPU対戦から仲間との協力まで、ブラウザですぐに遊べます。">
+<link rel="canonical" href="https://readyorlab.com/">
+<meta property="og:title" content="Ready or Not ｜ 防災カードバトル">
+<meta property="og:description" content="街を守る役になり、限られたお金で備えを選ぶ防災カードバトル。結果は数分でわかり、失敗しても何度でもやり直せます。1人でのCPU対戦から仲間との協力まで、ブラウザですぐに遊べます。">
+<meta property="og:url" content="https://readyorlab.com/">
+<meta property="og:image" content="https://readyorlab.com/assets/og/og-a.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Ready or Not 防災カードバトル。夜明けの東京タワーと荒れる街。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ready or Not">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://readyorlab.com/#website",
+      "name": "Ready or Not",
+      "url": "https://readyorlab.com/",
+      "inLanguage": "ja",
+      "publisher": {
+        "@id": "https://readyorlab.com/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://readyorlab.com/#organization",
+      "name": "Ready or Lab",
+      "url": "https://readyorlab.com/",
+      "logo": "https://readyorlab.com/assets/icons/icon-512.png"
+    },
+    {
+      "@type": "VideoGame",
+      "@id": "https://readyorlab.com/#game",
+      "name": "Ready or Not",
+      "genre": [
+        "カードゲーム",
+        "防災",
+        "ストラテジー"
+      ],
+      "gamePlatform": "Web browser",
+      "playMode": [
+        "https://schema.org/SinglePlayer",
+        "https://schema.org/MultiPlayer",
+        "https://schema.org/CoOp"
+      ],
+      "numberOfPlayers": {
+        "@type": "QuantitativeValue",
+        "minValue": 1,
+        "maxValue": 5
+      },
+      "url": "https://toshibousai-cardgame.web.app/",
+      "inLanguage": "ja",
+      "publisher": {
+        "@id": "https://readyorlab.com/#organization"
+      }
+    }
+  ]
+}
+</script>
 <!-- Shared loading screen → opening mix → settled v6 hero. -->
 <script>
 (function(){
@@ -14,14 +80,13 @@
   if(q.get('motion')==='on') h.dataset.motion='on';
   if(q.get('motion')==='lite') h.setAttribute('data-motion-lite','');
   h.classList.add('intro-skip');
-  h.dataset.hero=q.get('hero')==='b'?'b':'a';
   var show=true, forced=q.has('opening')&&(q.get('opening')===''||q.get('opening')==='1');
   try{show=Date.now()-Number(localStorage.getItem('ronOpeningLast')||0)>=86400000;}catch(e){}
   try{var ref=new URL(document.referrer);if(ref.origin===location.origin&&ref.pathname.replace(/(index|v6).html$/,'')!==location.pathname.replace(/(index|v6).html$/,''))show=false;}catch(e){}
   if(forced)show=true;
   if(q.get('opening')==='0')show=false;
-  if(show && !h.hasAttribute('data-motion-lite') &&
-    (!matchMedia('(prefers-reduced-motion:reduce)').matches || h.dataset.motion==='on')) {
+  if(show && (forced || (!h.hasAttribute('data-motion-lite') &&
+    (!matchMedia('(prefers-reduced-motion:reduce)').matches || h.dataset.motion==='on')))) {
     h.classList.remove('intro-skip');h.classList.add('intro-lock','hero-pending');
     try{localStorage.setItem('ronOpeningLast',String(Date.now()));}catch(e){}
   }
@@ -52,7 +117,7 @@
 <link rel="stylesheet" href="assets/v6/nav-art.css">
 <link rel="stylesheet" href="assets/v6/motion.css">
 <script src="assets/v6/motion.js"></script>
-</head>
+<link rel="stylesheet" href="assets/card-face/card-face.css"><script src="assets/card-face/card-face.js"></script></head>
 <body class="v6-home">
 
 <div class="loadOverlay" id="loadOverlay" aria-hidden="true">
@@ -167,11 +232,11 @@
   <div class="navMenuPanel">
     <ul class="navMenuList en">
       <li><a href="#s00" aria-current="page"><img class="navMenuImg" src="assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
-      <li><a href="about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><img src="assets/cards/drill.webp" alt=""><img src="assets/cards/dam.webp" alt=""><img src="assets/cards/hazard_map.webp" alt=""></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
-      <li><a href="modes/versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><img src="assets/cities/tokyo.webp" alt=""><img src="assets/cities/osaka.webp" alt=""></span><span class="navMenuLabel">VERSUS</span></a></li>
-      <li><a href="modes/co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><img src="assets/cards/earthquake.webp" alt=""><span><img src="assets/cities/tokyo.webp" alt=""><img src="assets/cities/osaka.webp" alt=""><img src="assets/cities/niigata.webp" alt=""></span></span><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><span class="site-card" data-card="drill"></span><span class="site-card" data-card="dam"></span><span class="site-card" data-card="hazard_map"></span></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="modes/versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><span class="site-card" data-card="tokyo"></span><span class="site-card" data-card="osaka"></span></span><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="modes/co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><span class="site-card nav-coop-disaster" data-card="tsunami"></span><span class="nav-coop-vs">VS</span><span class="site-card nav-coop-city c1" data-card="tokyo"></span><span class="site-card nav-coop-city c2" data-card="osaka"></span><span class="site-card nav-coop-city c3" data-card="niigata"></span></span><span class="navMenuLabel">CO-OP</span></a></li>
       <li><a href="features.html"><img class="navMenuImg" src="assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
-      <li><a href="cards.html"><img class="navMenuImg" src="assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="cards.html"><span class="navMenuImg nav-art nav-cardfan" aria-hidden="true"><span class="site-card" data-card="earthquake"></span><span class="site-card" data-card="drill"></span><span class="site-card" data-card="quake_wall"></span><span class="site-card" data-card="rumor"></span></span><span class="navMenuLabel">CARDS</span></a></li>
       <li><a href="news.html"><span class="navMenuImg nav-art nav-date" aria-hidden="true"><time></time></span><span class="navMenuLabel">NEWS</span></a></li>
       <li><a href="contact.html"><span class="navMenuImg nav-art nav-credit enBase" aria-hidden="true"><span>produced by</span><span>Ready or Lab</span></span><span class="navMenuLabel">CONTACT</span></a></li>
     </ul>
@@ -220,11 +285,6 @@
       </div>
     </div>
   </div>
-<div class="hero-compare" data-placeholder role="group" aria-label="hero の比較">
-  <button type="button" data-hero-variant="a" aria-pressed="true">A</button>
-  <button type="button" data-hero-variant="b" aria-pressed="false">B</button>
-  <button type="button" data-hero-replay>もう一度再生</button>
-</div>
 </section>
 
 <section id="s-news" class="v6-news wrap" aria-labelledby="news-heading">
@@ -234,7 +294,7 @@
 </section>
 <section id="s-about" class="v6-about" aria-labelledby="about-heading">
   <div class="wrap about-grid">
-    <div class="about-experience"><div class="knowledge-bridge card-road" role="img" aria-label="カードを置くたび、知っているから動けるへ道がつながる"><span class="road-known jpAccent">知っている</span><div class="road-track" aria-hidden="true"><span class="road-span" style="--i:0"><span class="road-solid"></span><img src="assets/cards/hazard_map.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:1"><span class="road-solid"></span><img src="assets/cards/drill.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:2"><span class="road-solid"></span><img src="assets/cards/dam.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:3"><span class="road-solid"></span><img src="assets/cards/quake_wall.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:4"><span class="road-solid"></span><img src="assets/cards/rolling_stock.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:5"><span class="road-solid"></span><img src="assets/cards/evacuation.webp" alt="" width="240" height="336"></span></div><span class="road-action jpAccent">動ける</span></div></div>
+    <div class="about-experience"><div class="knowledge-bridge card-road" role="img" aria-label="カードを置くたび、知っているから動けるへ道がつながる"><span class="road-known jpAccent">知っている</span><div class="road-track" aria-hidden="true"><span class="road-span" style="--i:0"><span class="road-solid"></span><span class="site-card" data-card="hazard_map"></span></span><span class="road-span" style="--i:1"><span class="road-solid"></span><span class="site-card" data-card="drill"></span></span><span class="road-span" style="--i:2"><span class="road-solid"></span><span class="site-card" data-card="dam"></span></span><span class="road-span" style="--i:3"><span class="road-solid"></span><span class="site-card" data-card="quake_wall"></span></span><span class="road-span" style="--i:4"><span class="road-solid"></span><span class="site-card" data-card="rolling_stock"></span></span><span class="road-span" style="--i:5"><span class="road-solid"></span><span class="site-card" data-card="evacuation"></span></span></div><span class="road-action jpAccent">動ける</span></div></div>
     <div class="about-copy">
       <p class="about-eyebrow en">ABOUT</p>
       <h2 class="jpAccent" id="about-heading"><span>知っているのに、</span><span>動けない。</span></h2>
@@ -267,7 +327,7 @@
       <a href="https://toshibousai-cardgame.web.app/">このゲームで遊ぶ <span aria-hidden="true">↗</span></a>
     </nav>
   </div>
-</section>
+<a class="v6-text-link home-detail-link" href="modes/versus.html">対戦モードの遊び方を見る <span aria-hidden="true">↗</span></a></section>
 
 <section class="v6-ways" id="s02" aria-labelledby="ways-heading">
   <header class="wrap ways-heading"><h2 class="jpAccent" id="ways-heading">遊んで学べる2モード</h2></header>
@@ -321,7 +381,7 @@
     observer.observe(section);
   })();
   </script>
-</section>
+<a class="v6-text-link home-detail-link" href="modes/co-op.html">協力モードの遊び方を見る <span aria-hidden="true">↗</span></a></section>
 
 <section class="v6-deck" id="s03" aria-labelledby="deck-heading">
   <div class="deck-sticky">
@@ -344,19 +404,19 @@
     </div>
   </div>
   
-</section>
+<a class="v6-text-link home-detail-link" href="cards.html">カードと都市を見比べる <span aria-hidden="true">↗</span></a></section>
 
 <section id="s04" aria-labelledby="era-heading">
   <header class="wrap era-heading"><h2 class="jpAccent" id="era-heading">都市と現実</h2></header>
 <div id="era-journey"><div class="pin"><div id="era-sky" aria-hidden="true"></div><div class="track"><article id="era-nagoya" class="grid"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="名古屋の街並み"><defs><mask id="era-mask-nagoya"><rect width="1536" height="1024" fill="white"/><path d="M400 0V1024M620 0V1024M0 95H1536" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="nagoya" width="1536" height="1024" mask="url(#era-mask-nagoya)"/></svg></div><h3 class="en">NAGOYA</h3><div class="fact"><div class="ja">名古屋</div><div class="event">伊勢湾台風</div></div></div></article><article id="era-niigata" class="fade"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="新潟の街並み"><image data-era-src="niigata" width="1536" height="1024"/></svg></div><h3 class="en">NIIGATA</h3><div class="fact"><div class="ja">新潟</div><div class="event">新潟地震</div></div></div></article><article id="era-kobe" class="corner"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="神戸の街並み"><image data-era-src="kobe" width="1536" height="1024"/></svg></div><h3 class="en">KOBE</h3><div class="fact"><div class="ja">神戸</div><div class="event">阪神・淡路大震災</div></div></div></article><article id="era-new_orleans" class="grid2"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="ニューオーリンズの街並み"><defs><mask id="era-mask-new_orleans"><rect width="1536" height="1024" fill="white"/><path d="M480 0V1024M1080 0V1024M0 885H1536" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="new_orleans" width="1536" height="1024" mask="url(#era-mask-new_orleans)"/></svg></div><h3 class="en">NEW ORLEANS</h3><div class="fact"><div class="ja">ニューオーリンズ</div><div class="event">ハリケーン・カトリーナ</div></div></div></article><article id="era-sendai" class="triangles"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="仙台の街並み"><defs><mask id="era-mask-sendai"><rect width="1536" height="1024" fill="white"/><path d="M0 0L1536 430M1536 430L0 1024" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="sendai" width="1536" height="1024" mask="url(#era-mask-sendai)"/></svg></div><h3 class="en">SENDAI</h3><div class="fact"><div class="ja">仙台</div><div class="event">東日本大震災</div></div></div></article><article id="era-hiroshima" class="letters"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="広島の街並み"><image data-era-src="hiroshima" width="1536" height="1024"/></svg></div><h3 class="en">HIROSHIMA</h3><div class="fact"><div class="ja">広島</div><div class="event">8月豪雨災害</div></div></div></article><article id="era-kumamoto" class="corner2"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="熊本の街並み"><image data-era-src="kumamoto" width="1536" height="1024"/></svg></div><h3 class="en">KUMAMOTO</h3><div class="fact"><div class="ja">熊本</div><div class="event">熊本地震</div></div></div></article></div><div id="era-year" aria-label="年"><span class="digit" aria-hidden="true">1</span><span class="digit" aria-hidden="true">9</span><span class="digit" aria-hidden="true">5</span><span class="digit" aria-hidden="true">9</span></div><nav id="era-timeline" aria-label="年表"><button type="button" data-index="0" aria-label="1959年 名古屋 伊勢湾台風" aria-controls="era-nagoya" style="left:0.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1959</span><span class="tip" aria-hidden="true">1959年 名古屋</span></button><button type="button" data-index="1" aria-label="1964年 新潟 新潟地震" aria-controls="era-niigata" style="left:16.66666667%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1964</span><span class="tip" aria-hidden="true">1964年 新潟</span></button><button type="button" data-index="2" aria-label="1995年 神戸 阪神・淡路大震災" aria-controls="era-kobe" style="left:33.33333333%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1995</span><span class="tip" aria-hidden="true">1995年 神戸</span></button><button type="button" data-index="3" aria-label="2005年 ニューオーリンズ ハリケーン・カトリーナ" aria-controls="era-new_orleans" style="left:50.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2005</span><span class="tip" aria-hidden="true">2005年 ニューオーリンズ</span></button><button type="button" data-index="4" aria-label="2011年 仙台 東日本大震災" aria-controls="era-sendai" style="left:66.66666667%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2011</span><span class="tip" aria-hidden="true">2011年 仙台</span></button><button type="button" data-index="5" aria-label="2014年 広島 8月豪雨災害" aria-controls="era-hiroshima" style="left:83.33333333%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2014</span><span class="tip" aria-hidden="true">2014年 広島</span></button><button type="button" data-index="6" aria-label="2016年 熊本 熊本地震" aria-controls="era-kumamoto" style="left:100.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2016</span><span class="tip" aria-hidden="true">2016年 熊本</span></button><span id="era-current-city" aria-hidden="true"></span></nav></div></div>
-</section>
+<a class="v6-text-link home-detail-link" href="cards.html">12都市の地形と能力を見る <span aria-hidden="true">↗</span></a></section>
 
 <section id="s05" class="v6-create" aria-labelledby="create-heading">
   <a class="create-surface-link" href="features.html" aria-labelledby="create-heading"></a>
   <span class="create-word enAccent" aria-hidden="true"><span>C</span><span>R</span><span>E</span><span>A</span><span>T</span><span>E</span></span>
   <div class="wrap wayFullCreate">
     <header><h2 class="jpAccent" id="create-heading">続ける・つくる</h2><p class="create-sub"><span>対戦・協力の先にある、</span><span>やり込み要素</span></p></header>
-    <div class="labList"><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">デイリー防災</h3><p class="labText"><span>1日1回、2分で解ける1問。</span><span>最善の手を探そう。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">カード工房</h3><p class="labText"><span>自分の街のカードを作れる。</span><span>共有コードで友だちにも。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/cardworks.webp" alt="カード工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">問題工房</h3><p class="labText"><span>災害・手札・予算を決めて、</span><span>詰め防災の問題を出題できる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/puzzle.webp" alt="問題工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">図鑑</h3><p class="labText"><span>集めたカードと都市を、</span><span>いつでも見返せる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/s06_gallery.webp" alt="図鑑の実機画面" loading="lazy"></div></a></div></div></section>
+    <div class="labList"><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">デイリー防災</h3><p class="labText"><span>1日1回、2分で解ける1問。</span><span>最善の手を探そう。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">カード工房</h3><p class="labText"><span>自分の街のカードを作れる。</span><span>共有コードで友だちにも。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/cardworks.webp" alt="カード工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">問題工房</h3><p class="labText"><span>災害・手札・予算を決めて、</span><span>詰め防災の問題を出題できる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/puzzle.webp" alt="問題工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">図鑑</h3><p class="labText"><span>集めたカードと都市を、</span><span>いつでも見返せる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/s06_gallery.webp" alt="図鑑の実機画面" loading="lazy"></div></a></div></div><a class="v6-text-link home-detail-link" href="features.html">7つの機能を詳しく見る <span aria-hidden="true">↗</span></a></section>
 <!-- ══════ 04 締め（新設。§13）。タグライン再掲＋PLAY への大きな導線を1つ。
      00 と同じ左スクリム構造を storm.webp（--kv2）に対して掛ける。 ══════ -->
 
@@ -404,6 +464,6 @@
 <script src="assets/v6/era.js"></script>
 <script src="assets/updates.js"></script>
 <script src="assets/try/try.js"></script>
-<script src="assets/v6/nav-art.js"></script>
+<script src="assets/v6/nav-art.js"></script><script src="assets/v6/sub.js"></script>
 </body>
 </html>

@@ -1,0 +1,10 @@
+[
+  {"file":"index.html","title":"Ready or Not ｜ 防災カードバトル","description":"街を守る役になり、限られたお金で備えを選ぶ防災カードバトル。結果は数分でわかり、失敗しても何度でもやり直せます。1人でのCPU対戦から仲間との協力まで、ブラウザですぐに遊べます。"},
+  {"file":"about.html","title":"ABOUT ｜ ゲームの狙いと学び方 ｜ Ready or Not","description":"防災教育のゴールは、状況に応じて判断し、行動を選べること。Ready or Not が目指す、備えを選び、結果を見て、何度でもやり直す練習の場と、制作チームの考えを紹介します。"},
+  {"file":"news.html","title":"NEWS ｜ 更新のお知らせ ｜ Ready or Not","description":"Ready or Not のこれまでとこれからを伝えるお知らせ。デッキ構築やドラフトなど、ゲームに追加した機能と更新の内容を、日付とともに新しい順に紹介します。"},
+  {"file":"features.html","title":"FEATURES ｜ 遊ぶ・知る・つくる7つの機能 ｜ Ready or Not","description":"デイリー防災、図鑑、カード工房、問題工房、マイ都市、チュートリアル、テーマ設定。Ready or Not の遊びと学びを広げる7つの機能と、自分の街や問題をつくる楽しみ方を紹介します。"},
+  {"file":"cards.html","title":"CARDS ｜ カードと都市を見比べる ｜ Ready or Not","description":"同じ災害でも、街と備えで変わる。Ready or Not の都市・自然災害・人為災害・政策のカードを見比べられます。カードを拡大し、都市の地形や能力、災害と備えの違いを確認できます。"},
+  {"file":"contact.html","title":"CONTACT ｜ 制作チーム Ready or Lab ｜ Ready or Not","description":"Ready or Not をつくるのは、大学生のチーム Ready or Lab。知っていることを判断と行動につなげる練習の場を目指す制作チームと、プライバシーポリシーへの案内を掲載しています。"},
+  {"file":"modes/versus.html","title":"VERSUS ｜ 対戦モードの遊び方 ｜ Ready or Not","description":"都市とデッキを選び、1対1で街を守る対戦モード。毎ターン攻守を入れ替え、予算の範囲でカードを使います。1試合3〜5分、1人のCPU対戦からオンライン対戦まで、遊び方と判断のポイントを紹介します。"},
+  {"file":"modes/co-op.html","title":"CO-OP ｜ 協力モードの遊び方 ｜ Ready or Not","description":"自然側1人と都市側2〜4人に分かれる協力モード。限られた予算を配り、自分と仲間の街を守ります。1試合5〜7分、役割ごとの判断、ターンの流れ、後方支援や復興の仕組みを紹介します。"}
+]

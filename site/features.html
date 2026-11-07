@@ -4,107 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>その他の機能（FEATURES）｜ Ready or Not</title>
-<meta name="theme-color" content="#00244f">
-<!-- 起動演出の事前クラス付与。modes/co-op.html と同じ同期スクリプトを複製している
-     （最初の描画より前に同期実行する必要があるため、外部化するとFOUCの原因になる）。 -->
-<script>/* ?motion=on は JS だけでなく CSS の縮退も解除する。
-   これがないと OS でアニメーションを切っている環境では、罫の描画・文字の
-   立ち上がり・ゲージなど CSS 駆動の演出が検証パラメータを付けても動かない。 */
-if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttribute('data-motion','on');</script>
-<script>
-(function(){
-  var h = document.documentElement;
-  try{
-    if (sessionStorage.getItem('ronIntroSeen') === '1') { h.classList.add('intro-skip'); }
-    else { h.classList.add('intro-lock'); sessionStorage.setItem('ronIntroSeen', '1'); }
-  } catch(e){ h.classList.add('intro-lock'); }
-})();
+<title>FEATURES ｜ 遊ぶ・知る・つくる7つの機能 ｜ Ready or Not</title>
+<meta name="theme-color" content="#002A6C">
+<link rel="icon" href="assets/icons/app_icon.webp">
+<meta name="description" content="デイリー防災、図鑑、カード工房、問題工房、マイ都市、チュートリアル、テーマ設定。Ready or Not の遊びと学びを広げる7つの機能と、自分の街や問題をつくる楽しみ方を紹介します。">
+<link rel="canonical" href="https://readyorlab.com/features">
+<meta property="og:title" content="FEATURES ｜ 遊ぶ・知る・つくる7つの機能 ｜ Ready or Not">
+<meta property="og:description" content="デイリー防災、図鑑、カード工房、問題工房、マイ都市、チュートリアル、テーマ設定。Ready or Not の遊びと学びを広げる7つの機能と、自分の街や問題をつくる楽しみ方を紹介します。">
+<meta property="og:url" content="https://readyorlab.com/features">
+<meta property="og:image" content="https://readyorlab.com/assets/og/og-a.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Ready or Not 防災カードバトル。夜明けの東京タワーと荒れる街。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ready or Not">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "HOME",
+      "item": "https://readyorlab.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "FEATURES",
+      "item": "https://readyorlab.com/features"
+    }
+  ]
+}
 </script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Shippori+Mincho+B1:wght@800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
+     下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
+     画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
+     LPの各節のレイアウト（ヒーロー・なぜ作ったか・カードマーキー・軌道セレクタ・
+     遊び方・締め）は下のページ固有 <style> に残す。 -->
 <link rel="stylesheet" href="assets/site.css">
-<style>
-/* 地の色はページ固定（§13。design/official_site_spec.md §10.3.2の01「なぜ作ったか」の
-   停止点と同じ値）。LPのようなスクロール連動の軌跡は持たない。 */
-:root{ --gL:.265; --gC:.090; --gH:255; }
 
-/* このページだけで使う小さな追加コンポーネント。site.css の値（フォントスケール9段・
-   スペーシング7段）だけを組み合わせて作っており、新しい数値は足していない。 */
-.featCtaRow{display:flex;flex-wrap:wrap;gap:var(--s3);margin-top:var(--s4)}
-</style>
-</head>
-<body>
+<link rel="stylesheet" href="assets/v6.css">
+<link rel="stylesheet" href="assets/v6/sub.css">
 
-<!-- 起動演出オーバーレイ（LP・CO-OPと同一マークアップ・§20.1で4幕へ作り直し）。 -->
-<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
-  <div class="loadCredit">
-    <span class="loadCreditLine enBase">produced</span>
-    <span class="loadCreditLine enBase">by Ready or Lab</span>
-    <span class="loadCreditRule" aria-hidden="true"></span>
-  </div>
-  <!-- 幕0（0.10〜1.40秒）：素材の読み込みを見せるゲージ（2026-08-16作り直し）。
-       ⚠️ このローディングの目的は「produced by 以降のモーションがカクついたり
-          飛んだりしないための時間稼ぎ」である。見た目のためだけの尺ではない。
-       画面中心に円が回り、LOAD の下で 0→100 が進む。数字はダイヤルのように
-       上から降りてくる（緩急つき）。0→100 が終わってから produced by が始まる。
-       進捗の唯一の出どころは CSS の --n（@propertyで登録した整数）。円弧の
-       stroke-dashoffset も数字も同じ --n を読むため、両者がずれることがない。
-       JSはその --n を読んで桁を組み替えるだけの装飾で、止まっても
-       counter() のフォールバックが出る（オーバーレイの退場は完全にCSS側）。 -->
-  <div class="loadGauge" aria-hidden="true">
-    <div class="loadRing">
-      <svg class="loadRingSvg" viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="loadRingTrack" cx="60" cy="60" r="54"></circle>
-        <circle class="loadRingArc" cx="60" cy="60" r="54"></circle>
-      </svg>
-      <span class="loadRingWord enBase">LOAD</span>
-    </div>
-    <span class="loadCount" aria-hidden="true"><span class="loadNum"></span><span class="loadPct">%</span></span>
-  </div>
-  <div class="loadInk" aria-hidden="true">
-      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
-           重ね、白を透過させて黒だけを残す（§20.1改）。
-           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
-              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
-              確実に引っかかる。再生は等速1回きりにすること。 -->
-      <video class="loadInkVid" src="assets/ink/ink_load_timed.mp4"
-             muted playsinline preload="auto" aria-hidden="true"></video>
-    </div>
-  <div class="loadBlackout" aria-hidden="true"></div>
-</div>
-
-<!-- 背景の粒子と幾何学的な線（今回追加）。本文より後ろに敷く静的な奥行き演出。
-     18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
-     transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
-<div class="bgField" aria-hidden="true">
-  <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
-  <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
-  <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
-  <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
-  <span class="bgDot bgDot--a" style="--x:4%;--y:6%;animation-delay:-5s"></span>
-  <span class="bgDot bgDot--a" style="--x:17%;--y:22%;animation-delay:-16s"></span>
-  <span class="bgDot bgDot--a" style="--x:30%;--y:38%;animation-delay:-27s"></span>
-  <span class="bgDot bgDot--a" style="--x:43%;--y:54%;animation-delay:-38s"></span>
-  <span class="bgDot bgDot--a" style="--x:56%;--y:70%;animation-delay:-49s"></span>
-  <span class="bgDot bgDot--a" style="--x:69%;--y:86%;animation-delay:-60s"></span>
-  <span class="bgDot bgDot--b" style="--x:82%;--y:12%;animation-delay:-4s"></span>
-  <span class="bgDot bgDot--b" style="--x:95%;--y:28%;animation-delay:-11s"></span>
-  <span class="bgDot bgDot--b" style="--x:16%;--y:44%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--b" style="--x:29%;--y:60%;animation-delay:-25s"></span>
-  <span class="bgDot bgDot--b" style="--x:42%;--y:76%;animation-delay:-32s"></span>
-  <span class="bgDot bgDot--b" style="--x:55%;--y:92%;animation-delay:-39s"></span>
-  <span class="bgDot bgDot--c" style="--x:68%;--y:18%;animation-delay:-3s"></span>
-  <span class="bgDot bgDot--c" style="--x:81%;--y:34%;animation-delay:-8s"></span>
-  <span class="bgDot bgDot--c" style="--x:94%;--y:50%;animation-delay:-13s"></span>
-  <span class="bgDot bgDot--c" style="--x:15%;--y:66%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--c" style="--x:28%;--y:82%;animation-delay:-23s"></span>
-  <span class="bgDot bgDot--c" style="--x:41%;--y:98%;animation-delay:-28s"></span>
-</div>
-
-<!-- ロゴ：画面左上に固定（§20.4）。ナビではなくロゴの組み。リンク先はホーム。 -->
-<a class="siteLogo" href="./" aria-label="ホーム">
+<link rel="stylesheet" href="assets/v6/nav-art.css">
+<link rel="stylesheet" href="assets/v6/motion.css">
+<script src="assets/v6/motion.js"></script>
+<link rel="stylesheet" href="assets/card-face/card-face.css"><script src="assets/card-face/card-face.js"></script></head><body class="sub-page detail-page" style="--page:#0E6B3A"><a class="siteLogo" href="./" aria-label="ホーム">
   <span class="brandTile"><img src="assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
   <span class="siteLogoText enBase">Ready or Not</span>
 </a>
@@ -120,114 +76,24 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   <a class="barPlay" href="https://toshibousai-cardgame.web.app/"><span class="barPlayText">PLAY</span></a>
 </nav>
 
+<!-- 背後の暗転スクリム。押すと閉じる。 -->
 <div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<!-- ページ一覧。JSが完全に落ちてもリンク自体はDOMに存在し続け、Tabで
+     フォーカスが入れば :focus-within により可視化される（§13.2の下部バーが
+     採っていた縮退方針をそのまま踏襲。§10.0.1段階2）。 -->
 <nav class="navMenu" id="navMenu" aria-label="ページ一覧">
   <div class="navMenuPanel">
     <ul class="navMenuList en">
       <li><a href="./"><img class="navMenuImg" src="assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
-      <li><a href="modes/versus.html"><img class="navMenuImg" src="assets/navicons/versus.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">VERSUS</span></a></li>
-      <li><a href="modes/co-op.html"><img class="navMenuImg" src="assets/navicons/coop.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><span class="site-card" data-card="drill"></span><span class="site-card" data-card="dam"></span><span class="site-card" data-card="hazard_map"></span></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="modes/versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><span class="site-card" data-card="tokyo"></span><span class="site-card" data-card="osaka"></span></span><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="modes/co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><span class="site-card nav-coop-disaster" data-card="tsunami"></span><span class="nav-coop-vs">VS</span><span class="site-card nav-coop-city c1" data-card="tokyo"></span><span class="site-card nav-coop-city c2" data-card="osaka"></span><span class="site-card nav-coop-city c3" data-card="niigata"></span></span><span class="navMenuLabel">CO-OP</span></a></li>
       <li><a href="features.html" aria-current="page"><img class="navMenuImg" src="assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
-      <li><a href="cards.html"><img class="navMenuImg" src="assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
-      <li><a href="contact.html"><img class="navMenuImg" src="assets/navicons/contact.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CONTACT</span></a></li>
+      <li><a href="cards.html"><span class="navMenuImg nav-art nav-cardfan" aria-hidden="true"><span class="site-card" data-card="earthquake"></span><span class="site-card" data-card="drill"></span><span class="site-card" data-card="quake_wall"></span><span class="site-card" data-card="rumor"></span></span><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="news.html"><span class="navMenuImg nav-art nav-date" aria-hidden="true"><time></time></span><span class="navMenuLabel">NEWS</span></a></li>
+      <li><a href="contact.html"><span class="navMenuImg nav-art nav-credit enBase" aria-hidden="true"><span>produced by</span><span>Ready or Lab</span></span><span class="navMenuLabel">CONTACT</span></a></li>
     </ul>
   </div>
 </nav>
 
-<div class="pageScale">
-<div class="wrap">
-  <!-- パンくず（§13.3） -->
-  <p class="crumb en"><a href="./">HOME</a><span>/</span><b>FEATURES</b></p>
-
-  <!-- 1. ページ名＋件数 -->
-  <header class="modeHead reveal" data-d="0">
-    <h1 class="modeName enBase">FEATURES</h1>
-    <p class="modeMeta en">サブ機能 ／ 7種</p>
-  </header>
-
-  <!-- 2. デイリー防災（実機画面つき） -->
-  <section class="modeSec sec ink-green">
-    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
-         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
-    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
-      <div class="inkStage near"></div>
-      <div class="inkStage far"></div>
-    </div>
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">デイリー防災</span></span></h2>
-    <div class="modeBody reveal" data-d="2">
-      <p>1日1回、固定シードの局面に挑戦する。届く災害予報を見て、手持ちの政策カードを各災害に割り当てる。結果はストリークとしてカレンダーに記録される。カード工房で保存したマイ都市に差し替えて挑戦することもできる（公式記録とは別枠で扱う）。</p>
-    </div>
-    <div class="reveal" data-d="3">
-      <div class="modeShotWrap maskReveal">
-        <img src="assets/shots/s05_daily_prep.webp" alt="デイリー防災の予報画面。届いた災害と手持ちの政策カードが表示されている" loading="lazy" width="800" height="1733">
-      </div>
-    </div>
-  </section>
-
-  <!-- 3. 図鑑（実機画面つき） -->
-  <section class="modeSec sec">
-    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
-         見える区間を残す（2026-08-23 ユーザー確定）。 -->
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">図鑑</span></span></h2>
-    <div class="modeBody reveal" data-d="2">
-      <p>都市・自然災害・人為災害・政策カードの全種を一覧で見られる。カードをタップすると拡大表示され、防災上の意味を解説するコラムが開く。</p>
-    </div>
-    <div class="reveal" data-d="3">
-      <div class="modeShotWrap maskReveal">
-        <img src="assets/shots/s06_gallery.webp" alt="図鑑の一覧画面。カード種別ごとに並んでいる" loading="lazy" width="800" height="1733">
-      </div>
-    </div>
-  </section>
-
-  <!-- 4. そのほかの機能（実機画面なし） -->
-  <section class="modeSec sec ink-green">
-    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
-         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
-    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
-      <div class="inkStage near"></div>
-      <div class="inkStage far"></div>
-    </div>
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">そのほかの機能</span></span></h2>
-    <dl class="settingsList reveal" data-d="2">
-      <div class="settingsItem">
-        <dt>カード工房</dt>
-        <dd>自作のご当地都市カードを作れる。街診断のウィザードから作成するか、共有コードで友人のカードを読み込める。保存したカードは「マイ都市」として使える。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>問題工房</dt>
-        <dd>都市・来襲する災害・手札・予算を指定し、自作の詰め防災パズルを出題できる。共有コードで配布でき、プレイは常に練習扱いになる。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>マイ都市</dt>
-        <dd>カード工房で保存した自作都市カード。デイリー防災の予報画面から差し替えて挑戦できるほか、ソロで遊ぶ協力モードでも使える。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>チュートリアル</dt>
-        <dd>対戦チュートリアルと協力チュートリアルの2種類がある。吹き出しガイドに沿って、実際の操作で1ターンの流れを体験できる。所要は90秒から2分。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>テーマ設定</dt>
-        <dd>テーマカラーを5種から選べる（サイバー・レッド／ディストピア・ブルー／ハッカー・マトリクス／8bit／デイライト）。フォント・発光演出・モーション表示も切り替えられる。</dd>
-      </div>
-    </dl>
-  </section>
-
-  <!-- 5. 主力2モードへの導線 -->
-  <section class="modeSec sec">
-    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
-         見える区間を残す（2026-08-23 ユーザー確定）。 -->
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">主力2モードの詳しい遊び方</span></span></h2>
-    <div class="featCtaRow reveal" data-d="2">
-      <a class="btnFill en" href="modes/versus.html">VERSUS を見る</a>
-      <a class="btnFill en" href="modes/co-op.html">CO-OP を見る</a>
-    </div>
-  </section>
-
-  <footer class="foot">Ready or Not ／ Ready or Lab</footer>
-</div>
-</div><!-- /.pageScale -->
-
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
-<script src="assets/site.js"></script>
-</body>
-</html>
+<div class="pageScale"><main class="sub-main wrap"><header class="sub-page-head" data-page-title="FEATURES"><nav class="sub-breadcrumb" aria-label="パンくず"><a href="./">HOME</a><span aria-hidden="true">/</span><span aria-current="page">FEATURES</span></nav><h1 class="sub-page-title">FEATURES</h1><p class="jpAccent sub-jp-heading"><span>遊ぶ、知る、つくる。</span><wbr><span>7つの入口。</span></p></header><section class="sub-section feature-section"><h2 class="jpAccent sub-jp-heading">ひとつのゲームから、<br>学びを広げる</h2><div class="feature-layout"><div class="feature-hub" aria-label="7つの機能を選ぶ"><svg viewBox="0 0 700 700" aria-hidden="true"><line x1="350" y1="350" x2="350.0" y2="98.0"/><line x1="350" y1="350" x2="547.0215335819435" y2="192.88056993159915"/><line x1="350" y1="350" x2="595.6818338698196" y2="406.0752753569912"/><line x1="350" y1="350" x2="459.3387022576246" y2="577.0441547114096"/><line x1="350" y1="350" x2="240.66129774237538" y2="577.0441547114096"/><line x1="350" y1="350" x2="104.31816613018046" y2="406.07527535699126"/><line x1="350" y1="350" x2="152.97846641805646" y2="192.88056993159918"/></svg><div class="hub-core"><span>Ready<br>or Not</span><small>遊ぶ・知る・つくる</small></div><button type="button" id="feature-daily" class="hub-node " data-feature="daily" aria-pressed="true" aria-controls="feature-panel" style="--hx:50.0%;--hy:14.0%"><span class="hub-picture"><img src="assets/shots/v6/daily.webp" alt="" loading="lazy"></span><span>デイリー防災</span></button><button type="button" id="feature-gallery" class="hub-node " data-feature="gallery" aria-pressed="false" aria-controls="feature-panel" style="--hx:78.14593336884907%;--hy:27.554367133085595%"><span class="hub-picture"><img src="assets/shots/s06_gallery.webp" alt="" loading="lazy"></span><span>図鑑</span></button><button type="button" id="feature-cardworks" class="hub-node is-create" data-feature="cardworks" aria-pressed="false" aria-controls="feature-panel" style="--hx:85.09740483854566%;--hy:58.010753622427316%"><span class="hub-picture"><img src="assets/shots/v6/cardworks.webp" alt="" loading="lazy"></span><span>カード工房</span></button><button type="button" id="feature-puzzle" class="hub-node is-create" data-feature="puzzle" aria-pressed="false" aria-controls="feature-panel" style="--hx:65.61981460823209%;--hy:82.43487924448709%"><span class="hub-picture"><img src="assets/shots/v6/puzzle.webp" alt="" loading="lazy"></span><span>問題工房</span></button><button type="button" id="feature-mycity" class="hub-node is-create" data-feature="mycity" aria-pressed="false" aria-controls="feature-panel" style="--hx:34.38018539176791%;--hy:82.43487924448709%"><span class="hub-picture"><img src="assets/v6/sub/mycity.webp" alt="" loading="lazy"></span><span>マイ都市</span></button><button type="button" id="feature-tutorial" class="hub-node " data-feature="tutorial" aria-pressed="false" aria-controls="feature-panel" style="--hx:14.90259516145435%;--hy:58.01075362242732%"><span class="hub-picture"><img src="assets/v6/sub/tutorial.webp" alt="" loading="lazy"></span><span>チュートリアル</span></button><button type="button" id="feature-theme" class="hub-node " data-feature="theme" aria-pressed="false" aria-controls="feature-panel" style="--hx:21.85406663115092%;--hy:27.5543671330856%"><span class="hub-picture"><img src="assets/v6/sub/theme.webp" alt="" loading="lazy"></span><span>テーマ設定</span></button></div><div class="feature-panel" id="feature-panel" aria-live="polite" aria-atomic="true"><div class="feature-copy"><span class="feature-en">DAILY</span><h3>デイリー防災</h3><p><span>1日1回、今日の局面に挑戦。</span><span>政策カードを、災害に割り当てる。</span></p></div><div class="detail-phone "><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" width="900" height="1950" loading="lazy"></div></div></div></section><section class="sub-ending" aria-labelledby="next-title"><h2 id="next-title" class="jpAccent sub-jp-heading">次に読む</h2><div class="sub-next-grid"><a class="sub-next" href="cards.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="kobe"></span></span><span class="sub-next-copy"><strong>CARDS</strong>どんな災害と都市があるか見てみる<span class="sub-next-arrow" aria-hidden="true">→</span></span></a><a class="sub-next" href="modes/co-op.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="niigata"></span></span><span class="sub-next-copy"><strong>CO-OP</strong>大人数で、力を合わせて守りたいなら<span class="sub-next-arrow" aria-hidden="true">→</span></span></a></div><a class="sub-play" href="https://toshibousai-cardgame.web.app/"><strong>PLAY</strong><span>ブラウザで遊ぶ ↗</span></a></section></main><footer class="wrap foot">Ready or Not ／ Ready or Lab</footer></div><script src="assets/site.js"></script><script src="assets/site-data.js"></script><script src="assets/updates.js"></script><script src="assets/v6/sub.js"></script><script src="assets/v6/nav-art.js"></script></body></html>

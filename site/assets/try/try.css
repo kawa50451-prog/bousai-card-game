@@ -12,14 +12,12 @@
 .try-scene[data-state="ready"] .seawall{opacity:1}
 .try-scene[data-state="ready"] .seawall path{animation:try-draw var(--line-duration) var(--ease) both;animation-delay:calc(.6s + var(--line-delay))}
 .try-top{max-width:min(900px,100%);align-self:flex-start}
-/* 同じ文を2組流し、結果ではその場に止める。 */
+/* 同じ文を2組流し、状態にかかわらず文字だけをゆっくり明滅させる。 */
 .try-ticker{background:#E60B00;color:#fff;position:absolute;inset:0 0 auto;overflow:hidden;border-block:1px solid #E60B00;font:600 11px/30px 'Archivo','Zen Kaku Gothic New',sans-serif;letter-spacing:.14em;white-space:nowrap;transition:opacity .3s var(--ease)}
 .try-ticker-track{display:flex;width:max-content;animation:try-ticker 30s linear infinite}
-.try-ticker-group{display:flex;flex:none}
+.try-ticker-group{display:flex;flex:none;animation:try-ticker-breathe 2.8s var(--ease) infinite}
 .try-ticker-group span{display:flex;align-items:center;gap:28px;padding-right:28px}
 .try-ticker-group span::after{content:'';height:10px;border-left:1px solid currentColor;transform:skewX(-25deg)}
-.try-scene:not([data-state="forecast"]) .try-ticker{opacity:.35}
-.try-scene:not(.try-in-view) .try-ticker-track,.try-scene:not([data-state="forecast"]) .try-ticker-track{animation-play-state:paused}
 .try-forecast :is(h1,h2){font:800 clamp(28px,3.5vw,54px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em}
 .try-prompt{margin:0 0 20px;font:800 clamp(28px,3.5vw,48px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em;white-space:nowrap;text-align:center}
 .try-prompt span{display:inline-block}
@@ -67,6 +65,7 @@
 .try-scene.try-arriving-not .not-image{animation:try-blackout 1.6s var(--ease) both;mask-image:linear-gradient(to top,#000 45%,transparent 55%);mask-size:100% 240%;mask-repeat:no-repeat}
 @keyframes try-blackout{from{mask-position:0 0;opacity:1}to{mask-position:0 100%;opacity:1}}
 @keyframes try-ticker{to{transform:translateX(-50%)}}
+@keyframes try-ticker-breathe{0%,100%{opacity:1}50%{opacity:.55}}
 @keyframes try-band{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes try-tick-off{from{background:var(--t1);border-color:var(--t1)}to{background:transparent;border-color:var(--t3)}}
 @keyframes try-draw{to{stroke-dashoffset:0}}
@@ -76,6 +75,12 @@ html[data-motion-lite] .try-scene *,html[data-motion-lite] .try-scene *::after{a
 html[data-motion-lite] .seawall path{stroke-dashoffset:0}
 html[data-motion-lite] .not-image{mask-image:none}
 @media(prefers-reduced-motion:reduce){html:not([data-motion="on"]) .try-scene *,html:not([data-motion="on"]) .try-scene *::after{animation:none!important;transition-duration:0s!important}html:not([data-motion="on"]) .seawall path{stroke-dashoffset:0}html:not([data-motion="on"]) .not-image{mask-image:none}}
+html[data-motion-lite] .try-scene .try-ticker-track{animation:try-ticker 60s linear infinite!important}
+@media(prefers-reduced-motion:reduce){
+ html .try-scene .try-ticker-track{animation:try-ticker 60s linear infinite!important}
+ html .try-scene .try-ticker-group{animation:none!important}
+}
+html .try-scene:not(.try-in-view) :is(.try-ticker-track,.try-ticker-group){animation-play-state:paused!important}
 @media(max-width:600px){
   .try-scene{--try-pad:16px;padding:56px 16px 24px;gap:24px}
   .try-forecast :is(h1,h2){font-size:28px}

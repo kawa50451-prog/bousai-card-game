@@ -4,9 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>NEWS ｜ Ready or Not</title>
-<meta name="theme-color" content="#00244f">
+<title>NEWS ｜ 更新のお知らせ ｜ Ready or Not</title>
+<meta name="theme-color" content="#002A6C">
 <link rel="icon" href="assets/icons/app_icon.webp">
+<meta name="description" content="Ready or Not のこれまでとこれからを伝えるお知らせ。デッキ構築やドラフトなど、ゲームに追加した機能と更新の内容を、日付とともに新しい順に紹介します。">
+<link rel="canonical" href="https://readyorlab.com/news">
+<meta property="og:title" content="NEWS ｜ 更新のお知らせ ｜ Ready or Not">
+<meta property="og:description" content="Ready or Not のこれまでとこれからを伝えるお知らせ。デッキ構築やドラフトなど、ゲームに追加した機能と更新の内容を、日付とともに新しい順に紹介します。">
+<meta property="og:url" content="https://readyorlab.com/news">
+<meta property="og:image" content="https://readyorlab.com/assets/og/og-a.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Ready or Not 防災カードバトル。夜明けの東京タワーと荒れる街。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ready or Not">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "HOME",
+      "item": "https://readyorlab.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "NEWS",
+      "item": "https://readyorlab.com/news"
+    }
+  ]
+}
+</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,12 +55,12 @@
 <link rel="stylesheet" href="assets/site.css">
 
 <link rel="stylesheet" href="assets/v6.css">
-<link rel="stylesheet" href="assets/v6/news.css">
+<link rel="stylesheet" href="assets/v6/sub.css">
+
 <link rel="stylesheet" href="assets/v6/nav-art.css">
 <link rel="stylesheet" href="assets/v6/motion.css">
 <script src="assets/v6/motion.js"></script>
-</head>
-<body class="v6-subpage news-page"><a class="siteLogo" href="./" aria-label="ホーム">
+<link rel="stylesheet" href="assets/card-face/card-face.css"><script src="assets/card-face/card-face.js"></script><link rel="stylesheet" href="assets/v6/news.css"></head><body class="sub-page detail-page" style="--page:#E60B00"><a class="siteLogo" href="./" aria-label="ホーム">
   <span class="brandTile"><img src="assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
   <span class="siteLogoText enBase">Ready or Not</span>
 </a>
@@ -49,16 +85,15 @@
   <div class="navMenuPanel">
     <ul class="navMenuList en">
       <li><a href="./"><img class="navMenuImg" src="assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
-      <li><a href="about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><img src="assets/cards/drill.webp" alt=""><img src="assets/cards/dam.webp" alt=""><img src="assets/cards/hazard_map.webp" alt=""></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
-      <li><a href="modes/versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><img src="assets/cities/tokyo.webp" alt=""><img src="assets/cities/osaka.webp" alt=""></span><span class="navMenuLabel">VERSUS</span></a></li>
-      <li><a href="modes/co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><img src="assets/cards/earthquake.webp" alt=""><span><img src="assets/cities/tokyo.webp" alt=""><img src="assets/cities/osaka.webp" alt=""><img src="assets/cities/niigata.webp" alt=""></span></span><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><span class="site-card" data-card="drill"></span><span class="site-card" data-card="dam"></span><span class="site-card" data-card="hazard_map"></span></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="modes/versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><span class="site-card" data-card="tokyo"></span><span class="site-card" data-card="osaka"></span></span><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="modes/co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><span class="site-card nav-coop-disaster" data-card="tsunami"></span><span class="nav-coop-vs">VS</span><span class="site-card nav-coop-city c1" data-card="tokyo"></span><span class="site-card nav-coop-city c2" data-card="osaka"></span><span class="site-card nav-coop-city c3" data-card="niigata"></span></span><span class="navMenuLabel">CO-OP</span></a></li>
       <li><a href="features.html"><img class="navMenuImg" src="assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
-      <li><a href="cards.html"><img class="navMenuImg" src="assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="cards.html"><span class="navMenuImg nav-art nav-cardfan" aria-hidden="true"><span class="site-card" data-card="earthquake"></span><span class="site-card" data-card="drill"></span><span class="site-card" data-card="quake_wall"></span><span class="site-card" data-card="rumor"></span></span><span class="navMenuLabel">CARDS</span></a></li>
       <li><a href="news.html" aria-current="page"><span class="navMenuImg nav-art nav-date" aria-hidden="true"><time></time></span><span class="navMenuLabel">NEWS</span></a></li>
       <li><a href="contact.html"><span class="navMenuImg nav-art nav-credit enBase" aria-hidden="true"><span>produced by</span><span>Ready or Lab</span></span><span class="navMenuLabel">CONTACT</span></a></li>
     </ul>
   </div>
 </nav>
 
-<div class="pageScale"><main class="v6-news wrap news-page-main"><header class="news-heading"><h1 class="enAccent">NEWS</h1><span class="news-rules" aria-hidden="true"></span></header><div class="news-list"></div></main><footer class="wrap foot">Ready or Not ／ Ready or Lab</footer></div><script src="assets/site.js"></script><script src="assets/updates.js"></script><script src="assets/v6/nav-art.js"></script>
-</body></html>
+<div class="pageScale"><main class="sub-main wrap"><header class="sub-page-head" data-page-title="NEWS"><nav class="sub-breadcrumb" aria-label="パンくず"><a href="./">HOME</a><span aria-hidden="true">/</span><span aria-current="page">NEWS</span></nav><h1 class="sub-page-title">NEWS</h1><p class="jpAccent sub-jp-heading"><span>Ready or Not の、</span><wbr><span>これまでとこれから。</span></p></header><section class="sub-section news-timeline" aria-label="年ごとのお知らせ"><div class="news-list"></div></section><section class="sub-ending" aria-labelledby="next-title"><h2 id="next-title" class="jpAccent sub-jp-heading">次に読む</h2><div class="sub-next-grid"><a class="sub-next" href="features.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="hazard_map"></span></span><span class="sub-next-copy"><strong>FEATURES</strong>自分に合う遊び方を探したいなら<span class="sub-next-arrow" aria-hidden="true">→</span></span></a><a class="sub-next" href="about.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="drill"></span></span><span class="sub-next-copy"><strong>ABOUT</strong>ゲームの狙いを知りたいなら<span class="sub-next-arrow" aria-hidden="true">→</span></span></a></div><a class="sub-play" href="https://toshibousai-cardgame.web.app/"><strong>PLAY</strong><span>ブラウザで遊ぶ ↗</span></a></section></main><footer class="wrap foot">Ready or Not ／ Ready or Lab</footer></div><script src="assets/site.js"></script><script src="assets/site-data.js"></script><script src="assets/updates.js"></script><script src="assets/v6/sub.js"></script><script src="assets/v6/nav-art.js"></script></body></html>

@@ -4,105 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>協力（CO-OP）｜ Ready or Not</title>
-<meta name="theme-color" content="#00244f">
-<!-- 起動演出の事前クラス付与。v5-proto.html と同じ同期スクリプトを複製している
-     （最初の描画より前に同期実行する必要があるため、外部化するとFOUCの原因になる）。 -->
-<script>/* ?motion=on は JS だけでなく CSS の縮退も解除する。
-   これがないと OS でアニメーションを切っている環境では、罫の描画・文字の
-   立ち上がり・ゲージなど CSS 駆動の演出が検証パラメータを付けても動かない。 */
-if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttribute('data-motion','on');</script>
-<script>
-(function(){
-  var h = document.documentElement;
-  try{
-    if (sessionStorage.getItem('ronIntroSeen') === '1') { h.classList.add('intro-skip'); }
-    else { h.classList.add('intro-lock'); sessionStorage.setItem('ronIntroSeen', '1'); }
-  } catch(e){ h.classList.add('intro-lock'); }
-})();
+<title>CO-OP ｜ 協力モードの遊び方 ｜ Ready or Not</title>
+<meta name="theme-color" content="#002A6C">
+<link rel="icon" href="../assets/icons/app_icon.webp">
+<meta name="description" content="自然側1人と都市側2〜4人に分かれる協力モード。限られた予算を配り、自分と仲間の街を守ります。1試合5〜7分、役割ごとの判断、ターンの流れ、後方支援や復興の仕組みを紹介します。">
+<link rel="canonical" href="https://readyorlab.com/modes/co-op">
+<meta property="og:title" content="CO-OP ｜ 協力モードの遊び方 ｜ Ready or Not">
+<meta property="og:description" content="自然側1人と都市側2〜4人に分かれる協力モード。限られた予算を配り、自分と仲間の街を守ります。1試合5〜7分、役割ごとの判断、ターンの流れ、後方支援や復興の仕組みを紹介します。">
+<meta property="og:url" content="https://readyorlab.com/modes/co-op">
+<meta property="og:image" content="https://readyorlab.com/assets/og/og-a.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Ready or Not 防災カードバトル。夜明けの東京タワーと荒れる街。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ready or Not">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "HOME",
+      "item": "https://readyorlab.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "CO-OP",
+      "item": "https://readyorlab.com/modes/co-op"
+    }
+  ]
+}
 </script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Shippori+Mincho+B1:wght@800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
+     下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
+     画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
+     LPの各節のレイアウト（ヒーロー・なぜ作ったか・カードマーキー・軌道セレクタ・
+     遊び方・締め）は下のページ固有 <style> に残す。 -->
 <link rel="stylesheet" href="../assets/site.css">
-<style>
-/* 地の色は全ページ共通の固定値（§18.1。design/official_site_spec.md §18）。
-   旧・地の軌跡（節ごとに異なる停止点）は廃止し、全ページ oklch(.265 .090 255) に
-   揃えた。site.css の :root 既定値と同じだが、このページ単体で開いた場合の
-   フォールバックとして明示している。 */
-:root{ --gL:.265; --gC:.090; --gH:255; }
-</style>
-</head>
-<body>
 
-<!-- 起動演出オーバーレイ（LPと同一マークアップ・§20.1で4幕へ作り直し）。 -->
-<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
-  <div class="loadCredit">
-    <span class="loadCreditLine enBase">produced</span>
-    <span class="loadCreditLine enBase">by Ready or Lab</span>
-    <span class="loadCreditRule" aria-hidden="true"></span>
-  </div>
-  <!-- 幕0（0.10〜1.40秒）：素材の読み込みを見せるゲージ（2026-08-16作り直し）。
-       ⚠️ このローディングの目的は「produced by 以降のモーションがカクついたり
-          飛んだりしないための時間稼ぎ」である。見た目のためだけの尺ではない。
-       画面中心に円が回り、LOAD の下で 0→100 が進む。数字はダイヤルのように
-       上から降りてくる（緩急つき）。0→100 が終わってから produced by が始まる。
-       進捗の唯一の出どころは CSS の --n（@propertyで登録した整数）。円弧の
-       stroke-dashoffset も数字も同じ --n を読むため、両者がずれることがない。
-       JSはその --n を読んで桁を組み替えるだけの装飾で、止まっても
-       counter() のフォールバックが出る（オーバーレイの退場は完全にCSS側）。 -->
-  <div class="loadGauge" aria-hidden="true">
-    <div class="loadRing">
-      <svg class="loadRingSvg" viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="loadRingTrack" cx="60" cy="60" r="54"></circle>
-        <circle class="loadRingArc" cx="60" cy="60" r="54"></circle>
-      </svg>
-      <span class="loadRingWord enBase">LOAD</span>
-    </div>
-    <span class="loadCount" aria-hidden="true"><span class="loadNum"></span><span class="loadPct">%</span></span>
-  </div>
-  <div class="loadInk" aria-hidden="true">
-      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
-           重ね、白を透過させて黒だけを残す（§20.1改）。
-           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
-              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
-              確実に引っかかる。再生は等速1回きりにすること。 -->
-      <video class="loadInkVid" src="../assets/ink/ink_load_timed.mp4"
-             muted playsinline preload="auto" aria-hidden="true"></video>
-    </div>
-  <div class="loadBlackout" aria-hidden="true"></div>
-</div>
+<link rel="stylesheet" href="../assets/v6.css">
+<link rel="stylesheet" href="../assets/v6/sub.css">
 
-<!-- 背景の粒子と幾何学的な線（今回追加）。本文より後ろに敷く静的な奥行き演出。
-     18個の粒子（遠景6・中景6・近景6の3層）＋静止した線4本。§厳守事項どおり
-     transform/opacityだけで動かし、JSのrAFループは増やしていない。 -->
-<div class="bgField" aria-hidden="true">
-  <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
-  <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
-  <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
-  <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
-  <span class="bgDot bgDot--a" style="--x:4%;--y:6%;animation-delay:-5s"></span>
-  <span class="bgDot bgDot--a" style="--x:17%;--y:22%;animation-delay:-16s"></span>
-  <span class="bgDot bgDot--a" style="--x:30%;--y:38%;animation-delay:-27s"></span>
-  <span class="bgDot bgDot--a" style="--x:43%;--y:54%;animation-delay:-38s"></span>
-  <span class="bgDot bgDot--a" style="--x:56%;--y:70%;animation-delay:-49s"></span>
-  <span class="bgDot bgDot--a" style="--x:69%;--y:86%;animation-delay:-60s"></span>
-  <span class="bgDot bgDot--b" style="--x:82%;--y:12%;animation-delay:-4s"></span>
-  <span class="bgDot bgDot--b" style="--x:95%;--y:28%;animation-delay:-11s"></span>
-  <span class="bgDot bgDot--b" style="--x:16%;--y:44%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--b" style="--x:29%;--y:60%;animation-delay:-25s"></span>
-  <span class="bgDot bgDot--b" style="--x:42%;--y:76%;animation-delay:-32s"></span>
-  <span class="bgDot bgDot--b" style="--x:55%;--y:92%;animation-delay:-39s"></span>
-  <span class="bgDot bgDot--c" style="--x:68%;--y:18%;animation-delay:-3s"></span>
-  <span class="bgDot bgDot--c" style="--x:81%;--y:34%;animation-delay:-8s"></span>
-  <span class="bgDot bgDot--c" style="--x:94%;--y:50%;animation-delay:-13s"></span>
-  <span class="bgDot bgDot--c" style="--x:15%;--y:66%;animation-delay:-18s"></span>
-  <span class="bgDot bgDot--c" style="--x:28%;--y:82%;animation-delay:-23s"></span>
-  <span class="bgDot bgDot--c" style="--x:41%;--y:98%;animation-delay:-28s"></span>
-</div>
-
-<!-- ロゴ：画面左上に固定（§20.4）。ナビではなくロゴの組み。リンク先はホーム。 -->
-<a class="siteLogo" href="../" aria-label="ホーム">
+<link rel="stylesheet" href="../assets/v6/nav-art.css">
+<link rel="stylesheet" href="../assets/v6/motion.css">
+<script src="../assets/v6/motion.js"></script>
+<link rel="stylesheet" href="../assets/card-face/card-face.css"><script src="../assets/card-face/card-face.js"></script></head><body class="sub-page detail-page coop-page" style="--page:#002A6C"><a class="siteLogo" href="../" aria-label="ホーム">
   <span class="brandTile"><img src="../assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
   <span class="siteLogoText enBase">Ready or Not</span>
 </a>
@@ -118,233 +76,24 @@ if(/[?&]motion=on(&|$)/.test(location.search))document.documentElement.setAttrib
   <a class="barPlay" href="https://toshibousai-cardgame.web.app/"><span class="barPlayText">PLAY</span></a>
 </nav>
 
+<!-- 背後の暗転スクリム。押すと閉じる。 -->
 <div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<!-- ページ一覧。JSが完全に落ちてもリンク自体はDOMに存在し続け、Tabで
+     フォーカスが入れば :focus-within により可視化される（§13.2の下部バーが
+     採っていた縮退方針をそのまま踏襲。§10.0.1段階2）。 -->
 <nav class="navMenu" id="navMenu" aria-label="ページ一覧">
   <div class="navMenuPanel">
     <ul class="navMenuList en">
       <li><a href="../"><img class="navMenuImg" src="../assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
-      <li><a href="versus.html"><img class="navMenuImg" src="../assets/navicons/versus.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">VERSUS</span></a></li>
-      <li><a href="co-op.html" aria-current="page"><img class="navMenuImg" src="../assets/navicons/coop.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="../about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><span class="site-card" data-card="drill"></span><span class="site-card" data-card="dam"></span><span class="site-card" data-card="hazard_map"></span></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><span class="site-card" data-card="tokyo"></span><span class="site-card" data-card="osaka"></span></span><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="co-op.html" aria-current="page"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><span class="site-card nav-coop-disaster" data-card="tsunami"></span><span class="nav-coop-vs">VS</span><span class="site-card nav-coop-city c1" data-card="tokyo"></span><span class="site-card nav-coop-city c2" data-card="osaka"></span><span class="site-card nav-coop-city c3" data-card="niigata"></span></span><span class="navMenuLabel">CO-OP</span></a></li>
       <li><a href="../features.html"><img class="navMenuImg" src="../assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
-      <li><a href="../cards.html"><img class="navMenuImg" src="../assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
-      <li><a href="../contact.html"><img class="navMenuImg" src="../assets/navicons/contact.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CONTACT</span></a></li>
+      <li><a href="../cards.html"><span class="navMenuImg nav-art nav-cardfan" aria-hidden="true"><span class="site-card" data-card="earthquake"></span><span class="site-card" data-card="drill"></span><span class="site-card" data-card="quake_wall"></span><span class="site-card" data-card="rumor"></span></span><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="../news.html"><span class="navMenuImg nav-art nav-date" aria-hidden="true"><time></time></span><span class="navMenuLabel">NEWS</span></a></li>
+      <li><a href="../contact.html"><span class="navMenuImg nav-art nav-credit enBase" aria-hidden="true"><span>produced by</span><span>Ready or Lab</span></span><span class="navMenuLabel">CONTACT</span></a></li>
     </ul>
   </div>
 </nav>
 
-<!-- 人数アイコン。HOME・VERSUS と同じシンボル定義を複製している。
-     絵文字は使わない（design_system.md）。定義自体は非表示。 -->
-<svg style="display:none" aria-hidden="true">
-  <symbol id="iconPerson" viewBox="0 0 24 24">
-    <circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
-    <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-  </symbol>
-</svg>
-
-<div class="pageScale">
-<div class="wrap">
-  <!-- パンくず（§13.3） -->
-  <p class="crumb en"><a href="../">HOME</a><span>/</span>MODES<span>/</span><b>CO-OP</b></p>
-
-  <!-- 1. モード名＋人数・所要時間 -->
-  <header class="modeHead reveal" data-d="0">
-    <h1 class="modeName enBase">CO-OP</h1>
-    <p class="modeMeta en">協力 ／ 3〜5人 ／ 5〜7分</p>
-  </header>
-
-  <!-- 2. 左＝協力モードの面／右＝実機画面（2026-08-23。VERSUSと同じ組み）。
-       ⚠️ リンクにしない（既にCO-OPにいる）。⚠️ スマホでは実機画面を出さない。 -->
-  <div class="modeHero reveal" data-d="1" style="--panelBg:#002A6C">
-    <div class="modePanel">
-      <span class="modeArtWord enAccent" aria-hidden="true" style="--n:4"><span>C</span><span>O</span><span>O</span><span>P</span></span>
-      <div class="modePanelInner">
-        <span class="modeLabel en">協力モード</span>
-        <span class="modeSub jpAccent">激動のサバイバル</span>
-        <span class="modeCount">
-          <span class="modeCountGroup"><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">3人</span></span>
-          <span class="modeCountSep en" aria-hidden="true">〜</span>
-          <span class="modeCountGroup"><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="modeIcon" viewBox="0 0 24 24" aria-hidden="true"><use href="#iconPerson"></use></svg><span class="en">5人</span></span>
-        </span>
-        <span class="modePanelBody">災害を操る自然サイド（1人）と防災を行う都市サイド（複数人）に分かれてプレイするサバイバル形式。都市同士の共助が協力プレイの勝利の鍵</span>
-      </div>
-    </div>
-    <div class="modeHeroShot">
-      <div class="modeShotWrap maskReveal">
-        <img src="../assets/shots/s04_coop_battle.webp" alt="協力モードのバトル画面。仲間の都市と自分の都市を並べて守る" loading="lazy" width="800" height="1733">
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. 1ターンの流れ -->
-  <section class="flowSec sec ink-blue">
-    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
-         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
-    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
-      <div class="inkStage near"></div>
-      <div class="inkStage far"></div>
-    </div>
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">1ターンの流れ</span></span></h2>
-    <ol class="flowList">
-      <li class="flowItem reveal" data-d="1"><span class="flowNum en">1</span><div>
-        <span class="flowLabel en">CITY</span>
-        <span class="flowName">都市フェーズ</span>
-        <span class="flowText">都市側の全員が政策カードを使う。自分の予算で仲間の都市を助けることもできる。</span></div></li>
-      <li class="flowItem reveal" data-d="2"><span class="flowNum en">2</span><div>
-        <span class="flowLabel en">NATURE</span>
-        <span class="flowName">自然フェーズ</span>
-        <span class="flowText">自然側がハザードカードを選び、都市を攻撃する。</span></div></li>
-      <li class="flowItem reveal" data-d="3"><span class="flowNum en">3</span><div>
-        <span class="flowLabel en">RESPONSE</span>
-        <span class="flowName">対応フェーズ</span>
-        <span class="flowText">攻撃された都市は政策カードで被害を軽減できる。</span></div></li>
-      <li class="flowItem reveal" data-d="4"><span class="flowNum en">4</span><div>
-        <span class="flowLabel en">NEXT TURN</span>
-        <span class="flowName">結果確認</span>
-        <span class="flowText">ダメージ・回復を確認し、次のターンの都市フェーズへ。</span></div></li>
-    </ol>
-  </section>
-
-  <!-- 4. 何を決めるゲームか -->
-  <section class="modeSec sec">
-    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
-         見える区間を残す（2026-08-23 ユーザー確定）。 -->
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">何を決めるゲームか</span></span></h2>
-    <div class="modeBody reveal" data-d="2">
-      <p>1人が自然側となりハザードを選び、残る都市側の全員（最大4人）で街を守る。都市側は限られた予算をどの都市に配分するかを、全員で判断しながら進める。自分の都市だけでなく、仲間の担当する都市にも政策カードを使える。</p>
-      <p>都市が壊滅しても終わりではない。壊滅した都市の担当者は後方支援に回り、毎ターン貯まる予算で生存中の仲間にシールドや回復を送れる。加えて、部屋の設定次第で復興（0〜3回・既定1回）を使い、生存都市プレイヤー全員の承認を得れば、提供した分と同じHPで都市を復活させられる。</p>
-      <!-- 棲み分け（2026-08-23）。⚠️ 面（HOMEと同じ文章）には書かず、ここに置く。 -->
-      <p>対戦と決定的に違うのは、<b style="color:var(--gold)">1試合につき自然側か都市側のどちらか一方しか担当できない</b>ことである。攻守を持ち替えない分、その視点の思考が深くなる。1試合5〜7分と長く、友達と大人数で腰を据えて遊ぶ側の醍醐味がある。</p>
-    </div>
-  </section>
-
-  <!-- 5. ここで何が学べるか -->
-  <section class="modeSec sec ink-blue">
-    <!-- インク背景（§18・assets/site.css の「インク背景・下層ページ共通」）。
-         節の直下の最初の子に置き、本文（z-index:1）より奥へ沈める。 -->
-    <div class="inkLayer inkLayer--bleed" aria-hidden="true">
-      <div class="inkStage near"></div>
-      <div class="inkStage far"></div>
-    </div>
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">学べること</span></span></h2>
-    <div class="modeBody reveal" data-d="2">
-      <p>災害リスクは国際的に、<b style="color:var(--gold)">リスク＝ハザード×曝露×脆弱性</b>という式で説明される。この3項が、そのままカードの3系統に対応している。</p>
-    </div>
-    <!-- 3円の図（第2版・2026-08-23）。受領スライドの構図に合わせて作り直した。
-         題→引出線→中心の点、という視線の順で「重なりが災害リスク」を示す。
-         実装は assets/site.css の「3円の図」ブロック。 -->
-    <figure class="venn reveal venn--roles" data-d="2">
-      <div class="vennStage">
-        <span class="vennTitle jpAccent">災害リスク</span>
-        <svg class="vennArt" viewBox="0 0 2231 1762" aria-hidden="true">
-          <defs>
-            <clipPath id="coh"><circle cx="1116.5" cy="630" r="528"/></clipPath>
-            <clipPath id="coe"><circle cx="811" cy="1223" r="528"/></clipPath>
-          </defs>
-          <circle class="vArc vArc--haz" cx="1116.5" cy="630" r="528"></circle>
-          <circle class="vArc vArc--exp" cx="811" cy="1223" r="528"></circle>
-          <circle class="vArc vArc--vul" cx="1422" cy="1223" r="528"></circle>
-          <g clip-path="url(#coh)"><g clip-path="url(#coe)">
-            <circle class="vCore" cx="1422" cy="1223" r="528"></circle>
-          </g></g>
-          <line class="vLead" x1="700" y1="258" x2="1110" y2="1018"></line>
-          <circle class="vDot" cx="1116.5" cy="1025" r="16"></circle>
-        </svg>
-        <span class="vennLabel vennLabel--haz jpBase" aria-hidden="true">ハザード</span>
-        <span class="vennLabel vennLabel--exp jpBase" aria-hidden="true">曝露</span>
-        <span class="vennLabel vennLabel--vul jpBase" aria-hidden="true">脆弱性</span>
-        <img class="vennCard vennCard--haz" src="../assets/cards/earthquake.webp"
-             alt="ハザードの例：地震カード" loading="lazy" width="288" height="450">
-        <img class="vennCard vennCard--exp" src="../assets/cities/niigata.webp"
-             alt="曝露の例：内陸都市 新潟のカード" loading="lazy" width="288" height="450">
-        <img class="vennCard vennCard--vul" src="../assets/cards/quake_wall.webp"
-             alt="脆弱性の例：耐震補強の政策カード" loading="lazy" width="288" height="450">
-        <span class="vennRole vennRole--nature en">自然側</span>
-        <span class="vennRole vennRole--city en">都市側</span>
-      </div>
-      <figcaption class="vennCap">同じ式を、CO-OPでは2人以上で分けて持つ。自然側はハザードの円だけを動かし、都市側は曝露と脆弱性の2円を動かす。</figcaption>
-    </figure>
-
-    <div class="pairGrid reveal" data-d="3">
-      <div class="pairCard pairCard--haz">
-        <b class="en">HAZARD</b>
-        <h3>自然災害カード</h3>
-        <p>地震・津波・洪水・台風・大火災・土砂崩れ・複合災害。自然側が選ぶが、いつ来るかは都市側には分からない。</p>
-        <div class="pairCards" aria-label="扱うカードの例">
-          <img src="../assets/cards/earthquake.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cards/typhoon.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cards/flood.webp" alt="" loading="lazy" width="288" height="450">
-        </div>
-      </div>
-      <div class="pairCard pairCard--exp">
-        <b class="en">EXPOSURE</b>
-        <h3>都市カードの属性</h3>
-        <p>津波は海岸都市に、土砂崩れは山間都市に追加被害を与える。曝露の高い都市ほど、自然側から見て狙う理由になる。</p>
-        <div class="pairCards" aria-label="扱う都市カードの例">
-          <img src="../assets/cities/kobe.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cities/tokyo.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cities/hiroshima.webp" alt="" loading="lazy" width="288" height="450">
-        </div>
-      </div>
-      <div class="pairCard pairCard--vul">
-        <b class="en">VULNERABILITY</b>
-        <h3>政策カード2系統</h3>
-        <p>耐震補強や堤防建設は構造的脆弱性を下げる。避難訓練や相互支援協定は社会的脆弱性を下げる。デマ拡散は逆に脆弱性を増やす。</p>
-        <div class="pairCards" aria-label="扱う政策カードの例">
-          <img src="../assets/cards/quake_wall.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cards/dam.webp" alt="" loading="lazy" width="288" height="450">
-          <img src="../assets/cards/agreement.webp" alt="" loading="lazy" width="288" height="450">
-        </div>
-      </div>
-    </div>
-
-    <!-- ⚠️ 2026-08-23：VERSUS にあった「守りと攻めは、同じ式の裏表」をここへ移した。
-         同じ式を両側から見る話は、1試合につき片側へ専念する CO-OP のほうが強い。
-         既存の「自然側を経験すると〜」と主張が重なるため、別ブロックを足さず
-         1つに畳んである。 -->
-    <div class="insight reveal" data-d="3">
-      <h3 class="jpAccent">片方に専念するから、深く入れる</h3>
-      <p>VERSUSでは1人が守りと攻めを同時にこなす。CO-OPは違う。1試合のあいだ、自然側か都市側のどちらか一方に専念する。役割が固定されるぶん、その視点の思考が深くなる。</p>
-      <p>自然側はハザードを選び、都市側は曝露と脆弱性を操作する。自然側を一度でも担当すると「都市の壊滅を狙え」という視点で盤面を見ることになり、曝露の高い都市がなぜ狙われるのかが体感で分かる。守る側だけを遊んでいては得られない視点である。</p>
-      <p>都市側は資源配分を全員で合議する、共助の意思決定そのものを体験する。誰かの都市が壊滅しても後方支援や復興で立て直せるため、「誰の街を先に救うか」というトリアージの判断が発生する。</p>
-      <p>そして両方の側を遊べば、同じ<b style="color:var(--gold)">災害リスクの式</b>を、最小化する側と最大化する側の両方から見たことになる。守りと攻めは、同じ式の裏表である。</p>
-    </div>
-  </section>
-
-  <!-- 6. 設定でできること → PLAY -->
-  <section class="modeSec sec">
-    <!-- ⚠️ この節はインクを敷かない。1つおきに間引いて、素の地と背景の粒子が
-         見える区間を残す（2026-08-23 ユーザー確定）。 -->
-    <h2 class="modeSecTitle jpAccent reveal" data-d="1"><span class="hSlide"><span class="hText">設定でできること</span></span></h2>
-    <dl class="settingsList reveal" data-d="2">
-      <div class="settingsItem">
-        <dt>自然役の決め方</dt>
-        <dd>CPUにまかせる・参加者からランダム抽選・参加者の誰かが担当・自分が担当、の4通りから部屋のホストが選べる。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>難易度</dt>
-        <dd>EASY（ランダム行動）・NORMAL（バランス型）・HARD（戦略AI）。オンラインは最大5人（都市4＋自然1）、最低2人から遊べる。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>都市HP</dt>
-        <dd>初期値を80〜120の範囲でスライダー調整できる（推奨・既定値100）。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>社会的脆弱性イベント</dt>
-        <dd>デマ拡散などの人為災害イベントの発生をON/OFFできる。</dd>
-      </div>
-      <div class="settingsItem">
-        <dt>復興回数</dt>
-        <dd>0〜3回の範囲で設定できる（既定1回）。壊滅した都市を、生存都市プレイヤー全員の承認を得て同量のHPで復活させられる。</dd>
-      </div>
-    </dl>
-    <a class="btnFill en" href="https://toshibousai-cardgame.web.app/">PLAY CO-OP</a>
-  </section>
-
-  <footer class="foot">Ready or Not ／ Ready or Lab</footer>
-</div>
-</div><!-- /.pageScale -->
-
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
-<script src="../assets/site.js"></script>
-</body>
-</html>
+<div class="pageScale"><main class="sub-main wrap"><header class="sub-page-head" data-page-title="CO-OP"><nav class="sub-breadcrumb" aria-label="パンくず"><a href="../">HOME</a><span aria-hidden="true">/</span><span aria-current="page">CO-OP</span></nav><h1 class="sub-page-title">CO-OP</h1><p class="jpAccent sub-jp-heading"><span>ひとりの判断を、</span><wbr><span>みんなの備えに。</span></p></header><section class="mode-lead coop-lead"><div class="mode-lead-copy"><p class="mode-kicker">協力 ／ 3〜5人 ／ 5〜7分</p><h2 class="jpAccent">自然側 <em>1</em>人<br><span class="coop-vs">vs</span> 都市側 <em>2〜4</em>人</h2></div><div class="coop-trio"><div class="detail-phone trio-city"><img src="../assets/shots/v6/coop_battle.webp" alt="都市側の実機画面" width="900" height="1950" loading="lazy"></div><div class="detail-phone trio-city"><img src="../assets/shots/v6/coop_battle.webp" alt="仲間の都市を守る実機画面" width="900" height="1950" loading="lazy"></div><div class="detail-phone trio-nature"><img src="../assets/shots/v6/coop_nature.webp" alt="自然側の実機画面" width="900" height="1950" loading="lazy"></div></div></section><section class="sub-section"><h2 class="jpAccent sub-jp-heading">役割を分けて、街を守る</h2><div class="role-grid"><article class="nature-role"><span class="role-word">NATURE</span><h3>自然側 <b>1人</b></h3><p>ハザードを選び、都市を攻撃する。</p><div class="role-art"><div class="detail-phone "><img src="../assets/shots/v6/coop_nature.webp" alt="自然側が災害と攻撃先を選ぶ実機画面" width="900" height="1950" loading="lazy"></div><span class="site-card" data-card="tsunami"></span></div></article><article class="city-role"><span class="role-word">CITY</span><h3>都市側 <b>2〜4人</b></h3><p>限られた予算を配り、仲間の街も守る。</p><div class="role-art"><div class="detail-phone "><img src="../assets/shots/v6/coop_battle.webp" alt="都市側が政策を使う実機画面" width="900" height="1950" loading="lazy"></div><span class="site-card" data-card="dam"></span><span class="site-card" data-card="niigata"></span></div></article></div></section><section class="sub-section sub-paper"><h2 class="jpAccent sub-jp-heading">1ターンの流れ</h2><div class="turn-flow"><figure><div class="detail-phone "><img src="../assets/shots/v6/coop_battle.webp" alt="都市フェーズの実機画面" width="900" height="1950" loading="lazy"></div><figcaption><span class="flow-word">CITY</span><h3>都市フェーズ</h3><p>都市側の全員が政策カードを使う。自分の予算で仲間の都市を助けることもできる。</p></figcaption></figure><figure><div class="detail-phone "><img src="../assets/shots/v6/coop_nature.webp" alt="自然フェーズの実機画面" width="900" height="1950" loading="lazy"></div><figcaption><span class="flow-word">NATURE</span><h3>自然フェーズ</h3><p>自然側がハザードカードを選び、都市を攻撃する。</p></figcaption></figure><figure><div class="detail-phone "><img src="../assets/shots/v6/coop_battle.webp" alt="対応フェーズの実機画面" width="900" height="1950" loading="lazy"></div><figcaption><span class="flow-word">RESPONSE</span><h3>対応フェーズ</h3><p>攻撃された都市は政策カードで被害を軽減できる。</p></figcaption></figure><figure><div class="detail-phone "><img src="../assets/shots/s04_coop_battle.webp" alt="結果確認の実機画面" width="900" height="1950" loading="lazy"></div><figcaption><span class="flow-word">NEXT TURN</span><h3>結果確認</h3><p>ダメージ・回復を確認し、次のターンの都市フェーズへ。</p></figcaption></figure></div></section><section class="sub-section coop-learning"><div><h2 class="jpAccent sub-jp-heading">片方に専念するから、<br>深く入れる</h2><p>VERSUSでは1人が守りと攻めを同時にこなす。CO-OPは違う。1試合のあいだ、自然側か都市側のどちらか一方に専念する。役割が固定されるぶん、その視点の思考が深くなる。</p><p>自然側はハザードを選び、都市側は曝露と脆弱性を操作する。自然側を一度でも担当すると「都市の壊滅を狙え」という視点で盤面を見ることになり、曝露の高い都市がなぜ狙われるのかが体感で分かる。守る側だけを遊んでいては得られない視点である。</p><p>都市側は資源配分を全員で合議する、共助の意思決定そのものを体験する。誰かの都市が壊滅しても後方支援や復興で立て直せるため、「誰の街を先に救うか」というトリアージの判断が発生する。</p><p>そして両方の側を遊べば、同じ<b style="color:var(--gold)">災害リスクの式</b>を、最小化する側と最大化する側の両方から見たことになる。守りと攻めは、同じ式の裏表である。</p></div><div class="shared-risk"><div><span>自然側</span><strong>ハザード</strong><span class="site-card" data-card="earthquake"></span></div><div><span>都市側</span><strong>曝露 × 脆弱性</strong><div class="pair-cards"><span class="site-card" data-card="kobe"></span><span class="site-card" data-card="quake_wall"></span></div></div></div></section><section class="sub-section decision-section"><div><h2 class="jpAccent sub-jp-heading">仲間と、何を決めるか</h2><p>1人が自然側となりハザードを選び、残る都市側の全員（最大4人）で街を守る。都市側は限られた予算をどの都市に配分するかを、全員で判断しながら進める。自分の都市だけでなく、仲間の担当する都市にも政策カードを使える。</p><p>都市が壊滅しても終わりではない。壊滅した都市の担当者は後方支援に回り、毎ターン貯まる予算で生存中の仲間にシールドや回復を送れる。加えて、部屋の設定次第で復興（0〜3回・既定1回）を使い、生存都市プレイヤー全員の承認を得れば、提供した分と同じHPで都市を復活させられる。</p><p>対戦と決定的に違うのは、1試合につき自然側か都市側のどちらか一方しか担当できないことである。攻守を持ち替えない分、その視点の思考が深くなる。1試合5〜7分と長く、友達と大人数で腰を据えて遊ぶ側の醍醐味がある。</p></div><div class="detail-phone "><img src="../assets/shots/s04_coop_battle.webp" alt="残り予算、仲間の都市のHP、使える政策カードが並ぶ協力モードの実機画面" width="900" height="1950" loading="lazy"></div></section><section class="sub-ending" aria-labelledby="next-title"><h2 id="next-title" class="jpAccent sub-jp-heading">次に読む</h2><div class="sub-next-grid"><a class="sub-next" href="versus.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="tokyo"></span></span><span class="sub-next-copy"><strong>VERSUS</strong>1対1で、読み合いを楽しみたいなら<span class="sub-next-arrow" aria-hidden="true">→</span></span></a><a class="sub-next" href="../features.html"><span class="sub-next-art" aria-hidden="true"><span class="site-card" data-card="hazard_map"></span></span><span class="sub-next-copy"><strong>FEATURES</strong>自分に合う遊び方を探したいなら<span class="sub-next-arrow" aria-hidden="true">→</span></span></a></div><a class="sub-play" href="https://toshibousai-cardgame.web.app/"><strong>PLAY</strong><span>ブラウザで遊ぶ ↗</span></a></section></main><footer class="wrap foot">Ready or Not ／ Ready or Lab</footer></div><script src="../assets/site.js"></script><script src="../assets/site-data.js"></script><script src="../assets/updates.js"></script><script src="../assets/v6/sub.js"></script><script src="../assets/v6/nav-art.js"></script></body></html>
