@@ -1,4 +1,4 @@
-/* Shared by v6 HOME, ABOUT and NEWS only. */
+/* Shared by all official-site pages. */
 :root{--ease:cubic-bezier(.215,.61,.355,1);--e:var(--ease)}
 /* The existing loading sequence is part of the opening, including its curve. */
 .loadOverlay{--e:cubic-bezier(.16,1,.3,1)}
@@ -31,3 +31,49 @@ html[data-motion-still]::view-transition-group(*),html[data-motion-still]::view-
 html[data-motion-still] .motion-roll>span{transition:none!important}
 html[data-motion-still] .motion-next{visibility:hidden}
 @media(prefers-reduced-motion:reduce){html::after{display:none;transition:none}}
+
+/* Review 13: one thin, matte hardware component. Layout and crop stay local. */
+body .phone-frame{
+ box-sizing:border-box;position:relative;padding:5px 4px!important;
+ background:#181a1e!important;border:1px solid #62666c!important;
+ border-radius:28px!important;box-shadow:0 15px 28px #0005,0 0 0 1px #101216!important;
+ overflow:visible!important;isolation:isolate;aspect-ratio:9/19.5!important;
+}
+body .phone-frame::before{content:'';position:absolute;left:-3px;top:19%;height:12%;width:2px;background:#6b6e72;border-radius:2px;z-index:1}
+body .phone-frame::after{content:'';position:absolute;width:23%;height:7px;left:38.5%;top:5px;bottom:auto;border-radius:0 0 7px 7px;background:#181a1e;z-index:2}
+body .phone-frame>img,body .phone-frame>.v6-screen{display:block;width:100%;height:100%;border-radius:22px!important;overflow:hidden}
+body .phone-frame>img{object-fit:cover}
+body .about-screen-stack .phone-frame{height:auto}
+@media(max-width:600px){
+ body .phone-frame{border-radius:20px!important;padding:4px 3px!important}
+ body .phone-frame>img,body .phone-frame>.v6-screen{border-radius:16px!important}
+}
+/* Time-based reversible transitions own visibility even when view() is supported.
+   Translate is independent of local rotate/transform used by phone layouts. */
+html [data-scroll-reveal]{
+ animation:none!important;opacity:0;translate:0 48px;
+ transition:opacity .7s var(--ease),translate .7s var(--ease)!important;
+ transition-delay:0s!important;
+}
+html .reveal[data-scroll-reveal]{transform:none}
+html [data-scroll-reveal].is-in{opacity:1;translate:0 0}
+html .headRule[data-scroll-reveal]{translate:none;transform:scaleX(0);transition:transform .6s var(--ease)!important}
+html .headRule[data-scroll-reveal].is-in{transform:scaleX(1)}
+html [data-scroll-reveal] .hSlide::before,html [data-scroll-reveal] .hText{animation:none!important;transition:transform .6s var(--ease),opacity .6s var(--ease)!important}
+html [data-scroll-reveal] .hSlide::before{transform:scaleX(0)}
+html [data-scroll-reveal] .hText{opacity:0;transform:translateY(.12em)}
+html [data-scroll-reveal].is-in .hSlide::before{transform:scaleX(1)}
+html [data-scroll-reveal].is-in .hText{opacity:1;transform:translateY(0)}
+html .v6-ways.ways-animated .way-phone{transition-delay:0s!important}
+html .v6-deck.deck-reveal .deck-phone{transition-delay:0s!important}
+html[data-motion-still] [data-scroll-reveal],html[data-motion-still] [data-scroll-reveal] .hText{
+ opacity:1!important;translate:none!important;transform:none!important;transition:none!important;
+}
+html[data-motion-still] [data-scroll-reveal] .hSlide::before{transform:scaleX(1)!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){
+ html [data-scroll-reveal],html [data-scroll-reveal] .hText{opacity:1!important;translate:none!important;transform:none!important;transition:none!important}
+ html [data-scroll-reveal] .hSlide::before{transform:scaleX(1)!important;transition:none!important}
+}
+
+/* Revealed display type creates a stacking context; keep breadcrumbs clickable. */
+.sub-breadcrumb{position:relative;z-index:2}

@@ -220,28 +220,49 @@ window.RonSite = (function(){
     } catch (e) { /* Lenis生成に失敗してもネイティブスクロールのまま動作する */ }
   }
 
-  /* ── スクロール出現（§11.3-1）の非対応ブラウザ向けフォールバック ──
-     animation-timeline:view() 対応ブラウザは CSS の @supports 分岐だけで
-     完結するのでここでは何もしない。非対応（Firefox stable 等）だけ、
-     IntersectionObserver を張り、閾値に達した要素へ .is-in を足す。 */
-  var supportsScrollTimeline = !!(window.CSS && CSS.supports &&
-    CSS.supports('animation-timeline', 'view()'));
-  if (!supportsScrollTimeline) {
-    var revealEls = Array.prototype.slice.call(document.querySelectorAll('.reveal, .headRule'));
-    if (reduce || !('IntersectionObserver' in window)) {
-      revealEls.forEach(function(el){ el.classList.add('is-in'); });
-    } else {
-      var revealIO = new IntersectionObserver(function(entries){
-        entries.forEach(function(entry){
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-in');
-            revealIO.unobserve(entry.target);
-          }
-        });
-      }, { threshold: .15, rootMargin: '0px 0px -10% 0px' });
-      revealEls.forEach(function(el){ revealIO.observe(el); });
-    }
+  // One reversible visibility contract, independent of view() support.
+  var revealQuery = '.reveal, .headRule';
+  var automaticQuery = '.sub-main .sub-page-head > :not(nav), .about-page-heading > :not(nav), ' +
+    '.sub-section > :not(script), .sub-ending > *, .about-main > section > :not(script), ' +
+    '.mode-lead > :not(.vertical-mode), .error-main > :not(.error-band), .news-year > h2, .news-row';
+  var revealMQ = matchMedia('(prefers-reduced-motion: reduce)');
+  var revealTargets = new Set();
+  function stillReveal(){
+    return revealMQ.matches || new URLSearchParams(location.search).get('motion') === 'lite';
   }
+  function paintReveals(){
+    var still = stillReveal() || !('IntersectionObserver' in window);
+    revealTargets.forEach(function(el){
+      if (!el.isConnected) { revealTargets.delete(el); return; }
+      if (still) { el.classList.add('is-in'); return; }
+      // Remove the reveal's current translation from the measured position.
+      // Otherwise an exiting short line can move back inside and flicker.
+      var rect = el.getBoundingClientRect();
+      var translate = getComputedStyle(el).translate.split(' ');
+      var offset = parseFloat(translate[1]) || 0;
+      var top = rect.top - offset, bottom = rect.bottom - offset;
+      var visible = Math.min(bottom, innerHeight) - Math.max(top, 0);
+      if (visible >= Math.min(rect.height, innerHeight) * .15) el.classList.add('is-in');
+      else if (bottom <= 0 || top >= innerHeight) el.classList.remove('is-in');
+    });
+  }
+  function collectReveals(){
+    document.querySelectorAll(automaticQuery).forEach(function(el){
+      if (!el.matches('section') && !el.closest('#opening, #s04, .navMenu, .bottomBar')) el.classList.add('reveal');
+    });
+    document.querySelectorAll(revealQuery).forEach(function(el){
+      if (revealTargets.has(el) || el.closest('#opening, #s04, .navMenu, .bottomBar')) return;
+      revealTargets.add(el);el.setAttribute('data-scroll-reveal', '');
+    });
+    paintReveals();
+  }
+  collectReveals();
+  revealMQ.addEventListener('change', paintReveals);
+  document.addEventListener('load', paintReveals, true);
+  document.fonts.ready.then(paintReveals);
+  // Dynamic NEWS/CARDS content joins the same batch, without another frame loop.
+  var revealMain = document.querySelector('main');
+  if (revealMain) new MutationObserver(collectReveals).observe(revealMain, {childList:true,subtree:true});
 
   /* ── カスタムカーソル：照準レティクル（§10.8.3-7） ──
      地の部分では出さない。押せる要素にホバーしたときだけ現れて拡大する。
@@ -347,6 +368,7 @@ window.RonSite = (function(){
   window.addEventListener('resize', onScroll, { passive:true });
 
   addScrollHandler(paintBar);
+  addScrollHandler(paintReveals);
 
   /* ── ハンバーガーメニュー（今回新設） ──
      下部固定バーをPLAY専用に縮めた分、ページ移動（HOME/VERSUS/CO-OP/

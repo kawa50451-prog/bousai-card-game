@@ -63,3 +63,9 @@ html[data-motion-still] .sub-page .bgDot{animation:none;left:var(--x,40%)}html[d
 @keyframes error-ticker{to{transform:translateX(-50%)}}
 @media(max-width:600px){.error-main{padding-top:62px}.error-band{margin-top:50px}.error-code{font-size:67vw;margin-top:45px}.error-routes{flex-direction:column;align-items:stretch;gap:22px}.error-routes a{justify-content:space-between;font-size:32px}.error-main h1{font-size:23px;line-height:1.6}.error-band span{font-size:24px}}
 @media(max-width:600px){.sub-next{grid-template-columns:90px minmax(0,1fr);gap:12px}.sub-next-copy{font-size:13px!important;padding-right:8px;white-space:nowrap}.sub-next-copy strong{white-space:normal}}
+
+@media(max-width:600px){
+ .terrain-grid{grid-template-columns:minmax(0,1fr);gap:40px}
+ .terrain-column>p{min-height:0}
+ .terrain-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

@@ -11,14 +11,13 @@
     if (observer) observer.disconnect();
     section.classList.remove('deck-reveal');
     if (!mobile.matches || html.hasAttribute('data-motion-lite') ||
-        (reduced.matches && html.dataset.motion !== 'on')) return;
+        reduced.matches) return;
     observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add('deck-in');
-        observer.unobserve(entry.target);
+        if (entry.intersectionRatio >= .15) entry.target.classList.add('deck-in');
+        else if (!entry.isIntersecting) entry.target.classList.remove('deck-in');
       });
-    }, {threshold:0.12});
+    }, {threshold:[0,.15]});
     section.querySelectorAll('.deck-step').forEach(function (step) {
       step.classList.remove('deck-in');
       observer.observe(step);

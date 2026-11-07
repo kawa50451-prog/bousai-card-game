@@ -222,7 +222,21 @@ function introMetrics(){
  makeTransition(stage,null,EVENTS[0],-1,1.9,CFG.entry,{f,letters});
 }
 const timeline=$('opening-timeline');EVENTS.forEach((e,i)=>{const point=document.createElement('i');point.style.left=(i/6*100)+'%';timeline.append(point);anim(point,[[0,{opacity:0}],[e.start-.0001,{opacity:0}],[e.start,{opacity:1}],[4.75,{opacity:1}],[4.95,{opacity:0}]]);});
-anim(timeline,[[0,{opacity:0,transform:'scaleX(.06)'}],[2.3499,{opacity:0,transform:'scaleX(.06)'}],[2.35,{opacity:.7,transform:'scaleX(.06)'}],[3.05,{opacity:1,transform:'scaleX(1)'}],[6.05,{opacity:1,transform:'translateY(0) scaleX(1)'},'cubic-bezier(.2,.7,.2,1)'],[6.65,{opacity:1,transform:`translateY(${matchMedia('(max-width:600px)').matches?'-19vh':'-15vh'}) scaleX(.67)`}]]);
+const titleRuleMotion=anim(timeline,[[0,{opacity:0,transform:'scaleX(.06)'}],[2.3499,{opacity:0,transform:'scaleX(.06)'}],[2.35,{opacity:.7,transform:'scaleX(.06)'}],[3.05,{opacity:1,transform:'scaleX(1)'}],[6.05,{opacity:1,transform:'translateY(0) scaleX(1)'},'cubic-bezier(.2,.7,.2,1)'],[6.65,{opacity:1,transform:`translateY(${matchMedia('(max-width:600px)').matches?'-19vh':'-15vh'}) scaleX(.67)`}]]);
+// Mobile loading finale: place the rule below the rendered three-line title.
+// Keep the desktop endpoint and the original scene clock unchanged.
+function measureTitleRule(){
+ if(!matchMedia('(max-width:600px)').matches||!stage.isConnected)return;
+ const title=stage.querySelector('h1');
+ const bottom=title.offsetTop+title.offsetHeight;
+ const shift=bottom+14-timeline.offsetTop;
+ titleRuleMotion.effect.setKeyframes(titleRuleMotion.effect.getKeyframes().map(frame=>{
+  if(frame.offset>=6.65/CFG.duration)frame.transform=`translateY(${shift}px) scaleX(.67)`;
+  return frame;
+ }));
+ $('opening-tagline').style.top=Math.max(innerHeight*.64,bottom+42)+'px';
+}
+measureTitleRule();document.fonts.ready.then(measureTitleRule);
 anim($('opening-current'),[[0,{left:'0%',opacity:0}],[2.35,{left:'0%',opacity:1}],...EVENTS.slice(1).map((e,i)=>[e.start,{left:((i+1)/6*100)+'%',opacity:1}]),[4.93,{left:'100%',opacity:1}],[4.95,{left:'100%',opacity:0}]]);
 anim($('opening-title'),[[0,{opacity:0,transform:'scale(1.14)'}],[6.05,{opacity:0,transform:'scale(1.14)'},'cubic-bezier(.12,.7,.15,1)'],[6.17,{opacity:1,transform:'scale(1.045)'},'cubic-bezier(.12,.7,.15,1)'],[6.65,{opacity:1,transform:'scale(1)'}]]);
 anim($('opening-tagline'),[[0,{opacity:0,transform:'translateY(8px)'}],[7.65,{opacity:0,transform:'translateY(8px)'},'cubic-bezier(.2,.7,.2,1)'],[8.0,{opacity:1,transform:'translateY(0)'}]]);

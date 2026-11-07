@@ -11,7 +11,7 @@
  const key='ronMotionArrival';
  const homePath=p=>/\/(?:(?:index|v6)(?:\.html)?)?$/.test(p);
  const aboutPath=p=>/\/about(?:\.html)?$/.test(p);
- const pagePath=p=>homePath(p)||aboutPath(p)||/\/news(?:\.html)?$/.test(p);
+ const pagePath=p=>homePath(p)||/\/(?:about|news|features|cards|contact|404|modes\/(?:versus|co-op)|assets\/v6\/sub\/privacy)(?:\.html)?\/?$/.test(p);
  function clearCurtain(){
   clearTimeout(safety);root.classList.remove('motion-covered','motion-arriving','motion-leaving');departing=false;
  }

@@ -1,25 +1,4 @@
 /* Same horizontal particles as site.css; no animation frame loop. */
-/* Extend the existing navy curtain to detail-page links. motion.js still owns arrival and HOME → ABOUT. */
-(() => {
- const root=document.documentElement;
- const added=path=>/\/(?:features|cards|contact|404|modes\/(?:versus|co-op))\.html$/.test(path);
- const known=path=>added(path)||/\/(?:(?:index|v6|about|news)\.html)?$/.test(path);
- const lite=new URLSearchParams(location.search).get('motion')==='lite';
- if(lite)document.querySelectorAll('a[href]').forEach(a=>{const url=new URL(a.href,location.href);if(url.origin===location.origin&&added(url.pathname)){url.searchParams.set('motion','lite');a.href=url.href;}});
- let leaving=false;
- addEventListener('pageshow',()=>{leaving=false;});
- document.addEventListener('click',event=>{
-   const link=event.target.closest('a[href]');
-   if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.hasAttribute('download')||(link.target&&link.target!=='_self')||lite||matchMedia('(prefers-reduced-motion:reduce)').matches)return;
-   const url=new URL(link.href,location.href);
-   if(url.origin!==location.origin||!known(url.pathname)||!known(location.pathname)||!(added(url.pathname)||added(location.pathname))||(url.pathname===location.pathname&&url.search===location.search))return;
-   event.preventDefault();if(leaving)return;leaving=true;
-   try{sessionStorage.setItem('ronMotionArrival',JSON.stringify({url:url.href,kind:'curtain',time:Date.now()}));}catch(_){url.searchParams.set('_ronCurtain',String(Date.now()));}
-   root.classList.add('motion-leaving');getComputedStyle(root,'::after').opacity;root.classList.add('motion-covered');
-   setTimeout(()=>location.assign(url.href),180);
-   setTimeout(()=>{root.classList.remove('motion-leaving','motion-covered');leaving=false;},2000);
- });
-})();
 (()=>{'use strict';const body=document.querySelector('.sub-page');if(!body)return;
 if(!body.querySelector('.bgField')){const field=document.createElement('div');field.className='bgField';field.setAttribute('aria-hidden','true');for(let i=0;i<18;i++){const dot=document.createElement('i');dot.className='bgDot bgDot--'+['a','b','c'][i%3];dot.style.cssText='--y:'+((i*37+9)%100)+'%;--x:'+((i*43+11)%100)+'%;animation-delay:-'+((i*17+8)%58)+'s';field.append(dot);}body.prepend(field);}
 document.addEventListener('visibilitychange',()=>body.querySelectorAll('.bgDot').forEach(dot=>dot.style.animationPlayState=document.hidden?'paused':''));})();

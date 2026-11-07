@@ -1448,3 +1448,9 @@ html[data-introfreeze] .loadInk{ display:block !important }
     font-size:clamp(var(--fs-d2),26vw,var(--fs-d3))}
   .modePanelInner{max-width:none}
 }
+
+/* Review 13: reserve a separate row for the mobile loading credit underline. */
+@media(max-width:600px){
+ .loadCreditLine{flex:none}
+ .loadCreditRule{flex:none;margin-top:12px;position:static;align-self:center}
+}

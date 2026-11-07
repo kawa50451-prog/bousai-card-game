@@ -344,7 +344,7 @@
           <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>2人</span></span>
         </p>
       </div>
-      <div class="v6-phone way-phone vs_battle-phone"><img src="assets/shots/v6/vs_battle.webp" alt="通常のCPU対戦。両者の都市・HPと手札" width="780" height="1688" loading="lazy"></div>
+      <div class="v6-phone way-phone vs_battle-phone phone-frame"><img src="assets/shots/v6/vs_battle.webp" alt="通常のCPU対戦。両者の都市・HPと手札" width="780" height="1688" loading="lazy"></div>
     </a>
     <a class="wayFullHalf wayFullHalf--coop" href="modes/co-op.html">
       <span class="wayArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>O</span><span>P</span></span>
@@ -355,8 +355,8 @@
         <p class="wayCount"><span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>3人〜5人</span></span></p>
       </div>
       <div class="coop-phones">
-        <div class="coop-city-pair"><div class="v6-phone coop-city"><div class="v6-screen"><img src="assets/shots/v6/coop_battle.webp" alt="協力モードの都市側の実機画面" loading="lazy"></div></div><div class="v6-phone coop-city"><div class="v6-screen"><img src="assets/shots/v6/coop_battle.webp" alt="都市側の画面" loading="lazy"></div></div><span class="coop-city-label"><span>都市 2〜4人</span><span>都市 2〜4人</span></span></div>
-        <figure class="coop-nature"><div class="v6-phone"><div class="v6-screen"><img src="assets/shots/v6/coop_nature.webp" alt="自然側が災害カードを選ぶ実機画面" width="780" height="1688" loading="lazy"></div></div><figcaption>自然 1人</figcaption></figure>
+        <div class="coop-city-pair"><div class="v6-phone coop-city phone-frame"><div class="v6-screen"><img src="assets/shots/v6/coop_battle.webp" alt="協力モードの都市側の実機画面" loading="lazy"></div></div><div class="v6-phone coop-city phone-frame"><div class="v6-screen"><img src="assets/shots/v6/coop_battle.webp" alt="都市側の画面" loading="lazy"></div></div><span class="coop-city-label"><span>都市 2〜4人</span><span>都市 2〜4人</span></span></div>
+        <figure class="coop-nature"><div class="v6-phone phone-frame"><div class="v6-screen"><img src="assets/shots/v6/coop_nature.webp" alt="自然側が災害カードを選ぶ実機画面" width="780" height="1688" loading="lazy"></div></div><figcaption>自然 1人</figcaption></figure>
       </div>
     </a>
     <svg class="wayCross" viewBox="0 0 100 100" aria-hidden="true">
@@ -370,14 +370,14 @@
     var html = document.documentElement;
     if (new URLSearchParams(location.search).get('motion') === 'lite') html.setAttribute('data-motion-lite', '');
     if (html.hasAttribute('data-motion-lite') ||
-        (matchMedia('(prefers-reduced-motion: reduce)').matches && html.dataset.motion !== 'on') ||
+        matchMedia('(prefers-reduced-motion: reduce)').matches ||
         !('IntersectionObserver' in window)) return;
     section.classList.add('ways-animated');
     var observer = new IntersectionObserver(function(entries){
-      if (!entries[0].isIntersecting) return;
-      section.classList.add('ways-in');
-      observer.disconnect();
-    }, {threshold:0.18});
+      var entry = entries[0];
+      if (entry.intersectionRatio >= .15) section.classList.add('ways-in');
+      else if (!entry.isIntersecting) section.classList.remove('ways-in');
+    }, {threshold:[0,.15]});
     observer.observe(section);
   })();
   </script>
@@ -390,15 +390,15 @@
       <ol class="deck-track">
         <li class="deck-step">
           <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DECK</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">DECK</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DECK</text></svg><h3 class="deck-verb">組む</h3><span class="deck-label en">DECK</span></div>
-          <div class="v6-phone deck-phone deck_build-phone"><img src="assets/shots/v6/deck_build_focus.webp" alt="都市と24枚の配分、カード枚数の増減" width="780" height="1688" loading="lazy"></div>
+          <div class="v6-phone deck-phone deck_build-phone phone-frame"><img src="assets/shots/v6/deck_build_focus.webp" alt="都市と24枚の配分、カード枚数の増減" width="780" height="1688" loading="lazy"></div>
         </li>
         <li class="deck-step">
           <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DRAFT</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">DRAFT</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DRAFT</text></svg><h3 class="deck-verb">選ぶ</h3><span class="deck-label en">DRAFT</span></div>
-          <div class="v6-phone deck-phone draft-phone"><img src="assets/shots/v6/draft_focus.webp" alt="初期手札4枚の選択と確定" width="780" height="1430" loading="lazy"></div>
+          <div class="v6-phone deck-phone draft-phone phone-frame"><img src="assets/shots/v6/draft_focus.webp" alt="初期手札4枚の選択と確定" width="780" height="1430" loading="lazy"></div>
         </li>
         <li class="deck-step">
           <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">MY DECK</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">MY DECK</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">MY DECK</text></svg><h3 class="deck-verb">残す</h3><span class="deck-label en">MY DECK</span></div>
-          <div class="v6-phone deck-phone result_save-phone"><img src="assets/shots/v6/result_save_focus.webp" alt="対戦結果と使ったデッキのMyデッキ保存" width="780" height="1600" loading="lazy"></div>
+          <div class="v6-phone deck-phone result_save-phone phone-frame"><img src="assets/shots/v6/result_save_focus.webp" alt="対戦結果と使ったデッキのMyデッキ保存" width="780" height="1600" loading="lazy"></div>
         </li>
       </ol>
     </div>
@@ -416,7 +416,7 @@
   <span class="create-word enAccent" aria-hidden="true"><span>C</span><span>R</span><span>E</span><span>A</span><span>T</span><span>E</span></span>
   <div class="wrap wayFullCreate">
     <header><h2 class="jpAccent" id="create-heading">続ける・つくる</h2><p class="create-sub"><span>対戦・協力の先にある、</span><span>やり込み要素</span></p></header>
-    <div class="labList"><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">デイリー防災</h3><p class="labText"><span>1日1回、2分で解ける1問。</span><span>最善の手を探そう。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">カード工房</h3><p class="labText"><span>自分の街のカードを作れる。</span><span>共有コードで友だちにも。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/cardworks.webp" alt="カード工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">問題工房</h3><p class="labText"><span>災害・手札・予算を決めて、</span><span>詰め防災の問題を出題できる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/puzzle.webp" alt="問題工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">図鑑</h3><p class="labText"><span>集めたカードと都市を、</span><span>いつでも見返せる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/s06_gallery.webp" alt="図鑑の実機画面" loading="lazy"></div></a></div></div><a class="v6-text-link home-detail-link" href="features.html">7つの機能を詳しく見る <span aria-hidden="true">↗</span></a></section>
+    <div class="labList"><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">デイリー防災</h3><p class="labText"><span>1日1回、2分で解ける1問。</span><span>最善の手を探そう。</span></p></div><div class="v6-phone lab-phone phone-frame"><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">カード工房</h3><p class="labText"><span>自分の街のカードを作れる。</span><span>共有コードで友だちにも。</span></p></div><div class="v6-phone lab-phone phone-frame"><img src="assets/shots/v6/cardworks.webp" alt="カード工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">問題工房</h3><p class="labText"><span>災害・手札・予算を決めて、</span><span>詰め防災の問題を出題できる。</span></p></div><div class="v6-phone lab-phone phone-frame"><img src="assets/shots/v6/puzzle.webp" alt="問題工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">図鑑</h3><p class="labText"><span>集めたカードと都市を、</span><span>いつでも見返せる。</span></p></div><div class="v6-phone lab-phone phone-frame"><img src="assets/shots/s06_gallery.webp" alt="図鑑の実機画面" loading="lazy"></div></a></div></div><a class="v6-text-link home-detail-link" href="features.html">7つの機能を詳しく見る <span aria-hidden="true">↗</span></a></section>
 <!-- ══════ 04 締め（新設。§13）。タグライン再掲＋PLAY への大きな導線を1つ。
      00 と同じ左スクリム構造を storm.webp（--kv2）に対して掛ける。 ══════ -->
 
