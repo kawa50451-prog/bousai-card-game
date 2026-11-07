@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Ready or Not ｜ 防災カードバトル</title>
+<meta name="theme-color" content="#00244f">
+<link rel="icon" href="assets/icons/app_icon.webp">
+<!-- Shared loading screen → opening mix → settled v6 hero. -->
+<script>
+(function(){
+  var h=document.documentElement, q=new URLSearchParams(location.search);
+  if(q.get('motion')==='on') h.dataset.motion='on';
+  if(q.get('motion')==='lite') h.setAttribute('data-motion-lite','');
+  h.classList.add('intro-skip');
+  h.dataset.hero=q.get('hero')==='b'?'b':'a';
+  var show=true, forced=q.has('opening')&&(q.get('opening')===''||q.get('opening')==='1');
+  try{show=Date.now()-Number(localStorage.getItem('ronOpeningLast')||0)>=86400000;}catch(e){}
+  try{var ref=new URL(document.referrer);if(ref.origin===location.origin&&ref.pathname.replace(/(index|v6).html$/,'')!==location.pathname.replace(/(index|v6).html$/,''))show=false;}catch(e){}
+  if(forced)show=true;
+  if(q.get('opening')==='0')show=false;
+  if(show && !h.hasAttribute('data-motion-lite') &&
+    (!matchMedia('(prefers-reduced-motion:reduce)').matches || h.dataset.motion==='on')) {
+    h.classList.remove('intro-skip');h.classList.add('intro-lock','hero-pending');
+    try{localStorage.setItem('ronOpeningLast',String(Date.now()));}catch(e){}
+  }
+  if(h.classList.contains('hero-pending')){
+    window.openingImages=['nagoya','niigata','kobe','new_orleans','sendai','hiroshima','kumamoto'].map(function(city){
+      var image=new Image();image.src='assets/v6/era/'+city+(innerWidth<=900?'_900':'')+'.webp';return image;
+    });
+    window.openingDecoded=Promise.all(window.openingImages.map(function(image){return image.decode().catch(function(){});}));
+  }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Archivo:wght@400;600;800&family=Anton&family=Outfit:wght@900&family=Shippori+Mincho+B1:wght@600;800&family=Playfair+Display:wght@900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<!-- 共通スタイル（site.css）。トークン・基本タイポグラフィ・.reveal/.headRule・
+     下部固定バー・ローディング演出・カーソルレティクル・グレイン・グリッド・
+     画像マスク開きなど、複数ページ共通の部分はこちらに切り出した（2026-08-12）。
+     LPの各節のレイアウト（ヒーロー・なぜ作ったか・カードマーキー・軌道セレクタ・
+     遊び方・締め）は下のページ固有 <style> に残す。 -->
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/try/try.css">
+<link rel="stylesheet" href="assets/v6.css">
+<link rel="stylesheet" href="assets/v6/news.css">
+<link rel="stylesheet" href="assets/v6/opening.css">
+<link rel="stylesheet" href="assets/v6/era.css">
+<link rel="preload" as="image" href="assets/v6/era/nagoya.webp" media="(min-width:901px)">
+<link rel="preload" as="image" href="assets/v6/era/nagoya_900.webp" media="(max-width:900px)">
+<link rel="stylesheet" href="assets/v6/nav-art.css">
+<link rel="stylesheet" href="assets/v6/motion.css">
+<script src="assets/v6/motion.js"></script>
+</head>
+<body class="v6-home">
+
+<div class="loadOverlay" id="loadOverlay" aria-hidden="true">
+  <div class="loadCredit">
+    <span class="loadCreditLine enBase">produced</span>
+    <span class="loadCreditLine enBase">by Ready or Lab</span>
+    <span class="loadCreditRule" aria-hidden="true"></span>
+  </div>
+  <!-- 幕0（0.10〜1.40秒）：素材の読み込みを見せるゲージ（2026-08-16作り直し）。
+       ⚠️ このローディングの目的は「produced by 以降のモーションがカクついたり
+          飛んだりしないための時間稼ぎ」である。見た目のためだけの尺ではない。
+       画面中心に円が回り、LOAD の下で 0→100 が進む。数字はダイヤルのように
+       上から降りてくる（緩急つき）。0→100 が終わってから produced by が始まる。
+       進捗の唯一の出どころは CSS の --n（@propertyで登録した整数）。円弧の
+       stroke-dashoffset も数字も同じ --n を読むため、両者がずれることがない。
+       JSはその --n を読んで桁を組み替えるだけの装飾で、止まっても
+       counter() のフォールバックが出る（オーバーレイの退場は完全にCSS側）。 -->
+  <div class="loadGauge" aria-hidden="true">
+    <div class="loadRing">
+      <svg class="loadRingSvg" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="loadRingTrack" cx="60" cy="60" r="54"></circle>
+        <circle class="loadRingArc" cx="60" cy="60" r="54"></circle>
+      </svg>
+      <span class="loadRingWord enBase">LOAD</span>
+    </div>
+    <span class="loadCount" aria-hidden="true"><span class="loadNum"></span><span class="loadPct">%</span></span>
+  </div>
+  <div class="loadInk" aria-hidden="true">
+      <!-- 幕2は実写のインク動画1本。白地に黒インクの素材を multiply で
+           重ね、白を透過させて黒だけを残す（§20.1改）。
+           ⚠️ 緩急は素材そのものに ffmpeg で焼き込んである。JSで毎フレーム
+              currentTime を動かすと1フレームごとにシークが走り、iPhoneで
+              確実に引っかかる。再生は等速1回きりにすること。 -->
+      <video class="loadInkVid" src="assets/ink/ink_load_timed.mp4"
+             muted playsinline preload="auto" aria-hidden="true"></video>
+    </div>
+  <div class="loadBlackout" aria-hidden="true"></div>
+</div>
+
+<div id="opening" hidden role="dialog" aria-modal="true" aria-label="READY OR NOT">
+<div id="opening-scenes" aria-hidden="true"></div>
+<div class="intro" id="opening-intro" aria-hidden="true"><div class="intro-type" id="opening-introType"></div></div>
+<div id="opening-timeline" aria-hidden="true"><b id="opening-current"></b></div>
+<div id="opening-title"><h1 aria-hidden="true"><span>READY</span><span>OR NOT</span></h1></div>
+<div id="opening-tagline">失敗できる災害はここだけ</div>
+<button id="opening-skip" type="button">スキップ</button>
+</div>
+
+<!-- SVGスプライト（項目7・03の人数表記）。絵文字を使わず、線画の人物アイコンを
+     <use> で使い回す。装飾専用のシンボル定義のみで、それ自体は非表示。 -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="iconPerson" viewBox="0 0 24 24">
+    <circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle>
+    <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+  </symbol>
+</svg>
+
+<div class="bgField" aria-hidden="true">
+  <span class="bgLine" style="top:14%;left:-4%;width:56vw;transform:rotate(-6deg)"></span>
+  <span class="bgLine" style="top:38%;left:44%;width:64vw;transform:rotate(4deg);opacity:.07"></span>
+  <span class="bgLine" style="top:62%;left:-8%;width:48vw;transform:rotate(9deg);background:var(--border)"></span>
+  <span class="bgLine" style="top:84%;left:36%;width:70vw;transform:rotate(-3deg);opacity:.08"></span>
+  <span class="bgDot bgDot--a" style="--x:6%;--y:11%;animation-delay:-9s"></span>
+  <span class="bgDot bgDot--a" style="--x:23%;--y:29%;animation-delay:-27s"></span>
+  <span class="bgDot bgDot--a" style="--x:37%;--y:47%;animation-delay:-44s"></span>
+  <span class="bgDot bgDot--a" style="--x:61%;--y:63%;animation-delay:-58s"></span>
+  <span class="bgDot bgDot--a" style="--x:78%;--y:81%;animation-delay:-73s"></span>
+  <span class="bgDot bgDot--a" style="--x:91%;--y:94%;animation-delay:-87s"></span>
+  <span class="bgDot bgDot--b" style="--x:12%;--y:17%;animation-delay:-7s"></span>
+  <span class="bgDot bgDot--b" style="--x:31%;--y:35%;animation-delay:-21s"></span>
+  <span class="bgDot bgDot--b" style="--x:46%;--y:52%;animation-delay:-34s"></span>
+  <span class="bgDot bgDot--b" style="--x:68%;--y:58%;animation-delay:-47s"></span>
+  <span class="bgDot bgDot--b" style="--x:84%;--y:74%;animation-delay:-59s"></span>
+  <span class="bgDot bgDot--b" style="--x:97%;--y:88%;animation-delay:-71s"></span>
+  <span class="bgDot bgDot--c" style="--x:3%;--y:8%;animation-delay:-4s"></span>
+  <span class="bgDot bgDot--c" style="--x:19%;--y:26%;animation-delay:-14s"></span>
+  <span class="bgDot bgDot--c" style="--x:42%;--y:41%;animation-delay:-24s"></span>
+  <span class="bgDot bgDot--c" style="--x:55%;--y:67%;animation-delay:-33s"></span>
+  <span class="bgDot bgDot--c" style="--x:73%;--y:79%;animation-delay:-42s"></span>
+  <span class="bgDot bgDot--c" style="--x:88%;--y:96%;animation-delay:-53s"></span>
+</div>
+
+<!-- ══════ 下部固定バー（§13.2。2026-08-12：上部固定ヘッダを廃止し、役割を
+     こちらへ移す） ══════
+     DOM順は旧ヘッダの位置を踏襲する。screen reader はランドマーク単位で移動する
+     ため視覚位置とは無関係に到達でき、キーボードでTabした最初の到達先が
+     このナビになる。:focus-within でopacityを1に上書きするため、ページ最上部で
+     視覚的に薄い状態でもフォーカス直後には必ず見える（§13.2・キーボード要件）。 -->
+<!-- ロゴ：画面左上に固定（§20.4）。ナビではなくロゴの組み。リンク先はホーム。 -->
+<a class="siteLogo" href="#s00" aria-label="ホーム">
+  <span class="brandTile"><img src="assets/icons/app_icon.webp" alt="" width="192" height="192" loading="eager"></span>
+  <span class="siteLogoText enBase">Ready or Not</span>
+</a>
+
+<!-- ハンバーガー：ロゴの対角（画面右上）に固定。押すとページ一覧（.navMenu）が
+     開閉する（今回新設。下部バーはPLAY専用に縮めたため、ページ移動はここへ
+     集約した）。開閉の実処理は assets/site.js の initNavMenu が担う。 -->
+<button type="button" class="hamburgerBtn" id="navToggle" aria-expanded="false" aria-controls="navMenu" aria-label="メニューを開く">
+  <span class="hamburgerBox" aria-hidden="true"><span></span><span></span><span></span></span>
+</button>
+
+<nav class="bottomBar en" aria-label="PLAYへ">
+  <a class="barPlay" href="https://toshibousai-cardgame.web.app/"><span class="barPlayText">PLAY</span></a>
+</nav>
+
+<!-- 背後の暗転スクリム。押すと閉じる。 -->
+<div class="navScrim" id="navScrim" aria-hidden="true"></div>
+<!-- ページ一覧。JSが完全に落ちてもリンク自体はDOMに存在し続け、Tabで
+     フォーカスが入れば :focus-within により可視化される（§13.2の下部バーが
+     採っていた縮退方針をそのまま踏襲。§10.0.1段階2）。 -->
+<nav class="navMenu" id="navMenu" aria-label="ページ一覧">
+  <div class="navMenuPanel">
+    <ul class="navMenuList en">
+      <li><a href="#s00" aria-current="page"><img class="navMenuImg" src="assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
+      <li><a href="about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><img src="assets/cards/drill.webp" alt=""><img src="assets/cards/dam.webp" alt=""><img src="assets/cards/hazard_map.webp" alt=""></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="modes/versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><img src="assets/cities/tokyo.webp" alt=""><img src="assets/cities/osaka.webp" alt=""></span><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="modes/co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><img src="assets/cards/earthquake.webp" alt=""><span><img src="assets/cities/tokyo.webp" alt=""><img src="assets/cities/osaka.webp" alt=""><img src="assets/cities/niigata.webp" alt=""></span></span><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="features.html"><img class="navMenuImg" src="assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
+      <li><a href="cards.html"><img class="navMenuImg" src="assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
+      <li><a href="news.html"><span class="navMenuImg nav-art nav-date" aria-hidden="true"><time></time></span><span class="navMenuLabel">NEWS</span></a></li>
+      <li><a href="contact.html"><span class="navMenuImg nav-art nav-credit enBase" aria-hidden="true"><span>produced by</span><span>Ready or Lab</span></span><span class="navMenuLabel">CONTACT</span></a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Page content scales while the shared navigation is open. -->
+<div class="pageScale">
+
+<!-- ══════ 00 ヒーロー ══════ -->
+<section class="sec hero" id="s00">
+  <div class="heroKV" aria-hidden="true"></div>
+  <div class="hero-black" aria-hidden="true"></div>
+  <p class="hero-caption jpAccent" aria-hidden="true">防災カードバトル</p>
+  <img class="heroFigure" src="assets/kv/person_900.webp" alt="" aria-hidden="true" width="900" height="1350">
+  <div class="wrap g12" style="width:100%">
+    <div class="heroL">
+      <h1 class="hero-title"><span class="hero-fill"><span>READY</span><span>OR NOT</span></span><span class="hero-rim" aria-hidden="true"><span>READY</span><span>OR NOT</span></span></h1>
+      <p class="tagline jpAccent">―防災カードバトル―</p>
+      <div class="cta">
+        <a class="ctaMain" href="https://toshibousai-cardgame.web.app/">
+          <b>ブラウザですぐ遊ぶ</b>
+          <i>ダウンロード不要・登録不要</i>
+        </a>
+        <div class="stores">
+          <!-- 2026-08-17：Google Play は配信開始したので「準備中」の枠を実物の
+               バッジへ差し替えた。App Store は未配信なので枠のまま残す。 -->
+          <a class="storeLink" href="https://play.google.com/store/apps/details?id=com.readyorlab.readyornot&amp;hl=ja">
+            <img src="assets/store/googleplay_ja.png" alt="Google Play で手に入れよう" width="270" height="80">
+          </a>
+          <span class="store">App Store<em>準備中</em></span>
+        </div>
+        <!-- 二次元コード（2026-08-17）。上の2つの導線それぞれに対応させる。
+             APP＝Google Play ストア／BROWSER＝ブラウザ版（Firebase）。
+             宛先は解読して確認済み（WORKTRACK 13-6）。 -->
+        <div class="heroQr">
+          <span class="storeQr">
+            <img src="assets/store/qr_play.png" alt="Google Play ストアの二次元コード" width="230" height="230">
+            <span class="storeQrCap en">APP</span>
+          </span>
+          <span class="storeQr">
+            <img src="assets/store/qr_web.png" alt="ブラウザ版の二次元コード" width="216" height="216">
+            <span class="storeQrCap en">BROWSER</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+<div class="hero-compare" data-placeholder role="group" aria-label="hero の比較">
+  <button type="button" data-hero-variant="a" aria-pressed="true">A</button>
+  <button type="button" data-hero-variant="b" aria-pressed="false">B</button>
+  <button type="button" data-hero-replay>もう一度再生</button>
+</div>
+</section>
+
+<section id="s-news" class="v6-news wrap" aria-labelledby="news-heading">
+  <header class="news-heading"><h2 class="enAccent" id="news-heading">NEWS</h2><span class="news-rules" aria-hidden="true"></span></header>
+  <div class="news-list" data-news-limit="3"></div>
+  <a class="news-more en" href="news.html">MORE <span aria-hidden="true">↗</span></a>
+</section>
+<section id="s-about" class="v6-about" aria-labelledby="about-heading">
+  <div class="wrap about-grid">
+    <div class="about-experience"><div class="knowledge-bridge card-road" role="img" aria-label="カードを置くたび、知っているから動けるへ道がつながる"><span class="road-known jpAccent">知っている</span><div class="road-track" aria-hidden="true"><span class="road-span" style="--i:0"><span class="road-solid"></span><img src="assets/cards/hazard_map.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:1"><span class="road-solid"></span><img src="assets/cards/drill.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:2"><span class="road-solid"></span><img src="assets/cards/dam.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:3"><span class="road-solid"></span><img src="assets/cards/quake_wall.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:4"><span class="road-solid"></span><img src="assets/cards/rolling_stock.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:5"><span class="road-solid"></span><img src="assets/cards/evacuation.webp" alt="" width="240" height="336"></span></div><span class="road-action jpAccent">動ける</span></div></div>
+    <div class="about-copy">
+      <p class="about-eyebrow en">ABOUT</p>
+      <h2 class="jpAccent" id="about-heading"><span>知っているのに、</span><span>動けない。</span></h2>
+      <p class="about-lead">避難の仕方は、学校で習う。<br>でも本番は一度きりで、<wbr>練習ができない。</p>
+      <p class="about-body">Ready or Not は、<wbr>そのあいだをつなぐカードゲーム。<br>街を守る役になって、<wbr>限られたお金で備えを選ぶ。<br>結果は数分でわかり、<wbr>失敗しても何度でもやり直せる。</p>
+      <div class="about-facts"><span><small>1回 </small><b>10〜20</b><small>分</small></span><span><b>1〜5</b><small>人</small></span></div>
+      <a class="v6-text-link" href="about.html">ゲームの狙いと学び方を見る <span aria-hidden="true">↗</span></a>
+    </div>
+  </div>
+</section>
+
+<section id="s01" class="try-scene" data-state="forecast" aria-label="試す">
+  <div class="try-art">
+    <img loading="lazy" class="try-image forecast-image" src="assets/try/osaka_1.webp" alt="予報が出た夜の大阪。湾と街の灯、沖に暗い雲">
+    <img loading="lazy" class="try-image ready-image" src="assets/try/osaka_2.webp" alt="備えた夜。津波は岸壁で止まり、街の灯は点いている" aria-hidden="true">
+    <img loading="lazy" class="try-image not-image" src="assets/try/osaka_3.webp" alt="備えなかった夜。湾岸と川沿いが浸水し、灯が消えている" aria-hidden="true">
+    <svg class="try-lines" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="seawall"></g></svg>
+  </div>
+  <div class="try-ticker" aria-label="TSUNAMI WARNING / OSAKA BAY / EXPECTED BY DAWN / MOVE TO HIGHER GROUND"><div class="try-ticker-track" aria-hidden="true"></div></div>
+  <div class="try-top">
+    <header class="try-forecast"><h2></h2></header>
+    <section class="try-result" aria-live="polite" aria-atomic="true" aria-label="夜明けの結果" hidden></section>
+    <p class="try-error" role="alert" hidden></p>
+  </div>
+  <div class="try-bottom">
+    <p class="try-prompt">今夜、置けるのは1枚</p>
+    <div class="try-choices" role="group" aria-label="今夜の備え"></div>
+    <nav class="try-actions" aria-label="体験の続き" hidden>
+      <button type="button" class="try-reset">もう一度、予報から</button>
+      <a href="https://toshibousai-cardgame.web.app/">このゲームで遊ぶ <span aria-hidden="true">↗</span></a>
+    </nav>
+  </div>
+</section>
+
+<section class="v6-ways" id="s02" aria-labelledby="ways-heading">
+  <header class="wrap ways-heading"><h2 class="jpAccent" id="ways-heading">遊んで学べる2モード</h2></header>
+  <div class="wayFull">
+    <a class="wayFullHalf wayFullHalf--vs" href="modes/versus.html">
+      <span class="wayArtWord enAccent" aria-hidden="true"><span>V</span><span>E</span><span>R</span><span>S</span><span>U</span><span>S</span></span>
+      <div class="wayInner">
+        <h3 class="wayMode jpAccent">対戦モード</h3>
+        <p class="waySub">都市とデッキを選び、<wbr>1対1で街を守る</p>
+        <p class="wayStructure">1対1</p>
+        <p class="wayCount">
+          <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>1人</span><small class="en">CPU</small></span>
+          <span aria-hidden="true">/</span>
+          <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>2人</span></span>
+        </p>
+      </div>
+      <div class="v6-phone way-phone vs_battle-phone"><img src="assets/shots/v6/vs_battle.webp" alt="通常のCPU対戦。両者の都市・HPと手札" width="780" height="1688" loading="lazy"></div>
+    </a>
+    <a class="wayFullHalf wayFullHalf--coop" href="modes/co-op.html">
+      <span class="wayArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>O</span><span>P</span></span>
+      <div class="wayInner">
+        <h3 class="wayMode jpAccent">協力モード</h3>
+        <p class="waySub">激動のサバイバル</p>
+        <p class="wayStructure">自然 1人 vs 都市 2〜4人</p>
+        <p class="wayCount"><span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>3人〜5人</span></span></p>
+      </div>
+      <div class="coop-phones">
+        <div class="coop-city-pair"><div class="v6-phone coop-city"><div class="v6-screen"><img src="assets/shots/v6/coop_battle.webp" alt="協力モードの都市側の実機画面" loading="lazy"></div></div><div class="v6-phone coop-city"><div class="v6-screen"><img src="assets/shots/v6/coop_battle.webp" alt="都市側の画面" loading="lazy"></div></div><span class="coop-city-label"><span>都市 2〜4人</span><span>都市 2〜4人</span></span></div>
+        <figure class="coop-nature"><div class="v6-phone"><div class="v6-screen"><img src="assets/shots/v6/coop_nature.webp" alt="自然側が災害カードを選ぶ実機画面" width="780" height="1688" loading="lazy"></div></div><figcaption>自然 1人</figcaption></figure>
+      </div>
+    </a>
+    <svg class="wayCross" viewBox="0 0 100 100" aria-hidden="true">
+      <line x1="8" y1="8" x2="92" y2="92" pathLength="1"></line>
+      <line x1="92" y1="8" x2="8" y2="92" pathLength="1"></line>
+    </svg>
+  </div>
+  <script>
+  (function(){
+    var section = document.getElementById('s02');
+    var html = document.documentElement;
+    if (new URLSearchParams(location.search).get('motion') === 'lite') html.setAttribute('data-motion-lite', '');
+    if (html.hasAttribute('data-motion-lite') ||
+        (matchMedia('(prefers-reduced-motion: reduce)').matches && html.dataset.motion !== 'on') ||
+        !('IntersectionObserver' in window)) return;
+    section.classList.add('ways-animated');
+    var observer = new IntersectionObserver(function(entries){
+      if (!entries[0].isIntersecting) return;
+      section.classList.add('ways-in');
+      observer.disconnect();
+    }, {threshold:0.18});
+    observer.observe(section);
+  })();
+  </script>
+</section>
+
+<section class="v6-deck" id="s03" aria-labelledby="deck-heading">
+  <div class="deck-sticky">
+    <header class="wrap deck-heading"><h2 class="jpAccent" id="deck-heading">デッキを組む</h2></header>
+    <div class="deck-window">
+      <ol class="deck-track">
+        <li class="deck-step">
+          <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DECK</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">DECK</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DECK</text></svg><h3 class="deck-verb">組む</h3><span class="deck-label en">DECK</span></div>
+          <div class="v6-phone deck-phone deck_build-phone"><img src="assets/shots/v6/deck_build_focus.webp" alt="都市と24枚の配分、カード枚数の増減" width="780" height="1688" loading="lazy"></div>
+        </li>
+        <li class="deck-step">
+          <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DRAFT</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">DRAFT</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">DRAFT</text></svg><h3 class="deck-verb">選ぶ</h3><span class="deck-label en">DRAFT</span></div>
+          <div class="v6-phone deck-phone draft-phone"><img src="assets/shots/v6/draft_focus.webp" alt="初期手札4枚の選択と確定" width="780" height="1430" loading="lazy"></div>
+        </li>
+        <li class="deck-step">
+          <div class="deck-type"><svg class="deck-bg" viewBox="0 0 430 696" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet"><text x="0" y="222" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">MY DECK</text><text x="0" y="454" textLength="430" lengthAdjust="spacingAndGlyphs">MY DECK</text><text x="0" y="686" textLength="430" lengthAdjust="spacingAndGlyphs" class="o">MY DECK</text></svg><h3 class="deck-verb">残す</h3><span class="deck-label en">MY DECK</span></div>
+          <div class="v6-phone deck-phone result_save-phone"><img src="assets/shots/v6/result_save_focus.webp" alt="対戦結果と使ったデッキのMyデッキ保存" width="780" height="1600" loading="lazy"></div>
+        </li>
+      </ol>
+    </div>
+  </div>
+  
+</section>
+
+<section id="s04" aria-labelledby="era-heading">
+  <header class="wrap era-heading"><h2 class="jpAccent" id="era-heading">都市と現実</h2></header>
+<div id="era-journey"><div class="pin"><div id="era-sky" aria-hidden="true"></div><div class="track"><article id="era-nagoya" class="grid"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="名古屋の街並み"><defs><mask id="era-mask-nagoya"><rect width="1536" height="1024" fill="white"/><path d="M400 0V1024M620 0V1024M0 95H1536" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="nagoya" width="1536" height="1024" mask="url(#era-mask-nagoya)"/></svg></div><h3 class="en">NAGOYA</h3><div class="fact"><div class="ja">名古屋</div><div class="event">伊勢湾台風</div></div></div></article><article id="era-niigata" class="fade"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="新潟の街並み"><image data-era-src="niigata" width="1536" height="1024"/></svg></div><h3 class="en">NIIGATA</h3><div class="fact"><div class="ja">新潟</div><div class="event">新潟地震</div></div></div></article><article id="era-kobe" class="corner"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="神戸の街並み"><image data-era-src="kobe" width="1536" height="1024"/></svg></div><h3 class="en">KOBE</h3><div class="fact"><div class="ja">神戸</div><div class="event">阪神・淡路大震災</div></div></div></article><article id="era-new_orleans" class="grid2"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="ニューオーリンズの街並み"><defs><mask id="era-mask-new_orleans"><rect width="1536" height="1024" fill="white"/><path d="M480 0V1024M1080 0V1024M0 885H1536" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="new_orleans" width="1536" height="1024" mask="url(#era-mask-new_orleans)"/></svg></div><h3 class="en">NEW ORLEANS</h3><div class="fact"><div class="ja">ニューオーリンズ</div><div class="event">ハリケーン・カトリーナ</div></div></div></article><article id="era-sendai" class="triangles"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="仙台の街並み"><defs><mask id="era-mask-sendai"><rect width="1536" height="1024" fill="white"/><path d="M0 0L1536 430M1536 430L0 1024" fill="none" stroke="black" stroke-width="30"/></mask></defs><image data-era-src="sendai" width="1536" height="1024" mask="url(#era-mask-sendai)"/></svg></div><h3 class="en">SENDAI</h3><div class="fact"><div class="ja">仙台</div><div class="event">東日本大震災</div></div></div></article><article id="era-hiroshima" class="letters"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="広島の街並み"><image data-era-src="hiroshima" width="1536" height="1024"/></svg></div><h3 class="en">HIROSHIMA</h3><div class="fact"><div class="ja">広島</div><div class="event">8月豪雨災害</div></div></div></article><article id="era-kumamoto" class="corner2"><div class="stage"><div class="visual"><svg preserveAspectRatio="xMidYMid slice" viewBox="0 0 1536 1024" role="img" aria-label="熊本の街並み"><image data-era-src="kumamoto" width="1536" height="1024"/></svg></div><h3 class="en">KUMAMOTO</h3><div class="fact"><div class="ja">熊本</div><div class="event">熊本地震</div></div></div></article></div><div id="era-year" aria-label="年"><span class="digit" aria-hidden="true">1</span><span class="digit" aria-hidden="true">9</span><span class="digit" aria-hidden="true">5</span><span class="digit" aria-hidden="true">9</span></div><nav id="era-timeline" aria-label="年表"><button type="button" data-index="0" aria-label="1959年 名古屋 伊勢湾台風" aria-controls="era-nagoya" style="left:0.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1959</span><span class="tip" aria-hidden="true">1959年 名古屋</span></button><button type="button" data-index="1" aria-label="1964年 新潟 新潟地震" aria-controls="era-niigata" style="left:16.66666667%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1964</span><span class="tip" aria-hidden="true">1964年 新潟</span></button><button type="button" data-index="2" aria-label="1995年 神戸 阪神・淡路大震災" aria-controls="era-kobe" style="left:33.33333333%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">1995</span><span class="tip" aria-hidden="true">1995年 神戸</span></button><button type="button" data-index="3" aria-label="2005年 ニューオーリンズ ハリケーン・カトリーナ" aria-controls="era-new_orleans" style="left:50.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2005</span><span class="tip" aria-hidden="true">2005年 ニューオーリンズ</span></button><button type="button" data-index="4" aria-label="2011年 仙台 東日本大震災" aria-controls="era-sendai" style="left:66.66666667%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2011</span><span class="tip" aria-hidden="true">2011年 仙台</span></button><button type="button" data-index="5" aria-label="2014年 広島 8月豪雨災害" aria-controls="era-hiroshima" style="left:83.33333333%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2014</span><span class="tip" aria-hidden="true">2014年 広島</span></button><button type="button" data-index="6" aria-label="2016年 熊本 熊本地震" aria-controls="era-kumamoto" style="left:100.00000000%"><span class="dot" aria-hidden="true"></span><span class="tick-year" aria-hidden="true">2016</span><span class="tip" aria-hidden="true">2016年 熊本</span></button><span id="era-current-city" aria-hidden="true"></span></nav></div></div>
+</section>
+
+<section id="s05" class="v6-create" aria-labelledby="create-heading">
+  <a class="create-surface-link" href="features.html" aria-labelledby="create-heading"></a>
+  <span class="create-word enAccent" aria-hidden="true"><span>C</span><span>R</span><span>E</span><span>A</span><span>T</span><span>E</span></span>
+  <div class="wrap wayFullCreate">
+    <header><h2 class="jpAccent" id="create-heading">続ける・つくる</h2><p class="create-sub"><span>対戦・協力の先にある、</span><span>やり込み要素</span></p></header>
+    <div class="labList"><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">デイリー防災</h3><p class="labText"><span>1日1回、2分で解ける1問。</span><span>最善の手を探そう。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">カード工房</h3><p class="labText"><span>自分の街のカードを作れる。</span><span>共有コードで友だちにも。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/cardworks.webp" alt="カード工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">問題工房</h3><p class="labText"><span>災害・手札・予算を決めて、</span><span>詰め防災の問題を出題できる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/puzzle.webp" alt="問題工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">図鑑</h3><p class="labText"><span>集めたカードと都市を、</span><span>いつでも見返せる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/s06_gallery.webp" alt="図鑑の実機画面" loading="lazy"></div></a></div></div></section>
+<!-- ══════ 04 締め（新設。§13）。タグライン再掲＋PLAY への大きな導線を1つ。
+     00 と同じ左スクリム構造を storm.webp（--kv2）に対して掛ける。 ══════ -->
+
+<section class="sec close" id="s06">
+  <div class="closeKV" aria-hidden="true"></div>
+  <div class="wrap g12" style="width:100%">
+    <div class="closeL">
+      <!-- スマホでは「失敗できる」／「災害はここだけ」の2行に収める。漢字の大きさは
+           そのままにし、平仮名（.tagKana）だけをスマホ幅で縮小して収める
+           （全体を一律縮小しない。指示どおり）。 -->
+      <p class="closeTag jpAccent reveal" data-d="0">失敗<span class="tagKana">できる</span><br class="tagBr">災害<span class="tagKana">はここだけ</span></p>
+      <a class="closeCta reveal" data-d="1" href="https://toshibousai-cardgame.web.app/">PLAY</a>
+        <div class="stores">
+          <!-- 2026-08-17：Google Play は配信開始したので「準備中」の枠を実物の
+               バッジへ差し替えた。App Store は未配信なので枠のまま残す。 -->
+          <a class="storeLink" href="https://play.google.com/store/apps/details?id=com.readyorlab.readyornot&amp;hl=ja">
+            <img src="assets/store/googleplay_ja.png" alt="Google Play で手に入れよう" width="270" height="80">
+          </a>
+          <span class="store">App Store<em>準備中</em></span>
+        </div>
+        <!-- 二次元コード（2026-08-17）。上の2つの導線それぞれに対応させる。
+             APP＝Google Play ストア／BROWSER＝ブラウザ版（Firebase）。
+             宛先は解読して確認済み（WORKTRACK 13-6）。 -->
+        <div class="heroQr">
+          <span class="storeQr">
+            <img src="assets/store/qr_play.png" alt="Google Play ストアの二次元コード" width="230" height="230">
+            <span class="storeQrCap en">APP</span>
+          </span>
+          <span class="storeQr">
+            <img src="assets/store/qr_web.png" alt="ブラウザ版の二次元コード" width="216" height="216">
+            <span class="storeQrCap en">BROWSER</span>
+          </span>
+        </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap foot">Ready or Not ／ Ready or Lab ── v6 骨格</footer>
+</div><!-- /.pageScale -->
+<script src="assets/v6/opening.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
+<script src="assets/site.js"></script>
+<script src="assets/v6.js"></script>
+<script src="assets/v6/about-bridge.js"></script>
+<script src="assets/v6/era.js"></script>
+<script src="assets/updates.js"></script>
+<script src="assets/try/try.js"></script>
+<script src="assets/v6/nav-art.js"></script>
+</body>
+</html>
