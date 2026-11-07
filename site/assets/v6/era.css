@@ -25,7 +25,7 @@
 #s04 #era-timeline:before{width:100%;background:#eef3f945}
 #s04 #era-timeline:after{width:var(--progress);background:#eef3f9}
 #s04 #era-timeline button{position:absolute;top:-19px;width:44px;height:60px;padding:0;border:0;background:none;color:#eef3f99c;font:inherit;transform:translateX(-50%);cursor:pointer;z-index:1;-webkit-tap-highlight-color:transparent}
-#s04 #era-timeline .dot{position:absolute;left:50%;top:22px;width:12px;height:12px;border:1px solid #eef3f9;border-radius:50%;background:#142b43;transform:translate(-50%,-50%);transition:width .15s,height .15s}
+#s04 #era-timeline .dot{position:absolute;left:50%;top:22px;width:12px;height:12px;border:1px solid #eef3f9;border-radius:50%;background:#142b43;transform:translate(-50%,-50%);transition:width .15s var(--ease),height .15s var(--ease)}
 #s04 #era-timeline .tick-year{position:absolute;top:38px;left:50%;transform:translateX(-50%)}
 #s04 #era-timeline button.passed .dot{background:#eef3f9}
 #s04 #era-timeline button[aria-current]{color:#fff}

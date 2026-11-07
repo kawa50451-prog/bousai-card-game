@@ -26,13 +26,20 @@
  function paint(o){
   var broken=o.host.classList.contains('orbit-broken'),phase=broken?Math.min(o.elapsed/2600,1):o.elapsed/9000;
   o.cards.forEach(function(card,i){
-   var degrees=broken?-160+phase*95:-160+(phase+i/3)*360,a=degrees*Math.PI/180,t=-8*Math.PI/180;
-   var ex=.4*Math.cos(a),ey=.3*Math.sin(a),w=o.stage.clientWidth,h=o.stage.clientHeight;
-   var x=w*.5+ex*w*Math.cos(t)-ey*h*Math.sin(t),y=h*.5+ex*w*Math.sin(t)+ey*h*Math.cos(t),d=(Math.sin(a)+1)/2;
+   var degrees=broken?-160+phase*120:-160+(phase+i/3)*360,a=degrees*Math.PI/180,t=-8*Math.PI/180;
+   var ex=240*Math.cos(a),ey=105*Math.sin(a),w=o.stage.clientWidth,h=o.stage.clientHeight;
+   var x=(300+ex*Math.cos(t)-ey*Math.sin(t))/600*w,y=(175+ex*Math.sin(t)+ey*Math.cos(t))/350*h,d=(Math.sin(a)+1)/2;
    card.style.transform='translate('+x.toFixed(2)+'px,'+y.toFixed(2)+'px) translate(-50%,-50%) scale('+(.65+.35*d).toFixed(3)+')';
    card.style.opacity=String(broken ? .85-.6*phase : .55+.45*d);card.style.zIndex=String(Math.round(10+d*10));
   });
-  o.stations.forEach(function(station,i){var target=[-160,-40,80][i];var active=o.cards.some(function(card,j){var angle=(-160+(phase+j/3)*360)%360;var delta=((angle-target)%360+540)%360-180;return Math.abs(delta)<26;});station.classList.toggle('is-active',!broken&&active);});
+  o.stations.forEach(function(station,i){
+   var target=[-160,-40,80][i],a=target*Math.PI/180,t=-8*Math.PI/180;
+   var x=300+240*Math.cos(a)*Math.cos(t)-105*Math.sin(a)*Math.sin(t);
+   var y=175+240*Math.cos(a)*Math.sin(t)+105*Math.sin(a)*Math.cos(t);
+   station.style.left=(x/6)+'%';station.style.top=(y/3.5)+'%';
+   if(!station.querySelector('span')){var label=document.createElement('span');label.textContent=station.textContent;station.replaceChildren(label);}
+   station.dataset.side=i===0?'left':i===1?'top':'bottom';
+   var active=o.cards.some(function(card,j){var angle=(-160+(phase+j/3)*360)%360;var delta=((angle-target)%360+540)%360-180;return Math.abs(delta)<26;});station.classList.toggle('is-active',!broken&&active);});
  }
  function allowed(){return !still()&&!document.hidden&&orbits.some(function(o){return o.visible&&(!o.host.classList.contains('orbit-broken')||o.elapsed<2600);});}
  function tick(now){frame=0;if(!allowed()){prev=0;return;}var dt=prev?Math.min(now-prev,80):0;prev=now;orbits.forEach(function(o){if(o.visible){o.elapsed+=dt;paint(o);}});frame=requestAnimationFrame(tick);}

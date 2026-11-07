@@ -29,7 +29,7 @@ function build(){
 
 
 // All times are seconds. Only the number readout uses a finite requestAnimationFrame loop.
-const CFG={duration:8.15,entry:2.35,release:4.75,quiet:5.85,title:6.05,tagline:7.65,zoom:innerWidth<=600?650:220,decodeBudget:1600,storageKey:'ronIntroSeen'};
+const CFG={duration:8.15,entry:2.35,release:4.75,quiet:5.85,title:6.05,tagline:7.65,zoom:innerWidth<=600?650:220,decodeBudget:1600};
 const EVENTS=[
  {year:1959,name:'伊勢湾台風',file:'nagoya',start:2.350,end:3.050,cut:'nagoya'},
  {year:1964,name:'新潟地震',file:'niigata',start:3.050,end:3.750,cut:'niigata'},
@@ -264,6 +264,7 @@ async function start(){
  const ticket=++run;
  clearTimeout(loadingTimer);clearTimeout(watchdog);if(current)current.dispose();
  if(quiet()){finish();return;}
+ try{localStorage.setItem('ronOpeningLast',String(Date.now()));}catch(e){}
  previousFocus=document.activeElement;
  scrollTo({top:0,behavior:'instant'});
  html.classList.add('opening-lock');html.classList.remove('hero-pending');

@@ -18,8 +18,8 @@
 .goal-type{display:flex;flex-direction:column;align-items:flex-start;gap:16px;font-size:clamp(40px,4.6vw,70px);line-height:1.35;white-space:nowrap}
 .goal-type span{font-weight:400;color:#ffffff50;letter-spacing:.06em}
 .goal-type strong{align-self:flex-end;font-weight:900;color:#fff;letter-spacing:.06em}
-.about-goal.is-in .goal-type span{animation:goal-know 1.4s ease both}
-.about-goal.is-in .goal-type strong{animation:goal-act 1.4s ease both}
+.about-goal.is-in .goal-type span{animation:goal-know 1.4s var(--ease) both}
+.about-goal.is-in .goal-type strong{animation:goal-act 1.4s var(--ease) both}
 @keyframes goal-know{0%{color:#ffffffb0}100%{color:#ffffff50}}
 @keyframes goal-act{0%{opacity:.25}100%{opacity:1}}
 .map-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:48px;align-items:center}
@@ -29,7 +29,7 @@
 .map-group{cursor:pointer;outline:none;fill:white;transform-box:fill-box;transform-origin:center}
 .map-group text{font-size:20px;pointer-events:none}
 .map-group .group-name{font-size:22px;font-weight:700}
-.group-surface{fill:var(--group-color);fill-opacity:.22;stroke:transparent;stroke-width:2;transition:fill-opacity .25s,stroke .25s}
+.group-surface{fill:var(--group-color);fill-opacity:.22;stroke:transparent;stroke-width:2;transition:fill-opacity .25s var(--ease),stroke .25s var(--ease)}
 .map-know{--group-color:#7895b3}.map-body{--group-color:#85a392}.map-talk{--group-color:#D9A441}
 .map-group:is(:hover,:focus-visible,[aria-pressed="true"]) .group-surface{fill-opacity:.25;stroke:var(--group-color)}
 .map-opportunity{fill:#E60B00;fill-opacity:.035;stroke:#E60B00;stroke-width:1.3;stroke-dasharray:5 7}
@@ -43,10 +43,10 @@
 .map-detail dt{font-size:14px;color:#ffffff9c;margin-top:22px}
 .map-detail dd{font-size:19px;line-height:1.85;margin:6px 0 0;text-wrap:pretty}
 .about-map-section.map-armed:not(.is-in) .map-group{opacity:0;transform:translateY(22px)}
-.about-map-section.map-armed.is-in .map-group{animation:map-appear .6s both;animation-delay:var(--map-delay)}
+.about-map-section.map-armed.is-in .map-group{animation:map-appear .6s both var(--ease);animation-delay:var(--map-delay)}
 .map-know{--map-delay:0s}.map-body{--map-delay:.15s}.map-talk{--map-delay:.3s}.map-ron{--map-delay:.55s}
 .about-map-section.map-armed.is-in .map-ron{animation-name:map-drop}
-.about-map-section.map-armed.is-in .map-ripple{animation:map-ring .9s .9s both}
+.about-map-section.map-armed.is-in .map-ripple{animation:map-ring .9s .9s both var(--ease)}
 @keyframes map-appear{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 @keyframes map-drop{from{opacity:0;transform:translateY(-36px)}to{opacity:1;transform:none}}
 @keyframes map-ring{0%{opacity:.8;transform:scale(.5)}100%{opacity:0;transform:scale(4)}}
@@ -57,12 +57,12 @@
 .about-orbit-stage{position:relative;aspect-ratio:600/350}
 .about-orbit-stage svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:#ffffff50;stroke-width:1.5}
 .orbit-complete svg{stroke:#ffffff9c}
-.orbit-station{position:absolute;transform:translate(-50%,-50%) translateY(-35px);font-size:22px;color:#ffffff75;white-space:nowrap;transition:color .2s}
+.orbit-station{position:absolute;transform:translate(-50%,-50%) translateY(-35px);font-size:22px;color:#ffffff75;white-space:nowrap;transition:color .2s var(--ease)}
 .orbit-station.is-active{color:white}
 .orbit-card{position:absolute;left:0;top:0;width:clamp(40px,4.4vw,68px);height:auto;opacity:.75;pointer-events:none;box-shadow:0 8px 18px #0005}
 .about-does{display:grid;grid-template-columns:1fr 1.2fr;align-items:center;gap:52px;padding-block:88px}
 .about-screen-stack{position:relative;display:flex;align-items:center;height:500px;padding-inline:0 20px;min-width:0}
-.about-screen-stack figure{position:relative;flex:0 0 41%;margin:0 -12% 0 0;transform:translateY(var(--screen-y,20px));transition:transform .5s ease}
+.about-screen-stack figure{position:relative;flex:0 0 41%;margin:0 -12% 0 0;transform:translateY(var(--screen-y,20px));transition:transform .5s var(--ease)}
 .about-screen-stack figure:nth-child(2){margin-top:55px}.about-screen-stack figure:nth-child(3){margin-top:110px}
 .about-screen-stack .v6-phone{width:100%;height:375px}
 .about-screen-stack img{width:100%;height:100%;object-fit:cover;object-position:top}
@@ -84,3 +84,39 @@ html[data-motion-lite] .about-main *{animation:none!important;transition:none!im
 
 .map-detail-lead span{display:inline-block}
 @media(max-width:600px){.learning-map .axis-type{font-size:25px}.map-group text{font-size:23px}.map-group .group-name{font-size:24px}}
+/* Station centers, strokes and card positions share the same SVG coordinates. */
+.orbit-station{width:0;height:0;transform:none;z-index:30;color:#ffffffb0;font-size:22px}
+.orbit-station:before{content:'';position:absolute;width:6px;height:6px;left:-3px;top:-3px;border-radius:50%;background:#fff}
+.orbit-station>span{position:absolute;white-space:nowrap}
+.orbit-station[data-side="left"]>span{right:14px;top:0;transform:translateY(-50%)}
+.orbit-station[data-side="top"]>span{left:0;bottom:16px;transform:translateX(-50%)}
+.orbit-station[data-side="bottom"]>span{left:0;top:16px;transform:translateX(-50%)}
+.about-orbit-stage{margin-inline:16px}
+.about-screen-stack{height:auto;min-height:540px;gap:18px;padding:0;align-items:center}
+.about-screen-stack figure{flex:1;min-width:0;margin:0;transform:none!important}
+.about-screen-stack .v6-phone{height:auto;width:100%;aspect-ratio:9/19.5}
+.about-screen-stack img{object-position:50% 45%}
+.about-screen-stack figure:first-child img{object-position:50% 60%}
+.about-screen-stack figure:last-child img{object-position:50% 0%}
+.about-section h2{font-size:clamp(30px,3vw,44px);line-height:1.5;letter-spacing:.01em}
+.about-goal .goal-type{letter-spacing:.01em}
+.about-goal .goal-type span,.about-goal .goal-type strong{letter-spacing:.01em}
+.about-page-heading .card-road.knowledge-bridge{margin:36px auto 0;max-width:920px;height:290px;padding:0}
+.about-page-heading:before{background:linear-gradient(90deg,#00172de8,#00172da8),url('../kv/hero_1400.webp') 50% 45%/cover}
+@media(max-width:600px){
+ .orbit-station{font-size:19px;transform:none}
+ .orbit-station[data-side="left"]>span{right:9px}
+ .about-orbit-stage{margin-inline:22px 4px}
+ .about-page-heading .card-road.knowledge-bridge{height:210px;margin-top:36px}
+ .about-screen-stack{min-height:0;height:auto;overflow-x:auto;scroll-snap-type:x mandatory;gap:24px;padding:12px 0 24px;align-items:flex-start}
+ .about-screen-stack figure{flex:0 0 230px;margin:0!important;scroll-snap-align:start}
+ .about-screen-stack .v6-phone{height:auto;aspect-ratio:9/19.5}
+ .about-section h2{font-size:30px;line-height:1.5}
+}
+/* Leave the label beyond the largest passing card, even at the shallow station. */
+.orbit-station[data-side="left"]>span{right:34px}
+.orbit-station[data-side="top"]>span{bottom:48px}
+.orbit-station[data-side="bottom"]>span{top:48px}
+@media(max-width:600px){.orbit-station[data-side="left"]>span{right:24px}.orbit-station[data-side="top"]>span{bottom:36px}.orbit-station[data-side="bottom"]>span{top:36px}}
+.about-orbit-stage{margin-bottom:40px}
+@media(max-width:600px){.about-orbit-stage{margin-left:32px;margin-bottom:42px}}

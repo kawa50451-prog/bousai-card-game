@@ -2,7 +2,7 @@
 .try-scene{--not:#388bfd;--try-pad:clamp(24px,4vw,64px);--try-mono:var(--DH_MONO,'Archivo',monospace);position:relative;isolation:isolate;min-height:100svh;display:flex;flex-direction:column;justify-content:space-between;padding:calc(var(--try-pad) + 32px) var(--try-pad) var(--try-pad);gap:32px;color:var(--t1)}
 .try-art{position:absolute;inset:0;z-index:-1;overflow:hidden}
 .try-image,.try-lines{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 50%}
-.try-image{opacity:0;transition:opacity .6s var(--e)}
+.try-image{opacity:0;transition:opacity .6s var(--ease)}
 .forecast-image{opacity:1}
 .try-scene[data-state="ready"] .ready-image,.try-scene[data-state="not"] .not-image{opacity:1}
 .try-lines{pointer-events:none;fill:none;stroke-width:1.5}
@@ -10,10 +10,10 @@
 .seawall{stroke:var(--accent);opacity:0}
 .seawall path{stroke-dasharray:1;stroke-dashoffset:1}
 .try-scene[data-state="ready"] .seawall{opacity:1}
-.try-scene[data-state="ready"] .seawall path{animation:try-draw var(--line-duration) var(--e) both;animation-delay:calc(.6s + var(--line-delay))}
+.try-scene[data-state="ready"] .seawall path{animation:try-draw var(--line-duration) var(--ease) both;animation-delay:calc(.6s + var(--line-delay))}
 .try-top{max-width:min(900px,100%);align-self:flex-start}
 /* 同じ文を2組流し、結果ではその場に止める。 */
-.try-ticker{background:#E60B00;color:#fff;position:absolute;inset:0 0 auto;overflow:hidden;border-block:1px solid #E60B00;font:600 11px/30px 'Archivo','Zen Kaku Gothic New',sans-serif;letter-spacing:.14em;white-space:nowrap;transition:opacity .3s var(--e)}
+.try-ticker{background:#E60B00;color:#fff;position:absolute;inset:0 0 auto;overflow:hidden;border-block:1px solid #E60B00;font:600 11px/30px 'Archivo','Zen Kaku Gothic New',sans-serif;letter-spacing:.14em;white-space:nowrap;transition:opacity .3s var(--ease)}
 .try-ticker-track{display:flex;width:max-content;animation:try-ticker 30s linear infinite}
 .try-ticker-group{display:flex;flex:none}
 .try-ticker-group span{display:flex;align-items:center;gap:28px;padding-right:28px}
@@ -23,17 +23,17 @@
 .try-forecast :is(h1,h2){font:800 clamp(28px,3.5vw,54px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em}
 .try-prompt{margin:0 0 20px;font:800 clamp(28px,3.5vw,48px)/1.45 'Shippori Mincho B1',serif;letter-spacing:.025em;white-space:nowrap;text-align:center}
 .try-prompt span{display:inline-block}
-.try-prompt-visible span{animation:try-text .65s var(--char-delay) var(--e) both}
+.try-prompt-visible span{animation:try-text .65s var(--char-delay) var(--ease) both}
 .try-forecast,.try-prompt,.try-result{text-shadow:0 1px 3px rgb(0 0 0 / .7)}
 .try-result{padding:0}
 .try-verdict{position:relative;display:table;padding-bottom:12px;color:var(--t1);font:800 clamp(88px,11vw,160px)/1 'Archivo',sans-serif;letter-spacing:-.035em}
-.try-verdict::after{content:'';position:absolute;bottom:0;left:calc(-1 * var(--try-pad));right:0;height:8px;background:var(--accent);transform-origin:left;animation:try-band .6s var(--e) both}
+.try-verdict::after{content:'';position:absolute;bottom:0;left:calc(-1 * var(--try-pad));right:0;height:8px;background:var(--accent);transform-origin:left;animation:try-band .6s var(--ease) both}
 .try-scene[data-state="not"] .try-verdict::after{background:var(--not)}
 .try-hp{display:flex;align-items:center;gap:12px;margin-top:24px;font-family:var(--try-mono);font-variant-numeric:tabular-nums}
 .try-icon{width:40px;height:40px;object-fit:contain;flex:none}
 .try-hp-ticks{display:flex;gap:4px;height:32px}
 .try-tick{width:10px;border:1px solid var(--t1);background:var(--t1)}
-.try-tick-lost{background:transparent;border-color:var(--t3);animation:try-tick-off .2s var(--tick-delay) both}
+.try-tick-lost{background:transparent;border-color:var(--t3);animation:try-tick-off .2s var(--tick-delay) both var(--ease)}
 .try-hp strong{font-size:clamp(56px,6vw,84px);font-weight:800;line-height:1}
 .try-hp small{font-size:1.33rem;align-self:flex-end;margin:0 0 6px -8px}
 .try-breakdown{display:flex;flex-wrap:nowrap;gap:24px;margin-top:24px;font-family:var(--try-mono);font-variant-numeric:tabular-nums}
@@ -42,16 +42,16 @@
 .try-term-label{font:700 10px/1.4 'Zen Kaku Gothic New',sans-serif}
 .try-term-value{font-size:28px;font-weight:600}
 .try-term-inactive .try-icon{filter:grayscale(1) brightness(.4)}
-.try-result .try-hp{animation:try-text .5s .12s var(--e) both}
-.try-result .try-breakdown{animation:try-text .5s .24s var(--e) both}
+.try-result .try-hp{animation:try-text .5s .12s var(--ease) both}
+.try-result .try-breakdown{animation:try-text .5s .24s var(--ease) both}
 .try-bottom{width:min(760px,100%);align-self:center}
 .try-choices{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(6px,1.6vw,20px);align-items:stretch}
-.try-choice{appearance:none;border:0;border-radius:0;box-shadow:none;background:none;isolation:isolate;color:var(--t1);padding:8px 6px 10px;font:700 .75rem/1.5 'Zen Kaku Gothic New',sans-serif;cursor:pointer;position:relative;min-width:0;transition:filter .3s var(--e),transform .3s var(--e);display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.try-choice{appearance:none;border:0;border-radius:0;box-shadow:none;background:none;isolation:isolate;color:var(--t1);padding:8px 6px 10px;font:700 .75rem/1.5 'Zen Kaku Gothic New',sans-serif;cursor:pointer;position:relative;min-width:0;transition:filter .3s var(--ease),transform .3s var(--ease);display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 .try-choice img{width:100%;height:auto;aspect-ratio:2/3;object-fit:contain;margin-bottom:8px}
 .try-choice .try-name{min-height:3em;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere}
 .try-cost{font:600 .75rem/1.5 'Archivo',monospace;font-variant-numeric:tabular-nums;letter-spacing:.05em}
 .try-cost span{font-size:.563rem;letter-spacing:var(--tr-label);margin-right:5px}
-.try-choice::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .3s var(--e)}
+.try-choice::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .3s var(--ease)}
 .try-scene[data-state="not"] .try-choice::after{background:var(--not)}
 .try-choice:hover,.try-choice:focus-visible{transform:translateY(-6px)}
 .try-choice:focus-visible,.try-actions :focus-visible{outline:2px solid var(--t1);outline-offset:4px}
@@ -64,7 +64,7 @@
 .try-actions a{font-weight:700}
 [hidden]{display:none!important}
 /* 消灯は下から上へのマスク。閾値フィルタを毎フレーム再計算しない軽い代用。 */
-.try-scene.try-arriving-not .not-image{animation:try-blackout 1.6s var(--e) both;mask-image:linear-gradient(to top,#000 45%,transparent 55%);mask-size:100% 240%;mask-repeat:no-repeat}
+.try-scene.try-arriving-not .not-image{animation:try-blackout 1.6s var(--ease) both;mask-image:linear-gradient(to top,#000 45%,transparent 55%);mask-size:100% 240%;mask-repeat:no-repeat}
 @keyframes try-blackout{from{mask-position:0 0;opacity:1}to{mask-position:0 100%;opacity:1}}
 @keyframes try-ticker{to{transform:translateX(-50%)}}
 @keyframes try-band{from{transform:scaleX(0)}to{transform:scaleX(1)}}

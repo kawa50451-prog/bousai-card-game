@@ -1,0 +1,33 @@
+/* Shared by v6 HOME, ABOUT and NEWS only. */
+:root{--ease:cubic-bezier(.215,.61,.355,1);--e:var(--ease)}
+/* The existing loading sequence is part of the opening, including its curve. */
+.loadOverlay{--e:cubic-bezier(.16,1,.3,1)}
+body :not(#opening,#opening *, .loadOverlay,.loadOverlay *),
+body :not(#opening,#opening *, .loadOverlay,.loadOverlay *)::before,
+body :not(#opening,#opening *, .loadOverlay,.loadOverlay *)::after{
+ transition-timing-function:var(--ease)!important;
+}
+/* The bounce in the shared navigation and implicit/default UI curves. */
+body,body::before,body::after{transition-timing-function:var(--ease)!important}
+.barPlayText::before,.barPlayText::after{content:none!important;animation:none!important}
+/* A pseudo-element exists before body parsing, so navigation cannot expose a white frame. */
+html::after{content:'';position:fixed;inset:0;z-index:2147483647;background:#002A6C;
+ pointer-events:none;opacity:0;transition:opacity .4s var(--ease)}
+html.motion-covered::after{opacity:1;pointer-events:auto}
+html.motion-leaving::after{transition-duration:.13s}
+html.motion-arriving::after{transition:none}
+.motion-roll{display:inline-grid;position:relative;max-width:100%;min-width:0;vertical-align:baseline;clip-path:inset(-.2em 0);line-height:inherit}
+.motion-roll>span{grid-area:1/1;display:block;transition:transform .38s var(--ease),opacity .38s var(--ease);white-space:inherit;min-width:0}
+.motion-roll .motion-next{transform:translateY(105%);opacity:0}
+@media(hover:hover){
+ html:not([data-motion-still]) :is(a,button,.news-row):is(:hover,:focus-visible) .motion-roll>.motion-current{transform:translateY(-105%);opacity:0}
+ html:not([data-motion-still]) :is(a,button,.news-row):is(:hover,:focus-visible) .motion-roll>.motion-next{transform:translateY(0);opacity:1}
+}
+.motion-play .motion-roll{min-width:var(--play-width);text-align:center}
+.motion-play .motion-roll>span{align-self:center;white-space:nowrap}
+.motion-play .motion-jp{font-family:'Zen Kaku Gothic New',sans-serif;font-size:var(--play-jp-size,1em);font-weight:700;letter-spacing:0}
+html[data-motion-still]::after{display:none;transition:none}
+html[data-motion-still]::view-transition-group(*),html[data-motion-still]::view-transition-old(*),html[data-motion-still]::view-transition-new(*){animation:none!important}
+html[data-motion-still] .motion-roll>span{transition:none!important}
+html[data-motion-still] .motion-next{visibility:hidden}
+@media(prefers-reduced-motion:reduce){html::after{display:none;transition:none}}

@@ -15,10 +15,16 @@
   if(q.get('motion')==='lite') h.setAttribute('data-motion-lite','');
   h.classList.add('intro-skip');
   h.dataset.hero=q.get('hero')==='b'?'b':'a';
-  var seen=false;
-  try{seen=sessionStorage.getItem('ronIntroSeen')==='1';sessionStorage.setItem('ronIntroSeen','1');}catch(e){}
-  if(!seen && !h.hasAttribute('data-motion-lite') &&
-    (!matchMedia('(prefers-reduced-motion:reduce)').matches || h.dataset.motion==='on')) {h.classList.remove('intro-skip');h.classList.add('intro-lock','hero-pending');}
+  var show=true, forced=q.has('opening')&&(q.get('opening')===''||q.get('opening')==='1');
+  try{show=Date.now()-Number(localStorage.getItem('ronOpeningLast')||0)>=86400000;}catch(e){}
+  try{var ref=new URL(document.referrer);if(ref.origin===location.origin&&ref.pathname!==location.pathname)show=false;}catch(e){}
+  if(forced)show=true;
+  if(q.get('opening')==='0')show=false;
+  if(show && !h.hasAttribute('data-motion-lite') &&
+    (!matchMedia('(prefers-reduced-motion:reduce)').matches || h.dataset.motion==='on')) {
+    h.classList.remove('intro-skip');h.classList.add('intro-lock','hero-pending');
+    try{localStorage.setItem('ronOpeningLast',String(Date.now()));}catch(e){}
+  }
   if(h.classList.contains('hero-pending')){
     window.openingImages=['nagoya','niigata','kobe','new_orleans','sendai','hiroshima','kumamoto'].map(function(city){
       var image=new Image();image.src='assets/v6/era/'+city+(innerWidth<=900?'_900':'')+'.webp';return image;
@@ -43,6 +49,9 @@
 <link rel="stylesheet" href="assets/v6/era.css">
 <link rel="preload" as="image" href="assets/v6/era/nagoya.webp" media="(min-width:901px)">
 <link rel="preload" as="image" href="assets/v6/era/nagoya_900.webp" media="(max-width:900px)">
+<link rel="stylesheet" href="assets/v6/nav-art.css">
+<link rel="stylesheet" href="assets/v6/motion.css">
+<script src="assets/v6/motion.js"></script>
 </head>
 <body class="v6-home">
 
@@ -158,13 +167,13 @@
   <div class="navMenuPanel">
     <ul class="navMenuList en">
       <li><a href="#s00" aria-current="page"><img class="navMenuImg" src="assets/navicons/home.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">HOME</span></a></li>
-      <li><a href="about.html"><span class="navMenuImg navMenuType" aria-hidden="true">ABOUT</span><span class="navMenuLabel">ABOUT</span></a></li>
-      <li><a href="modes/versus.html"><img class="navMenuImg" src="assets/navicons/versus.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">VERSUS</span></a></li>
-      <li><a href="modes/co-op.html"><img class="navMenuImg" src="assets/navicons/coop.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CO-OP</span></a></li>
+      <li><a href="about.html"><span class="navMenuImg nav-art nav-road" aria-hidden="true"><span>知っている</span><i><img src="assets/cards/drill.webp" alt=""><img src="assets/cards/dam.webp" alt=""><img src="assets/cards/hazard_map.webp" alt=""></i><span>動ける</span></span><span class="navMenuLabel">ABOUT</span></a></li>
+      <li><a href="modes/versus.html"><span class="navMenuImg nav-art nav-versus" aria-hidden="true"><img src="assets/cities/tokyo.webp" alt=""><img src="assets/cities/osaka.webp" alt=""></span><span class="navMenuLabel">VERSUS</span></a></li>
+      <li><a href="modes/co-op.html"><span class="navMenuImg nav-art nav-coop" aria-hidden="true"><img src="assets/cards/earthquake.webp" alt=""><span><img src="assets/cities/tokyo.webp" alt=""><img src="assets/cities/osaka.webp" alt=""><img src="assets/cities/niigata.webp" alt=""></span></span><span class="navMenuLabel">CO-OP</span></a></li>
       <li><a href="features.html"><img class="navMenuImg" src="assets/navicons/features.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">FEATURES</span></a></li>
       <li><a href="cards.html"><img class="navMenuImg" src="assets/navicons/cards.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CARDS</span></a></li>
-      <li><a href="news.html"><span class="navMenuImg navMenuType" aria-hidden="true">NEWS</span><span class="navMenuLabel">NEWS</span></a></li>
-      <li><a href="contact.html"><img class="navMenuImg" src="assets/navicons/contact.webp" alt="" loading="lazy" width="480" height="360"><span class="navMenuLabel">CONTACT</span></a></li>
+      <li><a href="news.html"><span class="navMenuImg nav-art nav-date" aria-hidden="true"><time></time></span><span class="navMenuLabel">NEWS</span></a></li>
+      <li><a href="contact.html"><span class="navMenuImg nav-art nav-credit enBase" aria-hidden="true"><span>produced by</span><span>Ready or Lab</span></span><span class="navMenuLabel">CONTACT</span></a></li>
     </ul>
   </div>
 </nav>
@@ -225,33 +234,14 @@
 </section>
 <section id="s-about" class="v6-about" aria-labelledby="about-heading">
   <div class="wrap about-grid">
-    <div class="about-experience" data-learning-cycle>
-      <div class="knowledge-bridge" aria-label="知っていることと動けることを Ready or Not がつなぐ">
-        <span class="bridge-edge jpAccent">知っている</span><span class="bridge-line" aria-hidden="true"></span>
-        <span class="bridge-title">READY OR NOT</span><span class="bridge-line" aria-hidden="true"></span><span class="bridge-edge jpAccent">動ける</span>
-        <span class="bridge-once">本番は一度きり</span>
-      </div>
-      <div class="v6-phone bridge-phone" aria-live="off">
-        <img class="is-active" src="assets/shots/v6/vs_response_you.webp" alt="備えを選ぶゲーム画面" width="780" height="1280">
-        <img src="assets/shots/v6/result_save_focus.webp" alt="災害への備えの結果画面" width="780" height="1600">
-        <img src="assets/shots/v6/deck_build_focus.webp" alt="備えを組み直すデッキ画面" width="780" height="1688">
-      </div>
-      <div class="learning-cycle">
-        <svg class="cycle-track" viewBox="0 0 600 104" preserveAspectRatio="none" aria-hidden="true"><path d="M100 24H500A28 28 0 0 1 500 80H100A28 28 0 0 1 100 24Z"/><circle class="cycle-dot" r="4.5" cx="100" cy="24"/></svg>
-        <div class="cycle-steps" role="group" aria-label="ゲームで繰り返す3つの手順">
-          <button type="button" aria-pressed="true"><span>選ぶ</span><small>備えを1枚ずつ置く</small></button>
-          <button type="button" aria-pressed="false"><span>結果</span><small>災害が来て、<wbr>数分でわかる</small></button>
-          <button type="button" aria-pressed="false"><span>直す</span><small>組み直して、<wbr>もう一度</small></button>
-        </div>
-      </div>
-    </div>
+    <div class="about-experience"><div class="knowledge-bridge card-road" role="img" aria-label="カードを置くたび、知っているから動けるへ道がつながる"><span class="road-known jpAccent">知っている</span><div class="road-track" aria-hidden="true"><span class="road-span" style="--i:0"><span class="road-solid"></span><img src="assets/cards/hazard_map.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:1"><span class="road-solid"></span><img src="assets/cards/drill.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:2"><span class="road-solid"></span><img src="assets/cards/dam.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:3"><span class="road-solid"></span><img src="assets/cards/quake_wall.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:4"><span class="road-solid"></span><img src="assets/cards/rolling_stock.webp" alt="" width="240" height="336"></span><span class="road-span" style="--i:5"><span class="road-solid"></span><img src="assets/cards/evacuation.webp" alt="" width="240" height="336"></span></div><span class="road-action jpAccent">動ける</span></div></div>
     <div class="about-copy">
       <p class="about-eyebrow en">ABOUT</p>
       <h2 class="jpAccent" id="about-heading"><span>知っているのに、</span><span>動けない。</span></h2>
       <p class="about-lead">避難の仕方は、学校で習う。<br>でも本番は一度きりで、<wbr>練習ができない。</p>
       <p class="about-body">Ready or Not は、<wbr>そのあいだをつなぐカードゲーム。<br>街を守る役になって、<wbr>限られたお金で備えを選ぶ。<br>結果は数分でわかり、<wbr>失敗しても何度でもやり直せる。</p>
-      <div class="about-facts"><span><small>1回 </small><b>10〜20</b><small>分</small></span><span><b>1〜5</b><small>人</small></span><span class="about-free">無料・<wbr>ブラウザで遊べる</span></div>
-      <a class="v6-text-link" href="about.html">もっと詳しく <span aria-hidden="true">↗</span></a>
+      <div class="about-facts"><span><small>1回 </small><b>10〜20</b><small>分</small></span><span><b>1〜5</b><small>人</small></span></div>
+      <a class="v6-text-link" href="about.html">ゲームの狙いと学び方を見る <span aria-hidden="true">↗</span></a>
     </div>
   </div>
 </section>
@@ -286,7 +276,7 @@
       <span class="wayArtWord enAccent" aria-hidden="true"><span>V</span><span>E</span><span>R</span><span>S</span><span>U</span><span>S</span></span>
       <div class="wayInner">
         <h3 class="wayMode jpAccent">対戦モード</h3>
-        <p class="waySub">シンプル・王道カードバトル</p>
+        <p class="waySub">都市とデッキを選び、<wbr>1対1で街を守る</p>
         <p class="wayStructure">1対1</p>
         <p class="wayCount">
           <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>1人</span><small class="en">CPU</small></span>
@@ -294,7 +284,7 @@
           <span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>2人</span></span>
         </p>
       </div>
-      <div class="v6-phone way-phone vs_battle-phone"><img src="assets/shots/v6/vs_battle_focus.webp" alt="通常のCPU対戦。両者の都市・HPと手札" width="780" height="1280" loading="lazy"></div>
+      <div class="v6-phone way-phone vs_battle-phone"><img src="assets/shots/v6/vs_battle.webp" alt="通常のCPU対戦。両者の都市・HPと手札" width="780" height="1688" loading="lazy"></div>
     </a>
     <a class="wayFullHalf wayFullHalf--coop" href="modes/co-op.html">
       <span class="wayArtWord enAccent" aria-hidden="true"><span>C</span><span>O</span><span>O</span><span>P</span></span>
@@ -305,8 +295,8 @@
         <p class="wayCount"><span class="wayCountGroup"><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><svg class="wayIcon" aria-hidden="true"><use href="#iconPerson"></use></svg><span>3人〜5人</span></span></p>
       </div>
       <div class="coop-phones">
-        <div class="coop-city-pair"><div class="v6-phone coop-city"><img src="assets/shots/v6/coop_battle.webp" alt="協力モードの都市側の実機画面" loading="lazy"></div><div class="v6-phone coop-city"><img src="assets/shots/v6/coop_battle_focus.webp" alt="都市側の画面" loading="lazy"></div><span class="coop-city-label">都市 2〜4人</span></div>
-        <figure class="coop-nature"><div class="v6-phone"><img src="assets/shots/v6/coop_nature.webp" alt="自然側が災害カードを選ぶ実機画面" width="780" height="1688" loading="lazy"></div><figcaption>自然 1人</figcaption></figure>
+        <div class="coop-city-pair"><div class="v6-phone coop-city"><div class="v6-screen"><img src="assets/shots/v6/coop_battle.webp" alt="協力モードの都市側の実機画面" loading="lazy"></div></div><div class="v6-phone coop-city"><div class="v6-screen"><img src="assets/shots/v6/coop_battle.webp" alt="都市側の画面" loading="lazy"></div></div><span class="coop-city-label"><span>都市 2〜4人</span><span>都市 2〜4人</span></span></div>
+        <figure class="coop-nature"><div class="v6-phone"><div class="v6-screen"><img src="assets/shots/v6/coop_nature.webp" alt="自然側が災害カードを選ぶ実機画面" width="780" height="1688" loading="lazy"></div></div><figcaption>自然 1人</figcaption></figure>
       </div>
     </a>
     <svg class="wayCross" viewBox="0 0 100 100" aria-hidden="true">
@@ -366,7 +356,7 @@
   <span class="create-word enAccent" aria-hidden="true"><span>C</span><span>R</span><span>E</span><span>A</span><span>T</span><span>E</span></span>
   <div class="wrap wayFullCreate">
     <header><h2 class="jpAccent" id="create-heading">続ける・つくる</h2><p class="create-sub"><span>対戦・協力の先にある、</span><span>やり込み要素</span></p></header>
-    <div class="labList"><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">デイリー防災</h3><p class="labText">1日1回、2分で解ける1問。最善の手を探そう。</p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">カード工房</h3><p class="labText">自分の街のカードを作れる。共有コードで友だちにも。</p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/cardworks.webp" alt="カード工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">問題工房</h3><p class="labText">災害・手札・予算を決めて、詰め防災の問題を出題できる。</p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/puzzle.webp" alt="問題工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">図鑑</h3><p class="labText">集めたカードと都市を、いつでも見返せる。</p></div><div class="v6-phone lab-phone"><img src="assets/shots/s06_gallery.webp" alt="図鑑の実機画面" loading="lazy"></div></a></div></div></section>
+    <div class="labList"><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">デイリー防災</h3><p class="labText"><span>1日1回、2分で解ける1問。</span><span>最善の手を探そう。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/daily.webp" alt="デイリー防災の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">カード工房</h3><p class="labText"><span>自分の街のカードを作れる。</span><span>共有コードで友だちにも。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/cardworks.webp" alt="カード工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">問題工房</h3><p class="labText"><span>災害・手札・予算を決めて、</span><span>詰め防災の問題を出題できる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/v6/puzzle.webp" alt="問題工房の実機画面" loading="lazy"></div></a><a class="labItem" href="features.html"><div class="lab-copy"><h3 class="labName jpAccent">図鑑</h3><p class="labText"><span>集めたカードと都市を、</span><span>いつでも見返せる。</span></p></div><div class="v6-phone lab-phone"><img src="assets/shots/s06_gallery.webp" alt="図鑑の実機画面" loading="lazy"></div></a></div></div></section>
 <!-- ══════ 04 締め（新設。§13）。タグライン再掲＋PLAY への大きな導線を1つ。
      00 と同じ左スクリム構造を storm.webp（--kv2）に対して掛ける。 ══════ -->
 
@@ -414,5 +404,6 @@
 <script src="assets/v6/era.js"></script>
 <script src="assets/updates.js"></script>
 <script src="assets/try/try.js"></script>
+<script src="assets/v6/nav-art.js"></script>
 </body>
 </html>
