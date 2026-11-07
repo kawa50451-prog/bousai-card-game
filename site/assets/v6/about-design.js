@@ -22,7 +22,7 @@
  // Scroll determines placement, never a timer: the empty quarter fills last.
  var cycle=document.querySelector('.cycle-game'),valley=document.getElementById('about-valley'),pending=0;
  function progress(node){var r=node.getBoundingClientRect();return Math.max(0,Math.min(1,(innerHeight-r.top)/(Math.min(innerHeight,r.height)*.9)));}
- function paint(){pending=0;var staticMode=still();if(valley){var vr=valley.getBoundingClientRect(),v=staticMode?1:Math.max(0,Math.min(1,(100-vr.top)/Math.max(1,vr.height-innerHeight)));valley.style.setProperty('--bridge',v);valley.classList.toggle('bridge-visible',v>=.99);}map.classList.toggle('map-armed',!staticMode);var p=progress(map);groups.forEach(function(g,i){g.classList.toggle('is-placed',staticMode||p>(i+1)*.18);});
+ function paint(){pending=0;var staticMode=still();if(valley){var vr=valley.getBoundingClientRect(),fh=valley.firstElementChild.offsetHeight,start=100+innerHeight*.3,v=staticMode?1:Math.max(0,Math.min(1,(start-vr.top)/Math.max(1,start-100+(vr.height-fh)*.75)));valley.style.setProperty('--bridge',v);valley.classList.toggle('bridge-visible',v>=.99);}map.classList.toggle('map-armed',!staticMode);var p=progress(map);groups.forEach(function(g,i){g.classList.toggle('is-placed',staticMode||p>(i+1)*.18);});
   if(cycle){var r=cycle.getBoundingClientRect(),step=staticMode?3:Math.min(3,Math.floor(progress(cycle)*4));cycle.dataset.step=step;cycle.classList.toggle('is-running',!staticMode&&!document.hidden&&step===3&&r.top<innerHeight&&r.bottom>0);}
  }
  function schedule(){if(!pending)pending=requestAnimationFrame(paint);}

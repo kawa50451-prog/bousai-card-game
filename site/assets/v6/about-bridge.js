@@ -15,7 +15,7 @@
   section.classList.remove('road-native');
   road.dataset.driver='raf';
   var rect=section.getBoundingClientRect(),count=innerWidth<=600?4:6;
-  var progress=still()?1:Math.max(0,Math.min(1,-rect.top/Math.max(1,rect.height-innerHeight)));
+  var progress=still()?1:Math.max(0,Math.min(1,-rect.top/Math.max(1,(rect.height-innerHeight)*.75)));
   maxProgress=Math.max(maxProgress,progress);progress=maxProgress;
   road.dataset.progress=progress.toFixed(3);
   cards.forEach(function(card,i){

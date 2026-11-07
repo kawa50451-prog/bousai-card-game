@@ -33,7 +33,7 @@
 
 
 /* Review 14: one filled landscape, with a deck assembled across the open valley. */
-.valley-scroll{height:1150px;position:relative;--bridge:0}
+.valley-scroll{height:920px;position:relative;--bridge:0}
 .valley-figure{position:sticky;top:90px;margin:0;width:100%;height:min(600px,70svh);isolation:isolate}
 .valley-figure .valley-art{display:block;width:100%;height:100%;overflow:visible}
 .valley-label{fill:#fff;font:700 44px 'Shippori Mincho B1',serif}
@@ -43,7 +43,7 @@
 html[data-motion-still] .valley-scroll{--bridge:1!important;height:650px}
 html[data-motion-still] .valley-brand{opacity:1}
 @media(max-width:600px){
- .valley-scroll{height:880px;margin-inline:0}
+ .valley-scroll{height:660px;margin-inline:0}
  .valley-figure{top:100px;height:360px;display:grid;align-items:center}
  .valley-label{font-size:48px}
  .valley-brand{font-size:70px}
