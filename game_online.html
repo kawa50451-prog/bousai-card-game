@@ -3135,12 +3135,32 @@
     }
 
 
-    /* 既存のカード部品を使い、選択枠と選べない手札を交換画面内で区別する。 */
-    .typhoon-swap .card { cursor: pointer; border-radius: 0; box-shadow: none !important; transform: none !important; }
-    .typhoon-swap .card.typhoon-selected { outline: 3px solid var(--yellow); outline-offset: -3px; }
-    .typhoon-check { position: absolute; top: 4px; right: 4px; background: var(--yellow); color: var(--bg0); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 800; }
+    /* 選択の枠・印はローリングストックと同じ形に揃える。 */
     .typhoon-swap .typhoon-own-hand .card { cursor: default; opacity: .65; pointer-events: none; }
-    .typhoon-swap .btn-ho { border-radius: 0; box-shadow: none; max-width: 100%; }
+    .typhoon-swap .btn-ho { max-width: 100%; }
+    .typhoon-swap .typhoon-preview { display: none; }
+
+    @media (max-width: 600px) {
+      .screen.active.typhoon-swap { gap: 8px; padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+      .typhoon-swap .section-title { margin: 0; font-size: .88rem; }
+      .typhoon-swap .typhoon-target-hand { order: 1; }
+      .typhoon-swap .discard-cards { flex-wrap: nowrap; gap: 4px; padding: 4px 0; width: 100%; }
+      /* 枚数に応じて等分し、110×155の比率を保つ。自分の手札は最大52pxに抑える。 */
+      .typhoon-swap .discard-cards .card { flex: 0 1 calc((100% - (var(--typhoon-count) - 1) * 4px) / var(--typhoon-count)); min-width: 0; max-width: 110px; width: 110px; height: auto; aspect-ratio: 110 / 155; }
+      .typhoon-swap .discard-cards .card-header { display: none; }
+      /* 小さく並べたカードでは名前の帯が「ローリン／グ／ストック」のように崩れるので出さない。名前は選んだカードの欄で読める（2026-11-09） */
+      .typhoon-swap .discard-cards .card-name-bar { display: none; }
+      .typhoon-swap .typhoon-preview { order: 2; display: flex; align-items: center; gap: 12px; min-height: 208px; flex-shrink: 0; }
+      .typhoon-swap .typhoon-preview-art { flex: 0 0 132px; height: 208px; }
+      .typhoon-swap .typhoon-preview-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
+      .typhoon-swap .typhoon-preview-text { min-width: 0; font-size: .8rem; line-height: 1.5; }
+      .typhoon-swap .typhoon-preview-name { font-weight: 700; margin-bottom: 8px; }
+      .typhoon-swap .typhoon-own-title { order: 3; }
+      .typhoon-swap .typhoon-own-hand { order: 4; }
+      .typhoon-swap .typhoon-own-hand .card { max-width: 52px; }
+      /* 操作欄と同じ高さを画面末尾に確保し、安全域にもカードを重ねない。 */
+      .typhoon-swap .typhoon-actions { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; margin: 0 !important; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--bg1); }
+    }
     .typhoon-swap-summary { border: 0; border-left: 2px solid var(--yellow); border-radius: 0; background: none; }
     /* MOBILE */
     @media(max-width:600px) {
@@ -12301,17 +12321,18 @@
       const sel = hand.find(c => c.uid === _typhoonSelUid) || null;
       const cards = (items, selectable) => items.map(card => {
         const on = selectable && card.uid === _typhoonSelUid;
-        return `<div class="card ${card.type}${selectable ? '' : ' card-disabled'}${on ? ' typhoon-selected' : ''}" data-ctype="${cardCtype(card)}" ${selectable ? `onclick="toggleTyphoonCard('${card.uid}')"` : ''}>
+        return `<div class="card ${card.type}${selectable ? '' : ' card-disabled'}${on ? ' card-usable typhoon-selected' : ''}" data-ctype="${cardCtype(card)}" style="${on ? 'box-shadow:0 0 0 3px var(--red) inset,0 0 10px rgba(248,81,73,.4);opacity:.88' : ''}" ${selectable ? `onclick="toggleTyphoonCard('${card.uid}')"` : ''}>
           <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
           <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}
-          ${on ? '<div class="typhoon-check">✓</div>' : ''}
+          ${on ? `<div style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}
         </div>`;
       }).join('');
       return `<div class="screen active typhoon-swap"><div class="section-title">${uiIcoWind(15)} 台風：${give ? '相手に渡すカードを選択' : '相手から取るカードを選択'}</div>
-        <div class="discard-cards">${cards(hand,true)}</div>
-        <div style="text-align:center;margin:10px 0"><button class="btn-ho" ${sel ? '' : 'disabled'} onclick="confirmTyphoonPick()" style="font-size:.9rem;${sel ? '' : 'opacity:.45;cursor:default'}">${sel ? `「${_escHtml(sel.name)}」を${give ? '渡す' : '取る'}` : 'カードを選んでください'}</button></div>
-        ${give ? '' : `<div class="section-title">相手に見えている自分の手札</div><div class="discard-cards typhoon-own-hand">${cards(versusTyphoonTargets(me),false)}</div>`}</div>`;
+        <div class="discard-cards typhoon-target-hand" style="--typhoon-count:${Math.max(1,hand.length)}">${cards(hand,true)}</div>
+        <div class="typhoon-preview">${sel ? `<div class="typhoon-preview-art">${cardFaceHtml(sel, { versus: true, err: 'dim' })}</div><div class="typhoon-preview-text"><div class="typhoon-preview-name">${_escHtml(sel.name)}</div><div>${versusCardDesc(sel)}</div></div>` : ''}</div>
+        <div class="typhoon-actions" style="text-align:center;margin:10px 0"><button class="btn-ho" ${sel ? '' : 'disabled'} onclick="confirmTyphoonPick()" style="font-size:.9rem;${sel ? '' : 'opacity:.45;cursor:default'}">${sel ? `「${_escHtml(sel.name)}」を${give ? '渡す' : '取る'}` : 'カードを選んでください'}</button></div>
+        ${give ? '' : `<div class="section-title typhoon-own-title">相手に見えている自分の手札</div><div class="discard-cards typhoon-own-hand" style="--typhoon-count:${Math.max(1,versusTyphoonTargets(me).length)}">${cards(versusTyphoonTargets(me),false)}</div>`}</div>`;
     }
     function renderTyphoonPick() {
       if (VERSUS_TYPHOON_MODE !== 'steal') return renderTyphoonSwap();
@@ -23363,7 +23384,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '5a5e266';
+    const BUILD_ID = 'fe86659';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
