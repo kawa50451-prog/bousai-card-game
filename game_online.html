@@ -3134,6 +3134,14 @@
       box-shadow: 0 4px 16px rgba(0, 0, 0, .5)
     }
 
+
+    /* 既存のカード部品を使い、選択枠と選べない手札を交換画面内で区別する。 */
+    .typhoon-swap .card { cursor: pointer; border-radius: 0; box-shadow: none !important; transform: none !important; }
+    .typhoon-swap .card.typhoon-selected { outline: 3px solid var(--yellow); outline-offset: -3px; }
+    .typhoon-check { position: absolute; top: 4px; right: 4px; background: var(--yellow); color: var(--bg0); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 800; }
+    .typhoon-swap .typhoon-own-hand .card { cursor: default; opacity: .65; pointer-events: none; }
+    .typhoon-swap .btn-ho { border-radius: 0; box-shadow: none; max-width: 100%; }
+    .typhoon-swap-summary { border: 0; border-left: 2px solid var(--yellow); border-radius: 0; background: none; }
     /* MOBILE */
     @media(max-width:600px) {
       #app {
@@ -5182,15 +5190,18 @@
     // 唯一の分類元とし、この定数群はそこから導出するだけ（分類をコード中に散らさない・WORKTRACK.md §5準拠）。
     // 攻める10種（自然7＋人為3）・守る6種・自由2種＝計18種。
     const VERSUS_DECK_SIZE = 24;
-    // 台風（specialType: 'discard_policy'）の対戦モードでの効果：攻撃側が防御側の手札を見て任意の1枚を選んで奪い、
-    // 自分の山札へ置く。置き場所はここだけで決める（'top'＝山札の一番上＝次のドローで引く／'shuffle'＝山札に混ぜる）。
-    // 分岐は typhoonStealPlace()（050_）の1か所。モード差の所在：対戦＝resolveDamage の 'typhoon' fx（奪う。攻撃側が
-    // typhoonPick 画面で選ぶ）／協力＝calcCoopDamage の op:'typhoon'（手札からランダム破棄）／デイリー＝従来どおり。
-    // カード定義の specialType は3モード共通のため、モードごとの違いは各モードの解決側で切り替えている。
-    // ⚠️ 'shuffle' に変えたら、VERSUS_CARD_TEXT.typhoon の desc・column と、typhoonPick 画面・対応バー・ログの文言
-    // 「自分の山札の一番上」も直すこと（文言の自動切り替えはしていない）。
+    // 対戦は VERSUS_TYPHOON_MODE で切り替える。swap_take は相手から取る札、swap_give は自分から渡す札を選ぶ。
+    // 両者の確定後、finishTyphoonSwap()（050_）で手札へ交換する。steal は攻撃側だけが選ぶ。
+    // steal の配置は typhoonStealPlace()：top＝山札の一番上、shuffle＝山札に混ぜる。
+    // 対戦は resolveDamage の typhoon、協力は calcCoopDamage の op:typhoon、デイリーは従来の解決側に分かれる。
+    // specialType は共通だが、協力・デイリーのランダム破棄は対戦モードの切り替えに影響されない。
+    // STEAL_TO は steal 専用。shuffle へ変更するとき、選択画面とログは自動で切り替わるが、
+    // steal 用 desc・column と対応バーの「山札の上」の文言も確認して直すこと。
     /** @type {'top' | 'shuffle'} */
     const VERSUS_TYPHOON_STEAL_TO = 'top';
+    /** @type {'steal' | 'swap_give' | 'swap_take'} */
+    const VERSUS_TYPHOON_MODE = 'swap_take';
+    const CPU_TYPHOON_SWAP_GIVE_ATTACK_PENALTY = 20; // 相手へ渡す攻撃札の危険を、優先順の差より重く数える
     // 対戦モードだけ別の文言を出すカード文。カード定義（020_cards.js）の desc・columnTitle・column は協力・デイリーと共通で、
     // 台風の協力・デイリーの挙動は従来のランダム破棄のままのため、対戦の効果に合わせた文言はここに分けて持つ。
     // 対戦の画面（デッキ編成・手札・捨て札選択・ローリングストック・台風の選択・カード拡大）の desc は versusCardDesc() 経由で出す。
@@ -5198,9 +5209,9 @@
     /** @type {{ [cardId: string]: { desc?: string, columnTitle?: string, column?: string } }} */
     const VERSUS_CARD_TEXT = {
       typhoon: {
-        desc: '20＋手札を1枚奪い、自分の山札の上へ',
-        columnTitle: '広域災害と資源の奪い合い',
-        column: '相手の手札から1枚を選んで奪い、自分の山札の一番上に置く。台風は広い範囲を同時に襲うため、復旧に必要な人手や資材が地域の間で取り合いになる。2019年の房総半島台風では、屋根にブルーシートを張る業者が地元で足りず、県外からも業者を募った。それでも本格的な修理まで数か月待つ家が続いた。手元にあるはずの備えも、いざという時に確保できるとは限らない。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。',
+        desc: { steal: '20＋手札を1枚奪い、自分の山札の上へ', swap_give: '20＋互いに渡す1枚を選んで交換', swap_take: '20＋手札を見せ合い、相手の1枚を選んで交換' }[VERSUS_TYPHOON_MODE],
+        columnTitle: VERSUS_TYPHOON_MODE === 'swap_take' ? '広域災害と資源の融通' : '広域災害と資源の奪い合い',
+        column: VERSUS_TYPHOON_MODE === 'swap_take' ? '互いの手札を見せ合い、相手の手札から1枚ずつ選んで交換する。台風は広い範囲を同時に襲うため、復旧に必要な人手や資材を地域の間で融通し合うことになる。2019年の房総半島台風では、屋根にブルーシートを張る業者が地元で足りず、県外からも業者を募った。何を手元に残し、何を差し出すかは、相手の状況を見て決めるしかない。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。' : '相手の手札から1枚を選んで奪い、自分の山札の一番上に置く。台風は広い範囲を同時に襲うため、復旧に必要な人手や資材が地域の間で取り合いになる。2019年の房総半島台風では、屋根にブルーシートを張る業者が地元で足りず、県外からも業者を募った。それでも本格的な修理まで数か月待つ家が続いた。手元にあるはずの備えも、いざという時に確保できるとは限らない。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。',
       },
     };
     /** @param {{ id: string, desc: string }} card */
@@ -5396,6 +5407,7 @@
       // 試合中は HP 合計の差が planSwitchLead 以上なら長期戦（守り切る）、-planSwitchLead 以下なら短期決戦（取り返す）に切り替える
       planLongAvgCost: 2.3, planLongMinDisasters: 13, planSwitchLead: 40,
       recycleBonus: 10,     // ローリングストックを使うと得な手札（要らないカードが 1 枚・偏りが 1）の、1 つあたりの加点
+      swapLoss: 1.0, swapGain: 1.0, // 自分の損失と相手の利得を等しく数える
       stealOpp: 1.0, stealMine: 0.5,   // 台風で奪うカードの価値：相手から取り上げる分と、自分が使える分（Task 4）
       // 先読みする手の並びの上限。手札 5 枚・予算 5 でも 2^5 通りの選び方と災害の順序を合わせて 200 を超えない。超えたら打ち切る
       maxCandidates: 200,
@@ -5798,7 +5810,7 @@
         addExposure();
         if (attackCard.specialType === 'discard_policy') {
           const pols = defHand.filter(c => c.type === 'policy' || c.type === 'disaster' || c.type === 'jinzai');
-          if (pols.length > 0) { handLen--; add('special', null, null, `台風：${defName}の手札から1枚を奪う（攻撃側が選択）`, { fx: 'typhoon' }); }
+          if (pols.length > 0 || VERSUS_TYPHOON_MODE !== 'steal') { if (VERSUS_TYPHOON_MODE === 'steal') handLen--; add('special', null, null, VERSUS_TYPHOON_MODE === 'steal' ? `台風：${defName}の手札から1枚を奪う（攻撃側が選択）` : '台風：手札を交換', { fx: 'typhoon' }); }
           else add('special', null, null, '台風：手札なし（効果なし）');
         }
       }
@@ -8001,6 +8013,8 @@
           } else {
             if (!G._gameHistory) G._gameHistory = [];
             G._gameHistory.push(...(G._nextTurnEvents[i] || []).map(ev => ({ ...ev, playerIdx: i })));
+            // 決着時は既存どおり選択を省く。交換が無かった理由だけ記録に残す。
+            if (G.pendingTyphoon && VERSUS_TYPHOON_MODE !== 'steal') plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: G.pendingTyphoon.attackerIdx, reason: 'game_end' });
             G.winner = i === 0 ? 1 : 0; G.screen = 'gameover'; G.pendingTyphoon = null;
             plEndFromG();
             if (G.winner === myPlayerIdx) haptic(HAPTIC.win); // B1：勝利ハプティクス（design_system.md §9.2）
@@ -8065,7 +8079,7 @@
         switch (m.fx) {
           case 'negatePre': def.effects.negateSpecial = false; break;
           case 'typhoon': {
-            if (versusTyphoonTargets(defIdx).length > 0) typhoonPending = { attackerIdx: defIdx === 0 ? 1 : 0, defIdx, drawAfter: [] };
+            if (VERSUS_TYPHOON_MODE !== 'steal' || versusTyphoonTargets(defIdx).length > 0) typhoonPending = { attackerIdx: defIdx === 0 ? 1 : 0, defIdx, drawAfter: [] };
             break;
           }
           case 'floodLearned': def.effects.floodLearned = true; break;
@@ -8102,7 +8116,16 @@
       for (const l of log) addLog(l.delta != null ? `→ ${l.text}（${l.delta > 0 ? '+' : ''}${l.delta}）` : `→ ${l.text}`);
       if (healAmt > 0) addLog(`${coopIcoHeart(12,'#3fb950')} ${def.name}「${healName}」→ 回復軽減 ${healAmt}（対応時半減）`);
       G._nextTurnEvents[defIdx].push({ type: 'damage', cardId: attackCard.id, cardIcon: attackCard.icon, cardName: attackCard.name, baseDamage: attackCard.baseDamage, details: [...log], damage: dmg, hpBefore: fromHp, hpAfterDamage: Math.max(0, hpAD), hpAfter: Math.max(0, finalHp), healAmount: healAmt, healCardName: healName });
-      if (typhoonPending) { G.pendingTyphoon = typhoonPending; addLog(`${uiIcoWind(13)} ${aN}「台風」→ ${def.name}の手札から奪うカードを選択中…`, 'sys'); }
+      if (VERSUS_TYPHOON_MODE !== 'steal' && attackCard.specialType === 'discard_policy' && !typhoonPending) plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: 1 - defIdx, reason: 'negated' });
+      if (typhoonPending && VERSUS_TYPHOON_MODE !== 'steal') {
+        G.pendingTyphoon = { ...typhoonPending, choices: {}, token: `${G.turnsEach.join('_')}_${G.stealSeq || 0}` };
+        if ([0, 1].some(pi => versusTyphoonTargets(pi).length === 0)) {
+          plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: typhoonPending.attackerIdx, reason: 'empty_hand' });
+          addLog('台風：手札が無いので交換なし', 'sys');
+          for (const n of typhoonPending.drawAfter) { drawCards(defIdx, n); autoDiscard(defIdx); }
+          G.pendingTyphoon = null;
+        }
+      } else if (typhoonPending) { G.pendingTyphoon = typhoonPending; addLog(`${uiIcoWind(13)} ${aN}「台風」→ ${def.name}の手札から奪うカードを選択中…`, 'sys'); }
     }
 
     // ─── 台風（対戦のみ）：攻撃側が防御側の手札から1枚を奪う ───
@@ -8125,11 +8148,60 @@
     }
     // 攻撃側が奪うカードを確定する。ダメージ・ログ・_nextTurnEvents は resolveDamage で済んでいるので、
     // ここは「奪う→防御側のドロー（遅らせた分）→元の流れへ」だけを行う。
+    // 選択は両者分がそろうまで手札へ反映しない。オンラインは状態の最新値へ原子的に追記する。
+    function pickTyphoonSwap(uid, pi = myPlayerIdx) {
+      const pt = G.pendingTyphoon;
+      if (!pt || VERSUS_TYPHOON_MODE === 'steal' || (pi !== 0 && pi !== 1)) return;
+      if (!isCpuMode && (myRole === 'spectator' || pi !== myPlayerIdx)) return;
+      const target = VERSUS_TYPHOON_MODE === 'swap_give' ? pi : 1 - pi;
+      if (!versusTyphoonTargets(target).some(c => c.uid === uid) || pt.choices?.[pi]) return;
+      if (!isCpuMode && db && roomId) {
+        db.ref(`rooms/${roomId}/state`).transaction(raw => {
+          if (!raw) return;
+          const state = JSON.parse(raw), pending = state.pendingTyphoon;
+          if (state.screen !== 'typhoonPick' || pending?.token !== pt.token || pending.choices?.[pi]) return;
+          if (!state.players[target].hand.some(c => c.uid === uid)) return;
+          pending.choices = { ...pending.choices, [pi]: uid };
+          return JSON.stringify(state);
+        }, () => { render(); }, false);
+        return;
+      }
+      pt.choices = { ...pt.choices, [pi]: uid };
+      if (!finishTyphoonSwap()) commit();
+    }
+    function finishTyphoonSwap() {
+      const pt = G.pendingTyphoon;
+      if (VERSUS_TYPHOON_MODE === 'steal' || !pt?.choices?.[0] || !pt.choices[1]) return false;
+      if (!isCpuMode && myPlayerIdx !== pt.attackerIdx) return false;
+      const before = [0, 1].map(pi => versusTyphoonTargets(pi));
+      const give = before.map((hand, pi) => hand.find(c => c.uid === pt.choices[VERSUS_TYPHOON_MODE === 'swap_give' ? pi : 1 - pi]));
+      if (give.some(c => !c)) return false;
+      const received = give.map(c => {
+        G.stealSeq = (G.stealSeq || 0) + 1;
+        return { ...c, uid: c.uid.replace(/_s\d+$/, '') + '_s' + G.stealSeq };
+      }).reverse();
+      const sides = [0, 1].map(pi => ({ pi, gave: give[pi].id, received: received[pi].id, receivedUid: received[pi].uid, hand: plHand(before[pi]), handLen: before[pi].length }));
+      for (const pi of [0, 1]) {
+        const p = G.players[pi];
+        p.hand.splice(p.hand.indexOf(give[pi]), 1);
+        p.hand.push(received[pi]);
+      }
+      plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: pt.attackerIdx, sides });
+      // ログは両端末で共有するため、表示端末に依存しない両者の名前で記録する。
+      addLog(`台風で${G.players[0].name}が「${received[0].name}」、${G.players[1].name}が「${received[1].name}」を取った`, 'sys');
+      G._nextTurnEvents[pt.defIdx].push({ type: 'typhoon_swap', gaveName: give[pt.defIdx].name, gaveIcon: give[pt.defIdx].icon, receivedName: received[pt.defIdx].name, receivedIcon: received[pt.defIdx].icon });
+      for (const pi of [0, 1]) autoDiscard(pi);
+      for (const n of pt.drawAfter) { drawCards(pt.defIdx, n); autoDiscard(pt.defIdx); }
+      G.pendingTyphoon = null;
+      G.screen = G.recycleState ? 'recycle' : (G.turnDrawState ? 'turnDraw' : 'main');
+      commit();
+      return true;
+    }
     function pickTyphoonSteal(uid) {
       const pt = G.pendingTyphoon; if (!pt) return;
       const atk = G.players[pt.attackerIdx]; const def = G.players[pt.defIdx];
       const card = versusTyphoonTargets(pt.defIdx).find(c => c.uid === uid); if (!card) return;
-      plEvent('typhoon', { pi: pt.attackerIdx, stole: card.id, from: plHand(versusTyphoonTargets(pt.defIdx)) });
+      plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: pt.attackerIdx, stole: card.id, from: plHand(versusTyphoonTargets(pt.defIdx)) });
       def.hand.splice(def.hand.indexOf(card), 1);
       // uid はプレイヤーごとに id+'_'+連番 で振られ、両者が同じ uid（drill_0 など）を持つ。そのまま攻撃側の山札へ入れると
       // 自分の手札・山札に同じ uid が並び、uid で1枚を選ぶ処理（ローリングストック・捨て札・使用）が2枚に反応する。
@@ -9941,6 +10013,7 @@
         // 同時ドラフトも同じ。ドラフトの段階を離れたら端末ローカルのドラフトを捨てる。段階の中なら、受信が遅れて2人分がそろっていた場合に備えてホストが組み込みを試す
         if (newScreen === 'draft' && G.draftPhase) vsDraftHostTryMerge();
         else if (_vsLocalDraft) vsDraftLeave();
+        if (newScreen === 'typhoonPick' && finishTyphoonSwap()) return;
         _scheduleRemoteRenderVS(); // 5.1.1・5.1.3：受信のたびの即時全量renderをデバウンス（自分操作の即時renderは別経路のため影響なし）
       });
     }
@@ -10101,7 +10174,7 @@
         case 'discard': { const pi = G.discardNeeded?.pi ?? G.discardNeeded?.playerIdx; return pi === mi ? 'discard' : 'waiting'; }
         case 'recycle': return (G.recycleState?.pi ?? G.activePlayer) === mi ? 'recycle' : 'waiting';
         case 'pollution': return (G.pendingPollution?.attackerIdx ?? G.activePlayer) === mi ? 'pollution' : 'waiting';
-        case 'typhoonPick': return (G.pendingTyphoon?.attackerIdx ?? G.activePlayer) === mi ? 'typhoonPick' : 'waiting';
+        case 'typhoonPick': if (VERSUS_TYPHOON_MODE !== 'steal') return G.pendingTyphoon?.choices?.[mi] ? 'waiting' : 'typhoonPick'; return (G.pendingTyphoon?.attackerIdx ?? G.activePlayer) === mi ? 'typhoonPick' : 'waiting';
         case 'gameover': return 'gameover';
         default: return 'waiting';
       }
@@ -11454,7 +11527,7 @@
         case 'discard': { const pi = G.discardNeeded?.pi ?? G.discardNeeded?.playerIdx ?? 0; msg = _wc(`${G.players[pi].name} が`, '捨て札を', '選んでいます'); } break;
         case 'recycle': msg = `${_wc('相手が', 'ローリングストックで')}<br>${_wc('手札を', '入れ替えています')}`; break;
         case 'pollution': msg = `${_wc('相手が', '公害を', '使用して')}<br>${_wc('破壊する', 'シールドを', '選んでいます')}`; break;
-        case 'typhoonPick': msg = `${_wc('相手が', '台風で')}<br>${_wc('奪う', 'カードを', '選んでいます')}`; break;
+        case 'typhoonPick': if (VERSUS_TYPHOON_MODE !== 'steal') { msg = '相手が交換するカードを選んでいます'; break; } msg = `${_wc('相手が', '台風で')}<br>${_wc('奪う', 'カードを', '選んでいます')}`; break;
         default: msg = _wc(`${G.players[G.activePlayer].name} の`, 'ターンです');
       }
       const showBoard = ['main', 'response'].includes(G.screen) && G.players[0].cities.length > 0;
@@ -12215,11 +12288,33 @@
   </div></div>`;
     }
 
-    // ─── 台風（対戦のみ）：奪う相手の手札を選ぶ（攻撃側だけがこの画面に来る。防御側・観戦者は renderWaiting の待機表示） ───
-    // 選択は端末内の一時状態（_typhoonSelUid）。確定するまで G は変えず、確定で pickTyphoonSteal が commit する。
+    // ─── 台風（対戦のみ）：交換は両者が、steal は攻撃側だけがカードを選ぶ ───
+    // 選択は端末内の一時状態（_typhoonSelUid）。確定するまで G は変えず、確定で各モードの選択処理が commit する。
     /** @type {string | null} */
     let _typhoonSelUid = null;
+    function renderTyphoonSwap() {
+      const me = myPlayerIdx;
+      if (G.pendingTyphoon?.choices?.[me]) return renderWaiting();
+      const give = VERSUS_TYPHOON_MODE === 'swap_give';
+      const hand = versusTyphoonTargets(give ? me : 1 - me);
+      if (!hand.some(c => c.uid === _typhoonSelUid)) _typhoonSelUid = null;
+      const sel = hand.find(c => c.uid === _typhoonSelUid) || null;
+      const cards = (items, selectable) => items.map(card => {
+        const on = selectable && card.uid === _typhoonSelUid;
+        return `<div class="card ${card.type}${selectable ? '' : ' card-disabled'}${on ? ' typhoon-selected' : ''}" data-ctype="${cardCtype(card)}" ${selectable ? `onclick="toggleTyphoonCard('${card.uid}')"` : ''}>
+          <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
+          <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
+          <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}
+          ${on ? '<div class="typhoon-check">✓</div>' : ''}
+        </div>`;
+      }).join('');
+      return `<div class="screen active typhoon-swap"><div class="section-title">${uiIcoWind(15)} 台風：${give ? '相手に渡すカードを選択' : '相手から取るカードを選択'}</div>
+        <div class="discard-cards">${cards(hand,true)}</div>
+        <div style="text-align:center;margin:10px 0"><button class="btn-ho" ${sel ? '' : 'disabled'} onclick="confirmTyphoonPick()" style="font-size:.9rem;${sel ? '' : 'opacity:.45;cursor:default'}">${sel ? `「${_escHtml(sel.name)}」を${give ? '渡す' : '取る'}` : 'カードを選んでください'}</button></div>
+        ${give ? '' : `<div class="section-title">相手に見えている自分の手札</div><div class="discard-cards typhoon-own-hand">${cards(versusTyphoonTargets(me),false)}</div>`}</div>`;
+    }
     function renderTyphoonPick() {
+      if (VERSUS_TYPHOON_MODE !== 'steal') return renderTyphoonSwap();
       const pt = G.pendingTyphoon; const atkIdx = pt?.attackerIdx ?? G.activePlayer; const defIdx = pt?.defIdx ?? (atkIdx === 0 ? 1 : 0);
       const def = G.players[defIdx];
       const hand = versusTyphoonTargets(defIdx);
@@ -12241,7 +12336,7 @@
     <div style="text-align:center;margin:10px 0"><button class="btn-ho" ${sel ? '' : 'disabled style="opacity:.45;cursor:default"'} onclick="confirmTyphoonPick()" style="font-size:.9rem">${sel ? `「${_escHtml(sel.name)}」を奪う` : 'カードを選んでください'}</button></div></div>`;
     }
     function toggleTyphoonCard(uid) { _typhoonSelUid = _typhoonSelUid === uid ? null : uid; render(); }
-    function confirmTyphoonPick() { const uid = _typhoonSelUid; if (!uid) return; _typhoonSelUid = null; pickTyphoonSteal(uid); }
+    function confirmTyphoonPick() { const uid = _typhoonSelUid; if (!uid) return; _typhoonSelUid = null; if (VERSUS_TYPHOON_MODE === 'steal') pickTyphoonSteal(uid); else pickTyphoonSwap(uid); }
 
     // ─── ターンサマリー ───
     function _buildTurnSummaryItems(events) {
@@ -12271,6 +12366,7 @@
         if (ev.type === 'pollution_broken') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">${uiIcoAlertCircle(15,'#c084fc')} 公害：${ev.shieldName}が破壊されました</div><div class="ts-ev-detail">設置していたシールドが人為災害で無効化されました</div></div>`;
         if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">${coopIcoHeart(13,'#3fb950')} ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
         if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">${uiIcoDroplet(14,'var(--blue)')} ${ev.cityIcon} ${ev.cityName}：今ターン予算 +${ev.bonusAmt ?? 1}</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
+        if (ev.type === 'typhoon_swap') return `<div class="ts-ev typhoon typhoon-swap-summary"><div class="ts-ev-title">${uiIcoWind(18)} 台風の特殊効果！</div><div class="ts-ev-detail">${cardIconSvg(ev.gaveIcon,20)} 「<strong>${_escHtml(ev.gaveName)}</strong>」を取られた</div><div class="ts-ev-detail">${cardIconSvg(ev.receivedIcon,20)} 「<strong>${_escHtml(ev.receivedName)}</strong>」を取った</div></div>`;
         if (ev.type === 'typhoon_steal') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">${uiIcoWind(18)} 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">${coopIcoWarnTriangle(15,'var(--red)')} 相手の手札からカードを奪いました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${cardIconSvg(ev.cardIcon,30)}</span><br>「<strong>${ev.cardName}</strong>」を奪い、自分の山札へ置きました</div></div>`;
         if (ev.type === 'typhoon_discard') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">${uiIcoWind(18)} 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">${coopIcoWarnTriangle(15,'var(--red)')} 手札からカードが奪われました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${cardIconSvg(ev.cardIcon,30)}</span><br>「<strong>${ev.cardName}</strong>」が手札から失われました</div></div>`;
         if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">${coopIcoWarnTriangle(18,'var(--yellow)')} ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が次の都市として登場します</div></div>`;
@@ -12309,6 +12405,7 @@
         if (ev.type === 'pollution_broken') return `<div class="ts-ev warn" style="border-color:#c084fc"><div class="ts-ev-title">${uiIcoAlertCircle(15,'#c084fc')} 公害：${ev.shieldName}が破壊されました</div><div class="ts-ev-detail">設置していたシールドが人為災害で無効化されました</div></div>`;
         if (ev.type === 'opp_regen') return `<div class="ts-ev heal"><div class="ts-ev-title">${coopIcoHeart(13,'#3fb950')} ${ev.cityIcon} ${ev.cityName}：HP +${ev.amount} 回復</div><div class="ts-ev-detail">HP ${ev.hpBefore} → ${ev.hpAfter}</div></div>`;
         if (ev.type === 'flood_budget') return `<div class="ts-ev budget"><div class="ts-ev-title">${uiIcoDroplet(14,'var(--blue)')} ${ev.cityIcon} ${ev.cityName}：今ターン予算 +${ev.bonusAmt ?? 1}</div><div class="ts-ev-detail">洪水・津波後の復旧ボーナス（このターン有効）</div></div>`;
+        if (ev.type === 'typhoon_swap') return `<div class="ts-ev typhoon typhoon-swap-summary"><div class="ts-ev-title">${uiIcoWind(18)} 台風の特殊効果！</div><div class="ts-ev-detail">${cardIconSvg(ev.gaveIcon,20)} 「<strong>${_escHtml(ev.gaveName)}</strong>」を取られた</div><div class="ts-ev-detail">${cardIconSvg(ev.receivedIcon,20)} 「<strong>${_escHtml(ev.receivedName)}</strong>」を取った</div></div>`;
         if (ev.type === 'typhoon_steal') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">${uiIcoWind(18)} 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">${coopIcoWarnTriangle(15,'var(--red)')} あなたの手札からカードが奪われました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${cardIconSvg(ev.cardIcon,30)}</span><br>「<strong>${ev.cardName}</strong>」を相手に奪われました</div></div>`;
         if (ev.type === 'typhoon_discard') return `<div class="ts-ev typhoon" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.1rem">${uiIcoWind(18)} 台風の特殊効果！</div><div style="margin:6px 0;padding:7px 10px;background:rgba(248,81,73,.1);border-radius:6px;border:1px solid rgba(248,81,73,.3);text-align:center;color:var(--red);font-weight:700;font-size:.88rem">${coopIcoWarnTriangle(15,'var(--red)')} あなたの手札からカードが奪われました！</div><div class="ts-ev-detail" style="font-size:1rem;text-align:center"><span style="font-size:2rem">${cardIconSvg(ev.cardIcon,30)}</span><br>「<strong>${ev.cardName}</strong>」が手札から失われました</div></div>`;
         if (ev.type === 'city_switch') return `<div class="ts-ev warn" style="border-color:var(--yellow);border-width:2px;background:rgba(227,179,65,.1)"><div class="ts-ev-title" style="font-size:1.15rem">${coopIcoWarnTriangle(18,'var(--yellow)')} ${ev.oldCityName}が壊滅！</div><div class="ts-ev-detail">${ev.newCityIcon} <strong>${ev.newCityName}</strong> が次の都市として登場します</div></div>`;
@@ -12897,7 +12994,7 @@
     function playCard(uid) {
       const p = G.players[G.activePlayer]; const idx = p.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = p.hand[idx];
       if (getBudgetLeft(G.activePlayer) < card.cost) return;
-      plEvent('play', { pi: G.activePlayer, card: card.id, options: plPlayableIds(G.activePlayer) });
+      plEvent('play', { pi: G.activePlayer, ...(VERSUS_TYPHOON_MODE !== 'steal' ? { uid: card.uid } : {}), card: card.id, options: plPlayableIds(G.activePlayer) });
       p.hand.splice(idx, 1); p.discard.push(card); p.budgetUsed += card.cost;
       pushUsedHistory(G.activePlayer, card);
       showBudgetToast(card.cost, getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
@@ -13291,6 +13388,10 @@
       if (s === 'discard' && c(dn?.pi ?? dn?.playerIdx)) return { k: 'discard', me: dn.pi ?? dn.playerIdx };
       if (s === 'recycle' && c(G.recycleState?.pi)) return { k: 'recycle', me: G.recycleState.pi };
       if (s === 'pollution' && c(G.pendingPollution?.attackerIdx)) return { k: 'pollution', me: G.pendingPollution.attackerIdx };
+      if (s === 'typhoonPick' && VERSUS_TYPHOON_MODE !== 'steal') {
+        for (const pi of [0, 1]) if (c(pi) && !G.pendingTyphoon?.choices?.[pi]) return { k: 'typhoon', me: pi };
+        return null;
+      }
       if (s === 'typhoonPick' && c(G.pendingTyphoon?.attackerIdx)) return { k: 'typhoon', me: G.pendingTyphoon.attackerIdx };
       return null;
     }
@@ -13362,7 +13463,18 @@
       for (const id of [...CPU_TYPHOON_STEAL_PRIORITY, ...[...CPU_DISCARD_PRIORITY].reverse()]) { const c = hand.find(x => x.id === id); if (c) return c; }
       return hand[0];
     }
+    function _cpuSwapPick(me) {
+      const give = VERSUS_TYPHOON_MODE === 'swap_give';
+      const hand = versusTyphoonTargets(give ? me : 1 - me);
+      if (_cpuSkill(me) === 'easy') return hand[vsRand() * hand.length | 0];
+      if (!give) return _cpuTyphoonPick(hand, me);
+      // 政策を優先して手放し、こちらへ使われる攻撃札を残す。同種では奪取の優先順を逆にする。
+      const order = [...CPU_TYPHOON_STEAL_PRIORITY, ...[...CPU_DISCARD_PRIORITY].reverse()];
+      const value = c => order.length - order.indexOf(c.id) + (c.type !== 'policy' ? CPU_TYPHOON_SWAP_GIVE_ATTACK_PENALTY : 0);
+      return [...hand].sort((a,b) => value(a) - value(b) || (a.type !== 'policy' ? 1 : 0) - (b.type !== 'policy' ? 1 : 0))[0];
+    }
     function _cpuDoTyphoon(me = 1) {
+      if (VERSUS_TYPHOON_MODE !== 'steal') { const c = _cpuSwapPick(me); if (c) pickTyphoonSwap(c.uid, me); return; }
       const pt = G.pendingTyphoon; if (!pt) return;
       const hand = versusTyphoonTargets(pt.defIdx);
       if (hand.length === 0) { G.pendingTyphoon = null; G.screen = 'main'; commit(); return; }
@@ -14302,6 +14414,25 @@
             break;
           }
           case 'typhoon':
+            if (VERSUS_TYPHOON_MODE !== 'steal') {
+              // 交換は枚数を変えない。見えない札を確定情報として先読みへ混ぜない。
+              if (v.hand.length && v.opp.handCount > 0) {
+                const holds = v.hand.map(c => _skHoldId(c.id, v, false));
+                const pool = Object.entries(skInferOppHand(v)).filter(([, n]) => n > 0);
+                const total = pool.reduce((n, [, k]) => n + k, 0);
+                const ranked = pool.map(([id, k]) => ({ value: _skHoldId(id, v, false), p: k / total })).sort((a,b) => a.value - b.value);
+                let cdf = 0, avg = 0;
+                for (const item of ranked) {
+                  const prev = cdf; cdf += item.p;
+                  const n = v.opp.handCount;
+                  const p = VERSUS_TYPHOON_MODE === 'swap_take' ? Math.pow(cdf, n) - Math.pow(prev, n) : Math.pow(1 - prev, n) - Math.pow(1 - cdf, n);
+                  avg += item.value * p;
+                }
+                const loss = VERSUS_TYPHOON_MODE === 'swap_take' ? Math.max(...holds) : Math.min(...holds);
+                v.bonus += CPU_EXPERT_WEIGHTS.swapGain * avg - CPU_EXPERT_WEIGHTS.swapLoss * loss;
+              }
+              break;
+            }
             if (defKey === 'opp') { if (def.handCount > 0) { def.handCount--; other.deckCount++; } }
             else if (v.hand.length > 0) {
               // 自分が台風を受ける：相手は一番惜しいカードを奪う、と見積もる
@@ -14600,15 +14731,24 @@
      * 点数＝奪うと減る相手の脅威（次の手番に出せるダメージ）＋相手が持つ価値（回復・シールドなど）＋自分が山札の一番上から使える価値の半分
      * @param {number} me */
     function skExpertTyphoon(me) {
+      if (VERSUS_TYPHOON_MODE === 'swap_give') {
+        const view = skView(me), W = CPU_EXPERT_WEIGHTS;
+        const targets = versusTyphoonTargets(me);
+        const score = c => W.swapLoss * _skHoldId(c.id, view, false) + W.swapGain * _skHoldId(c.id, view, true);
+        const best = [...targets].sort((a,b) => score(a) - score(b))[0];
+        if (best) pickTyphoonSwap(best.uid, me);
+        return;
+      }
       const pt = G.pendingTyphoon; if (!pt) return;
-      const targets = versusTyphoonTargets(pt.defIdx);
+      const targetPi = VERSUS_TYPHOON_MODE === 'swap_take' ? 1 - me : pt.defIdx;
+      const targets = versusTyphoonTargets(targetPi);
       if (targets.length === 0) { G.pendingTyphoon = null; G.screen = 'main'; commit(); return; }
       const W = CPU_EXPERT_WEIGHTS;
       const view = skView(me); const ctx = _skCtx(view);
       // 例外：相手の手札の中身を、見込みの代わりに使う
       /** @type {Record<string, number>} */
       const have = {};
-      for (const c of G.players[pt.defIdx].hand) have[c.id] = (have[c.id] || 0) + 1;
+      for (const c of G.players[targetPi].hand) have[c.id] = (have[c.id] || 0) + 1;
       /** @param {string | null} drop @returns {Record<string, number>} */
       const knownInf = (drop) => {
         /** @type {Record<string, number>} */
@@ -14620,12 +14760,14 @@
       let best = null; let bestScore = -Infinity; const seen = new Set();
       for (const c of targets) {
         if (seen.has(c.id)) continue; seen.add(c.id);
-        const v = _skClone(view); v.opp.handCount = Math.max(0, v.opp.handCount - 1); v.self.deckCount++;
+        const v = _skClone(view); v.opp.handCount = Math.max(0, v.opp.handCount - 1);
+        if (VERSUS_TYPHOON_MODE === 'steal') v.self.deckCount++;
         const penAfter = _skThreatPenalty(v, { ...ctx, inf: knownInf(c.id), threatCache: new Map() });
         const score = (penBefore - penAfter) + W.stealOpp * _skHoldId(c.id, view, true) + W.stealMine * _skHoldId(c.id, view, false);
         if (score > bestScore + 1e-9) { bestScore = score; best = c; }
       }
-      pickTyphoonSteal((best || targets[0]).uid);
+      if (VERSUS_TYPHOON_MODE === 'steal') pickTyphoonSteal((best || targets[0]).uid);
+      else pickTyphoonSwap((best || targets[0]).uid, me);
     }
 
     /** 公害で剥がすシールド。相手のシールドを 1 つずつ剥がした盤面で、手札からの一番良い手の評価を比べる
@@ -23221,7 +23363,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = 'd9326fa';
+    const BUILD_ID = '5a5e266';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -23483,7 +23625,7 @@
         return;
       }
       const atk = G.pendingAttack;
-      if (atk && !prevAtk && atk.attackerIdx !== myPlayerIdx) plEvent('play', { pi: atk.attackerIdx, card: atk.card.id });
+      if (atk && !prevAtk && atk.attackerIdx !== myPlayerIdx) plEvent('play', { pi: atk.attackerIdx, card: atk.card.id, ...(VERSUS_TYPHOON_MODE !== 'steal' ? { uid: atk.card.uid } : {}) });
       if (G.screen === 'gameover' && prevScreen !== 'gameover') plEndFromG();
       if (_plCur) plSyncPoint();
     }
@@ -23569,8 +23711,8 @@
     /** @param {number} pi @returns {string[]} */
     function plPolicyIds(pi) { return G.players[pi].hand.filter((/** @type {any} */ c) => c.type === 'policy').map((/** @type {any} */ c) => c.id); }
     /** 対応の決定（card が null なら使わなかった）
-     * @param {number} pi @param {{id: string} | null} card @param {{id: string}} atkCard */
-    function plRespond(pi, card, atkCard) { plEvent('respond', { pi, card: card ? card.id : null, options: plPolicyIds(pi), attack: atkCard.id }); }
+     * @param {number} pi @param {{id: string, uid?: string} | null} card @param {{id: string}} atkCard */
+    function plRespond(pi, card, atkCard) { plEvent('respond', { pi, ...(VERSUS_TYPHOON_MODE !== 'steal' && card ? { uid: card.uid } : {}), card: card ? card.id : null, options: plPolicyIds(pi), attack: atkCard.id }); }
 
     // ═══════════════════════════════════════
     // 送信・保存・一言
@@ -24595,6 +24737,16 @@
 
     /** 盤面コードの盤面から始めた実験の、その盤面から各席が勝つ見込み（summary.json の variants.<版>.fromBoard）
      * @param {any} v */
+    function _ddTyphoonHtml(v) {
+      const t = v.typhoon; if (!t) return '';
+      const row = (label, value) => '<tr><th>' + _ddEsc(label) + '</th><td style="text-align:center">' + value + '</td></tr>';
+      let rows = row('使用回数', String(t.uses));
+      for (const [reason, value] of Object.entries(t.noExchange || {})) rows += row('交換なし：' + ({ empty_hand: '手札0枚', negated: '無効化', game_end: '決着' }[reason] || reason), _ddRate(value));
+      for (const [role, value] of Object.entries(t.receivedUsed || {})) rows += row('受取札の使用率：' + (role === 'attacker' ? '攻撃側' : '防御側'), _ddRate(value));
+      for (const [mode, counts] of Object.entries(t.lowHand || {})) for (const [id, n] of Object.entries(counts)) rows += row((mode === 'swap_give' ? '渡し合い：' : '取り合い：') + '手札1〜2枚・' + _ddCardName(id), String(n));
+      for (const [n, value] of Object.entries(t.byCopies || {})) rows += row('台風' + n + '枚の勝率', _ddRate(value));
+      return _ddSec('台風', '<table class="dd-table dd-kv" style="font-variant-numeric:tabular-nums">' + rows + '</table>');
+    }
     function _ddFromBoardHtml(v) {
       const fb = v.fromBoard;
       if (!fb || typeof fb !== 'object') return '';
@@ -24701,7 +24853,7 @@
       html += '<div class="dd-pick">詳細に表示している版：<b>' + _ddEsc(_ddLabel(f)) + '</b>' + (applied ? '<div class="dd-meta">この版で変えた数字　' + applied + '</div>' : '') + '</div>';
       if (v.notComputed && v.notComputed.length) html += '<div class="dd-nc dd-block">人の記録では未計算の指標：' + v.notComputed.map(_ddEsc).join('、') + '</div>';
       if (!(_ddNum(v.counted) && v.counted > 0)) return html + _ddSec('この版の詳細', '<div class="dd-empty">試合なし（n=0）。表示できる数字がありません</div>');
-      html += _ddFromBoardHtml(v) + _ddTierHtml(v) + _ddMatrixHtml(v, 'city') + _ddMatrixHtml(v, 'deck') + _ddSkillHtml(v) + _ddAbilityHtml(v) + _ddCardsHtml(v);
+      html += _ddTyphoonHtml(v) + _ddFromBoardHtml(v) + _ddTierHtml(v) + _ddMatrixHtml(v, 'city') + _ddMatrixHtml(v, 'deck') + _ddSkillHtml(v) + _ddAbilityHtml(v) + _ddCardsHtml(v);
       return html;
     }
 
