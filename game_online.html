@@ -11655,8 +11655,10 @@
     }
     function renderEffectBadges(eff, pi) {
       const b = [_shieldBadgesHtml(eff)];
-      // イスタンブール（type_learn）を自分の都市に持つプレイヤーには、受けた自然災害の種類を出す（相手は未記録の種類を狙える）。
-      if (pi != null && G.players[pi] && G.players[pi].cities.some(c => c.abilityType === 'type_learn')) {
+      // イスタンブール（type_learn）が前に出ている間だけ、受けた自然災害の種類を出す（相手は未記録の種類を狙える）。
+      // 軽減が効くのはイスタンブールが前に出ているときだけなので、出る前・落ちた後のほかの都市には出さない（2026-11-09 メンバー指摘）。
+      // 記録（effects.receivedTypes）そのものは、後に出すイスタンブールのために1都市目の分も残している。
+      if (pi != null && G.players[pi] && G.players[pi].cities[G.players[pi].activeCityIdx]?.abilityType === 'type_learn') {
         const rt = eff.receivedTypes || [];
         const names = DISASTER_CARDS.filter(d => rt.includes(d.id)).map(d => d.name).join('・');
         b.push(`<span class="eff-badge eff-blue">学習済み：${names || 'なし'}</span>`);
@@ -23219,7 +23221,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '00dbc11';
+    const BUILD_ID = 'd9326fa';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';

@@ -29,3 +29,9 @@
 - ルートに `wrangler.toml`・`wrangler.json`・`wrangler.jsonc` はない。設定ファイルの新規作成はしていない。公開時に Cloudflare 側の静的アセット設定 `assets.not_found_handling = "404-page"` を確認する。TOMLなら `[assets]` 内の `not_found_handling = "404-page"`。`site/404.html` を配信対象とし、存在しないURLのHTTPステータスが404になることを公開環境で確認する。Python簡易サーバーではCloudflareのルーティングは検証できない。
 - 機械点検の再実行：`python site/assets/og/src/verify.py`。canonical・og:*・description等の有無と重複、descriptionの60〜120字、noindex維持、JSON-LDの `json.loads`、sitemap、manifest、PC幅1440pxとスマートフォン幅390pxのJSエラーを確認する。外部Google Fontsの読み込みは撮影環境のネットワーク制限があるため、既存ページのWebフォント表示は公開環境でも確認する。
 - 今回の点検結果：8ページすべて正常。descriptionは順にHOME 89字、ABOUT 88字、NEWS 80字、FEATURES 92字、CARDS 91字、CONTACT 97字、VERSUS 97字、CO-OP 88字。JSON-LDのJSON解析・sitemap XML・manifest JSONも正常。8公開ページと404をPC・スマートフォンの2幅で開きスクロールしてJSエラー0件、HOMEの開幕演出を強制再生した15秒間も0件。OGPは2案とも1200×630、Bodoni Modaの実読み込みを確認し、原寸・600×315・300×157の比較画像で題字を目視確認した。commit・push・公開操作は行っていない。
+
+## 作業の記録（_history/、git 管理外）
+- 2026-11-09 に、一時フォルダにあった制作の記録をここへ移した。確認写真・ブラウザのプロフィール・不採用の画像・書体の写しは消した
+- `_history/scratchpad/`：Codex への仕様書（impl*/spec*.md。品質の基準は spec9・spec12）、結果の報告、plan・NOTES。次の直しの仕様書はここを元に書く
+- `_history/source-images/`：採用した画像の元データ（都市画像 city04e_gen、切り抜き cutouts_raw・cutouts_png、開幕演出 opening2_gen）。サイトにあるのは圧縮版なので、作り直すときはこちらから
+- `_history/check-scripts/`：`.tmp_check/` の確認用スクリプトの写し
