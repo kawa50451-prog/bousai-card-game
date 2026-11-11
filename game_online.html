@@ -3137,6 +3137,9 @@
 
     /* 選択の枠・印はローリングストックと同じ形に揃える。 */
     .typhoon-swap .typhoon-own-hand .card { cursor: default; opacity: .65; pointer-events: none; }
+    .typhoon-swap .card-back { position: relative; border-radius: 0; box-shadow: none; background: none; }
+    .typhoon-swap .card-back img { width: 100%; height: 100%; object-fit: contain; }
+    .typhoon-swap .card-back.typhoon-selected { outline: 2px solid var(--red); outline-offset: -2px; }
     .typhoon-swap .btn-ho { max-width: 100%; }
     .typhoon-swap .typhoon-preview { display: none; }
 
@@ -5211,6 +5214,7 @@
     // 攻める10種（自然7＋人為3）・守る6種・自由2種＝計18種。
     const VERSUS_DECK_SIZE = 24;
     // 対戦は VERSUS_TYPHOON_MODE で切り替える。swap_take は相手から取る札、swap_give は自分から渡す札を選ぶ。
+    // take_blind は攻撃側が見て取り、防御側が伏せた並びから取る。
     // 両者の確定後、finishTyphoonSwap()（050_）で手札へ交換する。steal は攻撃側だけが選ぶ。
     // steal の配置は typhoonStealPlace()：top＝山札の一番上、shuffle＝山札に混ぜる。
     // 対戦は resolveDamage の typhoon、協力は calcCoopDamage の op:typhoon、デイリーは従来の解決側に分かれる。
@@ -5219,8 +5223,8 @@
     // steal 用 desc・column と対応バーの「山札の上」の文言も確認して直すこと。
     /** @type {'top' | 'shuffle'} */
     const VERSUS_TYPHOON_STEAL_TO = 'top';
-    /** @type {'steal' | 'swap_give' | 'swap_take'} */
-    const VERSUS_TYPHOON_MODE = 'swap_take';
+    /** @type {'steal' | 'swap_give' | 'swap_take' | 'take_blind'} */
+    const VERSUS_TYPHOON_MODE = 'take_blind';
     const CPU_TYPHOON_SWAP_GIVE_ATTACK_PENALTY = 20; // 相手へ渡す攻撃札の危険を、優先順の差より重く数える
     // 対戦モードだけ別の文言を出すカード文。カード定義（020_cards.js）の desc・columnTitle・column は協力・デイリーと共通で、
     // 台風の協力・デイリーの挙動は従来のランダム破棄のままのため、対戦の効果に合わせた文言はここに分けて持つ。
@@ -5229,9 +5233,9 @@
     /** @type {{ [cardId: string]: { desc?: string, columnTitle?: string, column?: string } }} */
     const VERSUS_CARD_TEXT = {
       typhoon: {
-        desc: { steal: '20＋手札を1枚奪い、自分の山札の上へ', swap_give: '20＋互いに渡す1枚を選んで交換', swap_take: '20＋手札を見せ合い、相手の1枚を選んで交換' }[VERSUS_TYPHOON_MODE],
-        columnTitle: VERSUS_TYPHOON_MODE === 'swap_take' ? '広域災害と資源の融通' : '広域災害と資源の奪い合い',
-        column: VERSUS_TYPHOON_MODE === 'swap_take' ? '互いの手札を見せ合い、相手の手札から1枚ずつ選んで交換する。台風は広い範囲を同時に襲うため、復旧に必要な人手や資材を地域の間で融通し合うことになる。2019年の房総半島台風では、屋根にブルーシートを張る業者が地元で足りず、県外からも業者を募った。何を手元に残し、何を差し出すかは、相手の状況を見て決めるしかない。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。' : '相手の手札から1枚を選んで奪い、自分の山札の一番上に置く。台風は広い範囲を同時に襲うため、復旧に必要な人手や資材が地域の間で取り合いになる。2019年の房総半島台風では、屋根にブルーシートを張る業者が地元で足りず、県外からも業者を募った。それでも本格的な修理まで数か月待つ家が続いた。手元にあるはずの備えも、いざという時に確保できるとは限らない。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。',
+        desc: { steal: '20＋手札を1枚奪い、自分の山札の上へ', swap_give: '20＋互いに渡す1枚を選んで交換', swap_take: '20＋手札を見せ合い、相手の1枚を選んで交換', take_blind: '20＋相手の手札を見て1枚取る。相手は伏せた手札から1枚取る' }[VERSUS_TYPHOON_MODE],
+        columnTitle: { steal: '広域災害と資源の奪い合い', swap_give: '広域災害と資源の奪い合い', swap_take: '広域災害と資源の融通', take_blind: '広域災害と選べない支援' }[VERSUS_TYPHOON_MODE],
+        column: { steal: '相手の手札から1枚を選んで奪い、自分の山札の一番上に置く。台風は広い範囲を同時に襲うため、復旧に必要な人手や資材が地域の間で取り合いになる。2019年の房総半島台風では、屋根にブルーシートを張る業者が地元で足りず、県外からも業者を募った。それでも本格的な修理まで数か月待つ家が続いた。手元にあるはずの備えも、いざという時に確保できるとは限らない。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。', swap_give: '相手の手札から1枚を選んで奪い、自分の山札の一番上に置く。台風は広い範囲を同時に襲うため、復旧に必要な人手や資材が地域の間で取り合いになる。2019年の房総半島台風では、屋根にブルーシートを張る業者が地元で足りず、県外からも業者を募った。それでも本格的な修理まで数か月待つ家が続いた。手元にあるはずの備えも、いざという時に確保できるとは限らない。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。', swap_take: '互いの手札を見せ合い、相手の手札から1枚ずつ選んで交換する。台風は広い範囲を同時に襲うため、復旧に必要な人手や資材を地域の間で融通し合うことになる。2019年の房総半島台風では、屋根にブルーシートを張る業者が地元で足りず、県外からも業者を募った。何を手元に残し、何を差し出すかは、相手の状況を見て決めるしかない。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。', take_blind: '相手の手札を見て1枚を取り、相手はこちらの伏せた手札から1枚を取る。台風は広い範囲を同時に襲うため、被災地には各地から物資が届くが、何が届くかを被災地は選べない。2016年の熊本地震では、国が要請を待たずに物資を送るプッシュ型支援が行われたが、集積拠点には想定を超える量の物資が届き、仕分けが追いつかず現場が混乱した。必要なものを必要な所へ届けるには、受け取る側の備えと情報が要る。広域避難指示のような行動計画で被害そのものを減らすことの価値も実感できる。' }[VERSUS_TYPHOON_MODE],
       },
     };
     /** @param {{ id: string, desc: string }} card */
@@ -6484,6 +6488,7 @@
     /** 面に出す効果文（文字列、または行の配列）。CARD_FACE_TEXT の vs（対戦）／co（それ以外）。無ければ短い説明文に落ちる
      * @param {any} card @param {boolean} [versus] @returns {string | string[]} */
     function cardFaceDesc(card, versus) {
+      if (versus && card.id === 'typhoon' && VERSUS_TYPHOON_MODE === 'take_blind') return versusCardDesc(card);
       const t = CARD_FACE_TEXT[card.id];
       if (cardFaceIsCity(card)) return versus ? ((t && (t.vs || t.co)) || card.abilityDesc) : ((t && t.co) || card.abilityDesc);
       return versus ? ((t && t.vs) || versusCardDesc(card)) : ((t && t.co) || card.desc);
@@ -6494,6 +6499,8 @@
      * @param {any} card @param {boolean} versus @returns {{ fs: number, lines: string[], pr: boolean }}
      */
     function cardFaceLinesFor(card, versus) {
+      // 既存モードの面を変えず、伏せ取りの説明だけ句点で2行に分ける。
+      if (versus && card.id === 'typhoon' && VERSUS_TYPHOON_MODE === 'take_blind') return { fs: CARD_FACE_FX.fs[0], lines: versusCardDesc(card).match(/[^。]+。?/g) || [], pr: true };
       const tx = CARD_FACE_TEXT[card.id];
       const mode = versus && tx && tx.vs !== undefined ? 'vs' : 'co';
       const e = (typeof CARD_FACE_LINES !== 'undefined' && Object.prototype.hasOwnProperty.call(CARD_FACE_LINES, card.id + '.' + mode)) ? CARD_FACE_LINES[card.id + '.' + mode] : null;
@@ -8139,6 +8146,8 @@
       if (VERSUS_TYPHOON_MODE !== 'steal' && attackCard.specialType === 'discard_policy' && !typhoonPending) plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: 1 - defIdx, reason: 'negated' });
       if (typhoonPending && VERSUS_TYPHOON_MODE !== 'steal') {
         G.pendingTyphoon = { ...typhoonPending, choices: {}, token: `${G.turnsEach.join('_')}_${G.stealSeq || 0}` };
+        // 引いた順から推測できないよう、種が効く共通の乱数で並べる。
+        if (VERSUS_TYPHOON_MODE === 'take_blind') G.pendingTyphoon.blindOrder = shuffle(versusTyphoonTargets(typhoonPending.attackerIdx).map(c => c.uid));
         if ([0, 1].some(pi => versusTyphoonTargets(pi).length === 0)) {
           plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: typhoonPending.attackerIdx, reason: 'empty_hand' });
           addLog('台風：手札が無いので交換なし', 'sys');
@@ -8200,13 +8209,16 @@
         G.stealSeq = (G.stealSeq || 0) + 1;
         return { ...c, uid: c.uid.replace(/_s\d+$/, '') + '_s' + G.stealSeq };
       }).reverse();
+      /** @type {Array<{pi: number, gave: string, received: string, receivedUid: string, hand: string[], handLen: number, blindIndex?: number}>} */
       const sides = [0, 1].map(pi => ({ pi, gave: give[pi].id, received: received[pi].id, receivedUid: received[pi].uid, hand: plHand(before[pi]), handLen: before[pi].length }));
       for (const pi of [0, 1]) {
         const p = G.players[pi];
         p.hand.splice(p.hand.indexOf(give[pi]), 1);
         p.hand.push(received[pi]);
       }
-      plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: pt.attackerIdx, sides });
+      const blindIndex = VERSUS_TYPHOON_MODE === 'take_blind' ? pt.blindOrder.indexOf(pt.choices[pt.defIdx]) : undefined;
+      if (blindIndex !== undefined) sides[pt.defIdx].blindIndex = blindIndex;
+      plEvent('typhoon', { mode: VERSUS_TYPHOON_MODE, pi: pt.attackerIdx, sides, ...(blindIndex === undefined ? {} : { blindIndex }) });
       // ログは両端末で共有するため、表示端末に依存しない両者の名前で記録する。
       addLog(`台風で${G.players[0].name}が「${received[0].name}」、${G.players[1].name}が「${received[1].name}」を取った`, 'sys');
       G._nextTurnEvents[pt.defIdx].push({ type: 'typhoon_swap', gaveName: give[pt.defIdx].name, gaveIcon: give[pt.defIdx].icon, receivedName: received[pt.defIdx].name, receivedIcon: received[pt.defIdx].icon });
@@ -12316,11 +12328,14 @@
       const me = myPlayerIdx;
       if (G.pendingTyphoon?.choices?.[me]) return renderWaiting();
       const give = VERSUS_TYPHOON_MODE === 'swap_give';
-      const hand = versusTyphoonTargets(give ? me : 1 - me);
+      const blind = VERSUS_TYPHOON_MODE === 'take_blind' && me === G.pendingTyphoon?.defIdx;
+      /** @type {any[]} */
+      const hand = blind ? G.pendingTyphoon.blindOrder.map(uid => ({ uid })) : versusTyphoonTargets(give ? me : 1 - me);
       if (!hand.some(c => c.uid === _typhoonSelUid)) _typhoonSelUid = null;
       const sel = hand.find(c => c.uid === _typhoonSelUid) || null;
       const cards = (items, selectable) => items.map(card => {
         const on = selectable && card.uid === _typhoonSelUid;
+        if (blind && selectable) return `<div class="card card-back${on ? ' card-usable typhoon-selected' : ''}" onclick="toggleTyphoonCard('${card.uid}')"><img src="images/cards/back.webp" alt="">${on ? `<div style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}</div>`;
         return `<div class="card ${card.type}${selectable ? '' : ' card-disabled'}${on ? ' card-usable typhoon-selected' : ''}" data-ctype="${cardCtype(card)}" style="${on ? 'box-shadow:0 0 0 3px var(--red) inset,0 0 10px rgba(248,81,73,.4);opacity:.88' : ''}" ${selectable ? `onclick="toggleTyphoonCard('${card.uid}')"` : ''}>
           <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
           <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
@@ -12328,11 +12343,11 @@
           ${on ? `<div style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}
         </div>`;
       }).join('');
-      return `<div class="screen active typhoon-swap"><div class="section-title">${uiIcoWind(15)} 台風：${give ? '相手に渡すカードを選択' : '相手から取るカードを選択'}</div>
+      return `<div class="screen active typhoon-swap"><div class="section-title">${uiIcoWind(15)} 台風：${blind ? '相手の手札から伏せたまま1枚選択' : (give ? '相手に渡すカードを選択' : '相手から取るカードを選択')}</div>
         <div class="discard-cards typhoon-target-hand" style="--typhoon-count:${Math.max(1,hand.length)}">${cards(hand,true)}</div>
-        <div class="typhoon-preview">${sel ? `<div class="typhoon-preview-art">${cardFaceHtml(sel, { versus: true, err: 'dim' })}</div><div class="typhoon-preview-text"><div class="typhoon-preview-name">${_escHtml(sel.name)}</div><div>${versusCardDesc(sel)}</div></div>` : ''}</div>
-        <div class="typhoon-actions" style="text-align:center;margin:10px 0"><button class="btn-ho" ${sel ? '' : 'disabled'} onclick="confirmTyphoonPick()" style="font-size:.9rem;${sel ? '' : 'opacity:.45;cursor:default'}">${sel ? `「${_escHtml(sel.name)}」を${give ? '渡す' : '取る'}` : 'カードを選んでください'}</button></div>
-        ${give ? '' : `<div class="section-title typhoon-own-title">相手に見えている自分の手札</div><div class="discard-cards typhoon-own-hand" style="--typhoon-count:${Math.max(1,versusTyphoonTargets(me).length)}">${cards(versusTyphoonTargets(me),false)}</div>`}</div>`;
+        <div class="typhoon-preview">${sel ? blind ? `<div class="typhoon-preview-art"><img src="images/cards/back.webp" alt=""></div>` : `<div class="typhoon-preview-art">${cardFaceHtml(sel, { versus: true, err: 'dim' })}</div><div class="typhoon-preview-text"><div class="typhoon-preview-name">${_escHtml(sel.name)}</div><div>${versusCardDesc(sel)}</div></div>` : ''}</div>
+        <div class="typhoon-actions" style="text-align:center;margin:10px 0"><button class="btn-ho" ${sel ? '' : 'disabled'} onclick="confirmTyphoonPick()" style="font-size:.9rem;${sel ? '' : 'opacity:.45;cursor:default'}">${sel ? blind ? 'このカードを取る' : `「${_escHtml(sel.name)}」を${give ? '渡す' : '取る'}` : 'カードを選んでください'}</button></div>
+        ${give ? '' : `<div class="section-title typhoon-own-title">${VERSUS_TYPHOON_MODE === 'take_blind' && !blind ? '相手が伏せて1枚選ぶ自分の手札' : '相手に見えている自分の手札'}</div><div class="discard-cards typhoon-own-hand" style="--typhoon-count:${Math.max(1,versusTyphoonTargets(me).length)}">${cards(versusTyphoonTargets(me),false)}</div>`}</div>`;
     }
     function renderTyphoonPick() {
       if (VERSUS_TYPHOON_MODE !== 'steal') return renderTyphoonSwap();
@@ -13485,6 +13500,11 @@
       return hand[0];
     }
     function _cpuSwapPick(me) {
+      // 防御側は手札の中身を参照せず、伏せた位置だけを選ぶ。
+      if (VERSUS_TYPHOON_MODE === 'take_blind' && me === G.pendingTyphoon?.defIdx) {
+        const order = G.pendingTyphoon.blindOrder;
+        return order?.length ? { uid: order[vsRand() * order.length | 0] } : null;
+      }
       const give = VERSUS_TYPHOON_MODE === 'swap_give';
       const hand = versusTyphoonTargets(give ? me : 1 - me);
       if (_cpuSkill(me) === 'easy') return hand[vsRand() * hand.length | 0];
@@ -14446,10 +14466,10 @@
                 for (const item of ranked) {
                   const prev = cdf; cdf += item.p;
                   const n = v.opp.handCount;
-                  const p = VERSUS_TYPHOON_MODE === 'swap_take' ? Math.pow(cdf, n) - Math.pow(prev, n) : Math.pow(1 - prev, n) - Math.pow(1 - cdf, n);
+                  const p = (VERSUS_TYPHOON_MODE === 'swap_take' || VERSUS_TYPHOON_MODE === 'take_blind') ? Math.pow(cdf, n) - Math.pow(prev, n) : Math.pow(1 - prev, n) - Math.pow(1 - cdf, n);
                   avg += item.value * p;
                 }
-                const loss = VERSUS_TYPHOON_MODE === 'swap_take' ? Math.max(...holds) : Math.min(...holds);
+                const loss = VERSUS_TYPHOON_MODE === 'take_blind' ? holds.reduce((sum, value) => sum + value, 0) / holds.length : (VERSUS_TYPHOON_MODE === 'swap_take' ? Math.max(...holds) : Math.min(...holds));
                 v.bonus += CPU_EXPERT_WEIGHTS.swapGain * avg - CPU_EXPERT_WEIGHTS.swapLoss * loss;
               }
               break;
@@ -14752,6 +14772,7 @@
      * 点数＝奪うと減る相手の脅威（次の手番に出せるダメージ）＋相手が持つ価値（回復・シールドなど）＋自分が山札の一番上から使える価値の半分
      * @param {number} me */
     function skExpertTyphoon(me) {
+      if (VERSUS_TYPHOON_MODE === 'take_blind' && me === G.pendingTyphoon?.defIdx) { _cpuDoTyphoon(me); return; }
       if (VERSUS_TYPHOON_MODE === 'swap_give') {
         const view = skView(me), W = CPU_EXPERT_WEIGHTS;
         const targets = versusTyphoonTargets(me);
@@ -14761,7 +14782,7 @@
         return;
       }
       const pt = G.pendingTyphoon; if (!pt) return;
-      const targetPi = VERSUS_TYPHOON_MODE === 'swap_take' ? 1 - me : pt.defIdx;
+      const targetPi = (VERSUS_TYPHOON_MODE === 'swap_take' || VERSUS_TYPHOON_MODE === 'take_blind') ? 1 - me : pt.defIdx;
       const targets = versusTyphoonTargets(targetPi);
       if (targets.length === 0) { G.pendingTyphoon = null; G.screen = 'main'; commit(); return; }
       const W = CPU_EXPERT_WEIGHTS;
@@ -23384,7 +23405,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = 'fe86659';
+    const BUILD_ID = '6d087a6';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -24581,7 +24602,7 @@
     }
 
     // ── 状態の操作 ──
-    function devDashReset() { _ddEs = { human: {}, before: [] }; _dd.compare = null; _dd.sums = []; _dd.logs = []; _dd.sel = 0; _dd.logSel = 0; _dd.msg = ''; _dd.cell = null; _ddRefresh(); }
+    function devDashReset() { _ddEs = { human: {}, before: [], costs: {} }; _dd.compare = null; _dd.sums = []; _dd.logs = []; _dd.sel = 0; _dd.logSel = 0; _dd.msg = ''; _dd.cell = null; _ddRefresh(); }
     /** summary.json の中身を足す（同じ名前なら置き換え） @param {string} name @param {any} data */
     function devDashAddSummary(name, data) {
       if (data && data.type === 'compare') {
@@ -24764,7 +24785,7 @@
       let rows = row('使用回数', String(t.uses));
       for (const [reason, value] of Object.entries(t.noExchange || {})) rows += row('交換なし：' + ({ empty_hand: '手札0枚', negated: '無効化', game_end: '決着' }[reason] || reason), _ddRate(value));
       for (const [role, value] of Object.entries(t.receivedUsed || {})) rows += row('受取札の使用率：' + (role === 'attacker' ? '攻撃側' : '防御側'), _ddRate(value));
-      for (const [mode, counts] of Object.entries(t.lowHand || {})) for (const [id, n] of Object.entries(counts)) rows += row((mode === 'swap_give' ? '渡し合い：' : '取り合い：') + '手札1〜2枚・' + _ddCardName(id), String(n));
+      for (const [mode, counts] of Object.entries(t.lowHand || {})) for (const [id, n] of Object.entries(counts)) rows += row((mode === 'swap_give' ? '渡し合い：' : mode === 'take_blind' ? '伏せ取り：' : '取り合い：') + '手札1〜2枚・' + _ddCardName(id), String(n));
       for (const [n, value] of Object.entries(t.byCopies || {})) rows += row('台風' + n + '枚の勝率', _ddRate(value));
       return _ddSec('台風', '<table class="dd-table dd-kv" style="font-variant-numeric:tabular-nums">' + rows + '</table>');
     }
@@ -24868,6 +24889,7 @@
           + (Array.isArray(d.notComputedForHuman) && d.notComputedForHuman.length ? '<div class="dd-meta dd-nc">未計算：' + d.notComputedForHuman.map(_ddEsc).join('、') + '</div>' : '') + '</div>';
       });
       html += _dd.sums.map(s => _ddCollectionHtml(s.data.collection)).join('') + _ddDecisionsHtml(f.key) + _ddHumanCompareHtml();
+      html += _dd.sums.map(s => _ddAnalysisHtml(s.data.analysis)).join('');
       html += _ddEvalHtml();
       html += _ddCompareHtml(flat);
       const applied = f.data.applied && f.data.applied[f.key] ? Object.keys(f.data.applied[f.key]).map(k => k + '：' + _ddEsc(f.data.applied[f.key][k] && f.data.applied[f.key][k].from) + ' → ' + _ddEsc(f.data.applied[f.key][k] && f.data.applied[f.key][k].to)).join('、') : '';
@@ -24887,7 +24909,7 @@
     const DD_EVAL_PERSP = [['K', 'コンセプト'], ['S', '戦略性・面白さ'], ['H', '環境との調和'], ['M', '明快さ']];
     /** 項目ごとの 0・1・2 の目安（ホバーに出す。正本は上と同じ節。表示のための写し） */
     const DD_EVAL_ANCHORS = /** @type {Record<string, string[]>} */ ({
-      K1: ['自動で効くだけ', '使う時機の判断がある', '相手との読み合いの中で判断が生まれる'],
+      K1: ['自動で効くだけ', '使う時機・対象の判断がある', 'その判断が現実の防災の判断（いつ備えるか、何を優先し何を手放すか）に対応する'],
       K2: ['効いたか分からない', 'ログや数字を見れば分かる', '画面ですぐ分かり、次の判断に使える'],
       K3: ['1回で勝敗が決まり挽回できない', '挽回は難しいが可能', '挽回の手段がある'],
       K4: ['由来と関係がない', '名前や説明だけが由来に合う', '効果の形そのものが由来を表す'],
@@ -24898,7 +24920,7 @@
       S4: ['初心者の打ち方のほうが勝つ', '打ち方による差が 5 ポイント未満', '上級の打ち方で 5 ポイント以上勝率が上がる'],
       S5: ['引き（初手・ガチャ）だけで勝敗がほぼ決まる', '引きの影響が大きいが挽回できる', '引きの差が勝率に小さくしか出ない'],
       S6: ['何もできない時間を長く作る', '一時的に何もできない場面がある', '不快な場面を作らない'],
-      H1: ['狙いの帯から外れる（勝率で ±6 ポイント超、または期待軽減量で「弱すぎ」「強すぎ」）', '帯の端', '狙いの帯の中'],
+      H1: ['狙いの帯から外れる', '帯の端', '狙いの帯の中'],
       H2: ['ほかの都市・カードの上位・下位互換', '一部が重なる', '空いている軸を使う'],
       H3: ['0 になる構成がある', '構成によって大きく振れる', 'どの構成でも働く'],
       H4: ['効く前に都市が壊れやすい', '効くが短い', '早く効く、または予備の都市へ引き継ぐ'],
@@ -24906,14 +24928,13 @@
       M1: ['面に収まらない', '3行以上', '2行以内'],
       M2: ['3つ以上', '1〜2つ', 'ない'],
       M3: ['新しい用語・仕組みが要る', '既存の仕組みの組み合わせ', '既存の仕組みのまま'],
-      M4: ['協力・デイリーにも波及し、実装が重い', '対戦だけで、実装は中程度', '定数か数行の変更で済む'],
     });
     /** 人が付けた点とメモ（summary の名前と版ごと）と、読み込んだ保存ファイル（作る前）
-     * @type {{human: Record<string, Record<string, {score: number | null, memo: string}>>, before: Array<{name: string, data: any}>}} */
-    let _ddEs = { human: {}, before: [] };
+     * @type {{human: Record<string, Record<string, {score: number | null, memo: string}>>, before: Array<{name: string, data: any}>, costs: Record<string, string | null>}} */
+    let _ddEs = { human: {}, before: [], costs: {} };
 
     /** @param {any} x */ function _ddEvalIs012(x) { return x === 0 || x === 1 || x === 2; }
-    /** @param {any} it */ function _ddEvalValid(it) { return !!it && typeof it === 'object' && typeof it.id === 'string' && /^[KSHM][0-9]$/.test(it.id); }
+    /** @param {any} it */ function _ddEvalValid(it) { return !!it && typeof it === 'object' && typeof it.id === 'string' && it.id !== 'M4' && /^[KSHM][0-9]$/.test(it.id); }
     /** @param {any} t */ function _ddEvalTargetOk(t) { return !!t && typeof t === 'object' && (t.type === 'city' || t.type === 'card') && typeof t.id === 'string' && !!t.id; }
     /** @param {any} a @param {any} b */ function _ddEvalSame(a, b) { return _ddEvalTargetOk(a) && _ddEvalTargetOk(b) && a.type === b.type && a.id === b.id; }
     /** @param {any} t */ function _ddEvalTargetLabel(t) { return (t.type === 'city' ? _ddCityName(t.id) : _ddCardName(t.id)) + '（' + (t.type === 'city' ? '都市' : 'カード') + '）'; }
@@ -24937,6 +24958,7 @@
     /** 観点ごとの割合（入った項目の合計 ÷ その項目の満点）、足切り、合計点（4観点の割合の平均）
      * @param {Array<{id: string, star: boolean, score: any}>} items */
     function _ddEvalCalc(items) {
+      items = items.filter(i => i.id !== 'M4');
       /** @type {Record<string, {r: number | null, got: number, all: number}>} */ const per = {};
       DD_EVAL_PERSP.forEach(p => {
         const all = items.filter(i => i.id[0] === p[0]), sc = all.filter(i => _ddEvalIs012(i.score));
@@ -24955,6 +24977,10 @@
     /** 保存した評価シートを足す（同じ名前なら置き換え） @param {string} name @param {any} data */
     function devDashAddEvalSheet(name, data) {
       if (!data || typeof data !== 'object' || data.type !== 'evalsheet' || !Array.isArray(data.items) || !_ddEvalTargetOk(data.target) || !data.items.some(_ddEvalValid)) { _dd.msg = name + '：評価シートの形ではありません'; _ddRefresh(); return false; }
+      // 旧M4は採点せず、実装の重さへ移す。
+      const old = data.items.find(it => it && it.id === 'M4');
+      data = { ...data, implCost: Object.prototype.hasOwnProperty.call(data, 'implCost') ? (['heavy', 'medium', 'light'].includes(data.implCost) ? data.implCost : null) : old && _ddEvalIs012(old.score) ? ['heavy', 'medium', 'light'][old.score] : null,
+        items: data.items.filter(_ddEvalValid).map(it => it.id === 'H1' ? { ...it, name: '強さが適切な範囲にあるか' } : it) };
       const i = _ddEs.before.findIndex(b => b.name === name);
       if (i >= 0) _ddEs.before[i] = { name, data }; else _ddEs.before.push({ name, data });
       _dd.msg = ''; _ddRefresh(); return true;
@@ -24977,18 +25003,43 @@
       cur.memo = String(text == null ? '' : text).slice(0, 200);
     }
     /** 保存するファイルの名前と中身（人の点・メモ・実測の値・提案の点・境目の値・実験の名前） @param {number} si */
+    /** 実装の重さは同じ対象の保存値を戻し、採点と別に持つ。 @param {any} sh */
+    function _ddEvalCost(sh) {
+      if (Object.prototype.hasOwnProperty.call(_ddEs.costs, sh.hkey)) return _ddEs.costs[sh.hkey];
+      const same = _ddEs.before.filter(b => _ddEvalSame(b.data.target, sh.sheet.target));
+      return same.length ? same[same.length - 1].data.implCost : sh.sheet.implCost || null;
+    }
+    /** @param {number} si @param {string} value */
+    function devDashEvalCost(si, value) {
+      const sh = _ddEvalSheets()[si];
+      if (!sh || (value !== '' && !['heavy', 'medium', 'light'].includes(value))) return;
+      _ddEs.costs[sh.hkey] = value || null;
+    }
+    /** 集計済みの値を表示する。画面で再計算しない。 @param {any} a */
+    function _ddAnalysisHtml(a) {
+      if (!a) return '';
+      const f = (/** @type {any} */ x, scale = 1, digits = 3) => _ddNum(x) ? (x * scale).toFixed(digits) : '--';
+      const table = (/** @type {string[]} */ heads, /** @type {any[][]} */ rows) => '<div class="dd-scroll"><table class="dd-table dd-stats"><tr>' + heads.map(h => '<th>' + h + '</th>').join('') + '</tr>' + rows.map(row => '<tr>' + row.map((v, i) => '<' + (i ? 'td' : 'th') + '>' + _ddEsc(v) + '</' + (i ? 'td' : 'th') + '>').join('') + '</tr>').join('') + '</table></div>';
+      let html = '<div>基準 ' + _ddEsc(a.baseline) + '</div>';
+      html += table(['版', '席0の勝率', '差', '95%区間', '補正後p', '判定'], a.comparisons.map(c => [c.label, f(c.winRate.p, 100, 1) + '%', f(c.d, 100, 1) + 'pt', '[' + f(c.lo95, 100, 1) + ', ' + f(c.hi95, 100, 1) + ']pt', f(c.pHolm), c.judgment]));
+      if (a.trends.length) html += table(['傾向', 'z', '補正後p', '判定'], a.trends.map(t => [t.label, f(t.z), f(t.pHolm), t.judgment]));
+      const counts = Object.values(a.sampleSize.current);
+      html += '<div class="dd-stats-count">±' + f(a.margin, 100, 1) + 'pt を見つけるのに要る試合数：約 ' + a.sampleSize.required + '（今は ' + _ddEsc(new Set(counts).size === 1 ? counts[0] : Object.entries(a.sampleSize.current).map(([k, n]) => k + ': ' + n).join('、')) + '）</div>';
+      return _ddSec('統計の判断', html);
+    }
+
     function devDashEvalSaveData(si) {
       const sh = _ddEvalSheets()[si]; if (!sh) return null;
       const hum = _ddEs.human[sh.hkey] || {};
       const items = sh.sheet.items.filter(_ddEvalValid).map((/** @type {any} */ it) => {
         const h = hum[it.id];
-        return { id: it.id, name: it.name, star: !!it.star, basis: it.basis, value: _ddNum(it.value) ? it.value : null, n: _ddNum(it.n) ? it.n : null, lo: _ddNum(it.lo) ? it.lo : null, hi: _ddNum(it.hi) ? it.hi : null, unit: it.unit || null, skill: it.skill || null, tentative: !!it.tentative, note: it.note || '', rule: it.rule || '',
+        return { id: it.id, name: it.id === 'H1' ? '強さが適切な範囲にあるか' : it.name, star: !!it.star, basis: it.basis, value: _ddNum(it.value) ? it.value : null, n: _ddNum(it.n) ? it.n : null, lo: _ddNum(it.lo) ? it.lo : null, hi: _ddNum(it.hi) ? it.hi : null, unit: it.unit || null, skill: it.skill || null, tentative: !!it.tentative, note: it.note || '', rule: it.rule || '',
           suggested: _ddEvalIs012(it.score) ? it.score : null, human: h && _ddEvalIs012(h.score) ? h.score : null, memo: h ? h.memo : '', score: _ddEvalEff(it, hum) };
       });
       const calc = _ddEvalCalc(items);
       /** @type {Record<string, number | null>} */ const perspective = {};
       DD_EVAL_PERSP.forEach(p => { perspective[p[0]] = calc.per[p[0]].r; });
-      const obj = { type: 'evalsheet', v: 1, savedAt: new Date().toISOString(), experiment: sh.exp.name || null, games: _ddNum(sh.exp.games) ? sh.exp.games : null, source: sh.file, target: sh.sheet.target, band: sh.sheet.band || null, skills: sh.sheet.skills || [], thresholds: sh.thresholds, items, perspective, gate: { state: calc.state, failed: calc.failed, pending: calc.pending }, total: calc.total };
+      const obj = { implCost: _ddEvalCost(sh), type: 'evalsheet', v: 1, savedAt: new Date().toISOString(), experiment: sh.exp.name || null, games: _ddNum(sh.exp.games) ? sh.exp.games : null, source: sh.file, target: sh.sheet.target, band: sh.sheet.band || null, skills: sh.sheet.skills || [], thresholds: sh.thresholds, items, perspective, gate: { state: calc.state, failed: calc.failed, pending: calc.pending }, total: calc.total };
       return { name: devFileName('evalsheet', sh.sheet.target.id), text: JSON.stringify(obj, null, 2) };
     }
     /** 評価シートをファイルに保存する（ブラウザ） @param {number} si */
@@ -25074,7 +25125,7 @@
         const b = bmap[it.id];
         const bScore = b && _ddEvalIs012(b.score) ? b.score : null;
         const bCell = '<td class="dd-bf">' + _ddEvalScoreHtml(bScore) + (b && b.memo ? '<small>' + _ddEsc(b.memo) + '</small>' : '') + '</td>';
-        body += '<tr class="dd-ev-row" data-id="' + it.id + '"><th class="dd-id">' + it.id + (it.star ? '★' : '') + '</th><td class="dd-en"' + (tip ? ' title="' + _ddEsc(tip) + '"' : '') + '>' + _ddEsc(it.name) + '</td>'
+        body += '<tr class="dd-ev-row" data-id="' + it.id + '"><th class="dd-id">' + it.id + (it.star ? '★' : '') + '</th><td class="dd-en"' + (tip ? ' title="' + _ddEsc(tip) + '"' : '') + '>' + _ddEsc(it.id === 'H1' ? '強さが適切な範囲にあるか' : it.name) + '</td>'
           + '<td class="dd-ev-v">' + _ddEvalValText(it) + (it.skill && _ddNum(it.value) ? ' <span class="dd-sk">' + _ddEsc(it.skill) + '</span>' : '') + '</td>';
         if (sh) {
           body += '<td class="dd-sgc">' + (_ddEvalIs012(it.score) ? '<span class="dd-sg dd-s' + it.score + '">' + it.score + (it.tentative ? '（仮）' : '') + '</span>' : '<span class="dd-nc0">—</span>') + '</td>'
@@ -25088,6 +25139,9 @@
         body += '</tr>';
       });
       html += '<div class="dd-scroll"><table class="dd-ev">' + head + body + '</table></div>';
+      const cost = sh ? _ddEvalCost(sh) : bf.data.implCost;
+      html += '<div class="dd-impl"><label>実装の重さ（採点の外） <select aria-label="実装の重さ（採点の外）"' + (sh ? ' onchange="devDashEvalCost(' + si + ',this.value)"' : ' disabled') + '>'
+        + [['', '—'], ['heavy', '協力・デイリーにも波及して重い'], ['medium', '対戦だけで中程度'], ['light', '定数か数行']].map(v => '<option value="' + v[0] + '"' + ((cost || '') === v[0] ? ' selected' : '') + '>' + v[1] + '</option>').join('') + '</select></label></div>';
       if (sh) html += '<div class="dd-load"><button type="button" class="dd-btn" onclick="devDashEvalSave(' + si + ')">評価シートを保存</button></div>';
       return _ddSec('評価シート　' + _ddEsc(_ddEvalTargetLabel(target)), html);
     }
@@ -25179,6 +25233,7 @@
     // 数字の行の空白 2 つは詰めずに見せる（61.2%  n=799  95%CI 57.8–64.5）
     // 見た目（spec §6）：節は上の罫線 1 本、表は見出し太字＋下罫線・行は 1 本の罫線・乗せた行を薄く塗る、数字は右寄せ・等幅。箱・角丸・影なし
     const DD_CSS = [
+      '#dev-hub .dh-dash .dd-stats th:not(:first-child),#dev-hub .dh-dash .dd-stats td{text-align:center}#dev-hub .dh-dash .dd-stats-count{font-family:' + DH_MONO + ';font-variant-numeric:tabular-nums;margin-top:8px}#dev-hub .dh-dash .dd-impl{padding:12px 0;border-top:1px solid var(--bg3)}#dev-hub .dh-dash .dd-impl select{background:var(--bg);color:var(--t0);border:0;border-bottom:1px solid var(--t2);border-radius:0;padding:6px;font:inherit}',
       '#dev-hub .dh-dash .dd-facts,#dev-hub .dh-dash .dd-counts{display:flex;flex-wrap:wrap;gap:8px 20px;margin:6px 0 12px;font-size:.8rem}#dev-hub .dh-dash .dd-facts small{display:inline;font-size:.72rem}#dev-hub .dh-dash .dd-facts b,#dev-hub .dh-dash .dd-counts b,#dev-hub .dh-dash .dd-num{font-family:' + DH_MONO + ';font-variant-numeric:tabular-nums}',
       '#dev-hub .dh-dash .dd-device th:not(:first-child),#dev-hub .dh-dash .dd-device td:not(:first-child){text-align:center}#dev-hub .dh-dash .dd-problems th,#dev-hub .dh-dash .dd-problems td{text-align:left}#dev-hub .dh-dash .dd-conflict td{background:rgba(248,81,73,.08)}#dev-hub .dh-dash .dd-cpu-start th,#dev-hub .dh-dash .dd-cpu-start td{border-top:3px solid var(--bg3)}',
       '#dev-hub .dh-dash{color:var(--t1)}',
