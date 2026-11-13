@@ -5212,6 +5212,12 @@
     // 2026-09-13 Phase5：デッキ構築の3枠分類。各カード定義のframeフィールド（'attack'/'defend'/'free'）を
     // 唯一の分類元とし、この定数群はそこから導出するだけ（分類をコード中に散らさない・WORKTRACK.md §5準拠）。
     // 攻める10種（自然7＋人為3）・守る6種・自由2種＝計18種。
+    // current：コスト1で相手のシールドを1つ壊す（既定）。
+    // cost0：対戦のコストだけ0にする。
+    // no_attack：相手の次の手番だけ自然災害の使用を止める。
+    // lurk：シールドが無ければ潜伏し、相手が次にメインフェーズで置くシールドを無効にする（対応フェーズのシールドには効かない）。
+    /** @type {'current' | 'cost0' | 'no_attack' | 'lurk'} */
+    const VERSUS_POLLUTION_MODE = 'lurk';
     const VERSUS_DECK_SIZE = 24;
     // 対戦は VERSUS_TYPHOON_MODE で切り替える。swap_take は相手から取る札、swap_give は自分から渡す札を選ぶ。
     // take_blind は攻撃側が見て取り、防御側が伏せた並びから取る。
@@ -5232,6 +5238,7 @@
     // column・columnTitle はカード図鑑（モードに属さない画面）が「対戦モードでは」の欄として別に出す。
     /** @type {{ [cardId: string]: { desc?: string, columnTitle?: string, column?: string } }} */
     const VERSUS_CARD_TEXT = {
+      pollution: { desc: { current: ALL_CARDS.find(c => c.id === 'pollution').desc, cost0: ALL_CARDS.find(c => c.id === 'pollution').desc, no_attack: '相手の次のターン、相手は自然災害カードを使えない', lurk: '相手のシールドを1つ壊す。無ければ潜伏し、相手が次に置くシールドを無効にする' }[VERSUS_POLLUTION_MODE] },
       typhoon: {
         desc: { steal: '20＋手札を1枚奪い、自分の山札の上へ', swap_give: '20＋互いに渡す1枚を選んで交換', swap_take: '20＋手札を見せ合い、相手の1枚を選んで交換', take_blind: '20＋相手の手札を見て1枚取る。相手は伏せた手札から1枚取る' }[VERSUS_TYPHOON_MODE],
         columnTitle: { steal: '広域災害と資源の奪い合い', swap_give: '広域災害と資源の奪い合い', swap_take: '広域災害と資源の融通', take_blind: '広域災害と選べない支援' }[VERSUS_TYPHOON_MODE],
@@ -5240,6 +5247,12 @@
     };
     /** @param {{ id: string, desc: string }} card */
     function versusCardDesc(card) { return VERSUS_CARD_TEXT[card.id]?.desc ?? card.desc; }
+    /** 共通定義を変えず対戦の表示と予算で使う。 @param {{id: string, cost: number}} card */
+    function versusCardCost(card) { return card.id === 'pollution' && VERSUS_POLLUTION_MODE === 'cost0' ? 0 : card.cost; }
+    /** @param {{type: string}} card @param {number} pi */
+    function versusPollutionBlocks(card, pi) { return card.type === 'disaster' && !!G.players[pi].effects.pollutionNoAttack; }
+    /** @param {{effectType?: string}} card */
+    function versusPollutionShield(card) { return ['shield_quake_fire', 'shield_flood', 'negate_special', 'damage_reduce_2t'].includes(card.effectType); }
     const VERSUS_DECK_MAX_COPIES = 3;
     /** @type {Record<CardFrame, { min: number, max: number }>} */
     const VERSUS_FRAME_RULES = { attack: { min: 6, max: 18 }, defend: { min: 6, max: 18 }, free: { min: 0, max: 6 } };
@@ -6489,6 +6502,7 @@
      * @param {any} card @param {boolean} [versus] @returns {string | string[]} */
     function cardFaceDesc(card, versus) {
       if (versus && card.id === 'typhoon' && VERSUS_TYPHOON_MODE === 'take_blind') return versusCardDesc(card);
+      if (versus && card.id === 'pollution' && ['no_attack', 'lurk'].includes(VERSUS_POLLUTION_MODE)) return versusCardDesc(card);
       const t = CARD_FACE_TEXT[card.id];
       if (cardFaceIsCity(card)) return versus ? ((t && (t.vs || t.co)) || card.abilityDesc) : ((t && t.co) || card.abilityDesc);
       return versus ? ((t && t.vs) || versusCardDesc(card)) : ((t && t.co) || card.desc);
@@ -6501,6 +6515,7 @@
     function cardFaceLinesFor(card, versus) {
       // 既存モードの面を変えず、伏せ取りの説明だけ句点で2行に分ける。
       if (versus && card.id === 'typhoon' && VERSUS_TYPHOON_MODE === 'take_blind') return { fs: CARD_FACE_FX.fs[0], lines: versusCardDesc(card).match(/[^。]+。?/g) || [], pr: true };
+      if (versus && card.id === 'pollution' && ['no_attack', 'lurk'].includes(VERSUS_POLLUTION_MODE)) return { fs: CARD_FACE_FX.fs[0], lines: VERSUS_POLLUTION_MODE === 'lurk' ? ['相手のシールドを1つ壊す。', '無ければ潜伏し、相手が次に置く', 'シールドを無効にする'] : ['相手の次のターン、相手は', '自然災害カードを使えない'], pr: true };
       const tx = CARD_FACE_TEXT[card.id];
       const mode = versus && tx && tx.vs !== undefined ? 'vs' : 'co';
       const e = (typeof CARD_FACE_LINES !== 'undefined' && Object.prototype.hasOwnProperty.call(CARD_FACE_LINES, card.id + '.' + mode)) ? CARD_FACE_LINES[card.id + '.' + mode] : null;
@@ -6565,7 +6580,7 @@
         + `<img class="cface-art" src="images/${o.dir}/nt/${id}.webp" alt="" draggable="false" onload="cardFaceReady(this)" onerror="cardFaceFallback(this)">`
         + el('cface-nm cface-sh', nameFs ? { at: L.name, fs: nameFs } : L.name, _escHtml(card.name))
         + el('cface-ty cface-sh', L.type, _escHtml(cardFaceTypeLabel(card)))
-        + (L.cost ? el('cface-cl', L.costLabel, 'コスト') + el('cface-cn cface-num', L.cost, String(card.cost)) : '')
+        + (L.cost ? el('cface-cl', L.costLabel, 'コスト') + el('cface-cn cface-num', L.cost, String(o.versus ? versusCardCost(card) : card.cost)) : '')
         + (L.pow ? el('cface-pl cface-sh', L.powLabel, '威力') + el('cface-pn cface-num cface-sh', L.pow, String(power)) : '')
         + (L.hp ? el('cface-hp cface-num cface-sh', L.hp, 'HP ' + card.hp) : '')
         // 効果文：パネルの内側いっぱいの箱を flex で縦横中央に寄せる。行はあらかじめ分けてあり、中身の幅は最長行そのもの（測らない）
@@ -8010,7 +8025,7 @@
     // ここでの型別フィルタも撤廃。予算のみが使用可否を決める。
     function canPlayAny(pi) {
       const p = G.players[pi]; const left = getBudgetLeft(pi);
-      return p.hand.some(c => left >= c.cost);
+      return p.hand.some(c => left >= versusCardCost(c) && !versusPollutionBlocks(c, pi));
     }
     function goMain() {
       G.screen = 'main'; const ap = G.activePlayer; const p = G.players[ap];
@@ -8031,7 +8046,9 @@
             // 仕様（WORKTRACK.md §20-5・§20-10）は「両方の都市が試合開始から受けた自然災害の種類」を覚えるため、
             // 1都市目で受けた種類を、2都市目のイスタンブールが忘れてはならない。無ければ作らない（mkEffectsには持たせない）。
             const prevReceived = p.effects && p.effects.receivedTypes;
+            const pollution = { pollutionLurk: p.effects.pollutionLurk, pollutionNoAttack: p.effects.pollutionNoAttack, pollutionPlayed: p.effects.pollutionPlayed };
             p.cityHps[p.activeCityIdx] = 0; p.activeCityIdx = nxt; p.effects = mkEffects();
+            for (const key of Object.keys(pollution)) if (pollution[key] !== undefined) p.effects[key] = pollution[key];
             if (prevReceived) p.effects.receivedTypes = prevReceived;
             addLog(`${coopIcoWarnTriangle(13,'var(--red)')} ${p.name}の「${old.name}」壊滅！→「${p.cities[nxt].name}」に切り替え！`, 'sys');
             plEvent('citySwitch', { pi: i, from: old.id, to: p.cities[nxt].id });
@@ -8090,6 +8107,7 @@
     function resolveDamage(attackCard, defIdx, responseCard, responseCard2) {
       const def = G.players[defIdx]; const defCity = getActiveCity(defIdx);
       const responses = [responseCard, responseCard2].filter(Boolean);
+      const compoundPreNegated = attackCard.id === 'compound' && !!def.effects.negateSpecial;
       const fromHp = def.cityHps[def.activeCityIdx];
       // 数値とログ文は calcDamage（純粋関数）が決める。ここでは mods を順に辿って副作用だけを行う。
       // mods は副作用とログの順序そのままに並んでいる（台風の奪取・ドロー・防災庁の消費などがダメージの間に挟まる）。
@@ -8137,7 +8155,7 @@
       const dmg = calc.total; def.cityHps[def.activeCityIdx] -= dmg;
       let finalHp = def.cityHps[def.activeCityIdx]; const hpAD = finalHp;
       if (fromHp !== finalHp) queueHpAnim(defIdx, fromHp, finalHp);
-      plEvent('resolve', { atk: attackCard.id, defPi: defIdx, mods: calc.mods.filter(m => !m.hidden && m.delta != null).map(m => ({ label: m.label, delta: m.delta })), total: dmg, hpAfter: Math.max(0, finalHp) });
+      plEvent('resolve', { pollutionMode: VERSUS_POLLUTION_MODE, compoundPreNegated, atk: attackCard.id, defPi: defIdx, mods: calc.mods.filter(m => !m.hidden && m.delta != null).map(m => ({ label: m.label, delta: m.delta })), total: dmg, hpAfter: Math.max(0, finalHp) });
       const aN = G.players[G.pendingAttack.attackerIdx].name;
       addLog(`${coopIcoWarnTriangle(13,'var(--red)')} ${aN}が「${attackCard.name}」→ ${dmg}ダメージ（${def.name}残HP:${Math.max(0, finalHp)}）`, 'dmg');
       for (const l of log) addLog(l.delta != null ? `→ ${l.text}（${l.delta > 0 ? '+' : ''}${l.delta}）` : `→ ${l.text}`);
@@ -8252,8 +8270,17 @@
     // ═══════════════════════════════════════
     // POLICY EFFECTS
     // ═══════════════════════════════════════
+    /** 潜伏はプレイヤーの場に残す。 @param {Card} card @param {number} pi @param {'main'|'respond'} phase */
+    function triggerPollutionLurk(card, pi, phase) {
+      G.players[pi].effects.pollutionLurk = false;
+      plEvent('pollution', { pi, mode: VERSUS_POLLUTION_MODE, result: 'lurk_trigger', shield: card.name, phase });
+      addLog(`公害：${G.players[pi].name}の「${card.name}」を無効化`, 'sys');
+    }
     function applyPolicyEffect(card, pi, asResponse) {
       const p = G.players[pi];
+      if (!asResponse && versusPollutionShield(card)) {
+        if (p.effects.pollutionLurk) { triggerPollutionLurk(card, pi, 'main'); return; }
+      }
       switch (card.effectType) {
         case 'shield_quake_fire': p.effects.shieldQuakeFire = true; if (!asResponse) addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 地震・大火災シールド`, 'policy'); break;
         case 'shield_flood': p.effects.shieldFlood = true; if (!asResponse) addLog(`${uiDot('var(--blue)')} ${p.name}「${card.name}」→ 洪水・津波シールド`, 'policy'); break;
@@ -8316,8 +8343,22 @@
       const p = G.players[pi];
       const defIdx = pi === 0 ? 1 : 0; const def = G.players[defIdx];
       if (card.id === 'pollution') {
+        if (VERSUS_POLLUTION_MODE === 'no_attack') p.effects.pollutionPlayed = true;
+        if (VERSUS_POLLUTION_MODE === 'no_attack') {
+          def.effects.pollutionNoAttack = true;
+          plEvent('pollution', { pi, mode: VERSUS_POLLUTION_MODE, result: 'no_attack' });
+          addLog(`公害：${def.name}は次のターン自然災害カードを使えない`, 'sys');
+          return;
+        }
         const shields = getActiveShields(def);
-        if (shields.length === 0) { addLog(`${uiIcoAlertCircle(13,'#c084fc')} ${p.name}「公害」→ 相手にシールドがなく効果なし`, 'sys'); return; }
+        if (shields.length === 0) {
+          if (VERSUS_POLLUTION_MODE === 'lurk' && !def.effects.pollutionLurk) {
+            def.effects.pollutionLurk = true;
+            plEvent('pollution', { pi, defPi: defIdx, mode: VERSUS_POLLUTION_MODE, result: 'lurk_set' });
+            addLog(`公害：${def.name}の場に潜伏`, 'sys'); return;
+          }
+          plEvent('pollution', { pi, mode: VERSUS_POLLUTION_MODE, result: 'none' });
+          addLog(`${uiIcoAlertCircle(13,'#c084fc')} ${p.name}「公害」→ 相手にシールドがなく効果なし`, 'sys'); return; }
         G.pendingPollution = { attackerIdx: pi }; G.screen = 'pollution';
         addLog(`${uiIcoAlertCircle(13,'#c084fc')} ${p.name}「公害」→ 破壊するシールドを選択中…`, 'sys');
       } else if (card.id === 'terror') {
@@ -8333,7 +8374,6 @@
     function destroyPollutionShield(key) {
       const pp = G.pendingPollution; if (!pp) return;
       const atkIdx = pp.attackerIdx; const defIdx = atkIdx === 0 ? 1 : 0; const def = G.players[defIdx];
-      plEvent('pollution', { pi: atkIdx, shield: String(key) });
       const shieldNames = { shieldQuakeFire: '耐震シールド', shieldFlood: '堤防シールド', negateSpecial: '特殊効果無効', damageReduceHits: '防災庁設置' };
       let broken = false;
       if (key === 'damageReduceHits') {
@@ -8343,6 +8383,7 @@
         def.effects[key] = false; broken = true;
         addLog(`${uiIcoAlertCircle(13,'#c084fc')} 公害：${def.name}のシールドを1つ破壊`, 'sys');
       }
+      plEvent('pollution', { pi: atkIdx, mode: VERSUS_POLLUTION_MODE, result: broken ? 'break' : 'none', shield: String(key) });
       if (broken && shieldNames[key]) G._nextTurnEvents[defIdx].push({ type: 'pollution_broken', shieldName: shieldNames[key] });
       G.pendingPollution = null; G.screen = 'main';
       if (!handleDiscardIfNeeded(atkIdx, 'main')) goMain();
@@ -8393,6 +8434,10 @@
       p.effects.quakeHitThisTurn = false;
       if (p.effects.floodBonusTurns > 0) p.effects.floodBonusTurns--;
       p.effects.terrorNextDisaster = false;
+      if (p.effects.pollutionNoAttack) {
+        p.effects.pollutionNoAttack = false;
+      }
+      if (p.effects.pollutionPlayed) p.effects.pollutionPlayed = false;
       if (p.effects.debtBudget > 0) p.effects.debtBudget--;
       G.turnsEach[G.activePlayer]++; const next = G.activePlayer === 0 ? 1 : 0; G.activePlayer = next;
       // 2026-09-15：終了条件②③（片方だけ到達しても終わらせない・両者が同じ基準を満たすまで待つ）。
@@ -9218,7 +9263,7 @@
         return `<div class="db-card-row">
           <button type="button" class="db-card-icon-btn" onclick="event.stopPropagation();_lpShowCardById('${c.id}',true,true)" aria-label="${_escHtml(c.name)}の詳細を見る">${cardIconSvg(c.icon, 18)}</button>
           <div class="db-card-text">
-            <div class="db-card-name">${_escHtml(c.name)}<span class="db-card-cost">COST ${c.cost}</span>${devCardBanned(c.id) ? '<span class="db-card-cost">使えない</span>' : ''}</div>
+            <div class="db-card-name">${_escHtml(c.name)}<span class="db-card-cost">COST ${versusCardCost(c)}</span>${devCardBanned(c.id) ? '<span class="db-card-cost">使えない</span>' : ''}</div>
             <div class="db-card-desc">${_escHtml(versusCardDesc(c))}</div>
           </div>
           <div class="db-card-stepper">
@@ -11760,6 +11805,8 @@
     }
     function renderEffectBadges(eff, pi) {
       const b = [_shieldBadgesHtml(eff)];
+      if (eff.pollutionLurk) b.push('<span class="eff-badge eff-red">公害（潜伏）</span>');
+      if (eff.pollutionNoAttack) b.push('<span class="eff-badge eff-red">公害：自然災害使用不可</span>');
       // イスタンブール（type_learn）が前に出ている間だけ、受けた自然災害の種類を出す（相手は未記録の種類を狙える）。
       // 軽減が効くのはイスタンブールが前に出ているときだけなので、出る前・落ちた後のほかの都市には出さない（2026-11-09 メンバー指摘）。
       // 記録（effects.receivedTypes）そのものは、後に出すイスタンブールのために1都市目の分も残している。
@@ -11782,16 +11829,16 @@
     function renderPlayerHand(p, pi) {
       const left = getBudgetLeft(pi);
       function mkCard(card) {
-        const cantAfford = left < card.cost; const dis = cantAfford;
+        const cantAfford = left < versusCardCost(card); const dis = cantAfford || versusPollutionBlocks(card, pi);
         let reason = ''; if (cantAfford) reason = '予算不足';
         const oc = dis ? '' : `requestConfirm('playCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','使用')`;
         const _isNew = card.uid === _lastDrawnCardUid;
         const _isPlaying = card.uid === _playingCardUid;
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}${cardZoomBtnHtml()}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isNew ? ' card-just-drawn' : ''}${_isPlaying ? ' card-play-out' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${versusCardCost(card)}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${reason ? `<div class="card-disabled-reason">${reason}</div>` : ''}${cardZoomBtnHtml()}</div>`;
       }
-      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
-      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
-      const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => a.cost - b.cost);
+      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => versusCardCost(a) - versusCardCost(b));
+      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => versusCardCost(a) - versusCardCost(b));
+      const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => versusCardCost(a) - versusCardCost(b));
       const s = [];
       if (pols.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label policy-label">政策</div><div class="hand-group-cards">${pols.map(mkCard).join('')}</div></div>`);
       if (dis.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label disaster-label">自然災害</div><div class="hand-group-cards">${dis.map(mkCard).join('')}</div></div>`);
@@ -11801,10 +11848,10 @@
 
     // ─── 手札描画（読み取り専用：自分のターン外） ───
     function renderPlayerHandReadOnly(p) {
-      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`; }
-      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
-      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
-      const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => a.cost - b.cost);
+      function mkCard(card) { return `<div class="card ${card.type} card-disabled" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${versusCardCost(card)}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`; }
+      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => versusCardCost(a) - versusCardCost(b));
+      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => versusCardCost(a) - versusCardCost(b));
+      const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => versusCardCost(a) - versusCardCost(b));
       const s = [];
       if (pols.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label policy-label">政策</div><div class="hand-group-cards">${pols.map(mkCard).join('')}</div></div>`);
       if (dis.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label disaster-label">自然災害</div><div class="hand-group-cards">${dis.map(mkCard).join('')}</div></div>`);
@@ -11816,11 +11863,11 @@
     function renderPlayerHandSpectator(p) {
       function mkCard(card) {
         const isNew = card.uid === _lastDrawnCardUid;
-        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`;
+        return `<div class="card ${card.type} card-spectator${isNew ? ' card-just-drawn' : ''}" data-ctype="${cardCtype(card)}" style="cursor:default"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${versusCardCost(card)}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}${cardZoomBtnHtml()}</div>`;
       }
-      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
-      const dis  = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
-      const jin  = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => a.cost - b.cost);
+      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => versusCardCost(a) - versusCardCost(b));
+      const dis  = p.hand.filter(c => c.type === 'disaster').sort((a, b) => versusCardCost(a) - versusCardCost(b));
+      const jin  = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => versusCardCost(a) - versusCardCost(b));
       const s = [];
       if (pols.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label policy-label">政策</div><div class="hand-group-cards">${pols.map(mkCard).join('')}</div></div>`);
       if (dis.length  > 0) s.push(`<div class="hand-group"><div class="hand-group-label disaster-label">自然災害</div><div class="hand-group-cards">${dis.map(mkCard).join('')}</div></div>`);
@@ -11853,11 +11900,11 @@
         // ④ カードごとのHP予測をバッジに表示
         const hpBand = (!dis && atkCard) ? `<div class="card-hp-band" style="white-space:nowrap">予測HP<strong>${Math.max(0, curHp - computeResponseEst(atkCard, mi, card, priorResponses))}</strong></div>` : '';
         const bLabel = dis ? `${card.type === 'jinzai' ? '人為' : '自然'}（使用不可）` : '対応';
-        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost" style="font-size:.6rem">${dis ? card.cost + 'pt' : '無料'}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}${cardZoomBtnHtml()}</div>`;
+        return `<div class="card ${card.type} ${dis ? 'card-disabled' : 'card-usable'}${_isPlaying ? ' card-play-out' : ''}${ineff ? ' card-ineffective' : ''}" data-ctype="${cardCtype(card)}" onclick="${oc}" style="cursor:${dis ? 'not-allowed' : 'pointer'}"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost" style="font-size:.6rem">${dis ? versusCardCost(card) + 'pt' : '無料'}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, bLabel)}${hpBand}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(bLabel)}${dis ? `<div class="card-disabled-reason">対応フェーズは政策カードのみ</div>` : ''}${cardZoomBtnHtml()}</div>`;
       }
-      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => a.cost - b.cost);
-      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => a.cost - b.cost);
-      const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => a.cost - b.cost);
+      const pols = p.hand.filter(c => c.type === 'policy').sort((a, b) => versusCardCost(a) - versusCardCost(b));
+      const dis = p.hand.filter(c => c.type === 'disaster').sort((a, b) => versusCardCost(a) - versusCardCost(b));
+      const jin = p.hand.filter(c => c.type === 'jinzai').sort((a, b) => versusCardCost(a) - versusCardCost(b));
       const s = [];
       if (pols.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label policy-label">政策（対応可）</div><div class="hand-group-cards">${pols.map(mkCard).join('')}</div></div>`);
       if (dis.length > 0) s.push(`<div class="hand-group"><div class="hand-group-label disaster-label">自然災害（使用不可）</div><div class="hand-group-cards">${dis.map(mkCard).join('')}</div></div>`);
@@ -11929,7 +11976,7 @@
         let pendingCost = 0;
         if (G.confirm && G.confirm.fn === 'playCard') {
           const pcard = G.players[ap].hand.find(cd => cd.uid === G.confirm.uid);
-          if (pcard) pendingCost = pcard.cost;
+          if (pcard) pendingCost = versusCardCost(pcard);
         }
         // 2026-09-15：終了ターンが②③どちらで決まるか試合ごとに変わるため「/12」「/18」の固定分母表示は誤解を招く。
         // VERSUS_MIN_TURNS(12)ターン目までは分母なしの単純表示、13ターン目以降は「延長」バッジで上限接近を示す
@@ -11947,7 +11994,7 @@
         if (hasPending || isResponsePhase) return true;
         const p = G.players[ap]; if (ap !== mi) return true;
         const bl = getBudgetLeft(ap);
-        return p.hand.some(c => c.cost <= bl);
+        return p.hand.some(c => versusCardCost(c) <= bl && !versusPollutionBlocks(c, ap));
       }
       const shouldAutoEnd = (ap === mi && !hasPending && !isResponsePhase && !canPlayAnyCard() && !G._devPreview);
 
@@ -12028,7 +12075,7 @@
           const remAfter = getBudgetLeft(G.activePlayer) - 1;
           const nat = me.hand.filter(cd => cd.type === 'disaster');
           if (nat.length > 0) {
-            const minCost = Math.min(...nat.map(cd => cd.cost));
+            const minCost = Math.min(...nat.map(cd => versusCardCost(cd)));
             if (remAfter < minCost) {
               jh += `<br><span style="color:var(--red);font-weight:700"><img src="images/icons/neon_jinzai.webp" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:3px;filter:drop-shadow(0 0 4px rgba(168,85,247,.85)) drop-shadow(0 0 2px rgba(168,85,247,1))">使用後の残り予算 ${Math.max(0, remAfter)}pt では、手札の自然災害カード（最小 ${minCost}pt）を今ターンに使えません</span>`;
             }
@@ -12091,7 +12138,7 @@
     // ─── 捨て札選択 ───
     function renderDiscard() {
       const dn = G.discardNeeded; const pi = dn.pi ?? dn.playerIdx; const p = G.players[pi]; const excess = p.hand.length - 5;
-      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`).join('');
+      const cards = p.hand.map(card => `<div class="card ${card.type}" onclick="requestConfirm('discardCard','${card.uid}','${card.name.replace(/'/g, "\\'")}','${card.icon}','${card.type}','捨て札にする',true)" style="cursor:pointer"><div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${versusCardCost(card)}</span></div><div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div><div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}</div>`).join('');
       return `<div class="screen active"><div class="section-title">${uiIcoUpload(15)} ${p.name} — 捨てるカードを選んでください</div>
     <div class="discard-info"><strong style="color:var(--red)">${excess}枚</strong>を捨ててください</div>
     <div style="font-size:.8rem;color:var(--t2);text-align:center">現在の手札：<strong style="color:var(--yellow)">${p.hand.length}枚</strong>　→　目標：5枚</div>
@@ -12225,7 +12272,7 @@
       const cards = p.hand.map(card => {
         const sel = _recycleSelected.includes(card.uid);
         return `<div class="card ${card.type}${sel ? ' card-usable' : ''}" onclick="toggleRecycleCard('${card.uid}')" style="cursor:pointer;${sel ? 'box-shadow:0 0 0 3px var(--red) inset,0 0 10px rgba(248,81,73,.4);opacity:.88' : ''}">
-          <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
+          <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${versusCardCost(card)}</span></div>
           <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}
           ${sel ? `<div style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}
@@ -12337,7 +12384,7 @@
         const on = selectable && card.uid === _typhoonSelUid;
         if (blind && selectable) return `<div class="card card-back${on ? ' card-usable typhoon-selected' : ''}" onclick="toggleTyphoonCard('${card.uid}')"><img src="images/cards/back.webp" alt="">${on ? `<div style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}</div>`;
         return `<div class="card ${card.type}${selectable ? '' : ' card-disabled'}${on ? ' card-usable typhoon-selected' : ''}" data-ctype="${cardCtype(card)}" style="${on ? 'box-shadow:0 0 0 3px var(--red) inset,0 0 10px rgba(248,81,73,.4);opacity:.88' : ''}" ${selectable ? `onclick="toggleTyphoonCard('${card.uid}')"` : ''}>
-          <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
+          <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${versusCardCost(card)}</span></div>
           <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}
           ${on ? `<div style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}
@@ -12359,7 +12406,7 @@
       const cards = hand.map(card => {
         const on = card.uid === _typhoonSelUid;
         return `<div class="card ${card.type}${on ? ' card-usable' : ''}" data-ctype="${cardCtype(card)}" onclick="toggleTyphoonCard('${card.uid}')" style="cursor:pointer;${on ? 'box-shadow:0 0 0 3px var(--yellow) inset,0 0 10px rgba(227,179,65,.45)' : ''}">
-          <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${card.cost}</span></div>
+          <div class="card-header"><span class="card-icon">${cardIconSvg(card.icon,16)}</span><span class="card-cost">${versusCardCost(card)}</span></div>
           <div class="card-img-wrap">${cardFaceHtml(card, { cls: 'card-img', drag: true, err: 'fail', versus: true })}${cardNameBarHtml(card.name, cardTypeLabel(card))}</div>
           <div class="card-name card-text-fallback">${card.name}</div><div class="card-desc card-text-fallback">${versusCardDesc(card)}</div>${cardTypeBadgeFallback(cardTypeLabel(card))}
           ${on ? `<div style="position:absolute;top:4px;right:4px;background:var(--yellow);color:#0d1117;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800">✓</div>` : ''}
@@ -13029,11 +13076,11 @@
     // 軽減方式は2026-09-24 第1陣A-1で「半減」から「固定−20（VERSUS_FIRST_TURN_PENALTY）」へ変更した。
     function playCard(uid) {
       const p = G.players[G.activePlayer]; const idx = p.hand.findIndex(c => c.uid === uid); if (idx === -1) return; const card = p.hand[idx];
-      if (getBudgetLeft(G.activePlayer) < card.cost) return;
-      plEvent('play', { pi: G.activePlayer, ...(VERSUS_TYPHOON_MODE !== 'steal' ? { uid: card.uid } : {}), card: card.id, options: plPlayableIds(G.activePlayer) });
-      p.hand.splice(idx, 1); p.discard.push(card); p.budgetUsed += card.cost;
+      if (getBudgetLeft(G.activePlayer) < versusCardCost(card) || versusPollutionBlocks(card, G.activePlayer)) return;
+      plEvent('play', { pollutionMode: VERSUS_POLLUTION_MODE, pi: G.activePlayer, ...(VERSUS_TYPHOON_MODE !== 'steal' ? { uid: card.uid } : {}), card: card.id, options: plPlayableIds(G.activePlayer) });
+      p.hand.splice(idx, 1); p.discard.push(card); p.budgetUsed += versusCardCost(card);
       pushUsedHistory(G.activePlayer, card);
-      showBudgetToast(card.cost, getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
+      showBudgetToast(versusCardCost(card), getBudgetLeft(G.activePlayer), getBudget(G.activePlayer));
       if (card.type === 'policy') {
         applyPolicyEffect(card, G.activePlayer, false);
         if (G.screen === 'recycle') { commit(); return; }
@@ -13522,6 +13569,18 @@
       pickTyphoonSteal(_cpuTyphoonPick(hand, me).uid);
     }
 
+    /** 通常の候補には盾を壊す公害だけ残す。 @param {Card} c @param {number} me */
+    function cpuPollutionRegular(c, me) {
+      return !versusPollutionBlocks(c, me) && (c.id !== 'pollution' || (VERSUS_POLLUTION_MODE !== 'no_attack' && (VERSUS_POLLUTION_MODE !== 'lurk' || _cpuHasShield(1 - me))));
+    }
+    /** ほかの手を出し終えたときだけ、余り予算で使う。 @param {number} me */
+    function cpuPollutionLast(me) {
+      const p = G.players[me], opp = G.players[1 - me];
+      const use = VERSUS_POLLUTION_MODE === 'no_attack' ? !p.effects.pollutionPlayed : VERSUS_POLLUTION_MODE === 'lurk' && !_cpuHasShield(1 - me) && !opp.effects.pollutionLurk;
+      const c = use && p.hand.find(c => c.id === 'pollution' && versusCardCost(c) <= getBudgetLeft(me));
+      if (!c) return false;
+      playCard(c.uid); return true;
+    }
     function _cpuDoPollution(me = 1) {
       const opp = 1 - me;
       const cpu = G.players[me];
@@ -13567,9 +13626,9 @@
 
     function _cpuDoMainEasy(me = 1) {
       const budget = getBudgetLeft(me);
-      if (budget === 0 || vsRand() < 0.18) { endTurn(); return; }
-      const affordable = G.players[me].hand.filter(c => c.cost <= budget);
-      if (!affordable.length) { endTurn(); return; }
+      if ((budget === 0 && VERSUS_POLLUTION_MODE !== 'cost0') || vsRand() < 0.18) { if (!cpuPollutionLast(me)) endTurn(); return; }
+      const affordable = G.players[me].hand.filter(c => versusCardCost(c) <= budget && cpuPollutionRegular(c, me));
+      if (!affordable.length) { if (!cpuPollutionLast(me)) endTurn(); return; }
       playCard(affordable[vsRand() * affordable.length | 0].uid);
     }
 
@@ -13579,9 +13638,9 @@
       const cpu = G.players[me], opp = G.players[opi];
       const oppHp = opp.cityHps[opp.activeCityIdx];
       const cpuHp = cpu.cityHps[cpu.activeCityIdx];
-      if (budget === 0) { endTurn(); return; }
-      const affordable = cpu.hand.filter(c => c.cost <= budget);
-      if (!affordable.length) { endTurn(); return; }
+      if (budget === 0 && VERSUS_POLLUTION_MODE !== 'cost0') { if (!cpuPollutionLast(me)) endTurn(); return; }
+      const affordable = cpu.hand.filter(c => versusCardCost(c) <= budget && cpuPollutionRegular(c, me));
+      if (!affordable.length) { if (!cpuPollutionLast(me)) endTurn(); return; }
       const ranked = affordable.filter(c => c.type === 'disaster')
         .map(c => ({ c, dmg: _cpuEstimateDmg(c, opi, me) })).sort((a, b) => b.dmg - a.dmg);
       // 1) とどめ
@@ -13597,13 +13656,13 @@
         const blocked = (e.shieldQuakeFire && (best.c.id === 'earthquake' || best.c.id === 'wildfire'))
                      || (e.shieldFlood && (best.c.id === 'flood' || best.c.id === 'tsunami'))
                      || (e.damageReduceHits > 0);
-        if (blocked && best.c.cost + 1 <= budget) { playCard(pollution.uid); return; }
+        if (blocked && versusCardCost(best.c) + versusCardCost(pollution) <= budget) { playCard(pollution.uid); return; }
       }
       // 5) テロ攻撃：大型災害(≥30)の対応を封じる（テロ+災害の予算が必要・相手が広域避難指示未設置）
       const terror = affordable.find(c => c.id === 'terror');
       if (terror && !cpu.effects.terrorNextDisaster && !opp.effects.negateSpecial && ranked.length) {
         const big = ranked[0];
-        if (big.dmg >= 30 && big.c.cost + 1 <= budget) { playCard(terror.uid); return; }
+        if (big.dmg >= 30 && versusCardCost(big.c) + 1 <= budget) { playCard(terror.uid); return; }
       }
       // 6) 攻撃
       if (ranked.length && ranked[0].dmg > 0) { playCard(ranked[0].c.uid); return; }
@@ -13619,7 +13678,7 @@
       // 10) ローリングストック：他に良い手がない＝手札の質が低い時の最終手段（簡易判断）
       const rs = affordable.find(c => c.effectType === 'recycle_hand');
       if (rs && cpu.hand.length >= 3) { playCard(rs.uid); return; }
-      endTurn();
+      if (!cpuPollutionLast(me)) endTurn();
     }
 
     function _cpuDoMainHard(me = 1) {
@@ -13629,9 +13688,9 @@
       const oppHp = opp.cityHps[opp.activeCityIdx];
       const cpuHp = cpu.cityHps[cpu.activeCityIdx];
       const oppCity = opp.cities[opp.activeCityIdx];
-      if (budget === 0) { endTurn(); return; }
-      const affordable = cpu.hand.filter(c => c.cost <= budget);
-      if (!affordable.length) { endTurn(); return; }
+      if (budget === 0 && VERSUS_POLLUTION_MODE !== 'cost0') { if (!cpuPollutionLast(me)) endTurn(); return; }
+      const affordable = cpu.hand.filter(c => versusCardCost(c) <= budget && cpuPollutionRegular(c, me));
+      if (!affordable.length) { if (!cpuPollutionLast(me)) endTurn(); return; }
       const ranked = affordable.filter(c => c.type === 'disaster')
         .map(c => ({ c, dmg: _cpuEstimateDmg(c, opi, me) })).sort((a, b) => b.dmg - a.dmg);
       const terror = affordable.find(c => c.id === 'terror');
@@ -13639,7 +13698,7 @@
       // ① Killing blow / overkill avoidance (掟⑪)
       if (oppHp <= 20) {
         const fin = affordable.filter(c => c.type === 'disaster' && _cpuEstimateDmg(c, opi, me) >= oppHp)
-          .sort((a, b) => a.cost - b.cost)[0];
+          .sort((a, b) => versusCardCost(a) - versusCardCost(b))[0];
         if (fin) { playCard(fin.uid); return; }
       }
       if (ranked.length && ranked[0].dmg >= oppHp) { playCard(ranked[0].c.uid); return; }
@@ -13648,7 +13707,7 @@
       // ①b テロで確殺：対応を封じれば倒し切れる場合（相手が広域避難指示未設置）
       if (terror && !cpu.effects.terrorNextDisaster && !opp.effects.negateSpecial && ranked.length) {
         const big = ranked[0];
-        if (big.c.cost + 1 <= budget && big.dmg >= 30 && big.dmg >= oppHp - 15) { playCard(terror.uid); return; }
+        if (versusCardCost(big.c) + 1 <= budget && big.dmg >= 30 && big.dmg >= oppHp - 15) { playCard(terror.uid); return; }
       }
       // ①c 公害で確殺：シールドを剥がせば最善攻撃が通る場合
       if (pollution && _cpuHasShield(opi) && ranked.length) {
@@ -13656,7 +13715,7 @@
         const blocked = (e.shieldQuakeFire && (best.c.id === 'earthquake' || best.c.id === 'wildfire'))
                      || (e.shieldFlood && (best.c.id === 'flood' || best.c.id === 'tsunami'))
                      || (e.damageReduceHits > 0);
-        if (blocked && best.c.cost + 1 <= budget) { playCard(pollution.uid); return; }
+        if (blocked && versusCardCost(best.c) + versusCardCost(pollution) <= budget) { playCard(pollution.uid); return; }
       }
       // ② Evacuation proactive (掟⑥, early game only)
       if (!cpu.effects.negateSpecial && G.turnsEach[me] < 4 && cpu.budgetUsed === 0) {
@@ -13674,7 +13733,7 @@
       // ④a テロ＋大型災害(≥40)：確殺でなくても対応を封じる価値が高い
       if (terror && !cpu.effects.terrorNextDisaster && !opp.effects.negateSpecial && ranked.length) {
         const big = ranked[0];
-        if (big.dmg >= 40 && big.c.cost + 1 <= budget) { playCard(terror.uid); return; }
+        if (big.dmg >= 40 && versusCardCost(big.c) + 1 <= budget) { playCard(terror.uid); return; }
       }
       // ⑤ Attack with best disaster (terrain-smart, 掟⑤⑥)
       if (ranked.length && ranked[0].dmg > 0) { playCard(ranked[0].c.uid); return; }
@@ -13700,7 +13759,7 @@
       // ⑩ ローリングストック：他に良い手がない＝手札の質が低い時の最終手段（簡易判断）
       const rs = affordable.find(c => c.effectType === 'recycle_hand');
       if (rs && cpu.hand.length >= 3) { playCard(rs.uid); return; }
-      endTurn();
+      if (!cpuPollutionLast(me)) endTurn();
     }
 
     // 2026-09-24 第2陣（WORKTRACK.md §15 B-2「E. CPU」）：CPU が守備側でイスタンブールを使っていて
@@ -13812,9 +13871,9 @@
       const budget = getBudgetLeft(me);
       const cpu = G.players[me], opp = G.players[opi];
       const cpuHp = cpu.cityHps[cpu.activeCityIdx];
-      if (budget === 0) { endTurn(); return; }
-      const affordable = cpu.hand.filter(c => c.cost <= budget);
-      if (!affordable.length) { endTurn(); return; }
+      if (budget === 0 && VERSUS_POLLUTION_MODE !== 'cost0') { if (!cpuPollutionLast(me)) endTurn(); return; }
+      const affordable = cpu.hand.filter(c => versusCardCost(c) <= budget && cpuPollutionRegular(c, me));
+      if (!affordable.length) { if (!cpuPollutionLast(me)) endTurn(); return; }
       /** @type {Array<() => void>} */
       const options = [];
       const add = (/** @type {any} */ c) => options.push(() => playCard(c.uid));
@@ -13838,7 +13897,7 @@
       const hm = affordable.find(c => c.id === 'hazard_map'); if (hm && cpu.hand.length <= 3) add(hm);
       const rs = affordable.find(c => c.effectType === 'recycle_hand');
       if (rs && cpu.hand.length <= 3 && !ranked.length && cpu.deck.length > 0) add(rs);
-      if (!options.length) { endTurn(); return; }
+      if (!options.length) { if (!cpuPollutionLast(me)) endTurn(); return; }
       _skPickOption(options, SK_MISTAKE_RATE.beginner);
     }
 
@@ -13861,9 +13920,9 @@
       const oppHp = opp.cityHps[opp.activeCityIdx];
       const cpuHp = cpu.cityHps[cpu.activeCityIdx];
       const oppCity = opp.cities[opp.activeCityIdx];
-      if (budget === 0) { endTurn(); return; }
-      const affordable = cpu.hand.filter(c => c.cost <= budget);
-      if (!affordable.length) { endTurn(); return; }
+      if (budget === 0 && VERSUS_POLLUTION_MODE !== 'cost0') { if (!cpuPollutionLast(me)) endTurn(); return; }
+      const affordable = cpu.hand.filter(c => versusCardCost(c) <= budget && cpuPollutionRegular(c, me));
+      if (!affordable.length) { if (!cpuPollutionLast(me)) endTurn(); return; }
       const ranked = affordable.filter(c => c.type === 'disaster')
         .map(c => ({ c, dmg: _cpuEstimateDmg(c, opi, me) })).sort((a, b) => b.dmg - a.dmg);
       // 見誤り：本来の1手の代わりに、攻撃の2番目の候補を出す（攻撃が2つ以上あるときだけ）
@@ -13873,7 +13932,7 @@
       // ① 仕留める
       if (oppHp <= 20) {
         const fin = affordable.filter(c => c.type === 'disaster' && _cpuEstimateDmg(c, opi, me) >= oppHp)
-          .sort((a, b) => a.cost - b.cost)[0];
+          .sort((a, b) => versusCardCost(a) - versusCardCost(b))[0];
         if (fin) { playCard(fin.uid); return; }
       }
       if (ranked.length && ranked[0].dmg >= oppHp) { playCard(ranked[0].c.uid); return; }
@@ -13881,7 +13940,7 @@
       // ①b テロで確殺
       if (terror && !cpu.effects.terrorNextDisaster && !opp.effects.negateSpecial && ranked.length) {
         const big = ranked[0];
-        if (big.c.cost + 1 <= budget && big.dmg >= 30 && big.dmg >= oppHp - 15) { playCard(terror.uid); return; }
+        if (versusCardCost(big.c) + 1 <= budget && big.dmg >= 30 && big.dmg >= oppHp - 15) { playCard(terror.uid); return; }
       }
       // ①c 公害でシールドを剥がしてから撃つ
       if (pollution && _cpuHasShield(opi) && ranked.length) {
@@ -13889,7 +13948,7 @@
         const blocked = (e.shieldQuakeFire && (best.c.id === 'earthquake' || best.c.id === 'wildfire'))
                      || (e.shieldFlood && (best.c.id === 'flood' || best.c.id === 'tsunami'))
                      || (e.damageReduceHits > 0);
-        if (blocked && best.c.cost + 1 <= budget) { playCard(pollution.uid); return; }
+        if (blocked && versusCardCost(best.c) + versusCardCost(pollution) <= budget) { playCard(pollution.uid); return; }
       }
       // ①d 先回りのシールド：手番の最初に、相手の地形に合うものを貼る（HARD は攻撃の後に回す）
       if (oppCity && cpu.budgetUsed === 0) {
@@ -13919,7 +13978,7 @@
       // ④a テロ＋大型災害
       if (terror && !cpu.effects.terrorNextDisaster && !opp.effects.negateSpecial && ranked.length) {
         const big = ranked[0];
-        if (big.dmg >= 40 && big.c.cost + 1 <= budget) { playCard(terror.uid); return; }
+        if (big.dmg >= 40 && versusCardCost(big.c) + 1 <= budget) { playCard(terror.uid); return; }
       }
       // ⑤ 一番ダメージの大きい災害
       if (ranked.length && ranked[0].dmg > 0) { playCard(ranked[0].c.uid); return; }
@@ -13945,7 +14004,7 @@
       // ⑩ ローリングストック（最後の手段）
       const rs = affordable.find(c => c.effectType === 'recycle_hand');
       if (rs && cpu.hand.length >= 3) { playCard(rs.uid); return; }
-      endTurn();
+      if (!cpuPollutionLast(me)) endTurn();
     }
 
     // ───────────────────────────────────────
@@ -14074,7 +14133,7 @@
       self.allCards = countIds(mine.hand.concat(mine.deck, mine.discard));
       return {
         seat: me, oppSeat: opi, turnsEach: G.turnsEach.slice(), activePlayer: G.activePlayer, firstSeat: 0,
-        hand: mine.hand.map(c => ({ id: c.id, uid: c.uid, cost: c.cost, type: c.type, frame: c.frame })),
+        hand: mine.hand.map(c => ({ id: c.id, uid: c.uid, cost: versusCardCost(c), type: c.type, frame: c.frame })),
         self, opp: _skSide(opi), drawn: 0, bonus: 0, winProb: 0,
       };
     }
@@ -14213,14 +14272,14 @@
       const key = cache ? JSON.stringify([view.self.effects, view.hand.map(c => c.id).sort(), budget, view.self.activeCityIdx, view.oppSeat === 0 && view.turnsEach[0] === 0]) : '';
       if (cache) opts = cache.get(key);
       if (!opts) {
-        const ids = ALL_CARDS.filter(c => c.type === 'disaster' && (inf[c.id] || 0) > 0 && c.cost <= budget);
+        const ids = ALL_CARDS.filter(c => c.type === 'disaster' && (inf[c.id] || 0) > 0 && versusCardCost(c) <= budget);
         opts = [];
         for (let i = 0; i < ids.length; i++) {
           const a = /** @type {any} */ (ids[i]);
           opts.push({ dmg: _skSequenceDamage(view, [a]), p: inf[a.id] });
           for (let j = i; j < ids.length; j++) {
             const b = /** @type {any} */ (ids[j]);
-            if (a.cost + b.cost > budget) continue;
+            if (versusCardCost(a) + versusCardCost(b) > budget) continue;
             if (i === j && _skCap(a.id) < 2) continue;
             const dmg = Math.max(_skSequenceDamage(view, [a, b]), _skSequenceDamage(view, [b, a]));
             opts.push({ dmg, p: i === j ? inf[a.id] * inf[a.id] : inf[a.id] * inf[b.id] });
@@ -14299,7 +14358,9 @@
       const nxt = i + 1;
       if (nxt < side.cities.length && side.cityHps[nxt] > 0) {
         const prev = side.effects.receivedTypes;
+        const pollution = { pollutionLurk: side.effects.pollutionLurk, pollutionNoAttack: side.effects.pollutionNoAttack };
         side.activeCityIdx = nxt; side.effects = mkEffects();
+        for (const key of Object.keys(pollution)) if (pollution[key] !== undefined) side.effects[key] = pollution[key];
         if (prev) side.effects.receivedTypes = prev;
         side.budget = _skBudget(side);
       }
@@ -14321,6 +14382,8 @@
       const needAtk = !forOpp && n >= 2 && atkN === 0, needDef = !forOpp && n >= 3 && atkN === n;
       if (d.type === 'disaster') return H.disaster * d.baseDamage * (needAtk ? W.needAtk : 1);
       if (d.type === 'jinzai') {
+        if (id === 'pollution' && VERSUS_POLLUTION_MODE === 'no_attack') return 20;
+        if (id === 'pollution' && VERSUS_POLLUTION_MODE === 'lurk' && !_skHasShield(other.effects)) return other.effects.pollutionLurk ? 0 : H.pollution;
         if (id === 'pollution') return (_skHasShield(other.effects) ? H.pollution : H.pollution * 0.3);
         return id === 'terror' ? H.terror : H.rumor;
       }
@@ -14358,7 +14421,7 @@
       const W = CPU_EXPERT_WEIGHTS;
       let n = 0, cost = 0;
       const all = view.self.allCards || {};
-      for (const id of Object.keys(all)) { const d = _skDef(id); if (d && d.type === 'disaster') { n += all[id]; cost += d.cost * all[id]; } }
+      for (const id of Object.keys(all)) { const d = _skDef(id); if (d && d.type === 'disaster') { n += all[id]; cost += versusCardCost(d) * all[id]; } }
       /** @type {'short' | 'long'} */
       let plan = (n >= W.planLongMinDisasters && cost / n >= W.planLongAvgCost) ? 'long' : 'short';
       const lead = _skHpSum(view.self) - _skHpSum(view.opp);
@@ -14546,6 +14609,8 @@
      * @param {any} v @param {any} d @param {any[]} rest */
     function _skSimJinzai(v, d, rest) {
       if (d.id === 'pollution') {
+        if (VERSUS_POLLUTION_MODE === 'no_attack') { v.opp.effects.pollutionNoAttack = true; v.bonus += 20; return; }
+        if (VERSUS_POLLUTION_MODE === 'lurk' && !_skHasShield(v.opp.effects)) { if (!v.opp.effects.pollutionLurk) v.bonus += CPU_EXPERT_WEIGHTS.hold.pollution; v.opp.effects.pollutionLurk = true; return; }
         let best = null;
         for (const c of rest) { const dd = _skDef(typeof c === 'string' ? (v.hand.find((/** @type {any} */ x) => x.uid === c) || {}).id : c.id); if (dd && dd.type === 'disaster' && (!best || dd.baseDamage > best.baseDamage)) best = dd; }
         const key = _skShieldToBreak(v.opp.effects, best ? best.id : null);
@@ -14565,6 +14630,7 @@
     /** 自分の政策カード d を写しに当てる @param {any} v @param {any} d */
     function _skSimPolicy(v, d) {
       const s = v.self, e = s.effects;
+      if (e.pollutionLurk && versusPollutionShield(d)) { e.pollutionLurk = false; return; }
       switch (d.effectType) {
         case 'shield_quake_fire': e.shieldQuakeFire = true; break;
         case 'shield_flood': e.shieldFlood = true; break;
@@ -14588,8 +14654,8 @@
         if (_skDead(v.opp)) break;
         const idx = v.hand.findIndex((/** @type {any} */ c) => c.uid === uids[i]); if (idx < 0) continue;
         const card = v.hand[idx];
-        if (card.cost > v.self.budget - v.self.budgetUsed) continue;
-        v.hand.splice(idx, 1); v.self.budgetUsed += card.cost; v.self.discardCount++; v.self.used.push(card.id);
+        if (versusCardCost(card) > v.self.budget - v.self.budgetUsed) continue;
+        v.hand.splice(idx, 1); v.self.budgetUsed += versusCardCost(card); v.self.discardCount++; v.self.used.push(card.id);
         const d = _skDef(card.id); if (!d) continue;
         if (d.type === 'policy') _skSimPolicy(v, d);
         else if (d.type === 'jinzai') _skSimJinzai(v, d, uids.slice(i + 1));
@@ -14634,7 +14700,7 @@
       };
       /** @type {Map<string, any[]>} */
       const groups = new Map();
-      for (const c of view.hand) { if (c.cost > left) continue; if (!groups.has(c.id)) groups.set(c.id, []); /** @type {any[]} */ (groups.get(c.id)).push(c); }
+      for (const c of view.hand) { if (versusCardCost(c) > left || (view.self.effects.pollutionNoAttack && c.type === 'disaster') || (c.id === 'pollution' && (VERSUS_POLLUTION_MODE === 'no_attack' || (VERSUS_POLLUTION_MODE === 'lurk' && !_skHasShield(view.opp.effects))))) continue; if (!groups.has(c.id)) groups.set(c.id, []); /** @type {any[]} */ (groups.get(c.id)).push(c); }
       const gs = [...groups.values()].sort((a, b) => rank(a[0]) - rank(b[0]) || (a[0].id < b[0].id ? -1 : 1));
       /** @type {string[][]} */
       const out = [];
@@ -14649,8 +14715,8 @@
         }
         const g = gs[gi];
         for (let n = 0; n <= g.length; n++) {
-          if (cost + n * g[0].cost > left) break;
-          rec(gi + 1, chosen.concat(g.slice(0, n)), cost + n * g[0].cost);
+          if (cost + n * versusCardCost(g[0]) > left) break;
+          rec(gi + 1, chosen.concat(g.slice(0, n)), cost + n * versusCardCost(g[0]));
         }
       };
       rec(0, [], 0);
@@ -14683,9 +14749,9 @@
      * @param {number} me */
     function skExpertMain(me) {
       const left = getBudgetLeft(me);
-      if (left <= 0 || !G.players[me].hand.some(c => c.cost <= left)) { endTurn(); return; }
+      if ((left <= 0 && VERSUS_POLLUTION_MODE !== 'cost0') || !G.players[me].hand.some(c => versusCardCost(c) <= left)) { if (!cpuPollutionLast(me)) endTurn(); return; }
       const b = skExpertChoose(me);
-      if (!b.uids.length) { endTurn(); return; }
+      if (!b.uids.length) { if (!cpuPollutionLast(me)) endTurn(); return; }
       playCard(b.uids[0]);
     }
 
@@ -23405,7 +23471,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = 'f043201';
+    const BUILD_ID = 'e4af8d6';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -23540,7 +23606,7 @@
      * @param {number} pi @returns {string[]} */
     function plPlayableIds(pi) {
       const left = getBudgetLeft(pi);
-      return G.players[pi].hand.filter(c => left >= c.cost).map(c => c.id);
+      return G.players[pi].hand.filter(c => left >= versusCardCost(c) && !versusPollutionBlocks(c, pi)).map(c => c.id);
     }
 
     // ═══════════════════════════════════════
@@ -23728,6 +23794,7 @@
         effects: _plClone(G.players.map((/** @type {any} */ p) => p.effects)),
       };
       if (plMine(pi)) d.hand = plHand(G.players[pi].hand);
+      if (G.players[pi].effects.pollutionNoAttack && plMine(pi)) d.pollution = { mode: VERSUS_POLLUTION_MODE, disasters: G.players[pi].hand.filter(c => c.type === 'disaster').length };
       plEvent('turnStart', d);
       plCaptureTurnBoard();
     }
@@ -23756,7 +23823,7 @@
     function plPolicyIds(pi) { return G.players[pi].hand.filter((/** @type {any} */ c) => c.type === 'policy').map((/** @type {any} */ c) => c.id); }
     /** 対応の決定（card が null なら使わなかった）
      * @param {number} pi @param {{id: string, uid?: string} | null} card @param {{id: string}} atkCard */
-    function plRespond(pi, card, atkCard) { plEvent('respond', { pi, ...(VERSUS_TYPHOON_MODE !== 'steal' && card ? { uid: card.uid } : {}), card: card ? card.id : null, options: plPolicyIds(pi), attack: atkCard.id }); }
+    function plRespond(pi, card, atkCard) { plEvent('respond', { pollutionMode: VERSUS_POLLUTION_MODE, pi, ...(VERSUS_TYPHOON_MODE !== 'steal' && card ? { uid: card.uid } : {}), card: card ? card.id : null, options: plPolicyIds(pi), attack: atkCard.id }); }
 
     // ═══════════════════════════════════════
     // 送信・保存・一言
