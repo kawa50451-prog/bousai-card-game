@@ -23405,7 +23405,7 @@
     // 記録に入れるのはカードの id と数値だけ。表示名（players[].name）は入れない。
     // ═══════════════════════════════════════
     // ビルド時に build.mjs が git rev-parse --short HEAD の結果へ差し替える（取得できなければ 'unknown'）。
-    const BUILD_ID = '6d087a6';
+    const BUILD_ID = 'f043201';
     // 版 2（開発者モード第2段a）：記録本体と meta に opponent（相手の CPU のデッキの型と打ち方）と seed（乱数の種）を足した。最初の手番にも turnStart を記録する。
     const PLAYLOG_VERSION = 3;
     const PL_KEY_PENDING = 'ron_playlog_pending';
@@ -23584,6 +23584,8 @@
     function plStartOnlineGuest() {
       const logging = devLoggingOn();
       if ((!logging && !devHostRecAllowed()) || !roomId || myRole === 'spectator' || isCpuMode) return Promise.resolve();
+      // p1 の都市順から p2 のガチャへ戻ると再び呼ばれる。同じ記録と受信待ちを維持する。
+      if (_plCur && _plCur.mode === 'online' && _plCur.room === roomId && _plCur.seat === myRole) return Promise.resolve();
       _plStopGuest();
       _plDrew = []; _plDeckOpenAt = 0; _plGachaCands = null; _plDevPick = false; _plRecycleEv = null;
       const rid = roomId, seat = myRole === 'p2' ? 'p2' : 'p1';
